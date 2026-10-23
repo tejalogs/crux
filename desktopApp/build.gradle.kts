@@ -66,7 +66,6 @@ dependencies {
         exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-test")
     }
     implementation(libs.systemColor)
-    implementation(libs.sentry)
     implementation(libs.richtext.ui)
     implementation(libs.richtext.commonmark)
 

@@ -205,12 +205,16 @@ internal class VVOService private constructor(
         }
 
     suspend fun emojis(): EmojiData =
-        httpClientFactory {
-            install(ContentNegotiation) {
-                nullableFallbackJson(JSON)
-            }
-        }.get("https://flareapp.moe/emoji.json")
-            .body()
+        runCatching {
+            httpClientFactory {
+                install(ContentNegotiation) {
+                    nullableFallbackJson(JSON)
+                }
+            }.get("https://flareapp.moe/emoji.json")
+                .body<EmojiData>()
+        }.getOrElse {
+            EmojiData()
+        }
 
     private suspend fun delayConfigLoginRetry() {
         if (configLoginRetryDelay > Duration.ZERO) {

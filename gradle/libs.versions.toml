@@ -36,7 +36,6 @@ prettytime = "5.0.9.Final"
 readability = "1.0.0"
 reorderable = "3.1.0"
 richtextUiMaterial3 = "1.0.0-alpha05"
-sentry = "8.60.0"
 twitter-parser = "0.5.11"
 molecule = "2.2.0"
 accompanist = "0.37.3"
@@ -99,7 +98,6 @@ nucleus-aot-runtime = { module = "io.github.kdroidfilter:nucleus.aot-runtime", v
 nucleus-darkmode-detector = { module = "io.github.kdroidfilter:nucleus.darkmode-detector", version.ref = "nucleus" }
 nucleus-decorated-window = { module = "io.github.kdroidfilter:nucleus.decorated-window-jni", version.ref = "nucleus" }
 readability = { module = "moe.tlaster:readability", version.ref = "readability" }
-sentry = { module = "io.sentry:sentry", version.ref = "sentry" }
 systemColor = { module = "io.github.kdroidfilter:nucleus.system-color", version.ref = "nucleus" }
 prettytime = { module = "org.ocpsoft.prettytime:prettytime", version.ref = "prettytime" }
 reorderable = { module = "sh.calvin.reorderable:reorderable", version.ref = "reorderable" }

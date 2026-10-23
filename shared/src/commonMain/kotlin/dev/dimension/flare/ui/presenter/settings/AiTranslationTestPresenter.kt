@@ -117,11 +117,11 @@ private fun aiTranslationTestSampleText(): UiRichText =
                     runs =
                         persistentListOf(
                             RenderRun.Text("Hello "),
-                            RenderRun.Text("@alice", style = RenderTextStyle(link = "https://flareapp.moe")),
+                            RenderRun.Text("@alice", style = RenderTextStyle(link = "https://example.com")),
                             RenderRun.Text(" and welcome to "),
-                            RenderRun.Text("#Flare", style = RenderTextStyle(link = "https://flareapp.moe")),
+                            RenderRun.Text("#SocialHub", style = RenderTextStyle(link = "https://example.com")),
                             RenderRun.Text(". Check "),
-                            RenderRun.Text("https://flareapp.moe", style = RenderTextStyle(link = "https://flareapp.moe")),
+                            RenderRun.Text("https://example.com", style = RenderTextStyle(link = "https://example.com")),
                         ),
                 ),
             ),
