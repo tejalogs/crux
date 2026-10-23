@@ -67,7 +67,7 @@ fun main(args: Array<String>) {
             start()
         }
     } else {
-        BuildConfig.dsn?.let { dsn ->
+        BuildConfig.dsn?.takeIf { it.isNotBlank() }?.let { dsn ->
             Sentry.init { options ->
                 options.dsn = dsn
                 options.release = "${BuildConfig.versionName} (${BuildConfig.versionCode})"

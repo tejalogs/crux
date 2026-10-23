@@ -14,7 +14,7 @@ import org.koin.core.annotation.Single
 
 @Single
 internal class AppDataStore(
-    private val fileStorage: FileStorage,
+    internal val fileStorage: FileStorage,
 ) {
     val flareDataStore: DataStore<FlareConfig> by lazy {
         createDataStore(

@@ -15,6 +15,7 @@ import dev.dimension.flare.data.database.cache.CacheDatabase
 import dev.dimension.flare.data.database.cache.connect
 import dev.dimension.flare.data.datasource.microblog.MicroblogDataSource
 import dev.dimension.flare.data.datastore.AppDataStore
+import dev.dimension.flare.data.security.CredentialCipher
 import dev.dimension.flare.model.AccountType
 import dev.dimension.flare.model.MicroBlogKey
 import dev.dimension.flare.model.PlatformCapability
@@ -57,6 +58,10 @@ internal class AccountRepository internal constructor(
     private val cacheDatabase: CacheDatabase,
     @Provided internal val platformRegistry: PlatformRegistry,
 ) {
+    private val credentialCipher: CredentialCipher by lazy {
+        CredentialCipher(appDataStore.fileStorage)
+    }
+
     internal val activeAccount: Flow<UiState<UiAccount>> by lazy {
         combine(
             appDatabase.accountDao().activeAccount(platformRegistry.all.map { it.platformId }),
@@ -131,14 +136,15 @@ internal class AccountRepository internal constructor(
     ) = coroutineScope.launch {
         val existingAccount = appDatabase.accountDao().getAccount(account.accountKey)
         val credentialJson = credential.encodeJson(serializer)
+        val encryptedCredential = credentialCipher.encrypt(credentialJson)
         val dbAccount =
             existingAccount?.copy(
-                credential_json = credentialJson,
+                credential_json = encryptedCredential,
                 last_active = Clock.System.now().toEpochMilliseconds(),
             ) ?: DbAccount(
                 account_key = account.accountKey,
                 platformId = account.platformId,
-                credential_json = credentialJson,
+                credential_json = encryptedCredential,
                 last_active = Clock.System.now().toEpochMilliseconds(),
                 sort_id = appDatabase.accountDao().getMaxSortId()?.plus(1) ?: 0L,
             )
@@ -160,9 +166,11 @@ internal class AccountRepository internal constructor(
         credential: T,
         serializer: KSerializer<T>,
     ) = coroutineScope.launch {
+        val credentialJson = credential.encodeJson(serializer)
+        val encryptedCredential = credentialCipher.encrypt(credentialJson)
         appDatabase.accountDao().setCredential(
             accountKey,
-            credential.encodeJson(serializer),
+            encryptedCredential,
         )
     }
 
@@ -254,7 +262,8 @@ internal class AccountRepository internal constructor(
             .get(accountKey)
             .mapNotNull { it }
             .map {
-                it.credential_json.decodeJson(serializer)
+                val decrypted = credentialCipher.decrypt(it.credential_json)
+                decrypted.decodeJson(serializer)
             }
 
     internal suspend fun getOrCreateDataSource(account: UiAccount): MicroblogDataSource {
@@ -272,13 +281,28 @@ internal class AccountRepository internal constructor(
         val dbAccount =
             appDatabase.accountDao().getAccount(account.accountKey)
                 ?: throw NoSuchElementException("Account not found: ${account.accountKey}")
+
+        val decrypted = credentialCipher.decrypt(dbAccount.credential_json)
+
+        // Transparent auto-upgrade: encrypt in-place if stored credentials were plain unencrypted JSON
+        if (!credentialCipher.isEncrypted(dbAccount.credential_json) && dbAccount.credential_json.isNotBlank()) {
+            coroutineScope.launch {
+                try {
+                    appDatabase.accountDao().setCredential(
+                        dbAccount.account_key,
+                        credentialCipher.encrypt(dbAccount.credential_json),
+                    )
+                } catch (_: Throwable) {}
+            }
+        }
+
         val dataSource =
             platformRegistry
                 .require(account.platformId)
                 .createDataSource(
                     RepositoryPlatformDataSourceContext(
                         accountKey = account.accountKey,
-                        credentialJson = dbAccount.credential_json,
+                        credentialJson = decrypted,
                     ),
                 )
 
