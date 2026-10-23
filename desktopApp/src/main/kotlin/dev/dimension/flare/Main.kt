@@ -41,7 +41,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import org.apache.commons.lang3.SystemUtils
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -92,8 +91,8 @@ fun main(args: Array<String>) {
     val koinApplication = startKoin<DesktopKoinApplication>()
     // Prime the privacy policy before any network client can issue a request.
     koinApplication.koin.get<PrivacySettingsRepository>().let { repository ->
-        runBlocking { repository.loadOnce() }
         CoroutineScope(Dispatchers.IO).launch {
+            repository.loadOnce()
             repository.observe()
         }
     }

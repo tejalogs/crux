@@ -21,7 +21,6 @@ import dev.dimension.flare.di.AndroidKoinApplication
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.component.get
 import org.koin.plugin.module.dsl.startKoin
@@ -39,8 +38,8 @@ class App :
         // pipeline reads this synchronously, so leaving it at defaults would let a blocked host
         // through during the first moments after launch.
         koinApplication.koin.get<PrivacySettingsRepository>().let { repository ->
-            runBlocking { repository.loadOnce() }
             CoroutineScope(Dispatchers.IO).launch {
+                repository.loadOnce()
                 repository.observe()
             }
         }
