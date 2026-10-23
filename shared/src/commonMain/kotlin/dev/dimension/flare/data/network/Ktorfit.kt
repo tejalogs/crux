@@ -5,6 +5,7 @@ import de.jensklingenberg.ktorfit.converter.Converter
 import de.jensklingenberg.ktorfit.converter.ResponseConverterFactory
 import dev.dimension.flare.common.BuildConfig
 import dev.dimension.flare.common.JSON
+import dev.dimension.flare.data.privacy.installPrivacy
 import dev.dimension.flare.data.repository.DebugRepository
 import io.ktor.client.HttpClient
 import io.ktor.client.HttpClientConfig
@@ -51,6 +52,9 @@ public fun ktorClient(
 ): HttpClient =
     HttpClient(httpClientEngine) {
         config.invoke(this)
+        // Installed after the caller's config so privacy policy is the last word on the wire,
+        // regardless of what a network-specific plugin appended earlier.
+        installPrivacy()
         install(Logging) {
             logger = FlareLogger
             filter {

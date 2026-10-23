@@ -42,12 +42,15 @@ public fun NetworkImage(
     val platformContext = LocalPlatformContext.current
     val placeholderColor = PlatformTheme.colorScheme.outline
     val allowHardware = LocalNetworkImageAllowHardware.current
+    // Lite mode: drop the model entirely so the fetch never happens. Rendering the placeholder
+    // keeps layout stable, which matters because hiding the element instead would collapse rows.
+    val effectiveModel = if (rememberImagesEnabled()) model else null
     AsyncImage(
         model =
-            remember(model, platformContext, customHeaders, allowHardware) {
+            remember(effectiveModel, platformContext, customHeaders, allowHardware) {
                 ImageRequest
                     .Builder(platformContext)
-                    .data(model)
+                    .data(effectiveModel)
                     .crossfade(allowHardware)
                     .let {
                         if (customHeaders != null) {
@@ -64,8 +67,8 @@ public fun NetworkImage(
                             it
                         }
                     }.let {
-                        if (model is String) {
-                            it.memoryCacheKey(model)
+                        if (effectiveModel is String) {
+                            it.memoryCacheKey(effectiveModel)
                         } else {
                             it
                         }

@@ -133,6 +133,46 @@ internal fun AppearanceLayoutScreen(
                 )
                 SegmentedListItem(
                     onClick = {
+                        state.update(AppearanceKeys.HapticsEnabled, !globalAppearance.hapticsEnabled)
+                    },
+                    shapes = ListItemDefaults.item(),
+                    content = {
+                        Text(text = stringResource(id = R.string.settings_appearance_haptics))
+                    },
+                    supportingContent = {
+                        Text(text = stringResource(id = R.string.settings_appearance_haptics_description))
+                    },
+                    trailingContent = {
+                        Switch(
+                            checked = globalAppearance.hapticsEnabled,
+                            onCheckedChange = {
+                                state.update(AppearanceKeys.HapticsEnabled, it)
+                            },
+                        )
+                    },
+                )
+                SegmentedListItem(
+                    onClick = {
+                        state.update(AppearanceKeys.SwipeToActEnabled, !globalAppearance.swipeToActEnabled)
+                    },
+                    shapes = ListItemDefaults.item(),
+                    content = {
+                        Text(text = stringResource(id = R.string.settings_appearance_swipe_to_act))
+                    },
+                    supportingContent = {
+                        Text(text = stringResource(id = R.string.settings_appearance_swipe_to_act_description))
+                    },
+                    trailingContent = {
+                        Switch(
+                            checked = globalAppearance.swipeToActEnabled,
+                            onCheckedChange = {
+                                state.update(AppearanceKeys.SwipeToActEnabled, it)
+                            },
+                        )
+                    },
+                )
+                SegmentedListItem(
+                    onClick = {
                         state.update(AppearanceKeys.DeckMode, !globalAppearance.deckMode)
                     },
                     shapes = ListItemDefaults.item(),

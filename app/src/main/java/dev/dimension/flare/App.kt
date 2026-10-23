@@ -2,6 +2,7 @@ package dev.dimension.flare
 
 import android.app.Application
 import android.os.Build
+import android.webkit.WebView
 import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
@@ -15,8 +16,14 @@ import coil3.video.VideoFrameDecoder
 import dev.dimension.flare.common.AnimatedPngDecoder
 import dev.dimension.flare.common.AnimatedWebPDecoder
 import dev.dimension.flare.data.network.ktorClient
+import dev.dimension.flare.data.privacy.PrivacySettingsRepository
 import dev.dimension.flare.di.AndroidKoinApplication
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import org.koin.android.ext.koin.androidContext
+import org.koin.core.component.get
 import org.koin.plugin.module.dsl.startKoin
 
 class App :
@@ -24,8 +31,18 @@ class App :
     SingletonImageLoader.Factory {
     override fun onCreate() {
         super.onCreate()
-        startKoin<AndroidKoinApplication> {
+        WebView.setDataDirectorySuffix("flarebrowser")
+        val koinApplication = startKoin<AndroidKoinApplication> {
             androidContext(this@App)
+        }
+        // Prime the privacy policy before any network client can issue a request. The HTTP
+        // pipeline reads this synchronously, so leaving it at defaults would let a blocked host
+        // through during the first moments after launch.
+        koinApplication.koin.get<PrivacySettingsRepository>().let { repository ->
+            runBlocking { repository.loadOnce() }
+            CoroutineScope(Dispatchers.IO).launch {
+                repository.observe()
+            }
         }
     }
 

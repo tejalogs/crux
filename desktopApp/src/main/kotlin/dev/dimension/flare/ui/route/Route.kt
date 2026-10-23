@@ -74,6 +74,10 @@ internal sealed interface Route : NavKey {
 
     data object AppLogging : ScreenRoute
 
+    data object PrivacyTrafficLog : ScreenRoute
+
+    data object PrivacyBlocklist : ScreenRoute
+
     data class AllLists(
         val accountType: AccountType,
     ) : ScreenRoute

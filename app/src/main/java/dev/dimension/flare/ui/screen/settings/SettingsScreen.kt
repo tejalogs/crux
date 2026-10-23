@@ -30,7 +30,9 @@ import compose.icons.fontawesomeicons.solid.CircleUser
 import compose.icons.fontawesomeicons.solid.Database
 import compose.icons.fontawesomeicons.solid.Filter
 import compose.icons.fontawesomeicons.solid.Gear
+import compose.icons.fontawesomeicons.solid.Globe
 import compose.icons.fontawesomeicons.solid.Language
+import compose.icons.fontawesomeicons.solid.Lock
 import compose.icons.fontawesomeicons.solid.Newspaper
 import compose.icons.fontawesomeicons.solid.Palette
 import compose.icons.fontawesomeicons.solid.PhotoFilm
@@ -86,6 +88,8 @@ internal fun SettingsScreen(
     toAppearanceDisplay: () -> Unit,
     toAppearanceMedia: () -> Unit,
     toBehavior: () -> Unit,
+    toHardenedBrowser: () -> Unit,
+    toPrivacy: () -> Unit,
     toStorage: () -> Unit,
     toAbout: () -> Unit,
     toColorSpace: () -> Unit,
@@ -263,6 +267,46 @@ internal fun SettingsScreen(
                 },
                 supportingContent = {
                     Text(text = stringResource(id = R.string.settings_behavior_description))
+                },
+            )
+
+            SegmentedListItem(
+                onClick = {
+                    toHardenedBrowser.invoke()
+                },
+                shapes = ListItemDefaults.single(),
+                content = {
+                    Text(text = stringResource(id = R.string.settings_hardened_browser_title))
+                },
+                leadingContent = {
+                    ThemedIcon(
+                        imageVector = FontAwesomeIcons.Solid.Globe,
+                        contentDescription = stringResource(id = R.string.settings_hardened_browser_title),
+                        color = ThemeIconData.Color.SapphireBlue,
+                    )
+                },
+                supportingContent = {
+                    Text(text = stringResource(id = R.string.settings_hardened_browser_description))
+                },
+            )
+
+            SegmentedListItem(
+                onClick = {
+                    toPrivacy.invoke()
+                },
+                shapes = ListItemDefaults.single(),
+                content = {
+                    Text(text = stringResource(id = R.string.settings_privacy_title))
+                },
+                leadingContent = {
+                    ThemedIcon(
+                        imageVector = FontAwesomeIcons.Solid.Lock,
+                        contentDescription = stringResource(id = R.string.settings_privacy_title),
+                        color = ThemeIconData.Color.SapphireBlue,
+                    )
+                },
+                supportingContent = {
+                    Text(text = stringResource(id = R.string.settings_privacy_traffic_log_open_description))
                 },
             )
 

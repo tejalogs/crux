@@ -5,6 +5,7 @@ import dev.dimension.flare.data.datasource.microblog.PostActionLayoutConfig
 import dev.dimension.flare.data.model.AvatarShape
 import dev.dimension.flare.data.model.BottomBarBehavior
 import dev.dimension.flare.data.model.BottomBarStyle
+import dev.dimension.flare.data.model.LiteMode
 import dev.dimension.flare.data.model.PostActionStyle
 import dev.dimension.flare.data.model.Theme
 import dev.dimension.flare.data.model.TimelineDisplayMode
@@ -24,6 +25,9 @@ public data class GlobalAppearance(
     val inAppBrowser: Boolean = AppearanceKeys.InAppBrowser.default,
     val showComposeInHomeTimeline: Boolean = AppearanceKeys.ShowComposeInHomeTimeline.default,
     val showBottomBarLabels: Boolean = AppearanceKeys.ShowBottomBarLabels.default,
+    val hapticsEnabled: Boolean = AppearanceKeys.HapticsEnabled.default,
+    val swipeToActEnabled: Boolean = AppearanceKeys.SwipeToActEnabled.default,
+    val liteMode: LiteMode = AppearanceKeys.LiteMode.default,
     val deckMode: Boolean = AppearanceKeys.DeckMode.default,
     val showPostInMediaViewer: Boolean = AppearanceKeys.ShowPostInMediaViewer.default,
 ) {
@@ -82,6 +86,9 @@ public fun AppearancePatch.toGlobalAppearance(): GlobalAppearance =
         inAppBrowser = get(AppearanceKeys.InAppBrowser),
         showComposeInHomeTimeline = get(AppearanceKeys.ShowComposeInHomeTimeline),
         showBottomBarLabels = get(AppearanceKeys.ShowBottomBarLabels),
+        hapticsEnabled = get(AppearanceKeys.HapticsEnabled),
+        swipeToActEnabled = get(AppearanceKeys.SwipeToActEnabled),
+        liteMode = get(AppearanceKeys.LiteMode),
         deckMode = get(AppearanceKeys.DeckMode),
         showPostInMediaViewer = get(AppearanceKeys.ShowPostInMediaViewer),
     )

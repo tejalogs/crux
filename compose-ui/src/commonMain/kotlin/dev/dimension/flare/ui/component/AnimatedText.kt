@@ -9,6 +9,11 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextLayoutResult
@@ -22,6 +27,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.TextUnit
 import dev.dimension.flare.ui.component.platform.PlatformText
 import dev.dimension.flare.ui.component.platform.PlatformTextStyle
+import dev.dimension.flare.ui.haptic.counterMilestoneEvent
+import dev.dimension.flare.ui.haptic.rememberFlareHapticFeedback
 import dev.dimension.flare.ui.model.UiNumber
 import kotlinx.collections.immutable.ImmutableMap
 import kotlinx.collections.immutable.persistentMapOf
@@ -46,7 +53,19 @@ internal fun AnimatedNumber(
     inlineContent: ImmutableMap<String, InlineTextContent> = persistentMapOf(),
     onTextLayout: (TextLayoutResult) -> Unit = {},
     style: TextStyle = PlatformTextStyle.current,
+    hapticFeedback: Boolean = LocalGlobalAppearance.current.hapticsEnabled,
 ) {
+    // Milestone feedback compares against the value this composable last committed, so a fast
+    // stream of updates coalesces into at most one tick per rendered change.
+    var lastValue by remember(number) { mutableStateOf(number.value) }
+    val haptics = rememberFlareHapticFeedback(hapticFeedback)
+    LaunchedEffect(number.value, hapticFeedback) {
+        val previous = lastValue
+        if (previous != number.value) {
+            counterMilestoneEvent(previous, number.value, hapticFeedback)?.let(haptics::perform)
+            lastValue = number.value
+        }
+    }
     AnimatedContent(
         modifier = modifier,
         targetState = number,

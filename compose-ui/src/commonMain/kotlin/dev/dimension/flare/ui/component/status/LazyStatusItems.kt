@@ -73,33 +73,14 @@ public fun LazyStaggeredGridScope.status(
                         index = index,
                         totalCount = itemCount,
                         respectTimelineMode = true,
-                        content = {
+                    ) {
+                        SwipeToActPost(item = item) {
                             StatusItem(
                                 item,
                                 detailStatusKey = detailStatusKey,
-//                        modifier =
-//                        Modifier
-//                            .let {
-//                                if (item != null) {
-//                                    it.sharedBounds(
-//                                        rememberSharedContentState(key = item.itemKey),
-//                                        animatedVisibilityScope = this@AnimatedVisibilityScope,
-//                                        // ANY transition will lead to the entire screen being animated to
-//                                        // exit state after list -> detail -> go back -> scroll a little bit,
-//                                        // I have no idea why, so just use None here
-//                                        enter = EnterTransition.None,
-//                                        exit = ExitTransition.None,
-//                                        renderInOverlayDuringTransition = false,
-//                                        placeHolderSize = SharedTransitionScope.PlaceHolderSize.animatedSize,
-//                                    )
-//                                } else {
-//                                    it
-//                                }
-//                            }
-//                            .background(MaterialTheme.colorScheme.background),
                             )
-                        },
-                    )
+                        }
+                    }
                 }
             }
             appendStateUI(this@onSuccess)

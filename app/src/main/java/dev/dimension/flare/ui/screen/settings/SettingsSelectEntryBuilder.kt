@@ -41,6 +41,12 @@ internal fun EntryProviderScope<NavKey>.settingsSelectEntryBuilder(
             toBehavior = {
                 navigate(Route.Settings.Behavior)
             },
+            toHardenedBrowser = {
+                navigate(Route.Settings.HardenedBrowser)
+            },
+            toPrivacy = {
+                navigate(Route.Settings.Privacy)
+            },
             toStorage = {
                 navigate(Route.Settings.Storage)
             },
@@ -149,6 +155,38 @@ internal fun EntryProviderScope<NavKey>.settingsSelectEntryBuilder(
             },
             onBack = onBack,
         )
+    }
+
+    entry<Route.Settings.Privacy>(
+        metadata = ListDetailSceneStrategy.detailPane(
+            sceneKey = "Settings"
+        )
+    ) {
+        PrivacySettingsScreen(
+            toTrafficLog = {
+                navigate(Route.Settings.PrivacyTrafficLog)
+            },
+            toBlocklist = {
+                navigate(Route.Settings.PrivacyBlocklist)
+            },
+            onBack = onBack,
+        )
+    }
+
+    entry<Route.Settings.PrivacyTrafficLog>(
+        metadata = ListDetailSceneStrategy.detailPane(
+            sceneKey = "Settings"
+        )
+    ) {
+        PrivacyTrafficLogScreen(onBack = onBack)
+    }
+
+    entry<Route.Settings.PrivacyBlocklist>(
+        metadata = ListDetailSceneStrategy.detailPane(
+            sceneKey = "Settings"
+        )
+    ) {
+        PrivacyBlocklistScreen(onBack = onBack)
     }
 
     entry<Route.Settings.LinkOpenDefaults>(
@@ -305,6 +343,16 @@ internal fun EntryProviderScope<NavKey>.settingsSelectEntryBuilder(
         )
     ) { args ->
         ColorSpaceScreen(
+            onBack = onBack
+        )
+    }
+
+    entry<Route.Settings.HardenedBrowser>(
+        metadata = ListDetailSceneStrategy.detailPane(
+            sceneKey = "Settings"
+        )
+    ) {
+        HardenedBrowserScreen(
             onBack = onBack
         )
     }

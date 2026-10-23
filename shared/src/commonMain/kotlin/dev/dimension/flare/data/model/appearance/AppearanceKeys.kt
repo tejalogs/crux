@@ -51,6 +51,16 @@ public object AppearanceKeys {
 
     public object ShowBottomBarLabels : Global<Boolean>("app.show_bottom_bar_labels", false, Boolean.serializer())
 
+    public object HapticsEnabled : Global<Boolean>("app.haptics_enabled", true, Boolean.serializer())
+
+    public object SwipeToActEnabled : Global<Boolean>("app.swipe_to_act_enabled", false, Boolean.serializer())
+
+    public object LiteMode : Global<dev.dimension.flare.data.model.LiteMode>(
+        "app.lite_mode",
+        dev.dimension.flare.data.model.LiteMode.OFF,
+        dev.dimension.flare.data.model.LiteMode.serializer(),
+    )
+
     public object DeckMode : Global<Boolean>("app.deck_mode", false, Boolean.serializer())
 
     public object ShowMedia : PerTimeline<Boolean>("timeline.show_media", true, Boolean.serializer())
@@ -133,6 +143,9 @@ public object AppearanceKeys {
             InAppBrowser,
             ShowComposeInHomeTimeline,
             ShowBottomBarLabels,
+            HapticsEnabled,
+            SwipeToActEnabled,
+            LiteMode,
             DeckMode,
             ShowMedia,
             ShowPostInMediaViewer,

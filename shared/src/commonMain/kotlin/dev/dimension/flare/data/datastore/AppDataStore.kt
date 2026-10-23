@@ -8,6 +8,7 @@ import dev.dimension.flare.data.datastore.model.AppSettings
 import dev.dimension.flare.data.datastore.model.ComposeConfigData
 import dev.dimension.flare.data.datastore.model.FlareConfig
 import dev.dimension.flare.data.datastore.model.PlatformOAuthPendingData
+import dev.dimension.flare.data.datastore.model.PrivacySettingsData
 import dev.dimension.flare.data.io.FileStorage
 import org.koin.core.annotation.Single
 
@@ -40,6 +41,13 @@ internal class AppDataStore(
         createDataStore(
             name = "platform_oauth_pending_v2.pb",
             serializer = protobufSerializer(PlatformOAuthPendingData()),
+        )
+    }
+
+    val privacySettingsStore: DataStore<PrivacySettingsData> by lazy {
+        createDataStore(
+            name = "privacy_settings.pb",
+            serializer = protobufSerializer(PrivacySettingsData()),
         )
     }
 

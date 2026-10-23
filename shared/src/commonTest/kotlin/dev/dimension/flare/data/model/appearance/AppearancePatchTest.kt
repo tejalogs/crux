@@ -215,6 +215,9 @@ class AppearancePatchTest {
                 AppearanceKeys.ShowEmojiReactions,
                 AppearanceKeys.PostActionLayout,
                 AppearanceKeys.PostActionFixedWidth,
+                AppearanceKeys.HapticsEnabled,
+                AppearanceKeys.SwipeToActEnabled,
+                AppearanceKeys.LiteMode,
             )
         val activeFields =
             AppearanceSettings

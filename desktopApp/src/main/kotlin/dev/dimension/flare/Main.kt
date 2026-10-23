@@ -24,6 +24,7 @@ import coil3.network.ktor3.KtorNetworkFetcherFactory
 import coil3.request.crossfade
 import dev.dimension.flare.common.DeeplinkHandler
 import dev.dimension.flare.data.network.ktorClient
+import dev.dimension.flare.data.privacy.PrivacySettingsRepository
 import dev.dimension.flare.di.DesktopKoinApplication
 import dev.dimension.flare.ui.component.PlatformTitleBar
 import dev.dimension.flare.ui.component.PlatformWindow
@@ -36,10 +37,15 @@ import io.github.kdroidfilter.nucleus.aot.runtime.AotRuntime
 import io.github.kdroidfilter.nucleus.core.runtime.DeepLinkHandler
 import io.github.kdroidfilter.nucleus.core.runtime.SingleInstanceManager
 import io.sentry.Sentry
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import org.apache.commons.lang3.SystemUtils
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import org.koin.core.component.get
 import org.koin.plugin.module.dsl.startKoin
 import kotlin.system.exitProcess
 import kotlin.time.Duration.Companion.seconds
@@ -83,7 +89,14 @@ fun main(args: Array<String>) {
     if (!isFirstInstance) {
         return
     }
-    startKoin<DesktopKoinApplication>()
+    val koinApplication = startKoin<DesktopKoinApplication>()
+    // Prime the privacy policy before any network client can issue a request.
+    koinApplication.koin.get<PrivacySettingsRepository>().let { repository ->
+        runBlocking { repository.loadOnce() }
+        CoroutineScope(Dispatchers.IO).launch {
+            repository.observe()
+        }
+    }
     application {
         setSingletonImageLoaderFactory { context ->
             ImageLoader

@@ -97,6 +97,8 @@ import dev.dimension.flare.ui.screen.settings.LocalCacheScreen
 import dev.dimension.flare.ui.screen.settings.LocalHistoryAgentScreen
 import dev.dimension.flare.ui.screen.settings.NostrRelaysScreen
 import dev.dimension.flare.ui.screen.settings.PostActionLayoutScreen
+import dev.dimension.flare.ui.screen.settings.PrivacyBlocklistScreen
+import dev.dimension.flare.ui.screen.settings.PrivacyTrafficLogScreen
 import dev.dimension.flare.ui.screen.settings.SettingsScreen
 import dev.dimension.flare.ui.screen.status.StatusScreen
 import dev.dimension.flare.ui.screen.status.VVOCommentScreen
@@ -738,6 +740,12 @@ internal fun Router(
                         toPostActionLayout = {
                             navigate(Route.PostActionLayout)
                         },
+                        toPrivacyTrafficLog = {
+                            navigate(Route.PrivacyTrafficLog)
+                        },
+                        toPrivacyBlocklist = {
+                            navigate(Route.PrivacyBlocklist)
+                        },
                     )
                 }
 
@@ -755,6 +763,14 @@ internal fun Router(
 
                 entry<Route.AppLogging> {
                     AppLoggingScreen()
+                }
+
+                entry<Route.PrivacyTrafficLog> {
+                    PrivacyTrafficLogScreen()
+                }
+
+                entry<Route.PrivacyBlocklist> {
+                    PrivacyBlocklistScreen()
                 }
 
                 entry<Timeline> { args ->

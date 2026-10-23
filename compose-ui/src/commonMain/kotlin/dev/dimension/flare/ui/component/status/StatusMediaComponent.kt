@@ -74,6 +74,7 @@ import dev.dimension.flare.ui.component.NetworkImage
 import dev.dimension.flare.ui.component.TimelineCarouselItem
 import dev.dimension.flare.ui.component.UgoiraPlayer
 import dev.dimension.flare.ui.component.accessibleDescription
+import dev.dimension.flare.ui.component.rememberEffectiveAutoplay
 import dev.dimension.flare.ui.component.platform.LocalWifiState
 import dev.dimension.flare.ui.component.platform.PlatformCircularProgressIndicator
 import dev.dimension.flare.ui.component.platform.PlatformDropdownMenu
@@ -616,9 +617,7 @@ public fun MediaItem(
             UgoiraPlayer(
                 media,
                 modifier.fillMaxWidth().let { if (keepAspectRatio) it.aspectRatio(media.aspectRatio) else it },
-                autoplay =
-                    appearanceSettings.videoAutoplay == VideoAutoplay.ALWAYS ||
-                        (appearanceSettings.videoAutoplay == VideoAutoplay.WIFI && wifi),
+                autoplay = rememberEffectiveAutoplay(appearanceSettings.videoAutoplay, wifi),
                 contentScale = contentScale,
             )
         }
@@ -647,11 +646,7 @@ public fun MediaItem(
 
         is UiMedia.Video -> {
             val wifiState = LocalWifiState.current
-            val shouldPlay =
-                remember(appearanceSettings.videoAutoplay, wifiState) {
-                    appearanceSettings.videoAutoplay == VideoAutoplay.ALWAYS ||
-                        (appearanceSettings.videoAutoplay == VideoAutoplay.WIFI && wifiState)
-                }
+            val shouldPlay = rememberEffectiveAutoplay(appearanceSettings.videoAutoplay, wifiState)
             if (shouldPlay) {
                 PlatformVideoPlayer(
                     contentScale = contentScale,

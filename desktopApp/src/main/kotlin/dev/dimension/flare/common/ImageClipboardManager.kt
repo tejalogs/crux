@@ -80,6 +80,7 @@ class ImageClipboardManager(
      * The actual implementation may vary depending on the underlying GUI toolkit.
      * See [awtClipboard] to access [java.awt.datatransfer.Clipboard].
      */
+    @Suppress("OVERRIDE_DEPRECATION", "DEPRECATION")
     override val nativeClipboard: NativeClipboard
         get() = systemClipboard ?: error("systemClipboard is not available in headless mode")
 

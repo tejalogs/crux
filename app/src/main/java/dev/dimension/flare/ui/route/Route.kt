@@ -117,6 +117,15 @@ internal sealed interface Route : NavKey {
         data object Behavior : Settings
 
         @Serializable
+        data object Privacy : Settings
+
+        @Serializable
+        data object PrivacyTrafficLog : Settings
+
+        @Serializable
+        data object PrivacyBlocklist : Settings
+
+        @Serializable
         data object LinkOpenDefaults : Settings
 
         @Serializable
@@ -158,6 +167,9 @@ internal sealed interface Route : NavKey {
 
         @Serializable
         data object ColorSpace : Settings
+
+        @Serializable
+        data object HardenedBrowser : Settings
     }
 
     @Serializable

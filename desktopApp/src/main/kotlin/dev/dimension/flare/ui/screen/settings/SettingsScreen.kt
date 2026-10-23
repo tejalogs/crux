@@ -234,7 +234,32 @@ import dev.dimension.flare.settings_mxga_refreshing
 import dev.dimension.flare.settings_nostr_relays_manage
 import dev.dimension.flare.settings_post_action_fixed_width
 import dev.dimension.flare.settings_post_action_fixed_width_description
+import dev.dimension.flare.data.privacy.PrivacySettings
+import dev.dimension.flare.data.privacy.PrivacySettingsRepository
+import dev.dimension.flare.settings_appearance_swipe_to_act
+import dev.dimension.flare.settings_appearance_swipe_to_act_description
+import dev.dimension.flare.settings_lite_mode_balanced
+import dev.dimension.flare.settings_lite_mode_description
+import dev.dimension.flare.settings_lite_mode_off
+import dev.dimension.flare.settings_lite_mode_text_only
+import dev.dimension.flare.settings_lite_mode_title
+import dev.dimension.flare.settings_privacy_block_profiling
+import dev.dimension.flare.settings_privacy_block_profiling_description
+import dev.dimension.flare.settings_privacy_block_telemetry
+import dev.dimension.flare.settings_privacy_block_telemetry_description
+import dev.dimension.flare.settings_privacy_open_blocklist
+import dev.dimension.flare.settings_privacy_open_blocklist_description
 import dev.dimension.flare.settings_privacy_policy
+import dev.dimension.flare.settings_privacy_scrub_tracking
+import dev.dimension.flare.settings_privacy_scrub_tracking_description
+import dev.dimension.flare.settings_privacy_strip_fingerprint
+import dev.dimension.flare.settings_privacy_strip_fingerprint_description
+import dev.dimension.flare.settings_privacy_subtitle
+import dev.dimension.flare.settings_privacy_title
+import dev.dimension.flare.settings_privacy_traffic_log
+import dev.dimension.flare.settings_privacy_traffic_log_description
+import dev.dimension.flare.settings_privacy_traffic_log_open_description
+import dev.dimension.flare.settings_privacy_traffic_log_title
 import dev.dimension.flare.settings_refresh_home_timeline_on_launch
 import dev.dimension.flare.settings_refresh_home_timeline_on_launch_description
 import dev.dimension.flare.settings_rss_management_description
@@ -354,6 +379,8 @@ internal fun SettingsScreen(
     toRSSManagement: () -> Unit,
     toNostrRelays: (MicroBlogKey) -> Unit,
     toPostActionLayout: () -> Unit,
+    toPrivacyTrafficLog: () -> Unit = {},
+    toPrivacyBlocklist: () -> Unit = {},
 ) {
     val window = LocalComposeWindow.current
     val state by producePresenter {
@@ -847,6 +874,24 @@ internal fun SettingsScreen(
                 ExpanderItemSeparator()
                 ExpanderItem(
                     heading = {
+                        Text(stringResource(Res.string.settings_appearance_swipe_to_act))
+                    },
+                    caption = {
+                        Text(stringResource(Res.string.settings_appearance_swipe_to_act_description))
+                    },
+                    trailing = {
+                        Switcher(
+                            checked = LocalGlobalAppearance.current.swipeToActEnabled,
+                            onCheckStateChange = {
+                                state.appearanceState.update(AppearanceKeys.SwipeToActEnabled, it)
+                            },
+                            textBefore = true,
+                        )
+                    },
+                )
+                ExpanderItemSeparator()
+                ExpanderItem(
+                    heading = {
                         Text(stringResource(Res.string.settings_appearance_timeline_display_mode))
                     },
                     caption = {
@@ -1128,6 +1173,59 @@ internal fun SettingsScreen(
                     Text(stringResource(Res.string.settings_appearance_media_group_subtitle))
                 },
             ) {
+                CardExpanderItem(
+                    icon = null,
+                    heading = {
+                        Text(stringResource(Res.string.settings_lite_mode_title))
+                    },
+                    caption = {
+                        Text(stringResource(Res.string.settings_lite_mode_description))
+                    },
+                    trailing = {
+                        var isFlyoutVisible by remember { mutableStateOf(false) }
+                        val currentLiteMode = LocalGlobalAppearance.current.liteMode
+                        val currentLabel =
+                            when (currentLiteMode) {
+                                dev.dimension.flare.data.model.LiteMode.OFF -> stringResource(Res.string.settings_lite_mode_off)
+                                dev.dimension.flare.data.model.LiteMode.BALANCED -> stringResource(Res.string.settings_lite_mode_balanced)
+                                dev.dimension.flare.data.model.LiteMode.TEXT_ONLY -> stringResource(Res.string.settings_lite_mode_text_only)
+                            }
+                        DropDownButton(
+                            onClick = { isFlyoutVisible = !isFlyoutVisible },
+                            content = {
+                                Text(currentLabel)
+                            },
+                        )
+                        MenuFlyout(
+                            visible = isFlyoutVisible,
+                            onDismissRequest = { isFlyoutVisible = false },
+                            placement = FlyoutPlacement.BottomAlignedEnd,
+                        ) {
+                            MenuFlyoutItem(
+                                text = { Text(stringResource(Res.string.settings_lite_mode_off)) },
+                                onClick = {
+                                    state.appearanceState.update(AppearanceKeys.LiteMode, dev.dimension.flare.data.model.LiteMode.OFF)
+                                    isFlyoutVisible = false
+                                },
+                            )
+                            MenuFlyoutItem(
+                                text = { Text(stringResource(Res.string.settings_lite_mode_balanced)) },
+                                onClick = {
+                                    state.appearanceState.update(AppearanceKeys.LiteMode, dev.dimension.flare.data.model.LiteMode.BALANCED)
+                                    isFlyoutVisible = false
+                                },
+                            )
+                            MenuFlyoutItem(
+                                text = { Text(stringResource(Res.string.settings_lite_mode_text_only)) },
+                                onClick = {
+                                    state.appearanceState.update(AppearanceKeys.LiteMode, dev.dimension.flare.data.model.LiteMode.TEXT_ONLY)
+                                    isFlyoutVisible = false
+                                },
+                            )
+                        }
+                    },
+                )
+                ExpanderItemSeparator()
                 ExpanderItem(
                     heading = {
                         Text(stringResource(Res.string.settings_appearance_show_media))
@@ -1639,6 +1737,151 @@ internal fun SettingsScreen(
                         ) {
                             Text(stringResource(Res.string.action_import))
                         }
+                    },
+                )
+            }
+
+            Header(stringResource(Res.string.settings_privacy_title))
+            val privacyRepository = koinInject<PrivacySettingsRepository>()
+            val privacySettings by privacyRepository.settings().collectAsState()
+            val privacyScope = rememberCoroutineScope()
+            fun updatePrivacy(transform: (PrivacySettings) -> PrivacySettings) {
+                privacyScope.launch { privacyRepository.update(transform(privacySettings)) }
+            }
+
+            var privacyExpanded by remember { mutableStateOf(false) }
+            Expander(
+                expanded = privacyExpanded,
+                onExpandedChanged = { privacyExpanded = it },
+                heading = {
+                    Text(stringResource(Res.string.settings_privacy_title))
+                },
+                caption = {
+                    Text(stringResource(Res.string.settings_privacy_subtitle))
+                },
+                icon = null,
+            ) {
+                ExpanderItem(
+                    heading = {
+                        Text(stringResource(Res.string.settings_privacy_traffic_log))
+                    },
+                    caption = {
+                        Text(stringResource(Res.string.settings_privacy_traffic_log_description))
+                    },
+                    trailing = {
+                        Switcher(
+                            checked = privacySettings.loggingEnabled,
+                            onCheckStateChange = { checked ->
+                                updatePrivacy { it.copy(loggingEnabled = checked) }
+                            },
+                            textBefore = true,
+                        )
+                    },
+                )
+                ExpanderItemSeparator()
+                ExpanderItem(
+                    heading = {
+                        Text(stringResource(Res.string.settings_privacy_block_telemetry))
+                    },
+                    caption = {
+                        Text(stringResource(Res.string.settings_privacy_block_telemetry_description))
+                    },
+                    trailing = {
+                        Switcher(
+                            checked = privacySettings.blockTelemetry,
+                            onCheckStateChange = { checked ->
+                                updatePrivacy { it.copy(blockTelemetry = checked) }
+                            },
+                            textBefore = true,
+                        )
+                    },
+                )
+                ExpanderItemSeparator()
+                ExpanderItem(
+                    heading = {
+                        Text(stringResource(Res.string.settings_privacy_block_profiling))
+                    },
+                    caption = {
+                        Text(stringResource(Res.string.settings_privacy_block_profiling_description))
+                    },
+                    trailing = {
+                        Switcher(
+                            checked = privacySettings.blockProfiling,
+                            onCheckStateChange = { checked ->
+                                updatePrivacy { it.copy(blockProfiling = checked) }
+                            },
+                            textBefore = true,
+                        )
+                    },
+                )
+                ExpanderItemSeparator()
+                ExpanderItem(
+                    heading = {
+                        Text(stringResource(Res.string.settings_privacy_scrub_tracking))
+                    },
+                    caption = {
+                        Text(stringResource(Res.string.settings_privacy_scrub_tracking_description))
+                    },
+                    trailing = {
+                        Switcher(
+                            checked = privacySettings.scrubTrackingParameters,
+                            onCheckStateChange = { checked ->
+                                updatePrivacy { it.copy(scrubTrackingParameters = checked) }
+                            },
+                            textBefore = true,
+                        )
+                    },
+                )
+                ExpanderItemSeparator()
+                ExpanderItem(
+                    heading = {
+                        Text(stringResource(Res.string.settings_privacy_strip_fingerprint))
+                    },
+                    caption = {
+                        Text(stringResource(Res.string.settings_privacy_strip_fingerprint_description))
+                    },
+                    trailing = {
+                        Switcher(
+                            checked = privacySettings.stripFingerprintHeaders,
+                            onCheckStateChange = { checked ->
+                                updatePrivacy { it.copy(stripFingerprintHeaders = checked) }
+                            },
+                            textBefore = true,
+                        )
+                    },
+                )
+                ExpanderItemSeparator()
+                CardExpanderItem(
+                    onClick = toPrivacyTrafficLog,
+                    heading = {
+                        Text(stringResource(Res.string.settings_privacy_traffic_log_title))
+                    },
+                    caption = {
+                        Text(stringResource(Res.string.settings_privacy_traffic_log_open_description))
+                    },
+                    trailing = {
+                        FAIcon(
+                            imageVector = FontAwesomeIcons.Solid.AngleRight,
+                            contentDescription = null,
+                            modifier = Modifier.size(12.dp),
+                        )
+                    },
+                )
+                ExpanderItemSeparator()
+                CardExpanderItem(
+                    onClick = toPrivacyBlocklist,
+                    heading = {
+                        Text(stringResource(Res.string.settings_privacy_open_blocklist))
+                    },
+                    caption = {
+                        Text(stringResource(Res.string.settings_privacy_open_blocklist_description))
+                    },
+                    trailing = {
+                        FAIcon(
+                            imageVector = FontAwesomeIcons.Solid.AngleRight,
+                            contentDescription = null,
+                            modifier = Modifier.size(12.dp),
+                        )
                     },
                 )
             }

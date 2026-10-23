@@ -110,6 +110,24 @@ internal fun AppearanceMediaScreen(onBack: () -> Unit) {
                     )
                 }
             }
+            SingleChoiceSettingsItem(
+                headline = { Text(text = stringResource(id = R.string.settings_lite_mode_title)) },
+                supporting = { Text(text = stringResource(id = R.string.settings_lite_mode_description)) },
+                items =
+                    persistentMapOf(
+                        dev.dimension.flare.data.model.LiteMode.OFF to
+                            stringResource(id = R.string.settings_lite_mode_off_description),
+                        dev.dimension.flare.data.model.LiteMode.BALANCED to
+                            stringResource(id = R.string.settings_lite_mode_balanced_description),
+                        dev.dimension.flare.data.model.LiteMode.TEXT_ONLY to
+                            stringResource(id = R.string.settings_lite_mode_text_only_description),
+                    ),
+                selected = globalAppearance.liteMode,
+                onSelected = {
+                    state.update(AppearanceKeys.LiteMode, it)
+                },
+                shapes = ListItemDefaults.first(),
+            )
             SegmentedListItem(
                 onClick = {
                     state.update(AppearanceKeys.ShowMedia, !timelineAppearance.showMedia)
