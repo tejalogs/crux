@@ -4,9 +4,12 @@ import android.content.Intent
 import android.net.Uri
 import android.view.ViewGroup.LayoutParams
 import android.webkit.CookieManager
+import android.webkit.GeolocationPermissions
+import android.webkit.PermissionRequest
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebStorage
 import android.webkit.WebView
@@ -60,6 +63,7 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import com.kevinnzou.web.WebView
 import com.kevinnzou.web.rememberWebViewState
 import compose.icons.FontAwesomeIcons
@@ -74,6 +78,7 @@ import compose.icons.fontawesomeicons.solid.RotateRight
 import compose.icons.fontawesomeicons.solid.Rss
 import compose.icons.fontawesomeicons.solid.ShieldHalved
 import compose.icons.fontawesomeicons.solid.TrashCan
+import compose.icons.fontawesomeicons.solid.Xmark
 import dev.dimension.flare.data.readinglist.ReadingListItem
 import dev.dimension.flare.data.readinglist.ReadingListRepository
 import dev.dimension.flare.di.koinInject
@@ -83,6 +88,7 @@ import dev.dimension.flare.ui.component.FlareScaffold
 import dev.dimension.flare.ui.component.FlareTopAppBar
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.io.ByteArrayInputStream
 import kotlin.time.Duration.Companion.seconds
 
 private const val INSTAGRAM_HOME_URL = "https://www.instagram.com"
@@ -97,35 +103,167 @@ private const val PRISM_SHIELD_JS = """
         var style = document.createElement('style');
         style.id = styleId;
         style.textContent = `
-            div[data-testid="mobile-app-banner"] { display: none !important; }
-            a[href*="instagram://"] { display: none !important; }
-            a[href*="play.google.com/store/apps/details?id=com.instagram.android"] { display: none !important; }
-            a[href*="itunes.apple.com"] { display: none !important; }
-            a[href*="instagram.com/download"] { display: none !important; }
-            div[class*="AppBanner"] { display: none !important; }
+            div[data-testid="mobile-app-banner"],
+            a[href*="instagram://"],
+            a[href*="play.google.com/store/apps/details?id=com.instagram.android"],
+            a[href*="itunes.apple.com"],
+            a[href*="instagram.com/download"],
+            div[class*="AppBanner"],
+            div._acc8,
+            div._abpk,
+            div[data-testid="app-upsell-banner"],
+            div[data-testid="upsell-banner"],
             html, body { -webkit-tap-highlight-color: transparent; }
         `;
         (document.head || document.documentElement).appendChild(style);
     }
-    var dialogs = document.querySelectorAll('div[role="dialog"]');
-    for (var i = 0; i < dialogs.length; i++) {
-        var text = dialogs[i].innerText || '';
-        if (text.indexOf('Open in Instagram') !== -1 || text.indexOf('Use the App') !== -1 || text.indexOf('Get the app') !== -1) {
-            dialogs[i].remove();
-        }
+
+    if (!window.__prismTelemetryBlocked) {
+        window.__prismTelemetryBlocked = true;
+        try {
+            var origBeacon = navigator.sendBeacon;
+            navigator.sendBeacon = function(url) {
+                if (typeof url === 'string' && (
+                    url.indexOf('/ajax/bz') !== -1 ||
+                    url.indexOf('/logging/') !== -1 ||
+                    url.indexOf('facebook.com') !== -1 ||
+                    url.indexOf('graph.instagram.com') !== -1 ||
+                    url.indexOf('/api/v1/ads/') !== -1
+                )) {
+                    return true;
+                }
+                return origBeacon ? origBeacon.apply(this, arguments) : true;
+            };
+        } catch (_) {}
+
+        try {
+            var origFetch = window.fetch;
+            if (origFetch) {
+                window.fetch = function(input, init) {
+                    var u = typeof input === 'string' ? input : (input && input.url ? input.url : '');
+                    if (u.indexOf('/ajax/bz') !== -1 || u.indexOf('/logging/') !== -1 || u.indexOf('/api/v1/ads/') !== -1) {
+                        return Promise.resolve(new Response('{}', { status: 200, statusText: 'OK' }));
+                    }
+                    return origFetch.apply(this, arguments);
+                };
+            }
+        } catch (_) {}
+
+        try {
+            var origOpen = XMLHttpRequest.prototype.open;
+            XMLHttpRequest.prototype.open = function(method, url) {
+                if (typeof url === 'string' && (
+                    url.indexOf('/ajax/bz') !== -1 ||
+                    url.indexOf('/logging/') !== -1 ||
+                    url.indexOf('/api/v1/ads/') !== -1
+                )) {
+                    this.__isBlockedPrism = true;
+                }
+                return origOpen.apply(this, arguments);
+            };
+            var origSend = XMLHttpRequest.prototype.send;
+            XMLHttpRequest.prototype.send = function() {
+                if (this.__isBlockedPrism) {
+                    try {
+                        Object.defineProperty(this, 'readyState', { value: 4, writable: false });
+                        Object.defineProperty(this, 'status', { value: 200, writable: false });
+                        Object.defineProperty(this, 'responseText', { value: '{}', writable: false });
+                        if (typeof this.onreadystatechange === 'function') this.onreadystatechange();
+                        if (typeof this.onload === 'function') this.onload();
+                    } catch (_) {}
+                    return;
+                }
+                return origSend.apply(this, arguments);
+            };
+        } catch (_) {}
     }
-    var articles = document.querySelectorAll('article');
-    for (var j = 0; j < articles.length; j++) {
-        var spans = articles[j].querySelectorAll('span');
-        for (var k = 0; k < spans.length; k++) {
-            if (spans[k].textContent === 'Sponsored') {
-                articles[j].style.display = 'none';
-                break;
+
+    function cleanDOM() {
+        var dialogs = document.querySelectorAll('div[role="dialog"]');
+        for (var i = 0; i < dialogs.length; i++) {
+            var text = dialogs[i].innerText || '';
+            if (text.indexOf('Open in Instagram') !== -1 || text.indexOf('Use the App') !== -1 || text.indexOf('Get the app') !== -1) {
+                dialogs[i].remove();
+            }
+        }
+
+        var banners = document.querySelectorAll('._acc8, ._abpk, div[class*="AppBanner"]');
+        for (var b = 0; b < banners.length; b++) {
+            banners[b].remove();
+        }
+
+        var buttons = document.querySelectorAll('button, div, span');
+        for (var e = 0; e < buttons.length; e++) {
+            if (buttons[e].children.length === 0) {
+                var val = buttons[e].textContent.trim().toLowerCase();
+                if (val === 'use the app' || val === 'open in app' || val === 'get instagram') {
+                    var parent = buttons[e].closest('._acc8') || buttons[e].closest('._abpk') || buttons[e].parentElement;
+                    if (parent) parent.remove();
+                }
+            }
+        }
+
+        var articles = document.querySelectorAll('article');
+        for (var j = 0; j < articles.length; j++) {
+            var art = articles[j];
+            var isAd = false;
+            if (art.querySelector('img[src*="/v/t45."], img[src*="ads_image"], video[src*="ads_video"]')) {
+                isAd = true;
+            }
+            if (!isAd) {
+                var textNodes = art.querySelectorAll('span, div');
+                for (var k = 0; k < textNodes.length; k++) {
+                    if (textNodes[k].children.length === 0) {
+                        var t = textNodes[k].textContent.trim();
+                        if (t === 'Ad' || t === 'Sponsored' || t === 'Promoted' || t.toLowerCase() === 'paid partnership') {
+                            isAd = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            if (isAd) {
+                art.remove();
             }
         }
     }
+
+    if (!window.__prismObserverActive && document.body) {
+        window.__prismObserverActive = true;
+        try {
+            var obs = new MutationObserver(function() {
+                cleanDOM();
+            });
+            obs.observe(document.body, { childList: true, subtree: true });
+        } catch (_) {}
+    }
+    cleanDOM();
 })();
 """
+
+internal fun isAdOrTrackingUrl(url: String): Boolean {
+    val lower = url.lowercase()
+    return lower.contains("/ajax/bz") ||
+        lower.contains("/logging/") ||
+        lower.contains("/api/v1/logging/") ||
+        lower.contains("/api/v1/ads/") ||
+        lower.contains("graph.facebook.com") ||
+        lower.contains("b-graph.facebook.com") ||
+        lower.contains("graph.instagram.com/logging") ||
+        lower.contains("connect.facebook.net") ||
+        lower.contains("facebook.com/tr") ||
+        lower.contains("pixel.facebook.com") ||
+        lower.contains("/v/t45.") ||
+        lower.contains("ads_image") ||
+        lower.contains("ads_video") ||
+        lower.contains("doubleclick.net") ||
+        lower.contains("google-analytics.com") ||
+        lower.contains("googletagmanager.com") ||
+        lower.contains("adservice.google.com") ||
+        lower.contains("branch.io") ||
+        lower.contains("adjust.com") ||
+        lower.contains("appsflyer.com")
+}
 
 internal fun extractInstagramProfile(url: String): String? {
     val uri = runCatching { Uri.parse(url) }.getOrNull() ?: return null
@@ -176,6 +314,7 @@ internal fun InstagramWebScreen(
     var isPageLoading by remember { mutableStateOf(true) }
     var showPrivacyDialog by remember { mutableStateOf(false) }
     var showClearConfirmDialog by remember { mutableStateOf(false) }
+    var isDockExpanded by remember { mutableStateOf(false) }
 
     var fileUploadCallback by remember { mutableStateOf<ValueCallback<Array<Uri>>?>(null) }
     val fileChooserLauncher =
@@ -231,7 +370,7 @@ internal fun InstagramWebScreen(
                         style = MaterialTheme.typography.bodyMedium,
                     )
                     Text(
-                        text = "• Storage: Isolated prismbrowser sandbox\n• Third-Party Tracking: Blocked\n• Ad & App Nag Banners: Stripped\n• Zero Checkpoint Ban Risk",
+                        text = "• Storage: Isolated prismbrowser sandbox\n• Third-Party Tracking & Meta Pixels: Blocked\n• Telemetry & Banzai Beacons (/ajax/bz): Blocked\n• Sponsored Ads & Promo Injections: Stripped\n• App Install Nags & Sticky Banners: Stripped\n• Geolocation & Device Sensors: Denied\n• Zero Checkpoint Ban Risk",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -330,16 +469,18 @@ internal fun InstagramWebScreen(
                                     modifier = Modifier.size(16.dp),
                                 )
                             }
-                            Column {
+                            Column(modifier = Modifier.weight(1f, fill = false)) {
                                 Text(
                                     text = "Instagram",
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
                                 )
                                 Text(
                                     text = "Privacy Sandbox Active",
                                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                                     color = MaterialTheme.colorScheme.primary,
+                                    maxLines = 1,
                                 )
                             }
                         }
@@ -390,19 +531,29 @@ internal fun InstagramWebScreen(
                                 modifier = Modifier.size(18.dp),
                             )
                         }
-                        IconButton(onClick = { showPrivacyDialog = true }) {
-                            FAIcon(
-                                imageVector = FontAwesomeIcons.Solid.ShieldHalved,
-                                contentDescription = "Privacy Shield",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(20.dp),
-                            )
-                        }
                         IconButton(onClick = { webViewRef.value?.reload() }) {
                             FAIcon(
                                 imageVector = FontAwesomeIcons.Solid.RotateRight,
                                 contentDescription = "Reload",
                                 modifier = Modifier.size(18.dp),
+                            )
+                        }
+                        IconButton(
+                            onClick = {
+                                if (currentUrl.isNotBlank()) {
+                                    try {
+                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(currentUrl))
+                                        context.startActivity(intent)
+                                    } catch (_: Exception) {
+                                        uriHandler.openUri(currentUrl)
+                                    }
+                                }
+                            },
+                        ) {
+                            FAIcon(
+                                imageVector = FontAwesomeIcons.Solid.ArrowUpRightFromSquare,
+                                contentDescription = "Open in External Browser",
+                                modifier = Modifier.size(17.dp),
                             )
                         }
                     },
@@ -440,6 +591,11 @@ internal fun InstagramWebScreen(
                         mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
                         allowFileAccess = false
                         allowContentAccess = false
+                        setGeolocationEnabled(false)
+                        @Suppress("DEPRECATION")
+                        setAllowFileAccessFromFileURLs(false)
+                        @Suppress("DEPRECATION")
+                        setAllowUniversalAccessFromFileURLs(false)
                         javaScriptCanOpenWindowsAutomatically = false
                         setSupportMultipleWindows(false)
                         @Suppress("DEPRECATION")
@@ -451,6 +607,24 @@ internal fun InstagramWebScreen(
 
                     view.webViewClient =
                         object : WebViewClient() {
+                            override fun shouldInterceptRequest(
+                                view: WebView,
+                                request: WebResourceRequest,
+                            ): WebResourceResponse? {
+                                val url = request.url.toString()
+                                if (isAdOrTrackingUrl(url)) {
+                                    return WebResourceResponse(
+                                        "text/plain",
+                                        "UTF-8",
+                                        200,
+                                        "OK",
+                                        emptyMap(),
+                                        ByteArrayInputStream(ByteArray(0)),
+                                    )
+                                }
+                                return super.shouldInterceptRequest(view, request)
+                            }
+
                             override fun shouldOverrideUrlLoading(
                                 view: WebView,
                                 request: WebResourceRequest,
@@ -488,6 +662,17 @@ internal fun InstagramWebScreen(
 
                     view.webChromeClient =
                         object : WebChromeClient() {
+                            override fun onGeolocationPermissionsShowPrompt(
+                                origin: String?,
+                                callback: GeolocationPermissions.Callback?,
+                            ) {
+                                callback?.invoke(origin, false, false)
+                            }
+
+                            override fun onPermissionRequest(request: PermissionRequest?) {
+                                request?.deny()
+                            }
+
                             override fun onProgressChanged(
                                 view: WebView,
                                 newProgress: Int,
@@ -513,12 +698,13 @@ internal fun InstagramWebScreen(
                 },
             )
 
-            // Floating Navigation Dock
+            // Floating Ergonomic Privacy & Navigation Dock
             Surface(
                 modifier =
                     Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = 16.dp)
+                        .zIndex(10f)
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 16.dp, bottom = 68.dp)
                         .navigationBarsPadding(),
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
@@ -530,83 +716,108 @@ internal fun InstagramWebScreen(
                         MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
                     ),
             ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
+                if (!isDockExpanded) {
                     IconButton(
-                        onClick = { webViewRef.value?.goBack() },
-                        enabled = canGoBack,
-                    ) {
-                        FAIcon(
-                            imageVector = FontAwesomeIcons.Solid.ArrowLeft,
-                            contentDescription = "Back",
-                            modifier = Modifier.size(16.dp),
-                            tint =
-                                if (canGoBack) {
-                                    MaterialTheme.colorScheme.onSurface
-                                } else {
-                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                                },
-                        )
-                    }
-
-                    IconButton(
-                        onClick = { webViewRef.value?.goForward() },
-                        enabled = canGoForward,
-                    ) {
-                        FAIcon(
-                            imageVector = FontAwesomeIcons.Solid.ArrowRight,
-                            contentDescription = "Forward",
-                            modifier = Modifier.size(16.dp),
-                            tint =
-                                if (canGoForward) {
-                                    MaterialTheme.colorScheme.onSurface
-                                } else {
-                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                                },
-                        )
-                    }
-
-                    IconButton(
-                        onClick = { webViewRef.value?.reload() },
-                    ) {
-                        FAIcon(
-                            imageVector = FontAwesomeIcons.Solid.RotateRight,
-                            contentDescription = "Reload",
-                            modifier = Modifier.size(16.dp),
-                        )
-                    }
-
-                    IconButton(
-                        onClick = { showPrivacyDialog = true },
+                        onClick = { isDockExpanded = true },
+                        modifier = Modifier.size(44.dp),
                     ) {
                         FAIcon(
                             imageVector = FontAwesomeIcons.Solid.ShieldHalved,
-                            contentDescription = "Shield Settings",
+                            contentDescription = "Expand Navigation Controls",
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(16.dp),
+                            modifier = Modifier.size(18.dp),
                         )
                     }
-
-                    IconButton(
-                        onClick = {
-                            if (currentUrl.isNotBlank()) {
-                                try {
-                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(currentUrl))
-                                    context.startActivity(intent)
-                                } catch (_: Exception) {
-                                    uriHandler.openUri(currentUrl)
-                                }
-                            }
-                        },
+                } else {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
-                        FAIcon(
-                            imageVector = FontAwesomeIcons.Solid.ArrowUpRightFromSquare,
-                            contentDescription = "Open External",
-                            modifier = Modifier.size(16.dp),
-                        )
+                        IconButton(
+                            onClick = { webViewRef.value?.goBack() },
+                            enabled = canGoBack,
+                        ) {
+                            FAIcon(
+                                imageVector = FontAwesomeIcons.Solid.ArrowLeft,
+                                contentDescription = "Back",
+                                modifier = Modifier.size(16.dp),
+                                tint =
+                                    if (canGoBack) {
+                                        MaterialTheme.colorScheme.onSurface
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                                    },
+                            )
+                        }
+
+                        IconButton(
+                            onClick = { webViewRef.value?.goForward() },
+                            enabled = canGoForward,
+                        ) {
+                            FAIcon(
+                                imageVector = FontAwesomeIcons.Solid.ArrowRight,
+                                contentDescription = "Forward",
+                                modifier = Modifier.size(16.dp),
+                                tint =
+                                    if (canGoForward) {
+                                        MaterialTheme.colorScheme.onSurface
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                                    },
+                            )
+                        }
+
+                        IconButton(
+                            onClick = { webViewRef.value?.reload() },
+                        ) {
+                            FAIcon(
+                                imageVector = FontAwesomeIcons.Solid.RotateRight,
+                                contentDescription = "Reload",
+                                modifier = Modifier.size(16.dp),
+                            )
+                        }
+
+                        IconButton(
+                            onClick = { showPrivacyDialog = true },
+                        ) {
+                            FAIcon(
+                                imageVector = FontAwesomeIcons.Solid.ShieldHalved,
+                                contentDescription = "Shield Settings",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(16.dp),
+                            )
+                        }
+
+                        IconButton(
+                            onClick = {
+                                if (currentUrl.isNotBlank()) {
+                                    try {
+                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(currentUrl))
+                                        context.startActivity(intent)
+                                    } catch (_: Exception) {
+                                        uriHandler.openUri(currentUrl)
+                                    }
+                                }
+                            },
+                        ) {
+                            FAIcon(
+                                imageVector = FontAwesomeIcons.Solid.ArrowUpRightFromSquare,
+                                contentDescription = "Open External",
+                                modifier = Modifier.size(16.dp),
+                            )
+                        }
+
+                        IconButton(
+                            onClick = { isDockExpanded = false },
+                        ) {
+                            FAIcon(
+                                imageVector = FontAwesomeIcons.Solid.Xmark,
+                                contentDescription = "Collapse Dock",
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
                 }
             }
