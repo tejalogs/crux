@@ -427,21 +427,23 @@ internal open class MastodonDataSource(
             service = service,
         )
 
-    override fun searchStatus(query: String) =
-        SearchStatusPagingSource(
+    override fun searchStatus(query: String): RemoteLoader<UiTimelineV2> {
+        val normalized = normalizeMastodonSearchQuery(query)
+        return SearchStatusPagingSource(
             service = service,
             accountKey = accountKey,
-            query = query,
-            resolve = if (query.trim().let { it.startsWith("http://") || it.startsWith("https://") }) true else null,
+            query = normalized,
+            resolve = if (normalized.let { it.startsWith("http://") || it.startsWith("https://") || it.contains("@") }) true else null,
         )
+    }
 
     override fun searchUser(query: String): RemoteLoader<UiProfile> {
-        val trimmed = query.trim()
-        val shouldResolve = trimmed.contains("@") || trimmed.startsWith("http://") || trimmed.startsWith("https://")
+        val normalized = normalizeMastodonSearchQuery(query)
+        val shouldResolve = normalized.contains("@") || normalized.startsWith("http://") || normalized.startsWith("https://")
         return SearchUserPagingSource(
             service = service,
             accountKey = accountKey,
-            query = query,
+            query = normalized,
             host = accountKey.host,
             resolve = if (shouldResolve) true else null,
         )
@@ -686,4 +688,20 @@ internal open class MastodonDataSource(
         updater.deleteFromCache(event.postKey)
         relationHandler.rejectFollowRequest(event.userKey)
     }
+}
+
+internal fun normalizeMastodonSearchQuery(query: String): String {
+    val trimmed = query.trim()
+    val threadsRegex = Regex("""^(?:https?://)?(?:www\.)?threads\.net/@([a-zA-Z0-9._]+)/?$""", RegexOption.IGNORE_CASE)
+    threadsRegex.matchEntire(trimmed)?.let { match ->
+        val user = match.groupValues[1]
+        return "@$user@threads.net"
+    }
+    val webHostUserRegex = Regex("""^(?:https?://)?([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/@([a-zA-Z0-9._-]+)/?$""", RegexOption.IGNORE_CASE)
+    webHostUserRegex.matchEntire(trimmed)?.let { match ->
+        val host = match.groupValues[1]
+        val user = match.groupValues[2]
+        return "@$user@$host"
+    }
+    return trimmed
 }

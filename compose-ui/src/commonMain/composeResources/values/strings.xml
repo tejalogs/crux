@@ -492,9 +492,9 @@
     <string name="mastodon_federated_timeline">Federated timeline</string>
     <string name="mastodon_local_timeline">Local timeline</string>
 
-    <string name="service_select_welcome_title">Welcome to Flare</string>
+    <string name="service_select_welcome_title">Welcome to Prism</string>
     <string name="service_select_welcome_message">Enter a server to get started.</string>
-    <string name="service_select_welcome_hint">Flare supports Mastodon, Misskey, Bluesky, Nostr, and X.</string>
+    <string name="service_select_welcome_hint">Prism supports Mastodon, Pixelfed, Bluesky, Misskey, Nostr, and X.</string>
     <string name="service_select_welcome_list_hint">Or choose from these servers</string>
     <string name="service_select_search">Search for server</string>
     <string name="service_select_clear">Clear server</string>

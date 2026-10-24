@@ -358,6 +358,12 @@ public extension UiIcon {
             .pen
         case .pin:
             .thumbtack
+        case .pixelfed:
+            .photoFilm
+        case .instagram:
+            .image
+        case .threads:
+            .at
         case .check:
             .check
         case .translate:

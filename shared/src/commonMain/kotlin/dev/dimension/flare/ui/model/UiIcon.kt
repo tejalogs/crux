@@ -66,6 +66,9 @@ public enum class UiIcon {
     Pixiv,
     Fanbox,
     Eye,
+    Pixelfed,
+    Instagram,
+    Threads,
 }
 
 /**
@@ -85,6 +88,9 @@ public val TabPickerUiIcons: List<UiIcon> =
         UiIcon.Weibo,
         UiIcon.Nostr,
         UiIcon.X,
+        UiIcon.Pixelfed,
+        UiIcon.Instagram,
+        UiIcon.Threads,
         UiIcon.Home,
         UiIcon.Notification,
         UiIcon.Search,

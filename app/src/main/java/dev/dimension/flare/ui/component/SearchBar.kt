@@ -220,6 +220,24 @@ private fun SearchContent(
                                         onClick = {
                                             queryTextState.edit {
                                                 delete(0, queryTextState.text.length)
+                                                append("@threads.net")
+                                            }
+                                        },
+                                        label = { Text("@threads.net") },
+                                    )
+                                    SuggestionChip(
+                                        onClick = {
+                                            queryTextState.edit {
+                                                delete(0, queryTextState.text.length)
+                                                append("@pixelfed.social")
+                                            }
+                                        },
+                                        label = { Text("@pixelfed.social") },
+                                    )
+                                    SuggestionChip(
+                                        onClick = {
+                                            queryTextState.edit {
+                                                delete(0, queryTextState.text.length)
                                                 append(".bsky.social")
                                             }
                                         },

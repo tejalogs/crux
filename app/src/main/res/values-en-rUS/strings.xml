@@ -214,7 +214,7 @@
     <string name="discover_status">Trending Posts</string>
     <string name="discover_hashtags">Trending Hashtags</string>
     <string name="discover_fediverse_hint_title">Explore the Open Social Web</string>
-    <string name="discover_fediverse_hint_description">Search people, handles, hashtags, and posts across Mastodon, Bluesky, Threads, Misskey, and Nostr.</string>
+    <string name="discover_fediverse_hint_description">Search people, handles, hashtags, and posts across Mastodon, Bluesky, Threads, Pixelfed, Misskey, and Nostr.</string>
 
     <string name="search_users">Users</string>
     <string name="search_status">Posts</string>

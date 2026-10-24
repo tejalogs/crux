@@ -482,11 +482,8 @@ private fun buildRssHubUrl(
             .let {
                 set(host = it)
             }
-        path
-            .removePrefix("rsshub://")
-            .let {
-                set(path = it)
-            }
+        val resolvedPath = extractInstagramUsername(path)?.let { "instagram/user/$it" } ?: path.removePrefix("rsshub://")
+        set(path = resolvedPath)
         set(scheme = "https")
     }.toString()
 
@@ -502,6 +499,9 @@ private fun favIconUrl(url: String): String {
         } else {
             Url("https://$url")
         }
+    if (parsedUrl.encodedPath.contains("/instagram/")) {
+        return "https://www.instagram.com/static/images/ico/favicon-192.png/68d99ba29cc8.png"
+    }
     return when (parsedUrl.host) {
         "bsky.social" -> {
             "https://web-cdn.bsky.app/static/apple-touch-icon.png"

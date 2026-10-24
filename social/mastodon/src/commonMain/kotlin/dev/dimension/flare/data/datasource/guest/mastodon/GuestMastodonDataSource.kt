@@ -4,6 +4,7 @@ import dev.dimension.flare.data.datasource.mastodon.MastodonFansPagingSource
 import dev.dimension.flare.data.datasource.mastodon.MastodonFollowingPagingSource
 import dev.dimension.flare.data.datasource.mastodon.SearchUserPagingSource
 import dev.dimension.flare.data.datasource.mastodon.TrendHashtagPagingSource
+import dev.dimension.flare.data.datasource.mastodon.normalizeMastodonSearchQuery
 import dev.dimension.flare.data.datasource.microblog.DatabaseUpdater
 import dev.dimension.flare.data.datasource.microblog.MicroblogDataSource
 import dev.dimension.flare.data.datasource.microblog.PostEvent
@@ -105,21 +106,23 @@ internal class GuestMastodonDataSource(
             statusOnly = false,
         )
 
-    override fun searchStatus(query: String): RemoteLoader<UiTimelineV2> =
-        GuestSearchStatusPagingSource(
+    override fun searchStatus(query: String): RemoteLoader<UiTimelineV2> {
+        val normalized = normalizeMastodonSearchQuery(query)
+        return GuestSearchStatusPagingSource(
             service = service,
             host = host,
-            query = query,
+            query = normalized,
         )
+    }
 
     override fun searchUser(query: String): RemoteLoader<UiProfile> {
-        val trimmed = query.trim()
-        val shouldResolve = trimmed.contains("@") || trimmed.startsWith("http://") || trimmed.startsWith("https://")
+        val normalized = normalizeMastodonSearchQuery(query)
+        val shouldResolve = normalized.contains("@") || normalized.startsWith("http://") || normalized.startsWith("https://")
         return SearchUserPagingSource(
             service = service,
             host = host,
             accountKey = null,
-            query = query,
+            query = normalized,
             resolve = if (shouldResolve) true else null,
         )
     }

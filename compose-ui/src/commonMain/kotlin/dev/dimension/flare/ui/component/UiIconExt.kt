@@ -6,8 +6,10 @@ import compose.icons.fontawesomeicons.Brands
 import compose.icons.fontawesomeicons.Regular
 import compose.icons.fontawesomeicons.Solid
 import compose.icons.fontawesomeicons.brands.Bluesky
+import compose.icons.fontawesomeicons.brands.Instagram
 import compose.icons.fontawesomeicons.brands.Mastodon
 import compose.icons.fontawesomeicons.brands.Pixiv
+import compose.icons.fontawesomeicons.brands.Threads
 import compose.icons.fontawesomeicons.brands.Twitter
 import compose.icons.fontawesomeicons.brands.Weibo
 import compose.icons.fontawesomeicons.brands.XTwitter
@@ -18,6 +20,7 @@ import compose.icons.fontawesomeicons.regular.Star
 import compose.icons.fontawesomeicons.solid.At
 import compose.icons.fontawesomeicons.solid.Bell
 import compose.icons.fontawesomeicons.solid.Bookmark
+import compose.icons.fontawesomeicons.solid.Camera
 import compose.icons.fontawesomeicons.solid.Check
 import compose.icons.fontawesomeicons.solid.CircleInfo
 import compose.icons.fontawesomeicons.solid.CircleUser
@@ -110,4 +113,7 @@ public fun UiIcon.toImageVector(): ImageVector =
         UiIcon.X -> FontAwesomeIcons.Brands.XTwitter
         UiIcon.Weibo -> FontAwesomeIcons.Brands.Weibo
         UiIcon.Translate -> FontAwesomeIcons.Solid.Language
+        UiIcon.Pixelfed -> FontAwesomeIcons.Solid.Camera
+        UiIcon.Instagram -> FontAwesomeIcons.Brands.Instagram
+        UiIcon.Threads -> FontAwesomeIcons.Brands.Threads
     }

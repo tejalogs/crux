@@ -76,7 +76,8 @@ public class CheckRssSourcePresenter internal constructor(
             delay(666)
             if (url.isBlank()) return@flow
             rssCheck {
-                if (url.startsWith("rsshub://", ignoreCase = true)) {
+                val instagramUser = extractInstagramUsername(url)
+                if (url.startsWith("rsshub://", ignoreCase = true) || instagramUser != null) {
                     State.RssState.RssHub
                 } else {
                     val actualUrl = url.toRssWebUrl()
@@ -202,3 +203,13 @@ private inline fun <T> rssCheck(block: () -> T): Result<T> =
     } catch (exception: Exception) {
         Result.failure(exception)
     }
+
+internal fun extractInstagramUsername(url: String): String? {
+    val trimmed = url.trim()
+    val regex = Regex("""^(?:https?://)?(?:www\.)?instagram\.com/([a-zA-Z0-9._]+)/?$""", RegexOption.IGNORE_CASE)
+    val match = regex.matchEntire(trimmed) ?: return null
+    val username = match.groupValues[1]
+    val reserved = setOf("p", "reel", "reels", "stories", "explore", "accounts", "direct", "tv", "developer", "about", "legal", "terms", "privacy")
+    if (reserved.contains(username.lowercase())) return null
+    return username
+}

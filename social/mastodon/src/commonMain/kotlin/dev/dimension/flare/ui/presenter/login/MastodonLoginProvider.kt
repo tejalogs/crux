@@ -55,9 +55,16 @@ public data object MastodonLoginProvider : LoginPlatformProvider {
                 listOf(
                     async { joinMastodonInstances() },
                     async { pawooInstance() },
+                    async { pixelfedInstance() },
                 ).awaitAll().flatten()
             }
         return listOf(
+            RecommendedInstance(
+                instance =
+                    instances.firstOrNull { it.domain == "pixelfed.social" }
+                        ?: fallbackInstance("pixelfed.social"),
+                priority = 110,
+            ),
             RecommendedInstance(
                 instance =
                     instances.firstOrNull { it.domain == "mstdn.jp" }
@@ -115,16 +122,54 @@ public data object MastodonLoginProvider : LoginPlatformProvider {
             }
         }.getOrDefault(emptyList())
 
-    private fun fallbackInstance(domain: String): UiInstance =
-        UiInstance(
-            name = domain,
-            description = domain,
+    private suspend fun pixelfedInstance(): List<UiInstance> =
+        tryRun {
+            MastodonInstanceService("https://pixelfed.social/").instance().let {
+                val domain = it.domain ?: "pixelfed.social"
+                listOf(
+                    UiInstance(
+                        name = "Pixelfed (${it.title ?: "Photo Sharing"})",
+                        description = it.description ?: "Decentralized photo sharing platform powered by ActivityPub (open alternative to Instagram).",
+                        iconUrl = it.thumbnail?.url,
+                        domain = domain,
+                        platformId = platformId,
+                        bannerUrl = it.thumbnail?.url,
+                        usersCount = it.usage?.users?.activeMonth ?: 0,
+                        platformDisplayName = "Pixelfed",
+                        platformIcon = dev.dimension.flare.ui.model.UiIcon.Pixelfed,
+                    ),
+                )
+            }
+        }.getOrElse {
+            listOf(
+                UiInstance(
+                    name = "Pixelfed",
+                    description = "Decentralized photo sharing platform powered by ActivityPub (open alternative to Instagram).",
+                    iconUrl = null,
+                    domain = "pixelfed.social",
+                    platformId = platformId,
+                    bannerUrl = null,
+                    usersCount = 0,
+                    platformDisplayName = "Pixelfed",
+                    platformIcon = dev.dimension.flare.ui.model.UiIcon.Pixelfed,
+                ),
+            )
+        }
+
+    private fun fallbackInstance(domain: String): UiInstance {
+        val isPixelfed = domain.contains("pixelfed", ignoreCase = true)
+        return UiInstance(
+            name = if (isPixelfed) "Pixelfed" else domain,
+            description = if (isPixelfed) "Decentralized photo sharing platform powered by ActivityPub (open alternative to Instagram)." else domain,
             iconUrl = null,
             domain = domain,
             platformId = platformId,
             bannerUrl = null,
             usersCount = 0,
+            platformDisplayName = if (isPixelfed) "Pixelfed" else platformId,
+            platformIcon = if (isPixelfed) dev.dimension.flare.ui.model.UiIcon.Pixelfed else dev.dimension.flare.ui.model.UiIcon.World,
         )
+    }
 }
 
 private class MastodonOAuthLoginHandler(
