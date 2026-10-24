@@ -112,13 +112,17 @@ internal class GuestMastodonDataSource(
             query = query,
         )
 
-    override fun searchUser(query: String): RemoteLoader<UiProfile> =
-        SearchUserPagingSource(
+    override fun searchUser(query: String): RemoteLoader<UiProfile> {
+        val trimmed = query.trim()
+        val shouldResolve = trimmed.contains("@") || trimmed.startsWith("http://") || trimmed.startsWith("https://")
+        return SearchUserPagingSource(
             service = service,
             host = host,
             accountKey = null,
             query = query,
+            resolve = if (shouldResolve) true else null,
         )
+    }
 
     override fun discoverUsers(): RemoteLoader<UiProfile> =
         object : RemoteLoader<UiProfile> {

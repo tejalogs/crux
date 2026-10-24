@@ -429,18 +429,23 @@ internal open class MastodonDataSource(
 
     override fun searchStatus(query: String) =
         SearchStatusPagingSource(
-            service,
-            accountKey,
-            query,
+            service = service,
+            accountKey = accountKey,
+            query = query,
+            resolve = if (query.trim().let { it.startsWith("http://") || it.startsWith("https://") }) true else null,
         )
 
-    override fun searchUser(query: String): RemoteLoader<UiProfile> =
-        SearchUserPagingSource(
+    override fun searchUser(query: String): RemoteLoader<UiProfile> {
+        val trimmed = query.trim()
+        val shouldResolve = trimmed.contains("@") || trimmed.startsWith("http://") || trimmed.startsWith("https://")
+        return SearchUserPagingSource(
             service = service,
             accountKey = accountKey,
             query = query,
             host = accountKey.host,
+            resolve = if (shouldResolve) true else null,
         )
+    }
 
     protected open fun countComposeText(
         content: String,

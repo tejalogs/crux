@@ -14,6 +14,7 @@ internal class SearchStatusPagingSource(
     private val service: MastodonService,
     private val accountKey: MicroBlogKey,
     private val query: String,
+    private val resolve: Boolean? = null,
 ) : CacheableRemoteLoader<UiTimelineV2> {
     override val pagingKey: String =
         buildString {
@@ -46,6 +47,7 @@ internal class SearchStatusPagingSource(
                                 query = query,
                                 limit = pageSize,
                                 type = "statuses",
+                                resolve = resolve,
                             ).statuses
                     }
                 }
@@ -64,6 +66,7 @@ internal class SearchStatusPagingSource(
                                 limit = pageSize,
                                 max_id = request.nextKey,
                                 type = "statuses",
+                                resolve = resolve,
                             ).statuses
                     }
                 }
