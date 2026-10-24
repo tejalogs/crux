@@ -18,6 +18,9 @@ internal fun EntryProviderScope<NavKey>.serviceSelectEntryBuilder(
                     ),
                 )
             },
+            onToInstagramWeb = {
+                navigate(Route.InstagramWeb)
+            },
             onBack = onBack,
         )
     }

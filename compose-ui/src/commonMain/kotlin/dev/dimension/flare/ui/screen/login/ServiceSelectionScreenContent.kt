@@ -47,7 +47,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
 import compose.icons.FontAwesomeIcons
+import compose.icons.fontawesomeicons.Brands
 import compose.icons.fontawesomeicons.Solid
+import compose.icons.fontawesomeicons.brands.Instagram
 import compose.icons.fontawesomeicons.solid.CircleQuestion
 import compose.icons.fontawesomeicons.solid.MagnifyingGlass
 import compose.icons.fontawesomeicons.solid.Xmark
@@ -79,6 +81,7 @@ import dev.dimension.flare.compose.ui.service_select_welcome_title
 import dev.dimension.flare.ui.component.FAIcon
 import dev.dimension.flare.ui.component.NetworkImage
 import dev.dimension.flare.ui.component.placeholder
+import dev.dimension.flare.ui.component.platform.PlatformButton
 import dev.dimension.flare.ui.component.platform.PlatformCircularProgressIndicator
 import dev.dimension.flare.ui.component.platform.PlatformFilledTonalButton
 import dev.dimension.flare.ui.component.platform.PlatformIconButton
@@ -121,6 +124,7 @@ public fun ServiceSelectionScreenContent(
     registerDeeplinkCallback: @Composable ((url: String) -> Boolean) -> Unit,
     contentPadding: PaddingValues,
     listState: LazyStaggeredGridState = rememberLazyStaggeredGridState(),
+    onToInstagramWeb: (() -> Unit)? = null,
 ) {
     val state by producePresenter {
         remember { SelectionPresenter(onBack) }.body()
@@ -215,6 +219,42 @@ public fun ServiceSelectionScreenContent(
                     textAlign = TextAlign.Center,
                     style = PlatformTheme.typography.caption,
                 )
+                if (state.instanceInputState.text.contains("instagram", ignoreCase = true) && onToInstagramWeb != null) {
+                    AdaptiveCard(
+                        modifier = Modifier.width(300.dp),
+                    ) {
+                        Column(
+                            modifier =
+                                Modifier
+                                    .clickable { onToInstagramWeb.invoke() }
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            FAIcon(
+                                imageVector = FontAwesomeIcons.Brands.Instagram,
+                                contentDescription = "Instagram",
+                                modifier = Modifier.size(32.dp),
+                            )
+                            PlatformText(
+                                text = "Instagram Web Client",
+                                style = PlatformTheme.typography.title,
+                            )
+                            PlatformText(
+                                text = "Launch sandboxed web session with ad and tracker blocking.",
+                                style = PlatformTheme.typography.caption,
+                                textAlign = TextAlign.Center,
+                            )
+                            PlatformButton(
+                                onClick = { onToInstagramWeb.invoke() },
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                PlatformText(text = "Launch Instagram Web")
+                            }
+                        }
+                    }
+                }
                 AnimatedVisibility(state.canNext && state.detectedPlatformId.isSuccess && state.instanceInputState.text.isNotEmpty()) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -257,6 +297,45 @@ public fun ServiceSelectionScreenContent(
         if (!(state.canNext && state.detectedPlatformId.isSuccess && state.instanceInputState.text.isNotEmpty())) {
             item(span = StaggeredGridItemSpan.FullLine) {
                 Spacer(modifier = Modifier.height(16.dp))
+            }
+
+            if (onToInstagramWeb != null) {
+                item(span = StaggeredGridItemSpan.FullLine) {
+                    AdaptiveCard(
+                        modifier = Modifier.padding(horizontal = screenHorizontalPadding),
+                    ) {
+                        Row(
+                            modifier =
+                                Modifier
+                                    .clickable { onToInstagramWeb.invoke() }
+                                    .fillMaxWidth()
+                                    .padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(14.dp),
+                        ) {
+                            FAIcon(
+                                imageVector = FontAwesomeIcons.Brands.Instagram,
+                                contentDescription = "Instagram",
+                                modifier = Modifier.size(28.dp),
+                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                PlatformText(
+                                    text = "Instagram (Web)",
+                                    style = PlatformTheme.typography.title,
+                                )
+                                PlatformText(
+                                    text = "Isolated privacy sandbox with ad & tracking shield",
+                                    style = PlatformTheme.typography.caption,
+                                )
+                            }
+                            PlatformButton(
+                                onClick = { onToInstagramWeb.invoke() },
+                            ) {
+                                PlatformText(text = "Connect")
+                            }
+                        }
+                    }
+                }
             }
 
             item(span = StaggeredGridItemSpan.FullLine) {

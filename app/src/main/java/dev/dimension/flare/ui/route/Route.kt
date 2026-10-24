@@ -233,6 +233,9 @@ internal sealed interface Route : NavKey {
     }
 
     @Serializable
+    data object InstagramWeb : Route
+
+    @Serializable
     data object TabSettings : Route
 
     @Serializable

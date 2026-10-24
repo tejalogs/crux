@@ -46,7 +46,9 @@ import androidx.compose.ui.platform.UriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import compose.icons.FontAwesomeIcons
+import compose.icons.fontawesomeicons.Brands
 import compose.icons.fontawesomeicons.Solid
+import compose.icons.fontawesomeicons.brands.Instagram
 import compose.icons.fontawesomeicons.solid.Bars
 import compose.icons.fontawesomeicons.solid.Bell
 import compose.icons.fontawesomeicons.solid.ClockRotateLeft
@@ -277,6 +279,21 @@ internal fun HomeScreen(afterInit: () -> Unit) {
                         }
                     },
                     secondaryItems = {
+                        item(
+                            selected = currentRoute is Route.InstagramWeb,
+                            onClick = {
+                                state.navigate(Route.InstagramWeb)
+                            },
+                            icon = {
+                                FAIcon(
+                                    imageVector = FontAwesomeIcons.Brands.Instagram,
+                                    contentDescription = "Instagram",
+                                )
+                            },
+                            label = {
+                                Text(text = "Instagram (Web)")
+                            },
+                        )
                         if (layoutType != NavigationSuiteType.NavigationBar) {
                             item(
                                 selected = currentRoute is Route.DraftBox,

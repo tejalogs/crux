@@ -20,6 +20,7 @@ import dev.dimension.flare.ui.screen.login.ServiceSelectionScreenContent
 @Composable
 internal fun ServiceSelectScreen(
     onWebViewLogin: (url: String, cookieCallback: (cookies: String?) -> Boolean) -> Unit,
+    onToInstagramWeb: () -> Unit = {},
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -42,6 +43,7 @@ internal fun ServiceSelectScreen(
     ) { contentPadding ->
         ServiceSelectionScreenContent(
             onWebViewLogin = onWebViewLogin,
+            onToInstagramWeb = onToInstagramWeb,
             contentPadding = contentPadding,
             openUri = uriHandler::openUri,
             registerDeeplinkCallback = { callback ->
