@@ -89,8 +89,8 @@ internal fun RssSourceEditSheet(
     val launcher =
         rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) {
             it?.let {
-                onDismissRequest.invoke()
                 onImportOPML.invoke(it.toString())
+                onDismissRequest.invoke()
             }
         }
     Column(

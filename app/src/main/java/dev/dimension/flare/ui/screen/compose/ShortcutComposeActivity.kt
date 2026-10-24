@@ -45,10 +45,11 @@ class ShortcutComposeActivity : ComponentActivity() {
                 initialText.length
             }
 
+        val isMediaMime = intent?.type?.let { it.startsWith("image/") || it.startsWith("video/") } == true
+
         val initialMedias =
             when {
-                intent?.action == Intent.ACTION_SEND &&
-                    intent.type?.startsWith("image/") == true -> {
+                intent?.action == Intent.ACTION_SEND && isMediaMime -> {
                     listOfNotNull(
                         IntentCompat.getParcelableExtra(
                             intent,
@@ -58,8 +59,7 @@ class ShortcutComposeActivity : ComponentActivity() {
                     ).toPersistentList()
                 }
 
-                intent?.action == Intent.ACTION_SEND_MULTIPLE &&
-                    intent.type?.startsWith("image/") == true -> {
+                intent?.action == Intent.ACTION_SEND_MULTIPLE && isMediaMime -> {
                     IntentCompat
                         .getParcelableArrayListExtra(
                             intent,
