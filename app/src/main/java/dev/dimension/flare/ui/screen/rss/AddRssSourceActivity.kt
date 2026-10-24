@@ -42,7 +42,16 @@ class AddRssSourceActivity : ComponentActivity() {
                 }
 
                 else -> {
-                    intent.dataString
+                    val raw = intent?.dataString.orEmpty()
+                    when {
+                        raw.startsWith("feed://", ignoreCase = true) -> "https://${raw.removePrefix("feed://")}"
+                        raw.startsWith("feed:https://", ignoreCase = true) -> raw.removePrefix("feed:")
+                        raw.startsWith("feed:http://", ignoreCase = true) -> raw.removePrefix("feed:")
+                        raw.startsWith("rss://", ignoreCase = true) -> "https://${raw.removePrefix("rss://")}"
+                        raw.startsWith("rss:https://", ignoreCase = true) -> raw.removePrefix("rss:")
+                        raw.startsWith("rss:http://", ignoreCase = true) -> raw.removePrefix("rss:")
+                        else -> raw
+                    }
                 }
             }
 

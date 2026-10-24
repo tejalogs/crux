@@ -125,6 +125,8 @@
                 <data android:pathPattern=".*\\.opml" />
             </intent-filter>
             <intent-filter>
+                <data android:scheme="feed" />
+                <data android:scheme="rss" />
                 <data android:scheme="rsshub" />
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -132,6 +134,16 @@
             </intent-filter>
         </activity>
 
+        <service
+            android:name=".common.ComposeTileService"
+            android:label="@string/compose_title"
+            android:icon="@drawable/baseline_edit_24"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
         <service
             android:name=".common.PlaybackService"
             android:foregroundServiceType="mediaPlayback"
