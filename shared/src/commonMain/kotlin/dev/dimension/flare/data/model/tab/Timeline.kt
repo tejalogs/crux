@@ -82,9 +82,28 @@ public sealed interface UiTimelineTabItem {
     public val title: UiText
     public val icon: IconType
     public val appearancePatch: AppearancePatch?
+
+    /** Controls inclusion in parent mixed/group timelines; this tab's own page remains available. */
     public val enabled: Boolean
     public val filterConfig: TimelineFilterConfig
     public val loaderKey: String
+    public val contentSourceKey: String
+        get() =
+            when (this) {
+                is UiSourceTimelineTabItem -> {
+                    source?.let { kotlinx.serialization.json.Json.encodeToString(listOf(it.specId, it.data)) } ?: loaderKey
+                }
+
+                is UiGroupTimelineTabItem -> {
+                    kotlinx.serialization.json.Json.encodeToString(
+                        listOf(mergePolicy.name) +
+                            children
+                                .filter { it.enabled }
+                                .let { if (isSystemHomeMixedTimeline) it.sortedBy { child -> child.id } else it }
+                                .map { it.contentSourceKey },
+                    )
+                }
+            }
 
     // for iOS and Compose call sites
     public val key: String get() = id
@@ -280,6 +299,7 @@ internal data class TimelinePresentation internal constructor(
     val titleOverride: String? = null,
     val iconOverride: IconType? = null,
     private val appearanceOverride: AppearanceBag? = null,
+    /** Persisted [UiTimelineTabItem.enabled]; does not disable standalone page loading. */
     val enabled: Boolean = true,
     val filterConfig: TimelineFilterConfig = TimelineFilterConfig(),
 ) {
@@ -590,7 +610,8 @@ internal class TimelineResolver(
             is TimelineSlotContent.Group -> {
                 UiGroupTimelineTabItem(
                     id = slot.id,
-                    children = content.children.map { toTabItem(it) }.filter { it.enabled },
+                    // Preserve excluded children for editing; resolveGroupLoader handles inclusion.
+                    children = content.children.map { toTabItem(it) },
                     mergePolicy = content.mergePolicy,
                     source = content.source,
                     presentation = slot.presentation,
@@ -687,6 +708,20 @@ internal class TimelineResolver(
                     }
                 }
             }
+
+    internal fun accountKeys(item: UiTimelineTabItem): Set<MicroBlogKey> =
+        when (item) {
+            is UiSourceTimelineTabItem -> {
+                setOfNotNull(item.source?.let(::resolveAccountKey))
+            }
+
+            is UiGroupTimelineTabItem -> {
+                item.children
+                    .filter { it.enabled }
+                    .flatMap(::accountKeys)
+                    .toSet()
+            }
+        }
 
     private fun resolveSpec(source: TimelineSourceRef): TimelineSpec<out TimelineSpec.Data> =
         specs[source.specId]
