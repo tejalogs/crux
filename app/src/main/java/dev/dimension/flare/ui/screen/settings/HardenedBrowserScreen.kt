@@ -142,6 +142,7 @@ internal fun HardenedBrowserScreen(onBack: () -> Unit) {
                         allowFileAccess = false
                         allowContentAccess = false
                         javaScriptCanOpenWindowsAutomatically = false
+                        @Suppress("DEPRECATION")
                         saveFormData = false
                         setSafeBrowsingEnabled(true)
                     }
