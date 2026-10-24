@@ -46,7 +46,7 @@ internal fun EntryProviderScope<NavKey>.rssEntryBuilder(
     ) {
         RssSourcesScreen(
             onAdd = {
-                navigate(Route.Rss.Create)
+                navigate(Route.Rss.Create())
             },
             onEdit = {
                 navigate(Route.Rss.Edit(it))
@@ -101,10 +101,11 @@ internal fun EntryProviderScope<NavKey>.rssEntryBuilder(
     }
     entry<Route.Rss.Create>(
         metadata = BottomSheetSceneStrategy.bottomSheet()
-    ) {
+    ) { args ->
         RssSourceEditSheet(
             onDismissRequest = onBack,
             id = null,
+            initialUrl = args.initialUrl,
             onImportOPML = {
                 navigate(Route.Rss.OPMLImport(it))
             }

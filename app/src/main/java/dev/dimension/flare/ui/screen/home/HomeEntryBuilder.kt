@@ -115,7 +115,7 @@ internal fun EntryProviderScope<NavKey>.homeEntryBuilder(
             TabSettingScreen(
                 onBack = onBack,
                 toAddRssSource = {
-                    navigate(Route.Rss.Create)
+                    navigate(Route.Rss.Create())
                 },
                 toGroupConfig = {
                     navigate(Route.TabGroupConfig(it?.id))
@@ -135,16 +135,20 @@ internal fun EntryProviderScope<NavKey>.homeEntryBuilder(
                 groupId = args.groupId,
                 onBack = onBack,
                 toAddRssSource = {
-                    navigate(Route.Rss.Create)
+                    navigate(Route.Rss.Create())
                 },
             )
         }
     }
     entry<Route.InstagramWeb>(
         metadata = ListDetailSceneStrategy.detailPane("instagram_web"),
-    ) {
+    ) { args ->
         InstagramWebScreen(
             onBack = onBack,
+            initialUrl = args.initialUrl,
+            onNavigateToRss = { rssUrl ->
+                navigate(Route.Rss.Create(initialUrl = rssUrl))
+            },
         )
     }
 

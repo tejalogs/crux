@@ -282,7 +282,7 @@ internal fun HomeScreen(afterInit: () -> Unit) {
                         item(
                             selected = currentRoute is Route.InstagramWeb,
                             onClick = {
-                                state.navigate(Route.InstagramWeb)
+                                state.navigate(Route.InstagramWeb())
                             },
                             icon = {
                                 FAIcon(
@@ -648,8 +648,18 @@ private fun presenter(uriHandler: UriHandler) =
                             )
                         }
                     },
-                    onLink = {
-                        currentUriHandler.value.openUri(it)
+                    onLink = { linkUrl ->
+                        if (isInstagramUrl(linkUrl)) {
+                            navigate(
+                                route = Route.InstagramWeb(initialUrl = linkUrl),
+                                topLevelBackStack = topLevelBackStack.takeSuccess(),
+                                topLevelRoutes = topLevelRoutes.takeSuccess(),
+                                wideNavigationRailState = wideNavigationRailState,
+                                scope = scope,
+                            )
+                        } else {
+                            currentUriHandler.value.openUri(linkUrl)
+                        }
                     },
                 )
             }.invoke()
@@ -770,4 +780,12 @@ internal fun RegisterTabCallback(
             }
         }
     }
+}
+
+private fun isInstagramUrl(url: String): Boolean {
+    val clean = url.trim().lowercase()
+    return clean.startsWith("https://instagram.com") ||
+        clean.startsWith("https://www.instagram.com") ||
+        clean.startsWith("http://instagram.com") ||
+        clean.startsWith("http://www.instagram.com")
 }

@@ -194,7 +194,9 @@ internal sealed interface Route : NavKey {
         ) : Rss
 
         @Serializable
-        data object Create : Rss
+        data class Create(
+            val initialUrl: String? = null,
+        ) : Rss
 
         @Serializable
         data class OPMLImport(
@@ -233,7 +235,9 @@ internal sealed interface Route : NavKey {
     }
 
     @Serializable
-    data object InstagramWeb : Route
+    data class InstagramWeb(
+        val initialUrl: String? = null,
+    ) : Route
 
     @Serializable
     data object TabSettings : Route

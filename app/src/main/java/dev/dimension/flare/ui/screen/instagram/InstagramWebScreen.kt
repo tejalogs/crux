@@ -1,5 +1,6 @@
 package dev.dimension.flare.ui.screen.instagram
 
+import android.content.Intent
 import android.net.Uri
 import android.view.ViewGroup.LayoutParams
 import android.webkit.CookieManager
@@ -52,6 +53,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -66,6 +68,7 @@ import compose.icons.fontawesomeicons.solid.ArrowLeft
 import compose.icons.fontawesomeicons.solid.ArrowRight
 import compose.icons.fontawesomeicons.solid.ArrowUpRightFromSquare
 import compose.icons.fontawesomeicons.solid.RotateRight
+import compose.icons.fontawesomeicons.solid.Rss
 import compose.icons.fontawesomeicons.solid.ShieldHalved
 import compose.icons.fontawesomeicons.solid.TrashCan
 import dev.dimension.flare.ui.component.BackButton
@@ -117,17 +120,46 @@ private const val PRISM_SHIELD_JS = """
 })();
 """
 
+internal fun extractInstagramProfile(url: String): String? {
+    val uri = runCatching { Uri.parse(url) }.getOrNull() ?: return null
+    val host = uri.host?.lowercase().orEmpty()
+    if (!host.endsWith("instagram.com")) return null
+    val segments = uri.pathSegments ?: return null
+    if (segments.isEmpty()) return null
+    val first = segments[0].lowercase()
+    val nonProfiles =
+        setOf(
+            "explore", "direct", "accounts", "stories", "reels", "reel", "p", "tv",
+            "developer", "about", "legal", "privacy", "terms", "api", "static", "challenge",
+        )
+    if (first in nonProfiles) return null
+    if (!first.matches(Regex("^[a-zA-Z0-9._]+$"))) return null
+    return segments[0]
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun InstagramWebScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    initialUrl: String? = null,
+    onNavigateToRss: ((String) -> Unit)? = null,
 ) {
+    val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
     val webViewRef = remember { mutableStateOf<WebView?>(null) }
-    val webViewState = rememberWebViewState(INSTAGRAM_HOME_URL)
+    val targetUrl =
+        remember(initialUrl) {
+            val clean = initialUrl?.trim()
+            if (!clean.isNullOrEmpty() && (clean.startsWith("http://") || clean.startsWith("https://"))) {
+                clean
+            } else {
+                INSTAGRAM_HOME_URL
+            }
+        }
+    val webViewState = rememberWebViewState(targetUrl)
 
-    var currentUrl by remember { mutableStateOf(INSTAGRAM_HOME_URL) }
+    var currentUrl by remember { mutableStateOf(targetUrl) }
     var canGoBack by remember { mutableStateOf(false) }
     var canGoForward by remember { mutableStateOf(false) }
     var pageProgress by remember { mutableFloatStateOf(0f) }
@@ -149,6 +181,12 @@ internal fun InstagramWebScreen(
             webViewRef.value?.goBack()
         } else {
             onBack()
+        }
+    }
+
+    LaunchedEffect(targetUrl) {
+        if (targetUrl != INSTAGRAM_HOME_URL && targetUrl != currentUrl) {
+            webViewRef.value?.loadUrl(targetUrl)
         }
     }
 
@@ -300,6 +338,17 @@ internal fun InstagramWebScreen(
                         BackButton(onBack = onBack)
                     },
                     actions = {
+                        val detectedProfile = remember(currentUrl) { extractInstagramProfile(currentUrl) }
+                        if (detectedProfile != null && onNavigateToRss != null) {
+                            IconButton(onClick = { onNavigateToRss.invoke("https://instagram.com/$detectedProfile") }) {
+                                FAIcon(
+                                    imageVector = FontAwesomeIcons.Solid.Rss,
+                                    contentDescription = "Subscribe via RSS",
+                                    tint = MaterialTheme.colorScheme.tertiary,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            }
+                        }
                         IconButton(onClick = { showPrivacyDialog = true }) {
                             FAIcon(
                                 imageVector = FontAwesomeIcons.Solid.ShieldHalved,
@@ -503,7 +552,12 @@ internal fun InstagramWebScreen(
                     IconButton(
                         onClick = {
                             if (currentUrl.isNotBlank()) {
-                                uriHandler.openUri(currentUrl)
+                                try {
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(currentUrl))
+                                    context.startActivity(intent)
+                                } catch (_: Exception) {
+                                    uriHandler.openUri(currentUrl)
+                                }
                             }
                         },
                     ) {

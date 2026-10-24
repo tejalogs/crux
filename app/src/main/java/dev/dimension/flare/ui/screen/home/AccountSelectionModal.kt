@@ -93,7 +93,7 @@ internal fun AccountSelectionModal(
         OutlinedCard(
             onClick = {
                 onBack.invoke()
-                navigate(Route.InstagramWeb)
+                navigate(Route.InstagramWeb())
             },
             modifier = Modifier.fillMaxWidth(),
             colors =
