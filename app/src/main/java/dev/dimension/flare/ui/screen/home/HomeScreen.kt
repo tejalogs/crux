@@ -51,6 +51,7 @@ import compose.icons.fontawesomeicons.Solid
 import compose.icons.fontawesomeicons.brands.Instagram
 import compose.icons.fontawesomeicons.solid.Bars
 import compose.icons.fontawesomeicons.solid.Bell
+import compose.icons.fontawesomeicons.solid.Bookmark
 import compose.icons.fontawesomeicons.solid.ClockRotateLeft
 import compose.icons.fontawesomeicons.solid.Gear
 import compose.icons.fontawesomeicons.solid.House
@@ -292,6 +293,21 @@ internal fun HomeScreen(afterInit: () -> Unit) {
                             },
                             label = {
                                 Text(text = "Instagram (Web)")
+                            },
+                        )
+                        item(
+                            selected = currentRoute is Route.ReadingList,
+                            onClick = {
+                                state.navigate(Route.ReadingList)
+                            },
+                            icon = {
+                                FAIcon(
+                                    imageVector = FontAwesomeIcons.Solid.Bookmark,
+                                    contentDescription = "Reading List",
+                                )
+                            },
+                            label = {
+                                Text(text = "Reading List")
                             },
                         )
                         if (layoutType != NavigationSuiteType.NavigationBar) {
@@ -624,6 +640,7 @@ private fun presenter(uriHandler: UriHandler) =
                                     Route.DraftBox,
                                     Route.Rss.Sources,
                                     Route.Settings.LocalHistory,
+                                    Route.ReadingList,
                                 ),
                             )
                             if (aiAgentEnabledState.enabled) {

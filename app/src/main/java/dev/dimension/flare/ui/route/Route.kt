@@ -240,6 +240,9 @@ internal sealed interface Route : NavKey {
     ) : Route
 
     @Serializable
+    data object ReadingList : Route
+
+    @Serializable
     data object TabSettings : Route
 
     @Serializable

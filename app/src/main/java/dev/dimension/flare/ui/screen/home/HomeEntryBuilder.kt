@@ -15,6 +15,7 @@ import dev.dimension.flare.ui.route.Route
 import dev.dimension.flare.ui.screen.agent.AgentChatScreen
 import dev.dimension.flare.ui.screen.agent.LocalHistoryAgentScreen
 import dev.dimension.flare.ui.screen.instagram.InstagramWebScreen
+import dev.dimension.flare.ui.screen.readinglist.ReadingListScreen
 import kotlin.time.Clock
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3AdaptiveApi::class)
@@ -148,6 +149,17 @@ internal fun EntryProviderScope<NavKey>.homeEntryBuilder(
             initialUrl = args.initialUrl,
             onNavigateToRss = { rssUrl ->
                 navigate(Route.Rss.Create(initialUrl = rssUrl))
+            },
+        )
+    }
+
+    entry<Route.ReadingList>(
+        metadata = ListDetailSceneStrategy.detailPane("reading_list"),
+    ) {
+        ReadingListScreen(
+            onBack = onBack,
+            toStorageSettings = {
+                navigate(Route.Settings.Storage)
             },
         )
     }

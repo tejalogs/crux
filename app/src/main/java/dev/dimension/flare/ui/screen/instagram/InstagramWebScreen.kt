@@ -43,10 +43,12 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -67,15 +69,20 @@ import compose.icons.fontawesomeicons.brands.Instagram
 import compose.icons.fontawesomeicons.solid.ArrowLeft
 import compose.icons.fontawesomeicons.solid.ArrowRight
 import compose.icons.fontawesomeicons.solid.ArrowUpRightFromSquare
+import compose.icons.fontawesomeicons.solid.Bookmark
 import compose.icons.fontawesomeicons.solid.RotateRight
 import compose.icons.fontawesomeicons.solid.Rss
 import compose.icons.fontawesomeicons.solid.ShieldHalved
 import compose.icons.fontawesomeicons.solid.TrashCan
+import dev.dimension.flare.data.readinglist.ReadingListItem
+import dev.dimension.flare.data.readinglist.ReadingListRepository
+import dev.dimension.flare.di.koinInject
 import dev.dimension.flare.ui.component.BackButton
 import dev.dimension.flare.ui.component.FAIcon
 import dev.dimension.flare.ui.component.FlareScaffold
 import dev.dimension.flare.ui.component.FlareTopAppBar
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.seconds
 
 private const val INSTAGRAM_HOME_URL = "https://www.instagram.com"
@@ -148,6 +155,8 @@ internal fun InstagramWebScreen(
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
     val webViewRef = remember { mutableStateOf<WebView?>(null) }
+    val readingListRepo by koinInject<ReadingListRepository>()
+    val scope = rememberCoroutineScope()
     val targetUrl =
         remember(initialUrl) {
             val clean = initialUrl?.trim()
@@ -160,6 +169,7 @@ internal fun InstagramWebScreen(
     val webViewState = rememberWebViewState(targetUrl)
 
     var currentUrl by remember { mutableStateOf(targetUrl) }
+    val isSavedState by remember(currentUrl) { readingListRepo.isSaved(currentUrl) }.collectAsState(false)
     var canGoBack by remember { mutableStateOf(false) }
     var canGoForward by remember { mutableStateOf(false) }
     var pageProgress by remember { mutableFloatStateOf(0f) }
@@ -348,6 +358,37 @@ internal fun InstagramWebScreen(
                                     modifier = Modifier.size(18.dp),
                                 )
                             }
+                        }
+                        IconButton(
+                            onClick = {
+                                scope.launch {
+                                    if (isSavedState) {
+                                        readingListRepo.remove(currentUrl)
+                                    } else {
+                                        val profile = extractInstagramProfile(currentUrl)
+                                        val itemTitle = if (profile != null) "@$profile on Instagram" else "Instagram Web Post"
+                                        val item =
+                                            ReadingListItem(
+                                                id = currentUrl,
+                                                title = itemTitle,
+                                                authorName = profile ?: "Instagram",
+                                                authorHandle = profile ?: "",
+                                                contentText = "Saved Instagram link: $currentUrl",
+                                                sourceUrl = currentUrl,
+                                                platformId = "instagram",
+                                                savedAtTimestamp = System.currentTimeMillis(),
+                                            )
+                                        readingListRepo.save(item)
+                                    }
+                                }
+                            },
+                        ) {
+                            FAIcon(
+                                imageVector = FontAwesomeIcons.Solid.Bookmark,
+                                contentDescription = if (isSavedState) "Remove from Reading List" else "Save to Reading List",
+                                tint = if (isSavedState) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(18.dp),
+                            )
                         }
                         IconButton(onClick = { showPrivacyDialog = true }) {
                             FAIcon(

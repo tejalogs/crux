@@ -9,20 +9,29 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.SegmentedListItem
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -35,16 +44,26 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import coil3.imageLoader
 import compose.icons.FontAwesomeIcons
 import compose.icons.fontawesomeicons.Solid
+import compose.icons.fontawesomeicons.solid.Bookmark
+import compose.icons.fontawesomeicons.solid.CloudArrowDown
 import compose.icons.fontawesomeicons.solid.Database
 import compose.icons.fontawesomeicons.solid.Envelope
 import compose.icons.fontawesomeicons.solid.FileExport
 import compose.icons.fontawesomeicons.solid.FileImport
+import compose.icons.fontawesomeicons.solid.HardDrive
 import compose.icons.fontawesomeicons.solid.Images
+import compose.icons.fontawesomeicons.solid.Wifi
 import dev.dimension.flare.R
 import dev.dimension.flare.common.ComposeInAppNotification
+import dev.dimension.flare.common.OfflineMediaPrefetcher
+import dev.dimension.flare.data.cache.OfflineCacheConfig
+import dev.dimension.flare.data.cache.OfflineCacheRepository
+import dev.dimension.flare.data.readinglist.ReadingListRepository
 import dev.dimension.flare.ui.component.BackButton
 import dev.dimension.flare.ui.component.FlareLargeFlexibleTopAppBar
 import dev.dimension.flare.ui.component.FlareScaffold
@@ -79,8 +98,57 @@ internal fun StorageScreen(
         storagePresenter(context = context)
     }
 
+    val offlineCacheRepo = koinInject<OfflineCacheRepository>()
+    val readingListRepo = koinInject<ReadingListRepository>()
+    val offlineConfig by offlineCacheRepo.settings.collectAsState()
+    val readingListItems by readingListRepo.items.collectAsState()
+    val prefetcher = remember { OfflineMediaPrefetcher(context) }
+    val prefetchProgress by prefetcher.status.collectAsState()
+    val scope = rememberCoroutineScope()
+
+    var showCacheSizeDialog by remember { mutableStateOf(false) }
     var showImportConfirmation by remember { mutableStateOf(false) }
     var pendingImportUri by remember { mutableStateOf<android.net.Uri?>(null) }
+
+    if (showCacheSizeDialog) {
+        AlertDialog(
+            onDismissRequest = { showCacheSizeDialog = false },
+            title = { Text(text = "Media Cache Limit") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    OfflineCacheConfig.ALLOWED_SIZES_MB.forEach { sizeMb ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        scope.launch { offlineCacheRepo.setMaxMediaCacheSizeMb(sizeMb) }
+                                        showCacheSizeDialog = false
+                                    }
+                                    .padding(vertical = 8.dp),
+                        ) {
+                            RadioButton(
+                                selected = offlineConfig.maxMediaCacheSizeMb == sizeMb,
+                                onClick = {
+                                    scope.launch { offlineCacheRepo.setMaxMediaCacheSizeMb(sizeMb) }
+                                    showCacheSizeDialog = false
+                                },
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            val label = if (sizeMb >= 1024) "${sizeMb / 1024} GB" else "$sizeMb MB"
+                            Text(text = label)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showCacheSizeDialog = false }) {
+                    Text(text = "Done")
+                }
+            },
+        )
+    }
 
     if (showImportConfirmation) {
         AlertDialog(
@@ -278,6 +346,128 @@ internal fun StorageScreen(
                             FontAwesomeIcons.Solid.FileImport,
                             contentDescription = stringResource(id = R.string.settings_storage_import_data),
                             color = ThemeIconData.Color.SapphireBlue,
+                        )
+                    },
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    text = "Offline Reading & Media Cache",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                )
+
+                SegmentedListItem(
+                    onClick = { showCacheSizeDialog = true },
+                    shapes = ListItemDefaults.first(),
+                    content = {
+                        Text(text = "Media Cache Limit")
+                    },
+                    supportingContent = {
+                        val limitLabel =
+                            if (offlineConfig.maxMediaCacheSizeMb >= 1024) {
+                                "${offlineConfig.maxMediaCacheSizeMb / 1024} GB"
+                            } else {
+                                "${offlineConfig.maxMediaCacheSizeMb} MB"
+                            }
+                        Text(text = "Limit: $limitLabel • Used: ${state.imageCacheSize} MB")
+                    },
+                    leadingContent = {
+                        ThemedIcon(
+                            FontAwesomeIcons.Solid.HardDrive,
+                            contentDescription = "Media Cache Limit",
+                            color = ThemeIconData.Color.ForestGreen,
+                        )
+                    },
+                )
+
+                SegmentedListItem(
+                    onClick = {
+                        scope.launch {
+                            offlineCacheRepo.setPrefetchMediaForReadingList(!offlineConfig.prefetchMediaForReadingList)
+                        }
+                    },
+                    shapes = ListItemDefaults.item(),
+                    content = {
+                        Text(text = "Prefetch Media for Reading List")
+                    },
+                    supportingContent = {
+                        Text(text = "Download images automatically for offline reading")
+                    },
+                    trailingContent = {
+                        Switch(
+                            checked = offlineConfig.prefetchMediaForReadingList,
+                            onCheckedChange = { checked ->
+                                scope.launch {
+                                    offlineCacheRepo.setPrefetchMediaForReadingList(checked)
+                                }
+                            },
+                        )
+                    },
+                    leadingContent = {
+                        ThemedIcon(
+                            FontAwesomeIcons.Solid.CloudArrowDown,
+                            contentDescription = "Prefetch Media",
+                            color = ThemeIconData.Color.DeepTeal,
+                        )
+                    },
+                )
+
+                SegmentedListItem(
+                    onClick = {
+                        scope.launch {
+                            offlineCacheRepo.setWifiOnlyPrefetch(!offlineConfig.wifiOnlyPrefetch)
+                        }
+                    },
+                    shapes = ListItemDefaults.item(),
+                    content = {
+                        Text(text = "Wi-Fi Only Prefetch")
+                    },
+                    supportingContent = {
+                        Text(text = "Prevent media prefetching on cellular data")
+                    },
+                    trailingContent = {
+                        Switch(
+                            checked = offlineConfig.wifiOnlyPrefetch,
+                            onCheckedChange = { checked ->
+                                scope.launch {
+                                    offlineCacheRepo.setWifiOnlyPrefetch(checked)
+                                }
+                            },
+                        )
+                    },
+                    leadingContent = {
+                        ThemedIcon(
+                            FontAwesomeIcons.Solid.Wifi,
+                            contentDescription = "Wi-Fi Only",
+                            color = ThemeIconData.Color.SapphireBlue,
+                        )
+                    },
+                )
+
+                SegmentedListItem(
+                    onClick = {
+                        prefetcher.prefetchAll(readingListItems)
+                    },
+                    shapes = ListItemDefaults.last(),
+                    content = {
+                        Text(text = "Reading List Cache")
+                    },
+                    supportingContent = {
+                        if (prefetchProgress.isPrefetching) {
+                            Text(text = "Caching media: ${prefetchProgress.completedCount}/${prefetchProgress.totalCount}...")
+                        } else {
+                            Text(text = "${readingListItems.size} items saved • Tap to prefetch all media")
+                        }
+                    },
+                    leadingContent = {
+                        ThemedIcon(
+                            FontAwesomeIcons.Solid.Bookmark,
+                            contentDescription = "Reading List Cache",
+                            color = ThemeIconData.Color.ImperialMagenta,
                         )
                     },
                 )

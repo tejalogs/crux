@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -27,11 +28,13 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -45,11 +48,15 @@ import compose.icons.FontAwesomeIcons
 import compose.icons.fontawesomeicons.Brands
 import compose.icons.fontawesomeicons.Solid
 import compose.icons.fontawesomeicons.brands.Chrome
+import compose.icons.fontawesomeicons.solid.Bookmark
 import compose.icons.fontawesomeicons.solid.Language
 import compose.icons.fontawesomeicons.solid.ShareNodes
 import dev.dimension.flare.R
+import dev.dimension.flare.common.OfflineMediaPrefetcher
 import dev.dimension.flare.common.encodeJson
 import dev.dimension.flare.data.network.rss.DocumentData
+import dev.dimension.flare.data.readinglist.ReadingListItem
+import dev.dimension.flare.data.readinglist.ReadingListRepository
 import dev.dimension.flare.data.repository.SettingsRepository
 import dev.dimension.flare.ui.component.BackButton
 import dev.dimension.flare.ui.component.DateTimeText
@@ -78,6 +85,7 @@ import dev.dimension.flare.ui.theme.screenHorizontalPadding
 import io.ktor.http.Url
 import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import moe.tlaster.precompose.molecule.producePresenter
 import org.koin.compose.koinInject
 
@@ -94,6 +102,10 @@ internal fun RssDetailScreen(
     val state by producePresenter(url) { presenter(url, descriptionHtml, descriptionTitle, fallbackHtml) }
     val uriHandler = LocalUriHandler.current
     val context = LocalContext.current
+    val readingListRepo = koinInject<ReadingListRepository>()
+    val isSavedState by remember(url) { readingListRepo.isSaved(url) }.collectAsState(false)
+    val prefetcher = remember { OfflineMediaPrefetcher(context) }
+    val scope = rememberCoroutineScope()
     val color =
         if (isLightTheme()) {
             MaterialTheme.colorScheme.surface
@@ -117,6 +129,48 @@ internal fun RssDetailScreen(
                         actionIconContentColor = MaterialTheme.colorScheme.primary,
                     ),
                 actions = {
+                    IconButton(
+                        onClick = {
+                            scope.launch {
+                                if (isSavedState) {
+                                    readingListRepo.remove(url)
+                                } else {
+                                    val itemTitle =
+                                        when (val data = state.data) {
+                                            is UiState.Success -> data.data.title.takeIf { it.isNotBlank() }
+                                            else -> null
+                                        } ?: descriptionTitle.orEmpty().ifBlank { "RSS Article" }
+
+                                    val itemContent =
+                                        when (val data = state.data) {
+                                            is UiState.Success -> data.data.textContent.takeIf { it.isNotBlank() }
+                                            else -> null
+                                        } ?: "Saved from RSS"
+
+                                    val item =
+                                        ReadingListItem(
+                                            id = url,
+                                            title = itemTitle,
+                                            authorName = itemTitle,
+                                            authorHandle = "rss",
+                                            contentText = itemContent,
+                                            sourceUrl = url,
+                                            platformId = "rss",
+                                            savedAtTimestamp = System.currentTimeMillis(),
+                                        )
+                                    readingListRepo.save(item)
+                                    prefetcher.prefetchItem(item)
+                                }
+                            }
+                        },
+                    ) {
+                        FAIcon(
+                            imageVector = FontAwesomeIcons.Solid.Bookmark,
+                            contentDescription = if (isSavedState) "Remove from Reading List" else "Save to Reading List",
+                            tint = if (isSavedState) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
                     IconButton(
                         onClick = {
                             uriHandler.openUri(url)

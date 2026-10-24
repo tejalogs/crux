@@ -21,6 +21,7 @@ import dev.dimension.flare.di.AndroidKoinApplication
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import okio.Path.Companion.toOkioPath
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.component.get
 import org.koin.plugin.module.dsl.startKoin
@@ -46,8 +47,10 @@ class App :
     }
 
     @OptIn(ExperimentalCoilApi::class)
-    override fun newImageLoader(context: PlatformContext): ImageLoader =
-        ImageLoader
+    override fun newImageLoader(context: PlatformContext): ImageLoader {
+        val offlineRepo = runCatching { org.koin.core.context.GlobalContext.getOrNull()?.get<dev.dimension.flare.data.cache.OfflineCacheRepository>() }.getOrNull()
+        val maxMb = offlineRepo?.settings?.value?.maxMediaCacheSizeMb ?: 512
+        return ImageLoader
             .Builder(this)
             .components {
                 if (Build.VERSION.SDK_INT >= 28) {
@@ -67,6 +70,19 @@ class App :
                             },
                     ),
                 )
-            }.crossfade(true)
+            }
+            .diskCache {
+                coil3.disk.DiskCache.Builder()
+                    .directory(cacheDir.resolve("prism_media_cache").toOkioPath())
+                    .maxSizeBytes(maxMb.toLong() * 1024L * 1024L)
+                    .build()
+            }
+            .memoryCache {
+                coil3.memory.MemoryCache.Builder()
+                    .maxSizePercent(context, 0.25)
+                    .build()
+            }
+            .crossfade(true)
             .build()
+    }
 }
