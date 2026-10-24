@@ -129,6 +129,15 @@ private class VVOWebCookieLoginHandler(
         error: String? = null,
     ): LoginFlowState =
         LoginFlowState(
+            fields =
+                listOf(
+                    LoginField(
+                        id = "vvo_cookie_notice",
+                        type = LoginFieldType.DisplayText,
+                        label = UiStrings.Login,
+                        value = "Notice: This integration connects via mobile web session cookies with unofficial endpoints. Use with discretion to prevent account limitations.",
+                    ),
+                ),
             actions =
                 listOf(
                     LoginAction(

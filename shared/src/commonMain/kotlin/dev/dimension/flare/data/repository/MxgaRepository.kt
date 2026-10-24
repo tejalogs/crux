@@ -5,6 +5,7 @@ import dev.dimension.flare.common.decodeProtobuf
 import dev.dimension.flare.common.encodeProtobuf
 import dev.dimension.flare.data.io.FileStorage
 import dev.dimension.flare.data.network.httpClientEngine
+import dev.dimension.flare.data.privacy.installPrivacy
 import dev.dimension.flare.model.PlatformCapability
 import dev.dimension.flare.model.PlatformRegistry
 import dev.dimension.flare.ui.model.UiTimelineV2
@@ -53,6 +54,7 @@ internal class MxgaRepository(
                 requestTimeoutMillis = NETWORK_TIMEOUT_MILLIS
                 socketTimeoutMillis = NETWORK_TIMEOUT_MILLIS
             }
+            installPrivacy()
         }
     private val mutex = Mutex()
     private val cachePath = fileStorage.dataStoreFile(MXGA_CACHE_FILE)
@@ -163,7 +165,7 @@ internal class MxgaRepository(
         maxBytes: Long,
     ): String {
         require(path.startsWith("/") && !path.startsWith("//")) { "Invalid MXGA path" }
-        val response = httpClient.get(BASE_URL + path)
+        val response = httpClient.get(baseUrl + path)
         val channel = response.bodyAsChannel()
         if (!response.status.isSuccess()) {
             channel.cancel()
@@ -187,9 +189,13 @@ internal class MxgaRepository(
         mutableSnapshot.value = snapshot
     }
 
-    private companion object {
-        const val BASE_URL = "https://x.zuoluo.tv"
-        const val META_PATH = "/v1/list/meta"
+    companion object {
+        const val DEFAULT_BASE_URL: String = "https://x.zuoluo.tv"
+
+        @kotlin.concurrent.Volatile
+        var baseUrl: String = DEFAULT_BASE_URL
+
+        private const val META_PATH = "/v1/list/meta"
         const val WHITELIST_PATH = "/v1/whitelist"
         const val MXGA_CACHE_FILE = "mxga_snapshot.pb"
         const val NETWORK_TIMEOUT_MILLIS = 30_000L

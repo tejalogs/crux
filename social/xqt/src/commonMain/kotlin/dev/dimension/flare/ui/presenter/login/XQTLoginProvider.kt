@@ -149,6 +149,15 @@ private class XQTWebCookieLoginHandler(
         error: String? = null,
     ): LoginFlowState =
         LoginFlowState(
+            fields =
+                listOf(
+                    LoginField(
+                        id = "xqt_cookie_notice",
+                        type = LoginFieldType.DisplayText,
+                        label = UiStrings.Login,
+                        value = "Notice: This integration uses web session cookies with private APIs. Avoid aggressive actions to minimize account limitation risks.",
+                    ),
+                ),
             actions =
                 listOf(
                     LoginAction(

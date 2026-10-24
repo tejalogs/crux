@@ -27,13 +27,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import sh.christian.ozone.oauth.OAuthApi
+import dev.dimension.flare.data.network.bluesky.BlueskyOAuthConfig
 import sh.christian.ozone.oauth.OAuthAuthorizationRequest
 import sh.christian.ozone.oauth.OAuthClient
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.milliseconds
-
-private const val CLIENT_METADATA = "https://flareapp.moe/client-metadata.json"
-private const val REDIRECT_URI = "https://flareapp.moe/callback"
 
 internal class BlueskyOAuthLoginPresenter(
     private val toHome: () -> Unit,
@@ -43,8 +41,8 @@ internal class BlueskyOAuthLoginPresenter(
 
     private val oauthClient =
         OAuthClient(
-            clientId = CLIENT_METADATA,
-            redirectUri = REDIRECT_URI,
+            clientId = BlueskyOAuthConfig.clientMetadataUrl,
+            redirectUri = BlueskyOAuthConfig.defaultRedirectUri,
         )
 
     private var request: OAuthAuthorizationRequest? = null
@@ -74,7 +72,7 @@ internal class BlueskyOAuthLoginPresenter(
                                 pendingRepository.save(
                                     it.toPlatformOAuthPending(
                                         host = baseUrl,
-                                        redirectUri = REDIRECT_URI,
+                                        redirectUri = BlueskyOAuthConfig.defaultRedirectUri,
                                     ),
                                 )
                             }

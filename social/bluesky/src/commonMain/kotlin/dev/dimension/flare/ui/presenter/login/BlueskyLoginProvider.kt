@@ -37,11 +37,10 @@ import sh.christian.ozone.api.response.AtpResponse
 import sh.christian.ozone.oauth.OAuthApi
 import sh.christian.ozone.oauth.OAuthAuthorizationRequest
 import sh.christian.ozone.oauth.OAuthClient
+import dev.dimension.flare.data.network.bluesky.BlueskyOAuthConfig
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.milliseconds
 
-private const val CLIENT_METADATA = "https://flareapp.moe/client-metadata.json"
-private const val REDIRECT_URI = "https://flareapp.moe/callback"
 private const val LOGIN_ACTION = "login"
 private const val FIX_TRANQUIL_DELEGATION_ACTION = "fix_tranquil_delegation"
 private const val USERNAME_FIELD = "username"
@@ -287,7 +286,7 @@ private class BlueskyOAuthLoginHandler(
 
     private fun oauthClient(redirectUri: String) =
         OAuthClient(
-            clientId = CLIENT_METADATA,
+            clientId = BlueskyOAuthConfig.clientMetadataUrl,
             redirectUri = redirectUri,
         )
 
@@ -317,7 +316,7 @@ private class BlueskyOAuthLoginHandler(
         request = null
         pendingRepair = null
         runCatching {
-            val redirectUri = context.redirectUri ?: REDIRECT_URI
+            val redirectUri = context.redirectUri ?: BlueskyOAuthConfig.defaultRedirectUri
             request =
                 login(
                     host = context.host,
@@ -383,7 +382,7 @@ private class BlueskyOAuthLoginHandler(
             resumeOAuth(
                 url = value,
                 request = pending.toBlueskyAuthorizationRequest(),
-                redirectUri = pending.attributes["redirect_uri"] ?: REDIRECT_URI,
+                redirectUri = pending.attributes["redirect_uri"] ?: BlueskyOAuthConfig.defaultRedirectUri,
             ).let { result ->
                 pendingRepository.clear(pending)
                 when (result) {
