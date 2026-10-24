@@ -3,12 +3,17 @@ package dev.dimension.flare.ui.screen.home
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.staggeredgrid.LazyStaggeredGridState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Badge
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -17,6 +22,7 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.WideNavigationRailState
 import androidx.compose.material3.WideNavigationRailValue
@@ -44,6 +50,8 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.UriHandler
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import compose.icons.FontAwesomeIcons
 import compose.icons.fontawesomeicons.Brands
@@ -52,6 +60,7 @@ import compose.icons.fontawesomeicons.brands.Instagram
 import compose.icons.fontawesomeicons.solid.Bars
 import compose.icons.fontawesomeicons.solid.Bell
 import compose.icons.fontawesomeicons.solid.Bookmark
+import compose.icons.fontawesomeicons.solid.CaretDown
 import compose.icons.fontawesomeicons.solid.ClockRotateLeft
 import compose.icons.fontawesomeicons.solid.Gear
 import compose.icons.fontawesomeicons.solid.House
@@ -60,6 +69,7 @@ import compose.icons.fontawesomeicons.solid.Pen
 import compose.icons.fontawesomeicons.solid.PenToSquare
 import compose.icons.fontawesomeicons.solid.Robot
 import compose.icons.fontawesomeicons.solid.SquareRss
+import compose.icons.fontawesomeicons.solid.Users
 import dev.dimension.flare.R
 import dev.dimension.flare.model.AccountType
 import dev.dimension.flare.ui.common.OnNewIntent
@@ -71,6 +81,7 @@ import dev.dimension.flare.ui.component.NavigationSuiteScaffold2
 import dev.dimension.flare.ui.component.RichText
 import dev.dimension.flare.ui.component.TabIcon
 import dev.dimension.flare.ui.component.TopLevelBackStack
+import dev.dimension.flare.ui.model.UiProfile
 import dev.dimension.flare.ui.model.asText
 import dev.dimension.flare.ui.model.asType
 import dev.dimension.flare.ui.model.map
@@ -78,6 +89,7 @@ import dev.dimension.flare.ui.model.onLoading
 import dev.dimension.flare.ui.model.onSuccess
 import dev.dimension.flare.ui.model.takeSuccess
 import dev.dimension.flare.ui.presenter.HomeTabsPresenter
+import dev.dimension.flare.ui.presenter.home.ActiveAccountPresenter
 import dev.dimension.flare.ui.presenter.home.AllNotificationBadgePresenter
 import dev.dimension.flare.ui.presenter.home.CanComposePresenter
 import dev.dimension.flare.ui.presenter.home.DeepLinkPresenter
@@ -85,6 +97,7 @@ import dev.dimension.flare.ui.presenter.home.LoggedInPresenter
 import dev.dimension.flare.ui.presenter.home.SecondaryTabsPresenter
 import dev.dimension.flare.ui.presenter.home.UserPresenter
 import dev.dimension.flare.ui.presenter.invoke
+import dev.dimension.flare.ui.presenter.settings.AccountsPresenter
 import dev.dimension.flare.ui.presenter.settings.AiAgentEnabledPresenter
 import dev.dimension.flare.ui.route.Route
 import dev.dimension.flare.ui.route.Router
@@ -107,6 +120,8 @@ internal fun HomeScreen(afterInit: () -> Unit) {
         state.updateUriHandler(uriHandler)
     }
     val hapticFeedback = LocalHapticFeedback.current
+    val activeAccountState = remember { ActiveAccountPresenter() }.invoke()
+    val accountsPresenter = remember { AccountsPresenter() }.invoke()
     state.tabs
         .onSuccess { tabs ->
             val currentRoute =
@@ -229,6 +244,19 @@ internal fun HomeScreen(afterInit: () -> Unit) {
                                     }
                                 }
                             }
+                        } else if (layoutType == NavigationSuiteType.NavigationBar) {
+                            val heroProfile =
+                                activeAccountState.user.takeSuccess()
+                                    ?: accountsPresenter.accounts.takeSuccess()
+                                        ?.firstOrNull { it.profile.takeSuccess() != null }
+                                        ?.profile?.takeSuccess()
+                            PrismDrawerHeader(
+                                primaryProfile = heroProfile,
+                                accountCount = accountsPresenter.accounts.takeSuccess()?.size ?: 1,
+                                onManageAccounts = {
+                                    state.navigate(Route.AccountSelection)
+                                },
+                            )
                         }
                     },
                     navigationSuiteItems = {
@@ -280,6 +308,7 @@ internal fun HomeScreen(afterInit: () -> Unit) {
                         }
                     },
                     secondaryItems = {
+                        header("FEEDS & SOCIAL")
                         item(
                             selected = currentRoute is Route.InstagramWeb,
                             onClick = {
@@ -296,6 +325,23 @@ internal fun HomeScreen(afterInit: () -> Unit) {
                             },
                         )
                         item(
+                            selected = currentRoute is Route.Rss.Sources,
+                            onClick = {
+                                state.navigate(Route.Rss.Sources)
+                            },
+                            icon = {
+                                FAIcon(
+                                    imageVector = FontAwesomeIcons.Solid.SquareRss,
+                                    contentDescription = stringResource(id = R.string.settings_rss_management_title),
+                                )
+                            },
+                            label = {
+                                Text(text = stringResource(id = R.string.settings_rss_management_title))
+                            },
+                        )
+
+                        header("PERSONAL LIBRARY")
+                        item(
                             selected = currentRoute is Route.ReadingList,
                             onClick = {
                                 state.navigate(Route.ReadingList)
@@ -310,198 +356,116 @@ internal fun HomeScreen(afterInit: () -> Unit) {
                                 Text(text = "Reading List")
                             },
                         )
-                        if (layoutType != NavigationSuiteType.NavigationBar) {
-                            item(
-                                selected = currentRoute is Route.DraftBox,
-                                onClick = {
-                                    state.navigate(Route.DraftBox)
-                                },
-                                icon = {
-                                    FAIcon(
-                                        imageVector = FontAwesomeIcons.Solid.PenToSquare,
-                                        contentDescription = stringResource(id = R.string.draft_box_title),
-                                    )
-                                },
-                                label = {
-                                    Text(text = stringResource(id = R.string.draft_box_title))
-                                },
-                            )
-                            item(
-                                selected = currentRoute is Route.Rss.Sources,
-                                onClick = {
-                                    state.navigate(Route.Rss.Sources)
-                                },
-                                icon = {
-                                    FAIcon(
-                                        imageVector = FontAwesomeIcons.Solid.SquareRss,
-                                        contentDescription = stringResource(id = R.string.settings_rss_management_title),
-                                    )
-                                },
-                                label = {
-                                    Text(text = stringResource(id = R.string.settings_rss_management_title))
-                                },
-                            )
-                            item(
-                                selected = currentRoute is Route.Settings.LocalHistory,
-                                onClick = {
-                                    state.navigate(Route.Settings.LocalHistory)
-                                },
-                                icon = {
-                                    FAIcon(
-                                        imageVector = FontAwesomeIcons.Solid.ClockRotateLeft,
-                                        contentDescription = stringResource(id = R.string.settings_local_history_title),
-                                    )
-                                },
-                                label = {
-                                    Text(text = stringResource(id = R.string.settings_local_history_title))
-                                },
-                            )
-                            if (state.aiAgentEnabled) {
-                                item(
-                                    selected = currentRoute is Route.Settings.AgentHistory,
-                                    onClick = {
-                                        state.navigate(Route.Settings.AgentHistory)
-                                    },
-                                    icon = {
-                                        FAIcon(
-                                            imageVector = FontAwesomeIcons.Solid.Robot,
-                                            contentDescription = stringResource(id = R.string.agent_history_title),
-                                        )
-                                    },
-                                    label = {
-                                        Text(text = stringResource(id = R.string.agent_history_title))
-                                    },
+                        item(
+                            selected = currentRoute is Route.DraftBox,
+                            onClick = {
+                                state.navigate(Route.DraftBox)
+                            },
+                            icon = {
+                                FAIcon(
+                                    imageVector = FontAwesomeIcons.Solid.PenToSquare,
+                                    contentDescription = stringResource(id = R.string.draft_box_title),
                                 )
-                            }
-                        }
+                            },
+                            label = {
+                                Text(text = stringResource(id = R.string.draft_box_title))
+                            },
+                        )
+                        item(
+                            selected = currentRoute is Route.Settings.LocalHistory,
+                            onClick = {
+                                state.navigate(Route.Settings.LocalHistory)
+                            },
+                            icon = {
+                                FAIcon(
+                                    imageVector = FontAwesomeIcons.Solid.ClockRotateLeft,
+                                    contentDescription = stringResource(id = R.string.settings_local_history_title),
+                                )
+                            },
+                            label = {
+                                Text(text = stringResource(id = R.string.settings_local_history_title))
+                            },
+                        )
+
                         state.secondaryTabsState.onSuccess { secondaryTabs ->
-                            secondaryTabs.forEach { item ->
-                                expandableItem(
-                                    icon = {
-                                        item.user.onSuccess {
-                                            AvatarComponent(it.avatar)
-                                        }
-                                    },
-                                    label = {
-                                        Column {
+                            if (secondaryTabs.isNotEmpty()) {
+                                header("CONNECTED ACCOUNTS")
+                                secondaryTabs.forEach { item ->
+                                    expandableItem(
+                                        icon = {
                                             item.user.onSuccess {
-                                                RichText(it.name)
-                                                Text(
-                                                    it.handle.canonical,
-                                                    style = MaterialTheme.typography.bodySmall,
+                                                AvatarComponent(
+                                                    data = it.avatar,
+                                                    platformId = it.platformId,
+                                                    host = it.handle.host,
+                                                    platformIcon = it.platformIcon,
+                                                    showNetworkBadge = true,
                                                 )
                                             }
-                                        }
-                                    },
-                                    children = {
-                                        item.tabs.forEach {
-                                            val direction = getDirection(it)
-                                            if (direction != null) {
-                                                item(
-                                                    selected = currentRoute == direction,
-                                                    onClick = {
-                                                        if (currentRoute == direction) {
-                                                            state.scrollToTopRegistry.scrollToTop()
-                                                        } else {
-                                                            state.navigate(direction)
-                                                        }
-                                                    },
-                                                    icon = {
-                                                        TabIcon(
-                                                            icon = it.icon.asType(),
-                                                            title = it.title.asText(),
-                                                            iconOnly = true,
-                                                        )
-                                                    },
-                                                    label = {
-                                                        dev.dimension.flare.ui.component.Text(
-                                                            text = it.title.asText(),
-                                                        )
-                                                    },
-//                                                badge =
-//                                                    if (it is AllNotificationTabItem) {
-//                                                        {
-//                                                            if (state.notificationState.count > 0) {
-//                                                                Badge {
-//                                                                    Text(text = state.notificationState.count.toString())
-//                                                                }
-//                                                            }
-//                                                        }
-//                                                    } else {
-//                                                        null
-//                                                    },
-                                                )
+                                        },
+                                        label = {
+                                            Column {
+                                                item.user.onSuccess {
+                                                    RichText(it.name)
+                                                    Text(
+                                                        it.handle.canonical,
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                    )
+                                                }
                                             }
-                                        }
-                                    },
-                                )
+                                        },
+                                        children = {
+                                            item.tabs.forEach {
+                                                val direction = getDirection(it)
+                                                if (direction != null) {
+                                                    item(
+                                                        selected = currentRoute == direction,
+                                                        onClick = {
+                                                            if (currentRoute == direction) {
+                                                                state.scrollToTopRegistry.scrollToTop()
+                                                            } else {
+                                                                state.navigate(direction)
+                                                            }
+                                                        },
+                                                        icon = {
+                                                            TabIcon(
+                                                                icon = it.icon.asType(),
+                                                                title = it.title.asText(),
+                                                                iconOnly = true,
+                                                            )
+                                                        },
+                                                        label = {
+                                                            dev.dimension.flare.ui.component.Text(
+                                                                text = it.title.asText(),
+                                                            )
+                                                        },
+                                                    )
+                                                }
+                                            }
+                                        },
+                                    )
+                                }
                             }
                         }
                     },
                     footerItems = {
-                        if (layoutType == NavigationSuiteType.NavigationBar) {
+                        header("SOVEREIGNTY & SYSTEM")
+                        if (state.aiAgentEnabled) {
                             item(
-                                selected = currentRoute is Route.DraftBox,
+                                selected = currentRoute is Route.Settings.AgentHistory,
                                 onClick = {
-                                    state.navigate(Route.DraftBox)
+                                    state.navigate(Route.Settings.AgentHistory)
                                 },
                                 icon = {
                                     FAIcon(
-                                        imageVector = FontAwesomeIcons.Solid.PenToSquare,
-                                        contentDescription = stringResource(id = R.string.draft_box_title),
+                                        imageVector = FontAwesomeIcons.Solid.Robot,
+                                        contentDescription = stringResource(id = R.string.agent_history_title),
                                     )
                                 },
                                 label = {
-                                    Text(text = stringResource(id = R.string.draft_box_title))
+                                    Text(text = stringResource(id = R.string.agent_history_title))
                                 },
                             )
-                            item(
-                                selected = currentRoute is Route.Rss.Sources,
-                                onClick = {
-                                    state.navigate(Route.Rss.Sources)
-                                },
-                                icon = {
-                                    FAIcon(
-                                        imageVector = FontAwesomeIcons.Solid.SquareRss,
-                                        contentDescription = stringResource(id = R.string.settings_rss_management_title),
-                                    )
-                                },
-                                label = {
-                                    Text(text = stringResource(id = R.string.settings_rss_management_title))
-                                },
-                            )
-                            item(
-                                selected = currentRoute is Route.Settings.LocalHistory,
-                                onClick = {
-                                    state.navigate(Route.Settings.LocalHistory)
-                                },
-                                icon = {
-                                    FAIcon(
-                                        imageVector = FontAwesomeIcons.Solid.ClockRotateLeft,
-                                        contentDescription = stringResource(id = R.string.settings_local_history_title),
-                                    )
-                                },
-                                label = {
-                                    Text(text = stringResource(id = R.string.settings_local_history_title))
-                                },
-                            )
-                            if (state.aiAgentEnabled) {
-                                item(
-                                    selected = currentRoute is Route.Settings.AgentHistory,
-                                    onClick = {
-                                        state.navigate(Route.Settings.AgentHistory)
-                                    },
-                                    icon = {
-                                        FAIcon(
-                                            imageVector = FontAwesomeIcons.Solid.Robot,
-                                            contentDescription = stringResource(id = R.string.agent_history_title),
-                                        )
-                                    },
-                                    label = {
-                                        Text(text = stringResource(id = R.string.agent_history_title))
-                                    },
-                                )
-                            }
                         }
                         item(
                             selected = currentRoute is Route.Settings.Main,
@@ -741,6 +705,111 @@ private fun userPresenter(accountType: AccountType) =
     run {
         remember(accountType) { UserPresenter(accountType, null) }.invoke().user
     }
+
+@Composable
+private fun PrismDrawerHeader(
+    primaryProfile: UiProfile?,
+    accountCount: Int,
+    onManageAccounts: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.75f),
+        border = BorderStroke(0.8.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 12.dp),
+    ) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                AvatarComponent(
+                    data = primaryProfile?.avatar,
+                    size = 46.dp,
+                    platformId = primaryProfile?.platformId,
+                    host = primaryProfile?.handle?.host,
+                    platformIcon = primaryProfile?.platformIcon,
+                    showNetworkBadge = true,
+                )
+
+                Surface(
+                    onClick = onManageAccounts,
+                    shape = RoundedCornerShape(50),
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
+                    border = BorderStroke(0.8.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        FAIcon(
+                            imageVector = FontAwesomeIcons.Solid.Users,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(11.dp),
+                        )
+                        Text(
+                            text = if (accountCount > 1) "$accountCount Accounts" else "Accounts",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        )
+                        FAIcon(
+                            imageVector = FontAwesomeIcons.Solid.CaretDown,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(9.dp),
+                        )
+                    }
+                }
+            }
+
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                if (primaryProfile != null) {
+                    RichText(
+                        text = primaryProfile.name,
+                        textStyle = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = primaryProfile.handle.canonical,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                } else {
+                    Text(
+                        text = "Flare Sovereign Client",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    )
+                    Text(
+                        text = "Decentralized & Multi-protocol",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+    }
+}
 
 private class ScrollToTopRegistry {
     private val callbacks = mutableSetOf<() -> Unit>()

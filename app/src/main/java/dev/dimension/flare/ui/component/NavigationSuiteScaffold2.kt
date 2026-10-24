@@ -9,7 +9,9 @@ import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.Interaction
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -22,6 +24,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
@@ -40,6 +43,7 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FloatingToolbarDefaults.floatingToolbarVerticalNestedScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalWideNavigationRail
 import androidx.compose.material3.NavigationBarItem
@@ -74,18 +78,24 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.material3.Text
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import compose.icons.FontAwesomeIcons
 import compose.icons.fontawesomeicons.Solid
 import compose.icons.fontawesomeicons.solid.CaretDown
 import compose.icons.fontawesomeicons.solid.CaretUp
 import compose.icons.fontawesomeicons.solid.Pen
+import compose.icons.fontawesomeicons.solid.PenToSquare
 import dev.dimension.flare.R
 import dev.dimension.flare.data.model.BottomBarBehavior
 import dev.dimension.flare.data.model.BottomBarStyle
@@ -269,7 +279,11 @@ fun NavigationSuiteScaffold2(
                             Spacer(modifier = Modifier.height(16.dp))
                         }
                     }
-                    Spacer(modifier = Modifier.weight(1f))
+                    if (layoutType != NavigationSuiteType.NavigationBar) {
+                        Spacer(modifier = Modifier.weight(1f))
+                    } else {
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
                     NavigationSuiteItemGroup(
                         provider = footerScope,
                         layoutType = layoutType,
@@ -481,12 +495,24 @@ private fun SharedTransitionScope.BottomFab(
                 BottomBarState.ClassicHidden -> true
             }
         }
-    Glassify(
+    val prismGradient =
+        remember {
+            Brush.linearGradient(
+                colors =
+                    listOf(
+                        Color(0xFF8B5CF6), // Vivid Violet
+                        Color(0xFF6366F1), // Electric Indigo
+                        Color(0xFF06B6D4), // Cyan Glow
+                    ),
+            )
+        }
+    Surface(
         onClick = onFabClicked,
-        shape = CircleShape,
+        shape = RoundedCornerShape(18.dp),
         shadowElevation = 8.dp,
-        tonalElevation = 8.dp,
-        color = MaterialTheme.colorScheme.primaryContainer,
+        tonalElevation = 4.dp,
+        border = BorderStroke(0.8.dp, Color.White.copy(alpha = 0.35f)),
+        color = Color.Transparent,
         modifier =
             modifier
                 .sharedElement(
@@ -511,15 +537,24 @@ private fun SharedTransitionScope.BottomFab(
                     if (isExpanded) {
                         56.dp
                     } else {
-                        40.dp
+                        42.dp
                     },
                 ),
     ) {
-        Icon(
-            imageVector = FontAwesomeIcons.Solid.Pen,
-            contentDescription = stringResource(id = R.string.compose_title),
-            modifier = Modifier.size(20.dp),
-        )
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .background(prismGradient),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = FontAwesomeIcons.Solid.PenToSquare,
+                contentDescription = stringResource(id = R.string.compose_title),
+                modifier = Modifier.size(20.dp),
+                tint = Color.White,
+            )
+        }
     }
 }
 
@@ -535,9 +570,9 @@ private fun SharedTransitionScope.BottomBar(
     val containerShape =
         remember(state) {
             when (state) {
-                BottomBarState.FloatingNormal -> RoundedCornerShape(50)
-                BottomBarState.FloatingMinimized -> RoundedCornerShape(50)
-                BottomBarState.FloatingHidden -> RoundedCornerShape(50)
+                BottomBarState.FloatingNormal -> RoundedCornerShape(32.dp)
+                BottomBarState.FloatingMinimized -> RoundedCornerShape(32.dp)
+                BottomBarState.FloatingHidden -> RoundedCornerShape(32.dp)
                 BottomBarState.ClassicNormal -> RoundedCornerShape(0)
                 BottomBarState.ClassicHidden -> RoundedCornerShape(0)
             }
@@ -565,8 +600,10 @@ private fun SharedTransitionScope.BottomBar(
 
     Glassify(
         shape = containerShape,
-        shadowElevation = 8.dp,
-        tonalElevation = 8.dp,
+        shadowElevation = if (isFloating) 10.dp else 4.dp,
+        tonalElevation = 6.dp,
+        border = if (isFloating) BorderStroke(0.8.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)) else null,
+        color = MaterialTheme.colorScheme.surface.copy(alpha = if (isFloating) 0.92f else 1f),
         modifier =
             modifier
                 .sharedElement(
@@ -669,6 +706,9 @@ private fun NavigationSuiteItemProvider.segmentedGroupPosition(
     isExpanded: (Int) -> Boolean,
 ): SegmentedGroupPosition {
     val item = itemList[itemIndex]
+    if (item is NavigationSuiteItem.HeaderItem) {
+        return SegmentedGroupPosition(index = 0, size = 1)
+    }
     val isExpandable = item is NavigationSuiteItem.ExpandableItem
 
     var groupStart = itemIndex
@@ -676,7 +716,11 @@ private fun NavigationSuiteItemProvider.segmentedGroupPosition(
         if (isExpandable && isExpanded(groupStart)) {
             break
         }
-        val previousIsExpandable = itemList[groupStart - 1] is NavigationSuiteItem.ExpandableItem
+        val prev = itemList[groupStart - 1]
+        if (prev is NavigationSuiteItem.HeaderItem) {
+            break
+        }
+        val previousIsExpandable = prev is NavigationSuiteItem.ExpandableItem
         if (previousIsExpandable != isExpandable) {
             break
         }
@@ -688,7 +732,11 @@ private fun NavigationSuiteItemProvider.segmentedGroupPosition(
 
     var groupEnd = itemIndex
     while (groupEnd < itemList.size - 1) {
-        val nextIsExpandable = itemList[groupEnd + 1] is NavigationSuiteItem.ExpandableItem
+        val next = itemList[groupEnd + 1]
+        if (next is NavigationSuiteItem.HeaderItem) {
+            break
+        }
+        val nextIsExpandable = next is NavigationSuiteItem.ExpandableItem
         if (nextIsExpandable != isExpandable) {
             break
         }
@@ -723,17 +771,34 @@ private fun NavigationSuiteItemGroup(
             verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
         ) {
             provider.itemList.forEachIndexed { index, item ->
-                val groupPosition =
-                    provider.segmentedGroupPosition(index) { expandedIndex ->
-                        expandedStates[expandedIndex] == true
+                when (item) {
+                    is NavigationSuiteItem.HeaderItem -> {
+                        Text(
+                            text = item.title,
+                            style =
+                                MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 1.2.sp,
+                                ),
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 14.dp, bottom = 4.dp),
+                        )
                     }
-                NavigationSuiteSegmentedItem(
-                    item = item,
-                    index = groupPosition.index,
-                    itemsCount = groupPosition.size,
-                    expanded = expandedStates[index] == true,
-                    onExpandedChange = { expandedStates[index] = it },
-                )
+
+                    else -> {
+                        val groupPosition =
+                            provider.segmentedGroupPosition(index) { expandedIndex ->
+                                expandedStates[expandedIndex] == true
+                            }
+                        NavigationSuiteSegmentedItem(
+                            item = item,
+                            index = groupPosition.index,
+                            itemsCount = groupPosition.size,
+                            expanded = expandedStates[index] == true,
+                            onExpandedChange = { expandedStates[index] = it },
+                        )
+                    }
+                }
             }
         }
     } else {
@@ -742,6 +807,19 @@ private fun NavigationSuiteItemGroup(
         ) {
             provider.itemList.forEachIndexed { index, item ->
                 when (item) {
+                    is NavigationSuiteItem.HeaderItem -> {
+                        Text(
+                            text = item.title,
+                            style =
+                                MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 1.2.sp,
+                                ),
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 14.dp, bottom = 4.dp),
+                        )
+                    }
+
                     is NavigationSuiteItem.DefaultItem -> {
                         NavigationSuiteAdaptiveDefaultItem(
                             item = item,
@@ -798,6 +876,8 @@ private fun ColumnScope.NavigationSuiteSegmentedItem(
                 onExpandedChange = onExpandedChange,
             )
         }
+
+        is NavigationSuiteItem.HeaderItem -> Unit
     }
 }
 
@@ -818,7 +898,33 @@ private fun NavigationSuiteSegmentedDefaultItem(
                 index,
                 itemsCount,
             ),
-        leadingContent = item.icon,
+        leadingContent = {
+            Box(
+                modifier =
+                    Modifier
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(
+                            if (item.selected) {
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)
+                            } else {
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+                            },
+                        ),
+                contentAlignment = Alignment.Center,
+            ) {
+                CompositionLocalProvider(
+                    LocalContentColor provides
+                        if (item.selected) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                ) {
+                    item.icon()
+                }
+            }
+        },
         trailingContent = item.badge,
         modifier =
             item.modifier
@@ -908,6 +1014,10 @@ private fun NavigationSuiteAdaptiveDefaultItem(
 }
 
 private sealed interface NavigationSuiteItem {
+    data class HeaderItem(
+        val title: String,
+    ) : NavigationSuiteItem
+
     data class DefaultItem(
         val selected: Boolean,
         val onClick: () -> Unit,
@@ -936,6 +1046,11 @@ private sealed interface NavigationSuiteItem {
 /** The scope associated with the [NavigationSuiteScope]. */
 @ExperimentalMaterial3AdaptiveNavigationSuiteApi
 interface NavigationSuiteScope2 {
+    /**
+     * Inserts a semantic category header in drawer navigation.
+     */
+    fun header(title: String)
+
     /**
      * This function sets the parameters of the default Material navigation item to be used with the
      * Navigation Suite Scaffold. The item is called in [NavigationSuite], according to the
@@ -991,6 +1106,10 @@ interface NavigationSuiteScope2 {
 private class NavigationSuiteScopeImpl :
     NavigationSuiteScope2,
     NavigationSuiteItemProvider {
+    override fun header(title: String) {
+        itemList.add(NavigationSuiteItem.HeaderItem(title))
+    }
+
     override fun item(
         selected: Boolean,
         onClick: () -> Unit,
