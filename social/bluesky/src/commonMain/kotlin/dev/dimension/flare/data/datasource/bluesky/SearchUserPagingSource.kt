@@ -14,6 +14,8 @@ internal class SearchUserPagingSource(
     private val accountKey: MicroBlogKey,
     private val query: String,
 ) : RemoteLoader<UiProfile> {
+    private val cleanQuery = query.trim().removePrefix("@")
+
     override suspend fun load(
         pageSize: Int,
         request: PagingRequest,
@@ -31,7 +33,7 @@ internal class SearchUserPagingSource(
                     service
                         .searchActors(
                             SearchActorsQueryParams(
-                                q = query,
+                                q = cleanQuery,
                                 limit = pageSize.toLong(),
                             ),
                         ).requireResponse()
@@ -41,7 +43,7 @@ internal class SearchUserPagingSource(
                     service
                         .searchActors(
                             SearchActorsQueryParams(
-                                q = query,
+                                q = cleanQuery,
                                 limit = pageSize.toLong(),
                                 cursor = request.nextKey,
                             ),
