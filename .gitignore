@@ -23,6 +23,8 @@ build/
 */Pods/*
 */Flare.xcworkspace/*
 */Flare.xcodeproj/*
+*/Prism.xcworkspace/*
+*/Prism.xcodeproj/*
 shared/shared.podspec
 .kotlin
 .history
