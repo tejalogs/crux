@@ -1,4 +1,4 @@
-name: Flare
+name: Prism
 
 options:
   minimumXcodeGenVersion: 2.45.4
@@ -24,7 +24,7 @@ settingGroups:
     CODE_SIGN_STYLE: Automatic
     ENABLE_PREVIEWS: YES
     ENABLE_USER_SCRIPT_SANDBOXING: NO
-    PRODUCT_BUNDLE_IDENTIFIER: dev.dimension.flare
+    PRODUCT_BUNDLE_IDENTIFIER: org.prism.social
     PRODUCT_NAME: "$(TARGET_NAME)"
     TARGETED_DEVICE_FAMILY: "1,2"
 

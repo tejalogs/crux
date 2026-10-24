@@ -46,7 +46,7 @@
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<true/>
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>Flare requesting the ability to add to the photo library</string>
+	<string>Prism requesting the ability to add to the photo library</string>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>

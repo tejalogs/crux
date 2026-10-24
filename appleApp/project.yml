@@ -226,8 +226,8 @@ targets:
         CODE_SIGN_STYLE: Automatic
         ENABLE_USER_SCRIPT_SANDBOXING: NO
         INFOPLIST_FILE: ios/SafariOpenInFlare/Info.plist
-        PRODUCT_BUNDLE_IDENTIFIER: dev.dimension.flare.OpenInFlare
-        PRODUCT_NAME: Open in Flare
+        PRODUCT_BUNDLE_IDENTIFIER: org.prism.social.OpenInFlare
+        PRODUCT_NAME: Open in Prism
         SKIP_INSTALL: YES
         SWIFT_DEFAULT_ACTOR_ISOLATION: nonisolated
         SWIFT_STRICT_CONCURRENCY: targeted
@@ -260,7 +260,7 @@ targets:
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
-        PRODUCT_BUNDLE_IDENTIFIER: dev.dimension.flare.tests
+        PRODUCT_BUNDLE_IDENTIFIER: org.prism.social.tests
         SWIFT_DEFAULT_ACTOR_ISOLATION: nonisolated
         TEST_HOST: $(BUILT_PRODUCTS_DIR)/TimelineUnitTestHost.app/TimelineUnitTestHost
         BUNDLE_LOADER: $(TEST_HOST)
@@ -277,7 +277,7 @@ targets:
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
-        PRODUCT_BUNDLE_IDENTIFIER: dev.dimension.flare.controller-tests
+        PRODUCT_BUNDLE_IDENTIFIER: org.prism.social.controller-tests
         TEST_HOST: $(BUILT_PRODUCTS_DIR)/Flare.app/Flare
         BUNDLE_LOADER: $(TEST_HOST)
         SWIFT_DEFAULT_ACTOR_ISOLATION: nonisolated
@@ -292,7 +292,7 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
-        PRODUCT_BUNDLE_IDENTIFIER: dev.dimension.flare.unit-test-host
+        PRODUCT_BUNDLE_IDENTIFIER: org.prism.social.unit-test-host
 
   TimelineTestHost:
     type: application
@@ -307,7 +307,7 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
-        PRODUCT_BUNDLE_IDENTIFIER: dev.dimension.flare.timeline-tests
+        PRODUCT_BUNDLE_IDENTIFIER: org.prism.social.timeline-tests
 
   iOSInteractionTests:
     type: bundle.ui-testing
@@ -319,7 +319,7 @@ targets:
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
-        PRODUCT_BUNDLE_IDENTIFIER: dev.dimension.flare.interaction-tests
+        PRODUCT_BUNDLE_IDENTIFIER: org.prism.social.interaction-tests
         TEST_TARGET_NAME: TimelineTestHost
         SWIFT_DEFAULT_ACTOR_ISOLATION: nonisolated
 
@@ -333,7 +333,7 @@ targets:
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
-        PRODUCT_BUNDLE_IDENTIFIER: dev.dimension.flare.media-interaction-tests
+        PRODUCT_BUNDLE_IDENTIFIER: org.prism.social.media-interaction-tests
         TEST_TARGET_NAME: iOS
         SWIFT_DEFAULT_ACTOR_ISOLATION: nonisolated
 
@@ -406,7 +406,7 @@ targets:
       base:
         GENERATE_INFOPLIST_FILE: NO
         INFOPLIST_FILE: Shared/FlareAppleResource/Info.plist
-        PRODUCT_BUNDLE_IDENTIFIER: dev.dimension.flare.appleresource
+        PRODUCT_BUNDLE_IDENTIFIER: org.prism.social.appleresource
         PRODUCT_NAME: FlareAppleResource
         SKIP_INSTALL: YES
 
@@ -437,7 +437,7 @@ targets:
         #   - "$(SRCROOT)/../apple-shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)"
         GENERATE_INFOPLIST_FILE: YES
         OTHER_LDFLAGS: "$(inherited) -lsqlite3"
-        PRODUCT_BUNDLE_IDENTIFIER: dev.dimension.flare.applecore
+        PRODUCT_BUNDLE_IDENTIFIER: org.prism.social.applecore
 
   FlareAppleUI:
     type: framework.static
@@ -481,7 +481,7 @@ targets:
         #   - "$(SRCROOT)/../apple-shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)"
         GENERATE_INFOPLIST_FILE: YES
         OTHER_LDFLAGS: "$(inherited) -lsqlite3"
-        PRODUCT_BUNDLE_IDENTIFIER: dev.dimension.flare.appleui
+        PRODUCT_BUNDLE_IDENTIFIER: org.prism.social.appleui
 
 schemes:
   iOS:
