@@ -39,7 +39,9 @@ internal class OpenAIService(
                 client
                     .get(serverUrl) {
                         url.appendPathSegments("models")
-                        bearerAuth(apiKey)
+                        if (apiKey.isNotBlank()) {
+                            bearerAuth(apiKey)
+                        }
                     }.bodyAsText()
             JSON
                 .decodeFromString(ModelsResponse.serializer(), response)
@@ -59,7 +61,9 @@ internal class OpenAIService(
                 val response =
                     client
                         .post(url) {
-                            bearerAuth(config.apiKey)
+                            if (config.apiKey.isNotBlank()) {
+                                bearerAuth(config.apiKey)
+                            }
                             setBody(TextContent(body.toString(), ContentType.Application.Json))
                         }.bodyAsText()
                 JSON
@@ -101,7 +105,7 @@ internal class OpenAIService(
         config: AppSettings.AiConfig.Type.OpenAI,
         prompt: String,
     ): String? =
-        if (config.serverUrl.isBlank() || config.apiKey.isBlank() || config.model.isBlank()) {
+        if (config.serverUrl.isBlank() || config.model.isBlank()) {
             null
         } else {
             chatCompletion(

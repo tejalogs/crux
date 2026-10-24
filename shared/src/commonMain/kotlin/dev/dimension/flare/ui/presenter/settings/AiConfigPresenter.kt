@@ -184,7 +184,7 @@ public class AiConfigPresenter : PresenterBase<AiConfigPresenter.State>() {
                 .distinctUntilChanged()
                 .debounce(666L)
                 .collectLatest { (serverUrl, apiKey) ->
-                    if (serverUrl.isBlank() || apiKey.isBlank()) {
+                    if (serverUrl.isBlank()) {
                         openAIModels = UiState.Success(persistentListOf())
                     } else {
                         openAIModels = UiState.Loading()

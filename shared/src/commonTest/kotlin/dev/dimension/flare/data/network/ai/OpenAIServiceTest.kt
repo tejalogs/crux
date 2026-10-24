@@ -244,9 +244,30 @@ class OpenAIServiceTest {
     fun chatCompletionOrNull_skipsIncompleteConfiguration() =
         runTest {
             withService(handler = { error("Incomplete configuration must not send a request") }) { service ->
-                for (config in listOf(openAIConfig().copy(serverUrl = ""), openAIConfig().copy(apiKey = ""), openAIConfig(model = ""))) {
+                for (config in listOf(openAIConfig().copy(serverUrl = ""), openAIConfig(model = ""))) {
                     assertNull(service.chatCompletionOrNull(config, "Hello"))
                 }
+            }
+        }
+
+    @Test
+    fun chatCompletion_supportsLocalEndpointWithoutApiKey() =
+        runTest {
+            withService(
+                handler = { request ->
+                    assertNull(request.headers[HttpHeaders.Authorization])
+                    respond(
+                        """{"choices":[{"message":{"content":"Hello from local LLM"}}]}""",
+                        headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+                    )
+                },
+            ) { service ->
+                val result =
+                    service.chatCompletion(
+                        config = openAIConfig(apiKey = ""),
+                        prompt = "Hello",
+                    )
+                assertEquals("Hello from local LLM", result)
             }
         }
 
@@ -318,12 +339,14 @@ class OpenAIServiceTest {
     }
 
     private fun openAIConfig(
+        serverUrl: String = "https://example.com/custom/v1/",
+        apiKey: String = "test-key",
         model: String = "test-model",
         reasoningEffort: String = "",
         extraBody: String = "",
     ) = AppSettings.AiConfig.Type.OpenAI(
-        serverUrl = "https://example.com/custom/v1/",
-        apiKey = "test-key",
+        serverUrl = serverUrl,
+        apiKey = apiKey,
         model = model,
         reasoningEffort = reasoningEffort,
         extraBody = extraBody,
