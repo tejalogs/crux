@@ -65,9 +65,12 @@ import androidx.compose.ui.unit.toSize
 import compose.icons.FontAwesomeIcons
 import compose.icons.fontawesomeicons.Solid
 import compose.icons.fontawesomeicons.solid.Robot
+import compose.icons.fontawesomeicons.solid.TableCells
+import compose.icons.fontawesomeicons.solid.TableList
 import dev.dimension.flare.R
 import dev.dimension.flare.common.PagingState
 import dev.dimension.flare.common.refreshSuspend
+import dev.dimension.flare.data.model.TimelineDisplayMode
 import dev.dimension.flare.data.model.VideoAutoplay
 import dev.dimension.flare.model.AccountType
 import dev.dimension.flare.model.MicroBlogKey
@@ -105,6 +108,7 @@ import dev.dimension.flare.ui.model.map
 import dev.dimension.flare.ui.model.onError
 import dev.dimension.flare.ui.model.onLoading
 import dev.dimension.flare.ui.model.onSuccess
+import dev.dimension.flare.ui.model.takeSuccess
 import dev.dimension.flare.ui.model.takeSuccessOr
 import dev.dimension.flare.ui.presenter.home.TimelinePresenter
 import dev.dimension.flare.ui.presenter.home.TimelineState
@@ -291,6 +295,33 @@ internal fun ProfileScreen(
             TopAppBarDefaults.pinnedScrollBehavior()
         }
     val scope = rememberCoroutineScope()
+    val currentAppearance = LocalTimelineAppearance.current
+    val userProfile = state.state.userState.takeSuccess()
+    val isPhotoCentricProfile =
+        remember(userProfile?.key) {
+            val host = userProfile?.key?.host.orEmpty()
+            val handleHost = userProfile?.handle?.host.orEmpty()
+            val canonical = userProfile?.handle?.canonical.orEmpty()
+            host.contains("pixelfed", ignoreCase = true) ||
+                handleHost.contains("pixelfed", ignoreCase = true) ||
+                canonical.contains("pixelfed", ignoreCase = true) ||
+                host.contains("pixiv", ignoreCase = true) ||
+                host.contains("instagram", ignoreCase = true)
+        }
+    var galleryOverride by remember(userProfile?.key, isPhotoCentricProfile) {
+        mutableStateOf<Boolean?>(if (isPhotoCentricProfile) true else null)
+    }
+    val effectiveGallery = galleryOverride ?: (currentAppearance.timelineDisplayMode == TimelineDisplayMode.Gallery)
+    val effectiveDisplayMode =
+        if (effectiveGallery) {
+            TimelineDisplayMode.Gallery
+        } else {
+            if (currentAppearance.timelineDisplayMode == TimelineDisplayMode.Gallery) {
+                TimelineDisplayMode.Card
+            } else {
+                currentAppearance.timelineDisplayMode
+            }
+        }
     FlareScaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         contentWindowInsets =
@@ -376,6 +407,26 @@ internal fun ProfileScreen(
                                     ),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
+                            IconButton(
+                                onClick = {
+                                    galleryOverride = !effectiveGallery
+                                },
+                            ) {
+                                FAIcon(
+                                    imageVector =
+                                        if (effectiveGallery) {
+                                            FontAwesomeIcons.Solid.TableList
+                                        } else {
+                                            FontAwesomeIcons.Solid.TableCells
+                                        },
+                                    contentDescription =
+                                        if (effectiveGallery) {
+                                            "Switch to list view"
+                                        } else {
+                                            "Switch to photo grid"
+                                        },
+                                )
+                            }
                             if (!bigScreen) {
                                 ProfileInsightAction(
                                     profileState = state.state,
@@ -468,15 +519,23 @@ internal fun ProfileScreen(
                                         tabHeight = profileTabHeight,
                                         verticalPadding = 0.dp,
                                     )
-                                    LazyStatusVerticalStaggeredGrid(
-                                        contentPadding =
-                                            PaddingValues(
-                                                top = 8.dp,
-                                                bottom = 8.dp + it.calculateBottomPadding(),
+                                    CompositionLocalProvider(
+                                        LocalTimelineAppearance provides
+                                            currentAppearance.copy(
+                                                timelineDisplayMode = effectiveDisplayMode,
                                             ),
-                                        modifier = Modifier.fillMaxSize(),
                                     ) {
-                                        statusLoadingPlaceholders()
+                                        LazyStatusVerticalStaggeredGrid(
+                                            contentPadding =
+                                                PaddingValues(
+                                                    top = 8.dp,
+                                                    bottom = 8.dp + it.calculateBottomPadding(),
+                                                ),
+                                            allowGalleryMode = effectiveGallery,
+                                            modifier = Modifier.fillMaxSize(),
+                                        ) {
+                                            statusLoadingPlaceholders()
+                                        }
                                     }
                                 }
                             }
@@ -583,16 +642,24 @@ internal fun ProfileScreen(
                                                             },
                                                         )
                                                     }
-                                                    LazyStatusVerticalStaggeredGrid(
-                                                        state = listState,
-                                                        contentPadding =
-                                                            PaddingValues(
-                                                                top = 8.dp,
-                                                                bottom = 8.dp + it.calculateBottomPadding(),
+                                                    CompositionLocalProvider(
+                                                        LocalTimelineAppearance provides
+                                                            currentAppearance.copy(
+                                                                timelineDisplayMode = effectiveDisplayMode,
                                                             ),
-                                                        modifier = Modifier.fillMaxSize(),
                                                     ) {
-                                                        status(data)
+                                                        LazyStatusVerticalStaggeredGrid(
+                                                            state = listState,
+                                                            allowGalleryMode = effectiveGallery,
+                                                            contentPadding =
+                                                                PaddingValues(
+                                                                    top = 8.dp,
+                                                                    bottom = 8.dp + it.calculateBottomPadding(),
+                                                                ),
+                                                            modifier = Modifier.fillMaxSize(),
+                                                        ) {
+                                                            status(data)
+                                                        }
                                                     }
                                                 }
                                             }

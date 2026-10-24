@@ -53,7 +53,10 @@ internal fun Feed.Atom.Entry.render(
         rawHtml?.let {
             Ksoup.parse(it)
         }
-    val img = descHtml?.select("img")?.firstOrNull()?.attr("src") ?: media?.thumbnail?.url
+    val img =
+        descHtml?.select("img")?.firstOrNull()?.attr("src")?.takeIf { it.isNotEmpty() }
+            ?: media?.thumbnail?.url
+            ?: links.firstOrNull { it.rel == "enclosure" && it.type?.startsWith("image/") == true }?.href
     val link = links.firstOrNull { it.rel == null || it.rel == "alternate" }?.href ?: id
     return UiTimelineV2.Feed(
         title = title?.value?.takeIf { it.isNotEmpty() && it.isNotBlank() },
@@ -112,7 +115,9 @@ internal fun Feed.Rss20.Item.render(
             ?.select("img")
             ?.firstOrNull()
             ?.attr("src")
-            ?.takeIf { it.isNotEmpty() } ?: mediaContent.firstOrNull()?.url
+            ?.takeIf { it.isNotEmpty() }
+            ?: mediaContent.firstOrNull()?.url
+            ?: enclosure?.takeIf { it.type.startsWith("image/") }?.url
     return UiTimelineV2.Feed(
         title = title,
         description = descHtml?.text(),
