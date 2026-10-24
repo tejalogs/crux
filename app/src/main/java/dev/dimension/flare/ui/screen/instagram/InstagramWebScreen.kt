@@ -79,6 +79,8 @@ import compose.icons.fontawesomeicons.solid.Rss
 import compose.icons.fontawesomeicons.solid.ShieldHalved
 import compose.icons.fontawesomeicons.solid.TrashCan
 import compose.icons.fontawesomeicons.solid.Xmark
+import dev.dimension.flare.data.datasource.instagram.InstagramFeedService
+import dev.dimension.flare.data.datasource.instagram.InstagramSyncService
 import dev.dimension.flare.data.readinglist.ReadingListItem
 import dev.dimension.flare.data.readinglist.ReadingListRepository
 import dev.dimension.flare.di.koinInject
@@ -86,6 +88,7 @@ import dev.dimension.flare.ui.component.BackButton
 import dev.dimension.flare.ui.component.FAIcon
 import dev.dimension.flare.ui.component.FlareScaffold
 import dev.dimension.flare.ui.component.FlareTopAppBar
+import android.widget.Toast
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.ByteArrayInputStream
@@ -294,6 +297,7 @@ internal fun InstagramWebScreen(
     val uriHandler = LocalUriHandler.current
     val webViewRef = remember { mutableStateOf<WebView?>(null) }
     val readingListRepo by koinInject<ReadingListRepository>()
+    val instagramSyncService by koinInject<InstagramSyncService>()
     val scope = rememberCoroutineScope()
     val targetUrl =
         remember(initialUrl) {
@@ -315,6 +319,21 @@ internal fun InstagramWebScreen(
     var showPrivacyDialog by remember { mutableStateOf(false) }
     var showClearConfirmDialog by remember { mutableStateOf(false) }
     var isDockExpanded by remember { mutableStateOf(false) }
+    var isFeedSynced by remember { mutableStateOf(false) }
+
+    val checkAndSyncSession = remember(instagramSyncService) {
+        {
+            val cookies = CookieManager.getInstance().getCookie(INSTAGRAM_HOME_URL)
+            if (!cookies.isNullOrBlank() && InstagramFeedService.hasActiveSession(cookies)) {
+                scope.launch {
+                    val ok = instagramSyncService.syncSession(cookies)
+                    if (ok) {
+                        isFeedSynced = true
+                    }
+                }
+            }
+        }
+    }
 
     var fileUploadCallback by remember { mutableStateOf<ValueCallback<Array<Uri>>?>(null) }
     val fileChooserLauncher =
@@ -339,13 +358,17 @@ internal fun InstagramWebScreen(
         }
     }
 
-    // Periodic shield refresher for dynamically loaded DOM elements
+    // Periodic shield refresher and session sync checker
     LaunchedEffect(Unit) {
+        isFeedSynced = instagramSyncService.isInstagramAccountRegistered()
         while (true) {
             delay(2.seconds)
             webViewRef.value?.evaluateJavascript(PRISM_SHIELD_JS, null)
             canGoBack = webViewRef.value?.canGoBack() == true
             canGoForward = webViewRef.value?.canGoForward() == true
+            if (!isFeedSynced) {
+                checkAndSyncSession()
+            }
         }
     }
 
@@ -370,7 +393,25 @@ internal fun InstagramWebScreen(
                         style = MaterialTheme.typography.bodyMedium,
                     )
                     Text(
-                        text = "• Storage: Isolated prismbrowser sandbox\n• Third-Party Tracking & Meta Pixels: Blocked\n• Telemetry & Banzai Beacons (/ajax/bz): Blocked\n• Sponsored Ads & Promo Injections: Stripped\n• App Install Nags & Sticky Banners: Stripped\n• Geolocation & Device Sensors: Denied\n• Zero Checkpoint Ban Risk",
+                        text = if (isFeedSynced) {
+                            "• Native Home Feed: Synced to Instagram & Mixed Tab\n" +
+                                "• Storage: Isolated prismbrowser sandbox\n" +
+                                "• Third-Party Tracking & Meta Pixels: Blocked\n" +
+                                "• Telemetry & Banzai Beacons (/ajax/bz): Blocked\n" +
+                                "• Sponsored Ads & Promo Injections: Stripped\n" +
+                                "• App Install Nags & Sticky Banners: Stripped\n" +
+                                "• Geolocation & Device Sensors: Denied\n" +
+                                "• Zero Checkpoint Ban Risk"
+                        } else {
+                            "• Native Home Feed: Log in to auto-sync timeline\n" +
+                                "• Storage: Isolated prismbrowser sandbox\n" +
+                                "• Third-Party Tracking & Meta Pixels: Blocked\n" +
+                                "• Telemetry & Banzai Beacons (/ajax/bz): Blocked\n" +
+                                "• Sponsored Ads & Promo Injections: Stripped\n" +
+                                "• App Install Nags & Sticky Banners: Stripped\n" +
+                                "• Geolocation & Device Sensors: Denied\n" +
+                                "• Zero Checkpoint Ban Risk"
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -422,6 +463,7 @@ internal fun InstagramWebScreen(
                         WebStorage.getInstance().deleteAllData()
                         webViewRef.value?.clearCache(true)
                         webViewRef.value?.loadUrl(INSTAGRAM_HOME_URL)
+                        isFeedSynced = false
                     },
                 ) {
                     Text(text = "Clear & Reset", color = MaterialTheme.colorScheme.error)
@@ -477,9 +519,9 @@ internal fun InstagramWebScreen(
                                     maxLines = 1,
                                 )
                                 Text(
-                                    text = "Privacy Sandbox Active",
+                                    text = if (isFeedSynced) "Privacy Sandbox • Feed Synced" else "Privacy Sandbox Active",
                                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                                    color = MaterialTheme.colorScheme.primary,
+                                    color = if (isFeedSynced) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
                                     maxLines = 1,
                                 )
                             }
@@ -649,6 +691,7 @@ internal fun InstagramWebScreen(
                                 canGoForward = view.canGoForward()
                                 isPageLoading = false
                                 view.evaluateJavascript(PRISM_SHIELD_JS, null)
+                                checkAndSyncSession()
                             }
 
                             override fun onPageCommitVisible(
@@ -785,6 +828,29 @@ internal fun InstagramWebScreen(
                                 imageVector = FontAwesomeIcons.Solid.ShieldHalved,
                                 contentDescription = "Shield Settings",
                                 tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(16.dp),
+                            )
+                        }
+
+                        IconButton(
+                            onClick = {
+                                val cookies = CookieManager.getInstance().getCookie(INSTAGRAM_HOME_URL)
+                                if (!cookies.isNullOrBlank() && InstagramFeedService.hasActiveSession(cookies)) {
+                                    scope.launch {
+                                        val ok = instagramSyncService.syncSession(cookies)
+                                        isFeedSynced = ok
+                                        val msg = if (ok) "Instagram feed synced with Home Timeline!" else "Unable to sync Instagram session"
+                                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                                    }
+                                } else {
+                                    Toast.makeText(context, "Log in to Instagram to sync your feed", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                        ) {
+                            FAIcon(
+                                imageVector = FontAwesomeIcons.Brands.Instagram,
+                                contentDescription = if (isFeedSynced) "Feed Synced" else "Sync Feed",
+                                tint = if (isFeedSynced) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(16.dp),
                             )
                         }

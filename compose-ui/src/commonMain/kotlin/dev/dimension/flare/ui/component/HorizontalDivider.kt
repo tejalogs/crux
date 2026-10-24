@@ -44,7 +44,7 @@ internal fun VerticalDivider(
 public object FlareDividerDefaults {
     public val color: Color
         @Composable
-        get() = PlatformTheme.colorScheme.outline
+        get() = PlatformTheme.colorScheme.outline.copy(alpha = 0.45f)
 
-    public val thickness: Dp = 0.8.dp
+    public val thickness: Dp = 0.6.dp
 }

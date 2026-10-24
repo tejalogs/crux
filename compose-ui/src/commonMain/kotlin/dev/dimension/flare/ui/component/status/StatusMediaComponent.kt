@@ -42,6 +42,8 @@ import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import compose.icons.FontAwesomeIcons
@@ -479,12 +481,12 @@ private fun StatusMediaItem(
                         modifier =
                             Modifier
                                 .pointerHoverIcon(PointerIcon.Hand)
-                                .padding(16.dp)
+                                .padding(10.dp)
                                 .background(
-                                    color = Color.Black.copy(alpha = 0.75f),
-                                    shape = PlatformTheme.shapes.medium,
+                                    color = Color.Black.copy(alpha = 0.65f),
+                                    shape = RoundedCornerShape(6.dp),
                                 ).padding(
-                                    horizontal = 8.dp,
+                                    horizontal = 6.dp,
                                     vertical = 2.dp,
                                 ).clickable {
                                     if (!requestShowFlyout.invoke()) {
@@ -496,6 +498,7 @@ private fun StatusMediaItem(
                                     contentDescription = viewAltTextLabel
                                 },
                         color = Color.White,
+                        style = PlatformTheme.typography.caption.copy(fontWeight = FontWeight.Bold),
                     )
                 },
                 flyout = {

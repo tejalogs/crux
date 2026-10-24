@@ -55,3 +55,6 @@ public val ilink: String =
         append(Base64.decode("Lm1lLytWWjYzZnFOUQ==").decodeToString())
         append(Base64.decode("WElBME16Vmw=").decodeToString())
     }
+
+@HiddenFromObjC
+public const val instagramHost: String = "instagram.com"

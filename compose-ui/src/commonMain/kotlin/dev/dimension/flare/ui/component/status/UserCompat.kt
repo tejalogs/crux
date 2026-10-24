@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.dimension.flare.compose.ui.Res
@@ -33,6 +34,9 @@ public fun UserCompat(
         Box(avatarModifier, propagateMinConstraints = true) {
             AvatarComponent(
                 data = user.avatar,
+                platformId = user.platformId,
+                host = user.key.host,
+                platformIcon = user.platformIcon,
                 size = AvatarComponentDefaults.compatSize,
                 contentDescription =
                     stringResource(
@@ -63,15 +67,17 @@ public fun UserCompat(
                             onUserClick.invoke(user.key)
                         },
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 RichText(
                     text = name,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
+                    fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.alignByBaseline().then(nameModifier),
                 )
                 PlatformText(
-                    text = handle.canonical,
+                    text = "@${handle.canonical.removePrefix("@")}",
                     style = PlatformTheme.typography.caption,
                     color = PlatformTheme.colorScheme.caption,
                     maxLines = 1,

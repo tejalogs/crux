@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.dimension.flare.compose.ui.Res
@@ -39,6 +40,9 @@ public fun CommonStatusHeaderComponent(
         Box(avatarModifier, propagateMinConstraints = true) {
             AvatarComponent(
                 data = data.avatar,
+                platformId = data.platformId,
+                host = data.key.host,
+                platformIcon = data.platformIcon,
                 contentDescription =
                     stringResource(
                         Res.string.profile_open_user,
@@ -60,6 +64,7 @@ public fun CommonStatusHeaderComponent(
         headlineContent = {
             RichText(
                 text = data.name,
+                fontWeight = FontWeight.SemiBold,
                 modifier =
                     nameModifier
                         .pointerHoverIcon(PointerIcon.Hand)
@@ -75,7 +80,7 @@ public fun CommonStatusHeaderComponent(
         },
         supportingContent = {
             PlatformText(
-                text = data.handle.canonical,
+                text = "@${data.handle.canonical.removePrefix("@")}",
                 style = PlatformTheme.typography.caption,
                 color = PlatformTheme.colorScheme.caption,
                 modifier =

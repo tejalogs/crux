@@ -5,6 +5,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -37,6 +38,7 @@ import androidx.compose.foundation.lazy.staggeredgrid.LazyStaggeredGridState
 import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenuItem
@@ -64,6 +66,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -72,6 +75,7 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.UriHandler
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -317,27 +321,32 @@ internal fun HomeTimelineScreen(
                                                     pagerState.currentPage,
                                                     tabs.lastIndex,
                                                 ),
-                                            edgePadding = 0.dp,
+                                            edgePadding = 4.dp,
                                             divider = { },
                                             indicator = {
-                                                TabRowDefaults.SecondaryIndicator(
-                                                    Modifier.tabIndicatorOffset(
-                                                        minOf(
-                                                            pagerState.currentPage,
-                                                            tabs.lastIndex,
-                                                        ),
-                                                        matchContentSize = false,
-                                                    ),
+                                                Box(
+                                                    Modifier
+                                                        .tabIndicatorOffset(
+                                                            minOf(
+                                                                pagerState.currentPage,
+                                                                tabs.lastIndex,
+                                                            ),
+                                                            matchContentSize = true,
+                                                        )
+                                                        .height(3.5.dp)
+                                                        .clip(CircleShape)
+                                                        .background(MaterialTheme.colorScheme.primary),
                                                 )
                                             },
                                             minTabWidth = 48.dp,
                                         ) {
                                             tabs.forEachIndexed { index, tab ->
+                                                val isSelected = index == pagerState.currentPage
                                                 LeadingIconTab(
                                                     modifier = Modifier,
-                                                    selectedContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                                                    unselectedContentColor = LocalContentColor.current,
-                                                    selected = index == pagerState.currentPage,
+                                                    selectedContentColor = MaterialTheme.colorScheme.primary,
+                                                    unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
+                                                    selected = isSelected,
                                                     onClick = {
                                                         scope.launch {
                                                             pagerState.scrollToPage(index)
@@ -345,7 +354,13 @@ internal fun HomeTimelineScreen(
                                                     },
                                                     text = {
                                                         FlareText(
-                                                            tab.title,
+                                                            text = tab.title,
+                                                            style =
+                                                                if (isSelected) {
+                                                                    MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
+                                                                } else {
+                                                                    MaterialTheme.typography.titleSmall
+                                                                },
                                                         )
                                                     },
                                                     icon = {
@@ -370,8 +385,11 @@ internal fun HomeTimelineScreen(
                                         },
                                     ) {
                                         AvatarComponent(
-                                            it.avatar,
-                                            size = 24.dp,
+                                            data = it.avatar,
+                                            platformId = it.platformId,
+                                            host = it.key.host,
+                                            platformIcon = it.platformIcon,
+                                            size = 28.dp,
                                             contentDescription = stringResource(R.string.open_navigation_menu),
                                         )
                                     }

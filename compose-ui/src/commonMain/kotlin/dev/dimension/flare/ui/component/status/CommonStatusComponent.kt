@@ -229,7 +229,10 @@ public fun CommonStatusComponent(
         if (showAsFullWidth) {
             item.user?.let {
                 AvatarComponent(
-                    it.avatar,
+                    data = it.avatar,
+                    platformId = item.platformId,
+                    host = it.key.host,
+                    platformIcon = item.platformIcon,
                     contentDescription =
                         stringResource(
                             Res.string.profile_open_user,
@@ -246,7 +249,7 @@ public fun CommonStatusComponent(
                             )
                         },
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(10.dp))
             }
         }
         Column {
@@ -1269,9 +1272,9 @@ private fun ActionMenu.Item.Text.asString(): String =
 @Composable
 private fun ActionMenu.Item.Color.toComposeColor(): Color =
     when (this) {
-        ActionMenu.Item.Color.Red -> PlatformTheme.colorScheme.error
+        ActionMenu.Item.Color.Red -> Color(0xFFF91880) // Vibrant Rose / Ruby for liked state
         ActionMenu.Item.Color.ContentColor -> PlatformContentColor.current
-        ActionMenu.Item.Color.PrimaryColor -> PlatformTheme.colorScheme.retweetColor
+        ActionMenu.Item.Color.PrimaryColor -> Color(0xFF00BA7C) // Vibrant Emerald for boosted state
     }
 
 @Composable
