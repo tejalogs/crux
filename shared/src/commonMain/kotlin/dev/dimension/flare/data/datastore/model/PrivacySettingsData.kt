@@ -17,6 +17,7 @@ internal data class PrivacySettingsData(
     val blockProfiling: Boolean = PrivacySettings.Default.blockProfiling,
     val scrubTrackingParameters: Boolean = PrivacySettings.Default.scrubTrackingParameters,
     val stripFingerprintHeaders: Boolean = PrivacySettings.Default.stripFingerprintHeaders,
+    val requireAppLock: Boolean = PrivacySettings.Default.requireAppLock,
     /**
      * Stored as a sorted list rather than a set: protobuf maps need explicit key/value wrappers,
      * and a stable order keeps the encoded bytes deterministic.
@@ -30,6 +31,7 @@ internal data class PrivacySettingsData(
             blockProfiling = blockProfiling,
             scrubTrackingParameters = scrubTrackingParameters,
             stripFingerprintHeaders = stripFingerprintHeaders,
+            requireAppLock = requireAppLock,
             blockedHosts = blockedHosts.toSet(),
         )
 
@@ -41,6 +43,7 @@ internal data class PrivacySettingsData(
                 blockProfiling = settings.blockProfiling,
                 scrubTrackingParameters = settings.scrubTrackingParameters,
                 stripFingerprintHeaders = settings.stripFingerprintHeaders,
+                requireAppLock = settings.requireAppLock,
                 blockedHosts = settings.blockedHosts.sorted(),
             )
     }

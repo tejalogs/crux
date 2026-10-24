@@ -28,6 +28,8 @@ public data class PrivacySettings(
      * request fail rather than merely anonymous.
      */
     val stripFingerprintHeaders: Boolean = false,
+    /** Require device biometric or credential unlock before displaying feeds on launch. */
+    val requireAppLock: Boolean = false,
 ) {
     public companion object {
         public val Default: PrivacySettings = PrivacySettings()
@@ -43,4 +45,5 @@ internal data class PrivacySettingsSurrogate(
     val scrubTrackingParameters: Boolean,
     val stripFingerprintHeaders: Boolean,
     val blockedHosts: List<String>,
+    val requireAppLock: Boolean = false,
 )

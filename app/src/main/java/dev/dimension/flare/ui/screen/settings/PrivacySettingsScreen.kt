@@ -111,6 +111,14 @@ internal fun PrivacySettingsScreen(
                 update { s -> s.copy(stripFingerprintHeaders = it) }
             }
 
+            PrivacyToggle(
+                title = stringResource(id = R.string.settings_privacy_app_lock),
+                description = stringResource(id = R.string.settings_privacy_app_lock_description),
+                checked = settings.requireAppLock,
+            ) { it ->
+                update { s -> s.copy(requireAppLock = it) }
+            }
+
             SegmentedListItemLike(
                 title = stringResource(id = R.string.settings_privacy_traffic_log_title),
                 description =

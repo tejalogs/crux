@@ -470,6 +470,8 @@
     <string name="settings_privacy_scrub_tracking_description">Remove identifiers such as twclid and fbclid from outbound URLs</string>
     <string name="settings_privacy_strip_fingerprint">Strip fingerprint headers</string>
     <string name="settings_privacy_strip_fingerprint_description">Remove client-hint headers. May break login on networks that require them</string>
+    <string name="settings_privacy_app_lock">Biometric &amp; Device Lock</string>
+    <string name="settings_privacy_app_lock_description">Require device PIN, fingerprint, or face unlock when opening Prism</string>
     <string name="settings_privacy_traffic_log_title">Traffic log</string>
     <string name="settings_privacy_traffic_log_open_description">See every host Flare contacted and what was removed</string>
     <string name="settings_privacy_traffic_log_empty">No requests recorded yet. Browse a timeline and come back.</string>

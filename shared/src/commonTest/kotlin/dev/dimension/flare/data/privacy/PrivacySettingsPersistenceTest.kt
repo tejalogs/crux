@@ -15,6 +15,7 @@ class PrivacySettingsPersistenceTest {
                 blockProfiling = true,
                 scrubTrackingParameters = false,
                 stripFingerprintHeaders = true,
+                requireAppLock = true,
                 blockedHosts = setOf("a.example", "b.example"),
             )
         val restored = PrivacySettingsData.from(original).toPrivacySettings()
