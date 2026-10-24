@@ -399,7 +399,7 @@
     <string name="settings_appearance_absolute_timestamp">Абсолютно клеймо за време</string>
     <string name="settings_appearance_absolute_timestamp_description">Показвай точното време на публикациите</string>
     <string name="channel_title">Канал</string>
-    <string name="app_name" translatable="false">Flare</string>
+    <string name="app_name" translatable="false">Prism</string>
     <string name="profile_header_button_request_follow">Заявка за последване</string>
     <string name="date_format_year_month_day">d.MM.yyyy</string>
     <string name="date_format_month_day">d.MM</string>

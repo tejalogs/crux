@@ -561,7 +561,7 @@
     <string name="channel_item_unfollow">フォロー解除</string>
     <string name="channel_item_favourite">お気に入りに追加</string>
     <string name="channel_item_unfavourite">お気に入りから削除</string>
-    <string name="app_name" translatable="false">Flare</string>
+    <string name="app_name" translatable="false">Prism</string>
     <string name="profile_insight_title">プロフィールインサイト</string>
     <string name="status_insight_input_placeholder">追加で質問…</string>
     <string name="status_insight_analyzing">この投稿を分析しています...</string>

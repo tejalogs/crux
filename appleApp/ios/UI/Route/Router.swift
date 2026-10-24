@@ -155,7 +155,7 @@ final class DeepLinkHandler {
 
 private extension URL {
     var openInFlareTargetURL: URL? {
-        guard scheme?.lowercased() == "flare",
+        guard let s = scheme?.lowercased(), s == "prism" || s == "flare",
               host?.lowercased() == "open",
               let targetValue = URLComponents(
                   url: self,

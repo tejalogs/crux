@@ -582,7 +582,7 @@
     <string name="channel_item_unfollow">Przestań obserwować</string>
     <string name="channel_item_favourite">Dodaj do ulubionych</string>
     <string name="channel_item_unfavourite">Usuń z ulubionych</string>
-    <string name="app_name" translatable="false">Flare</string>
+    <string name="app_name" translatable="false">Prism</string>
     <string name="profile_insight_title">Wgląd w profil</string>
     <string name="profile_insight_analyzing">Analizowanie tego profilu…</string>
     <string name="profile_insight_error">Nie można przeanalizować tego profilu.</string>

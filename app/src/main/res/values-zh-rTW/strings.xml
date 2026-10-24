@@ -542,7 +542,7 @@
     <string name="channel_item_unfollow">取消追蹤</string>
     <string name="channel_item_favourite">收藏</string>
     <string name="channel_item_unfavourite">取消收藏</string>
-    <string name="app_name" translatable="false">Flare</string>
+    <string name="app_name" translatable="false">Prism</string>
     <string name="status_insight_title">貼文洞察</string>
     <string name="profile_insight_title">個人資料洞察</string>
     <string name="status_insight_input_placeholder">繼續提問…</string>

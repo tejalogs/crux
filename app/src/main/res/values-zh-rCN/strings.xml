@@ -603,7 +603,7 @@
     <string name="channel_item_unfollow">取消关注</string>
     <string name="channel_item_favourite">收藏</string>
     <string name="channel_item_unfavourite">取消收藏</string>
-    <string name="app_name" translatable="false">Flare</string>
+    <string name="app_name" translatable="false">Prism</string>
     <string name="profile_insight_title">个人资料洞察</string>
     <string name="status_insight_input_placeholder">继续提问…</string>
     <string name="status_insight_analyzing">正在分析此帖子...</string>

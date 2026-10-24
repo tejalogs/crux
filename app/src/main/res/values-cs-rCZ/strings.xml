@@ -583,7 +583,7 @@
     <string name="channel_item_unfollow">Zrušit sledování</string>
     <string name="channel_item_favourite">Přidat k oblíbeným</string>
     <string name="channel_item_unfavourite">Odebrat z oblíbených</string>
-    <string name="app_name" translatable="false">Flare</string>
+    <string name="app_name" translatable="false">Prism</string>
     <string name="profile_insight_title">Přehled profilu</string>
     <string name="profile_insight_analyzing">Analyzuje se tento profil…</string>
     <string name="profile_insight_error">Tento profil nelze analyzovat.</string>

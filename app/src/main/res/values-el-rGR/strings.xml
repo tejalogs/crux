@@ -565,7 +565,7 @@
     <string name="channel_item_unfollow">Κατάργηση παρακολούθησης</string>
     <string name="channel_item_favourite">Αγαπημένο</string>
     <string name="channel_item_unfavourite">Κατάργηση από αγαπημένα</string>
-    <string name="app_name" translatable="false">Flare</string>
+    <string name="app_name" translatable="false">Prism</string>
     <string name="profile_insight_title">Πληροφορίες προφίλ</string>
     <string name="status_insight_input_placeholder">Ρωτήστε κάτι ακόμη…</string>
     <string name="status_insight_analyzing">Ανάλυση αυτής της ανάρτησης...</string>

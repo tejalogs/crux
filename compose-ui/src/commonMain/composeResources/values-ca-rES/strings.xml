@@ -406,7 +406,7 @@
     <string name="settings_appearance_absolute_timestamp">Marca de temps absoluta</string>
     <string name="settings_appearance_absolute_timestamp_description">Mostra marques de temps exactes a les publicacions</string>
     <string name="channel_title">Canal</string>
-    <string name="app_name" translatable="false">Flare</string>
+    <string name="app_name" translatable="false">Prism</string>
     <string name="profile_header_button_request_follow">Sol·licita seguir</string>
     <string name="social_title">Social</string>
     <string name="posts_with_replies_title">Publicacions i respostes</string>

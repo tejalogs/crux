@@ -361,15 +361,25 @@ class DeeplinkRouteTest {
 
     @Test
     fun testCallbackConstants() {
-        assertEquals("flare://Callback/SignIn/Mastodon", DeeplinkRoute.Companion.Callback.MASTODON)
-        assertEquals("flare://Callback/SignIn/Misskey", DeeplinkRoute.Companion.Callback.MISSKEY)
-        assertEquals("flare://Callback/SignIn/Bluesky", DeeplinkRoute.Companion.Callback.BLUESKY)
+        assertEquals("prism://Callback/SignIn/Mastodon", DeeplinkRoute.Companion.Callback.MASTODON)
+        assertEquals("prism://Callback/SignIn/Misskey", DeeplinkRoute.Companion.Callback.MISSKEY)
+        assertEquals("prism://Callback/SignIn/Bluesky", DeeplinkRoute.Companion.Callback.BLUESKY)
     }
 
     @Test
     fun testInvalidUri() {
         assertNull(DeeplinkRoute.parse("invalid://uri"))
+        assertNull(DeeplinkRoute.parse("prism://invalid_hex"))
         assertNull(DeeplinkRoute.parse("flare://invalid_hex"))
+    }
+
+    @Test
+    fun testLegacySchemeParsing() {
+        val route = DeeplinkRoute.Login
+        val prismUri = route.toUri()
+        val flareUri = prismUri.replace("prism://", "flare://")
+        assertEquals(route, DeeplinkRoute.parse(prismUri))
+        assertEquals(route, DeeplinkRoute.parse(flareUri))
     }
 
     @Test

@@ -523,7 +523,7 @@
     <string name="channel_item_unfollow">Престани да пратиш</string>
     <string name="channel_item_favourite">Омиљено</string>
     <string name="channel_item_unfavourite">Уклони из омиљених</string>
-    <string name="app_name" translatable="false">Flare</string>
+    <string name="app_name" translatable="false">Prism</string>
     <string name="status_insight_title">Увид у објаву</string>
     <string name="profile_insight_title">Увид у профил</string>
     <string name="status_insight_input_placeholder">Поставите додатно питање…</string>

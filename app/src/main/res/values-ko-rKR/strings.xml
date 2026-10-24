@@ -519,7 +519,7 @@
     <string name="channel_item_unfollow">언팔로우</string>
     <string name="channel_item_favourite">즐겨찾기 추가</string>
     <string name="channel_item_unfavourite">즐겨찾기 해제</string>
-    <string name="app_name" translatable="false">Flare</string>
+    <string name="app_name" translatable="false">Prism</string>
     <string name="status_insight_title">게시물 인사이트</string>
     <string name="profile_insight_title">프로필 인사이트</string>
     <string name="status_insight_input_placeholder">추가로 질문…</string>

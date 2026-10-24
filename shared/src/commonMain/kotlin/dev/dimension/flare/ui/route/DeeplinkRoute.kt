@@ -9,7 +9,8 @@ import kotlinx.serialization.decodeFromHexString
 import kotlinx.serialization.encodeToHexString
 import kotlinx.serialization.protobuf.ProtoBuf
 
-public const val APPSCHEMA: String = "flare"
+public const val APPSCHEMA: String = "prism"
+public const val LEGACY_APPSCHEMA: String = "flare"
 
 @Serializable
 public sealed class DeeplinkRoute {
@@ -296,10 +297,16 @@ public sealed class DeeplinkRoute {
         @OptIn(ExperimentalSerializationApi::class)
         public fun parse(uri: String): DeeplinkRoute? =
             runCatching {
-                ProtoBuf.decodeFromHexString<RoutePackage>(uri.removePrefix("$APPSCHEMA://")).route
+                val hex = when {
+                    uri.startsWith("$APPSCHEMA://") -> uri.removePrefix("$APPSCHEMA://")
+                    uri.startsWith("$LEGACY_APPSCHEMA://") -> uri.removePrefix("$LEGACY_APPSCHEMA://")
+                    else -> return null
+                }
+                ProtoBuf.decodeFromHexString<RoutePackage>(hex).route
             }.getOrNull()
 
-        public fun isDeeplink(uri: String): Boolean = uri.startsWith("$APPSCHEMA://")
+        public fun isDeeplink(uri: String): Boolean =
+            uri.startsWith("$APPSCHEMA://") || uri.startsWith("$LEGACY_APPSCHEMA://")
     }
 }
 

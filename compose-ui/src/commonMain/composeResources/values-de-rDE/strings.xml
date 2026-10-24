@@ -418,7 +418,7 @@
     <string name="pixiv_ranking_day_manga_title">Manga Ranking</string>
     <string name="illustrations_title">Illustrationen</string>
     <string name="manga_title">Manga</string>
-    <string name="app_name" translatable="false">Flare</string>
+    <string name="app_name" translatable="false">Prism</string>
     <string name="media_menu_download">Herunterladen</string>
     <string name="media_menu_download_all">Alle herunterladen</string>
     <string name="media_menu_share_image">Bild teilen</string>

@@ -573,7 +573,7 @@
     <string name="channel_item_unfollow">Ontvolgen</string>
     <string name="channel_item_favourite">Favoriet</string>
     <string name="channel_item_unfavourite">Favoriet verwijderen</string>
-    <string name="app_name" translatable="false">Flare</string>
+    <string name="app_name" translatable="false">Prism</string>
     <string name="profile_insight_title">Profielinzicht</string>
     <string name="profile_insight_analyzing">Dit profiel analyseren…</string>
     <string name="profile_insight_error">Kan dit profiel niet analyseren.</string>

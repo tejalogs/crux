@@ -579,7 +579,7 @@
     <string name="channel_item_unfollow">Отписаться</string>
     <string name="channel_item_favourite">В избранное</string>
     <string name="channel_item_unfavourite">Из избранного</string>
-    <string name="app_name" translatable="false">Flare</string>
+    <string name="app_name" translatable="false">Prism</string>
     <string name="profile_insight_title">Анализ профиля</string>
     <string name="profile_insight_analyzing">Анализ профиля…</string>
     <string name="profile_insight_error">Не удалось проанализировать этот профиль.</string>

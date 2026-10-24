@@ -406,7 +406,7 @@
     <string name="settings_appearance_absolute_timestamp">Apsolutno vreme</string>
     <string name="settings_appearance_absolute_timestamp_description">Prikaži tačno vreme na objavama</string>
     <string name="channel_title">Kanal</string>
-    <string name="app_name" translatable="false">Flare</string>
+    <string name="app_name" translatable="false">Prism</string>
     <string name="profile_header_button_request_follow">Затражи праћење</string>
     <string name="nostr_login_qr_link_label">Nostr Connect веза</string>
     <string name="posts_with_replies_title">Објаве и одговори</string>

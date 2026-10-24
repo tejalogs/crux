@@ -516,7 +516,7 @@
     <string name="channel_item_unfollow">Deixa de seguir</string>
     <string name="channel_item_favourite">Marca com a preferit</string>
     <string name="channel_item_unfavourite">Treu de preferits</string>
-    <string name="app_name" translatable="false">Flare</string>
+    <string name="app_name" translatable="false">Prism</string>
     <string name="status_insight_title">Informació de la publicació</string>
     <string name="profile_insight_title">Informació del perfil</string>
     <string name="status_insight_input_placeholder">Fes una pregunta de seguiment…</string>

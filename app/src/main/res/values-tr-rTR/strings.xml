@@ -521,7 +521,7 @@
     <string name="channel_item_unfollow">Takibi bırak</string>
     <string name="channel_item_favourite">Favorilere ekle</string>
     <string name="channel_item_unfavourite">Favorilerden çıkar</string>
-    <string name="app_name" translatable="false">Flare</string>
+    <string name="app_name" translatable="false">Prism</string>
     <string name="status_insight_title">Gönderi içgörüsü</string>
     <string name="profile_insight_title">Profil içgörüsü</string>
     <string name="status_insight_input_placeholder">Takip sorusu sor…</string>

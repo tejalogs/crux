@@ -574,7 +574,7 @@
     <string name="channel_item_unfollow">Slutt å følge</string>
     <string name="channel_item_favourite">Favoritt</string>
     <string name="channel_item_unfavourite">Fjern fra favoritter</string>
-    <string name="app_name" translatable="false">Flare</string>
+    <string name="app_name" translatable="false">Prism</string>
     <string name="profile_insight_title">Profilinnsikt</string>
     <string name="profile_insight_analyzing">Analyserer denne profilen…</string>
     <string name="profile_insight_error">Kan ikke analysere denne profilen.</string>

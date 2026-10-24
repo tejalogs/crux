@@ -7,16 +7,17 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Flare</string>
+	<string>Prism</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
 			<key>CFBundleTypeRole</key>
 			<string>Viewer</string>
 			<key>CFBundleURLName</key>
-			<string>dev.dimension.flare</string>
+			<string>org.prism.social</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
+				<string>prism</string>
 				<string>flare</string>
 				<string>pixiv</string>
 			</array>

@@ -518,7 +518,7 @@
     <string name="channel_item_unfollow">Ontvolg</string>
     <string name="channel_item_favourite">Gunsteling</string>
     <string name="channel_item_unfavourite">Verwyder uit gunstelinge</string>
-    <string name="app_name" translatable="false">Flare</string>
+    <string name="app_name" translatable="false">Prism</string>
     <string name="status_insight_title">Plasing-insig</string>
     <string name="profile_insight_title">Profielinsig</string>
     <string name="status_insight_input_placeholder">Vra ’n opvolgvraag…</string>

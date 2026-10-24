@@ -585,7 +585,7 @@
     <string name="channel_item_unfollow">إلغاء المتابعة</string>
     <string name="channel_item_favourite">تفضيل</string>
     <string name="channel_item_unfavourite">إلغاء التفضيل</string>
-    <string name="app_name" translatable="false">Flare</string>
+    <string name="app_name" translatable="false">Prism</string>
     <string name="profile_insight_title">رؤى الملف الشخصي</string>
     <string name="profile_insight_analyzing">جارٍ تحليل هذا الملف الشخصي…</string>
     <string name="profile_insight_error">تعذّر تحليل هذا الملف الشخصي.</string>

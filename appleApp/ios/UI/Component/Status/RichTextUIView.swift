@@ -1523,7 +1523,7 @@ private final class RichTextTextView: UITextView, UITextViewDelegate, RichTextTe
                 menu: defaultMenu
             )
         }
-        if url.absoluteString.hasPrefix("flare://"), let route = Route.fromDeepLink(url: url.absoluteString) {
+        if (url.absoluteString.hasPrefix("prism://") || url.absoluteString.hasPrefix("flare://")), let route = Route.fromDeepLink(url: url.absoluteString) {
             let host = UIHostingController(rootView: route.view(onNavigate: { _ in
                 
             }, goBack: {

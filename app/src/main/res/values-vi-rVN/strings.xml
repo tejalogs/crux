@@ -519,7 +519,7 @@
     <string name="channel_item_unfollow">Bỏ theo dõi</string>
     <string name="channel_item_favourite">Yêu thích</string>
     <string name="channel_item_unfavourite">Bỏ yêu thích</string>
-    <string name="app_name" translatable="false">Flare</string>
+    <string name="app_name" translatable="false">Prism</string>
     <string name="status_insight_title">Thông tin bài viết</string>
     <string name="profile_insight_title">Thông tin hồ sơ</string>
     <string name="status_insight_input_placeholder">Hỏi tiếp…</string>

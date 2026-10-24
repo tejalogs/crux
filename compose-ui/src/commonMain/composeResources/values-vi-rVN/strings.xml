@@ -407,7 +407,7 @@
     <string name="settings_appearance_absolute_timestamp">Dấu thời gian tuyệt đối</string>
     <string name="settings_appearance_absolute_timestamp_description">Hiển thị thời gian chính xác trên bài đăng</string>
     <string name="channel_title">Kênh</string>
-    <string name="app_name" translatable="false">Flare</string>
+    <string name="app_name" translatable="false">Prism</string>
     <string name="profile_header_button_request_follow">Yêu cầu theo dõi</string>
     <string name="posts_with_replies_title">Bài viết và trả lời</string>
     <string name="pixiv_ranking_week_title">Xếp hạng tuần</string>

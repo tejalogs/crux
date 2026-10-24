@@ -521,7 +521,7 @@
     <string name="channel_item_unfollow">Követés leállítása</string>
     <string name="channel_item_favourite">Kedvenc</string>
     <string name="channel_item_unfavourite">Eltávolítás a kedvencek közül</string>
-    <string name="app_name" translatable="false">Flare</string>
+    <string name="app_name" translatable="false">Prism</string>
     <string name="status_insight_title">Bejegyzéselemzés</string>
     <string name="profile_insight_title">Profilelemzés</string>
     <string name="status_insight_input_placeholder">Tegyen fel egy követő kérdést…</string>

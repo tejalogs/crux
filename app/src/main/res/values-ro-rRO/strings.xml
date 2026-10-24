@@ -582,7 +582,7 @@
     <string name="channel_item_unfollow">Nu mai urmări</string>
     <string name="channel_item_favourite">Adaugă la favorite</string>
     <string name="channel_item_unfavourite">Elimină din favorite</string>
-    <string name="app_name" translatable="false">Flare</string>
+    <string name="app_name" translatable="false">Prism</string>
     <string name="profile_insight_title">Informații despre profil</string>
     <string name="profile_insight_analyzing">Se analizează acest profil…</string>
     <string name="profile_insight_error">Nu se poate analiza acest profil.</string>

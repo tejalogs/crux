@@ -573,7 +573,7 @@
     <string name="channel_item_unfollow">Відписатися</string>
     <string name="channel_item_favourite">Додати у вибране</string>
     <string name="channel_item_unfavourite">Видалити з вибраного</string>
-    <string name="app_name" translatable="false">Flare</string>
+    <string name="app_name" translatable="false">Prism</string>
     <string name="profile_insight_title">Аналітика профілю</string>
     <string name="status_insight_analyzing">Аналіз цього допису...</string>
     <string name="profile_insight_analyzing">Аналіз цього профілю…</string>

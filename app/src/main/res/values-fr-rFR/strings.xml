@@ -575,7 +575,7 @@
     <string name="channel_item_unfollow">Se désabonner</string>
     <string name="channel_item_favourite">Ajouter aux favoris</string>
     <string name="channel_item_unfavourite">Retirer des favoris</string>
-    <string name="app_name" translatable="false">Flare</string>
+    <string name="app_name" translatable="false">Prism</string>
     <string name="profile_insight_title">Aperçu du profil</string>
     <string name="status_insight_input_placeholder">Poser une question complémentaire…</string>
     <string name="profile_insight_analyzing">Analyse de ce profil…</string>

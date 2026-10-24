@@ -574,7 +574,7 @@
     <string name="channel_item_unfollow">Lopeta seuraaminen</string>
     <string name="channel_item_favourite">Suosikki</string>
     <string name="channel_item_unfavourite">Poista suosikeista</string>
-    <string name="app_name" translatable="false">Flare</string>
+    <string name="app_name" translatable="false">Prism</string>
     <string name="profile_insight_title">Profiilinäkymä</string>
     <string name="status_insight_analyzing">Analysoidaan viestiä...</string>
     <string name="profile_insight_analyzing">Analysoidaan tätä profiilia…</string>

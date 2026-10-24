@@ -50,7 +50,7 @@ final class ActionRequestHandler: NSObject, NSExtensionRequestHandling {
 
     private static func flareURL(for source: String) -> URL? {
         var components = URLComponents()
-        components.scheme = "flare"
+        components.scheme = "prism"
         components.host = "open"
         components.queryItems = [URLQueryItem(name: "url", value: source)]
         return components.url

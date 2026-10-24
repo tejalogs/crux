@@ -1,4 +1,4 @@
-name: Flare
+name: Prism
 
 options:
   minimumXcodeGenVersion: 2.45.4
@@ -26,8 +26,8 @@ settingGroups:
     # FRAMEWORK_SEARCH_PATHS:
     #   - "$(inherited)"
     #   - "$(SRCROOT)/../apple-shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)"
-    PRODUCT_BUNDLE_IDENTIFIER: dev.dimension.flare
-    PRODUCT_NAME: Flare
+    PRODUCT_BUNDLE_IDENTIFIER: org.prism.social
+    PRODUCT_NAME: Prism
 
 settings:
   base:
