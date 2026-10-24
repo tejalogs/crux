@@ -81,17 +81,15 @@ internal fun AboutScreen(onBack: () -> Unit) {
                 contentDescription = stringResource(id = R.string.app_name),
                 modifier =
                     Modifier
-                        .height(128.dp),
+                        .height(112.dp),
             )
-            Spacer(Modifier.height(16.dp))
-            Icon(
-                painter = painterResource(id = R.drawable.ic_logo_text),
-                contentDescription = stringResource(id = R.string.app_name),
-                modifier =
-                    Modifier
-                        .height(32.dp),
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = stringResource(id = R.string.app_name),
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
             )
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(8.dp))
             Text(
                 text = stringResource(id = R.string.settings_about_description),
                 textAlign = TextAlign.Center,
@@ -116,11 +114,11 @@ internal fun AboutScreen(onBack: () -> Unit) {
                     },
                     supportingContent = {
                         Text(
-                            text = "https://github.com/DimensionDev/Flare",
+                            text = "https://github.com/prism-social/prism",
                         )
                     },
                     onClick = {
-                        uriHandler.openUri("https://github.com/DimensionDev/Flare")
+                        uriHandler.openUri("https://github.com/prism-social/prism")
                     },
                     shapes = ListItemDefaults.segmentedShapes2(0, 5),
                     leadingContent = {
@@ -133,21 +131,21 @@ internal fun AboutScreen(onBack: () -> Unit) {
                 )
                 SegmentedListItem(
                     content = {
-                        Text(text = stringResource(id = R.string.settings_about_telegram))
+                        Text(text = stringResource(id = R.string.settings_about_upstream))
                     },
                     supportingContent = {
                         Text(
-                            text = stringResource(id = R.string.settings_about_telegram_description),
+                            text = stringResource(id = R.string.settings_about_upstream_description),
                         )
                     },
                     onClick = {
-                        uriHandler.openUri(ilink)
+                        uriHandler.openUri("https://github.com/DimensionDev/Flare")
                     },
                     shapes = ListItemDefaults.segmentedShapes2(1, 5),
                     leadingContent = {
                         Icon(
-                            imageVector = FontAwesomeIcons.Brands.Telegram,
-                            contentDescription = stringResource(id = R.string.settings_about_telegram),
+                            imageVector = FontAwesomeIcons.Brands.Github,
+                            contentDescription = stringResource(id = R.string.settings_about_upstream),
                             modifier = Modifier.size(24.dp),
                         )
                     },
@@ -200,11 +198,11 @@ internal fun AboutScreen(onBack: () -> Unit) {
                     },
                     supportingContent = {
                         Text(
-                            text = "https://legal.mask.io/maskbook",
+                            text = "https://github.com/prism-social/prism#privacy",
                         )
                     },
                     onClick = {
-                        uriHandler.openUri("https://legal.mask.io/maskbook/")
+                        uriHandler.openUri("https://github.com/prism-social/prism#privacy")
                     },
                     shapes = ListItemDefaults.segmentedShapes2(4, 5),
                     leadingContent = {
