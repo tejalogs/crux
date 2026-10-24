@@ -30,7 +30,7 @@ class App :
     SingletonImageLoader.Factory {
     override fun onCreate() {
         super.onCreate()
-        WebView.setDataDirectorySuffix("flarebrowser")
+        WebView.setDataDirectorySuffix("prismbrowser")
         val koinApplication = startKoin<AndroidKoinApplication> {
             androidContext(this@App)
         }
