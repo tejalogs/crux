@@ -9,12 +9,17 @@ import androidx.compose.runtime.remember
 import dev.dimension.flare.common.PagingState
 import dev.dimension.flare.common.combineLatestFlowLists
 import dev.dimension.flare.common.refreshSuspend
+import dev.dimension.flare.data.database.cache.CacheDatabase
 import dev.dimension.flare.data.datasource.microblog.AuthenticatedMicroblogDataSource
+import dev.dimension.flare.data.datasource.microblog.MixedRemoteMediator
 import dev.dimension.flare.data.datasource.microblog.NotificationFilter
 import dev.dimension.flare.data.datasource.microblog.NotificationTimelineDataSource
 import dev.dimension.flare.data.datasource.microblog.datasource.NotificationDataSource
 import dev.dimension.flare.data.datasource.microblog.datasource.UserDataSource
+import dev.dimension.flare.data.datasource.microblog.paging.CacheableRemoteLoader
 import dev.dimension.flare.data.datasource.microblog.paging.RemoteLoader
+import dev.dimension.flare.data.datasource.microblog.paging.notSupported
+import dev.dimension.flare.data.model.tab.TimelineMergePolicy
 import dev.dimension.flare.data.repository.AccountRepository
 import dev.dimension.flare.data.repository.accountServiceFlow
 import dev.dimension.flare.data.repository.allAccountServicesFlow
@@ -105,6 +110,7 @@ internal fun notificationAccountsFlow(accountRepository: AccountRepository): Flo
 @WebPresenter("notifications")
 public class AllNotificationPresenter : PresenterBase<AllNotificationPresenter.State>() {
     private val accountRepository: AccountRepository by koinInject()
+    private val cacheDatabase: CacheDatabase by koinInject()
     private val selectedAccountFlow = MutableStateFlow<UiProfile?>(null)
     private val selectedNotificationFilterFlow = MutableStateFlow<NotificationFilter?>(null)
 
@@ -116,9 +122,13 @@ public class AllNotificationPresenter : PresenterBase<AllNotificationPresenter.S
         public val selectedFilter: NotificationFilter?
         public val selectedAccount: UiProfile?
         public val selectedAccountIndex: Int
+        public val isUnified: Boolean
+        public val totalBadgeCount: Int
 
         @WebIgnore
         public fun setAccount(profile: UiProfile)
+
+        public fun setAllAccounts()
 
         public fun setAccountKey(key: MicroBlogKey)
 
@@ -134,13 +144,23 @@ public class AllNotificationPresenter : PresenterBase<AllNotificationPresenter.S
     @OptIn(ExperimentalCoroutinesApi::class)
     private val notificationFiltersFlow by lazy {
         selectedAccountFlow
-            .filterNotNull()
-            .distinctUntilChanged()
-            .flatMapLatest {
-                accountServiceFlow(AccountType.Specific(it.key), accountRepository)
-            }.map {
-                require(it is NotificationTimelineDataSource)
-                it.supportedNotificationFilter.toImmutableList()
+            .flatMapLatest { profile ->
+                if (profile != null) {
+                    accountServiceFlow(AccountType.Specific(profile.key), accountRepository)
+                        .map {
+                            require(it is NotificationTimelineDataSource)
+                            it.supportedNotificationFilter.toImmutableList()
+                        }
+                } else {
+                    allAccountServicesFlow(accountRepository)
+                        .map { services ->
+                            val notificationServices = services.filterIsInstance<NotificationTimelineDataSource>()
+                            val allFilters = notificationServices
+                                .flatMap { it.supportedNotificationFilter }
+                                .distinct()
+                            (if (allFilters.isEmpty()) listOf(NotificationFilter.All) else allFilters).toImmutableList()
+                        }
+                }
             }.distinctUntilChanged()
     }
 
@@ -150,15 +170,42 @@ public class AllNotificationPresenter : PresenterBase<AllNotificationPresenter.S
             override val loader: Flow<RemoteLoader<UiTimelineV2>> by lazy {
                 combine(
                     selectedNotificationFilterFlow.filterNotNull(),
-                    selectedAccountFlow.filterNotNull(),
-                ) { filter, profile -> filter to profile.key }
+                    selectedAccountFlow,
+                ) { filter, profile -> filter to profile }
                     .distinctUntilChanged()
-                    .flatMapLatest { (filter, accountKey) ->
-                        accountServiceFlow(AccountType.Specific(accountKey), accountRepository)
-                            .map {
-                                require(it is NotificationTimelineDataSource)
-                                it.notification(filter)
-                            }.distinctUntilChanged()
+                    .flatMapLatest { (filter, profile) ->
+                        if (profile != null) {
+                            accountServiceFlow(AccountType.Specific(profile.key), accountRepository)
+                                .map {
+                                    require(it is NotificationTimelineDataSource)
+                                    it.notification(filter)
+                                }.distinctUntilChanged()
+                        } else {
+                            allAccountServicesFlow(accountRepository)
+                                .map { services ->
+                                    val notificationServices = services
+                                        .filterIsInstance<NotificationTimelineDataSource>()
+                                        .filter { it.supportedNotificationFilter.contains(filter) }
+                                    if (notificationServices.isEmpty()) {
+                                        notSupported()
+                                    } else if (notificationServices.size == 1) {
+                                        notificationServices.first().notification(filter)
+                                    } else {
+                                        val loaders = notificationServices.mapNotNull { service ->
+                                            service.notification(filter) as? CacheableRemoteLoader<UiTimelineV2>
+                                        }
+                                        if (loaders.isEmpty()) {
+                                            notSupported()
+                                        } else {
+                                            MixedRemoteMediator(
+                                                database = cacheDatabase,
+                                                mediators = loaders,
+                                                mergePolicy = TimelineMergePolicy.Time,
+                                            )
+                                        }
+                                    }
+                                }.distinctUntilChanged()
+                        }
                     }
             }
         }
@@ -169,14 +216,22 @@ public class AllNotificationPresenter : PresenterBase<AllNotificationPresenter.S
     override fun body(): State {
         val notifications by accountsNotificationFlow.collectAsState(emptyList<NotificationAccountItem>().toImmutableList())
         val selectedAccount by selectedAccountFlow.collectAsState()
+        val totalBadgeCount by remember {
+            derivedStateOf { notifications.sumOf { it.badge } }
+        }
+        val isUnified by remember {
+            derivedStateOf { notifications.size > 1 && selectedAccount == null }
+        }
         val selectedAccountIndex by remember {
             derivedStateOf {
-                val maxIndex = (notifications.size - 1).coerceAtLeast(0)
-                selectedAccount?.let { profile ->
-                    notifications
-                        .indexOfFirst { it.profile.key == profile.key }
-                        .coerceIn(0, maxIndex)
-                } ?: 0
+                if (notifications.size <= 1) {
+                    0
+                } else {
+                    selectedAccount?.let { profile ->
+                        val index = notifications.indexOfFirst { it.profile.key == profile.key }
+                        if (index >= 0) index + 1 else 0
+                    } ?: 0
+                }
             }
         }
         val selectedNotificationFilter by selectedNotificationFilterFlow.collectAsState()
@@ -190,8 +245,14 @@ public class AllNotificationPresenter : PresenterBase<AllNotificationPresenter.S
 
         LaunchedEffect(notifications) {
             val current = selectedAccountFlow.value
-            if (current == null || notifications.none { it.profile.key == current.key }) {
-                selectedAccountFlow.value = notifications.firstOrNull()?.profile
+            if (notifications.size <= 1) {
+                if (current == null || notifications.none { it.profile.key == current.key }) {
+                    selectedAccountFlow.value = notifications.firstOrNull()?.profile
+                }
+            } else {
+                if (current != null && notifications.none { it.profile.key == current.key }) {
+                    selectedAccountFlow.value = null
+                }
             }
         }
 
@@ -204,9 +265,15 @@ public class AllNotificationPresenter : PresenterBase<AllNotificationPresenter.S
             override val selectedFilter = selectedNotificationFilter
             override val selectedAccount = selectedAccount
             override val selectedAccountIndex = selectedAccountIndex
+            override val isUnified = isUnified
+            override val totalBadgeCount = totalBadgeCount
 
             override fun setAccount(profile: UiProfile) {
                 selectedAccountFlow.value = profile
+            }
+
+            override fun setAllAccounts() {
+                selectedAccountFlow.value = null
             }
 
             override fun setAccountKey(key: MicroBlogKey) {

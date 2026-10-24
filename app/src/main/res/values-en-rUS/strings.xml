@@ -15,6 +15,7 @@
     </plurals>
 
     <string name="notification_tab_all_title">All</string>
+    <string name="notification_tab_unified">Unified</string>
     <string name="notification_tab_mentions_title">Mentions</string>
     <string name="notification_tab_comments_title">Comments</string>
     <string name="notification_tab_likes_title">Likes</string>

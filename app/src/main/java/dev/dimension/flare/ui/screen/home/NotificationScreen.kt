@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
 import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridState
 import androidx.compose.material3.Badge
@@ -29,12 +30,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import compose.icons.FontAwesomeIcons
+import compose.icons.fontawesomeicons.Solid
+import compose.icons.fontawesomeicons.solid.Bell
 import dev.dimension.flare.R
 import dev.dimension.flare.common.isRefreshing
 import dev.dimension.flare.data.datasource.microblog.NotificationFilter
 import dev.dimension.flare.data.model.BottomBarBehavior
 import dev.dimension.flare.data.model.TimelineDisplayMode
 import dev.dimension.flare.ui.component.AvatarComponent
+import dev.dimension.flare.ui.component.FAIcon
 import dev.dimension.flare.ui.component.FlareScaffold
 import dev.dimension.flare.ui.component.FlareTopAppBar
 import dev.dimension.flare.ui.component.LocalGlobalAppearance
@@ -115,6 +120,31 @@ internal fun NotificationScreen() {
                             },
                             minTabWidth = 48.dp,
                         ) {
+                            LeadingIconTab(
+                                selectedContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                unselectedContentColor = LocalContentColor.current,
+                                selected = state.isUnified,
+                                onClick = { state.setAllAccounts() },
+                                text = { Text(text = stringResource(id = R.string.notification_tab_unified), maxLines = 1) },
+                                icon = {
+                                    Box(contentAlignment = Alignment.BottomEnd) {
+                                        FAIcon(
+                                            imageVector = FontAwesomeIcons.Solid.Bell,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(18.dp),
+                                        )
+                                        if (state.totalBadgeCount > 0) {
+                                            Badge {
+                                                Text(
+                                                    text = state.totalBadgeCount.toString(),
+                                                    maxLines = 1,
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                )
+                                            }
+                                        }
+                                    }
+                                },
+                            )
                             state.notifications.forEach { item ->
                                 val account = item.profile
                                 val badge = item.badge
