@@ -62,7 +62,7 @@ public fun UserCompat(
             Row(
                 modifier =
                     Modifier
-                        .weight(1f)
+                        .weight(1f, fill = false)
                         .clickable {
                             onUserClick.invoke(user.key)
                         },
@@ -73,7 +73,7 @@ public fun UserCompat(
                     text = name,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.Bold,
                     modifier = Modifier.alignByBaseline().then(nameModifier),
                 )
                 PlatformText(

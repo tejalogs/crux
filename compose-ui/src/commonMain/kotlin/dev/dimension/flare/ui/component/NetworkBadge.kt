@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -31,6 +30,7 @@ import compose.icons.fontawesomeicons.solid.SquareRss
 import dev.dimension.flare.ui.icons.Misskey
 import dev.dimension.flare.ui.icons.Nostr
 import dev.dimension.flare.ui.model.UiIcon
+import dev.dimension.flare.ui.theme.PlatformTheme
 
 public object NetworkBadgeDefaults {
     public fun getBadgeColor(platformId: String?, host: String? = null): Color {
@@ -111,8 +111,8 @@ public fun NetworkBadge(
             modifier
                 .size(badgeSize)
                 .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surface)
-                .padding(1.5.dp)
+                .background(PlatformTheme.colorScheme.card)
+                .padding(if (badgeSize > 20.dp) 2.dp else 1.5.dp)
                 .clip(CircleShape)
                 .then(
                     if (isIg) {

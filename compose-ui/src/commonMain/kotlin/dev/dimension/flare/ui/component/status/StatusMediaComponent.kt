@@ -2,11 +2,13 @@ package dev.dimension.flare.ui.component.status
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -476,19 +478,15 @@ private fun StatusMediaItem(
             PlatformFlyoutContainer(
                 modifier = Modifier.align(Alignment.BottomEnd),
                 content = { requestShowFlyout ->
-                    PlatformText(
-                        text = "ALT",
+                    Box(
                         modifier =
                             Modifier
                                 .pointerHoverIcon(PointerIcon.Hand)
                                 .padding(10.dp)
-                                .background(
-                                    color = Color.Black.copy(alpha = 0.65f),
-                                    shape = RoundedCornerShape(6.dp),
-                                ).padding(
-                                    horizontal = 6.dp,
-                                    vertical = 2.dp,
-                                ).clickable {
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color.Black.copy(alpha = 0.70f))
+                                .border(0.6.dp, Color.White.copy(alpha = 0.25f), RoundedCornerShape(8.dp))
+                                .clickable {
                                     if (!requestShowFlyout.invoke()) {
                                         media.description?.let {
                                             uriHandler.openUri(DeeplinkRoute.Status.AltText(it).toUri())
@@ -496,10 +494,17 @@ private fun StatusMediaItem(
                                     }
                                 }.semantics {
                                     contentDescription = viewAltTextLabel
-                                },
-                        color = Color.White,
-                        style = PlatformTheme.typography.caption.copy(fontWeight = FontWeight.Bold),
-                    )
+                                }.padding(
+                                    horizontal = 7.dp,
+                                    vertical = 3.dp,
+                                ),
+                    ) {
+                        PlatformText(
+                            text = "ALT",
+                            color = Color.White,
+                            style = PlatformTheme.typography.caption.copy(fontWeight = FontWeight.Bold),
+                        )
+                    }
                 },
                 flyout = {
                     PlatformText(
@@ -728,46 +733,55 @@ public fun MediaItem(
                         Box(
                             modifier =
                                 Modifier
-                                    .padding(16.dp)
-                                    .background(
-                                        Color.Black.copy(alpha = 0.5f),
-                                        shape = PlatformTheme.shapes.medium,
-                                    ).padding(horizontal = 8.dp, vertical = 4.dp)
-                                    .align(Alignment.BottomStart),
-                            contentAlignment = Alignment.Center,
+                                    .padding(12.dp)
+                                    .align(Alignment.BottomStart)
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(Color.Black.copy(alpha = 0.65f))
+                                    .border(0.8.dp, Color.White.copy(alpha = 0.25f), RoundedCornerShape(20.dp))
+                                    .padding(horizontal = 8.dp, vertical = 4.dp),
                         ) {
-                            FAIcon(
-                                FontAwesomeIcons.Solid.CirclePlay,
-                                contentDescription = stringResource(Res.string.media_play_video),
-                                modifier =
-                                    Modifier
-                                        .size(16.dp),
-                                tint = Color.White,
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                FAIcon(
+                                    FontAwesomeIcons.Solid.CirclePlay,
+                                    contentDescription = stringResource(Res.string.media_play_video),
+                                    modifier =
+                                        Modifier
+                                            .size(13.dp),
+                                    tint = Color.White,
+                                )
+                                PlatformText(
+                                    text = "Video",
+                                    color = Color.White,
+                                    style = PlatformTheme.typography.caption,
+                                )
+                            }
                         }
                     },
                     remainingTimeContent =
                         if (showCountdown) {
-                            {
+                            { remainingMs ->
                                 Box(
                                     modifier =
                                         Modifier
-                                            .padding(16.dp)
-                                            .background(
-                                                Color.Black.copy(alpha = 0.5f),
-                                                shape = PlatformTheme.shapes.medium,
-                                            ).padding(horizontal = 8.dp, vertical = 4.dp)
-                                            .align(Alignment.BottomStart),
-                                    contentAlignment = Alignment.Center,
+                                            .padding(12.dp)
+                                            .align(Alignment.BottomStart)
+                                            .clip(RoundedCornerShape(20.dp))
+                                            .background(Color.Black.copy(alpha = 0.65f))
+                                            .border(0.8.dp, Color.White.copy(alpha = 0.25f), RoundedCornerShape(20.dp))
+                                            .padding(horizontal = 8.dp, vertical = 4.dp),
                                 ) {
-                                    PlatformText(
-                                        text =
-                                            remember(it) {
-                                                it.milliseconds.humanize()
-                                            },
-                                        color = Color.White,
-                                        style = PlatformTheme.typography.caption,
-                                    )
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        PlatformText(
+                                            text = remainingMs.milliseconds.humanize(),
+                                            color = Color.White,
+                                            style = PlatformTheme.typography.caption,
+                                        )
+                                    }
                                 }
                             }
                         } else {
@@ -800,22 +814,31 @@ public fun MediaItem(
                     Box(
                         modifier =
                             Modifier
-                                .padding(16.dp)
-                                .background(
-                                    Color.Black.copy(alpha = 0.5f),
-                                    shape = PlatformTheme.shapes.medium,
-                                ).padding(horizontal = 8.dp, vertical = 4.dp)
-                                .align(Alignment.BottomStart),
-                        contentAlignment = Alignment.Center,
+                                .padding(12.dp)
+                                .align(Alignment.BottomStart)
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(Color.Black.copy(alpha = 0.65f))
+                                .border(0.8.dp, Color.White.copy(alpha = 0.25f), RoundedCornerShape(20.dp))
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
                     ) {
-                        FAIcon(
-                            FontAwesomeIcons.Solid.CirclePlay,
-                            contentDescription = stringResource(Res.string.media_play_video),
-                            modifier =
-                                Modifier
-                                    .size(16.dp),
-                            tint = Color.White,
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            FAIcon(
+                                FontAwesomeIcons.Solid.CirclePlay,
+                                contentDescription = stringResource(Res.string.media_play_video),
+                                modifier =
+                                    Modifier
+                                        .size(13.dp),
+                                tint = Color.White,
+                            )
+                            PlatformText(
+                                text = "Video",
+                                color = Color.White,
+                                style = PlatformTheme.typography.caption,
+                            )
+                        }
                     }
                 }
             }

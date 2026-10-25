@@ -17,11 +17,13 @@ import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.dimension.flare.compose.ui.Res
 import dev.dimension.flare.compose.ui.profile_open_user
 import dev.dimension.flare.model.MicroBlogKey
 import dev.dimension.flare.ui.component.AvatarComponent
+import dev.dimension.flare.ui.component.AvatarComponentDefaults
 import dev.dimension.flare.ui.component.RichText
 import dev.dimension.flare.ui.component.platform.PlatformText
 import dev.dimension.flare.ui.model.UiProfile
@@ -36,6 +38,7 @@ public fun CommonStatusHeaderComponent(
     avatarModifier: Modifier = Modifier,
     nameModifier: Modifier = Modifier,
     handleModifier: Modifier = Modifier,
+    avatarSize: Dp = AvatarComponentDefaults.size,
     leadingContent: @Composable (RowScope.() -> Unit)? = {
         Box(avatarModifier, propagateMinConstraints = true) {
             AvatarComponent(
@@ -43,6 +46,7 @@ public fun CommonStatusHeaderComponent(
                 platformId = data.platformId,
                 host = data.key.host,
                 platformIcon = data.platformIcon,
+                size = avatarSize,
                 contentDescription =
                     stringResource(
                         Res.string.profile_open_user,
@@ -64,7 +68,7 @@ public fun CommonStatusHeaderComponent(
         headlineContent = {
             RichText(
                 text = data.name,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = FontWeight.Bold,
                 modifier =
                     nameModifier
                         .pointerHoverIcon(PointerIcon.Hand)

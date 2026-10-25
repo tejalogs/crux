@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import dev.dimension.flare.data.model.TimelineDisplayMode
 import dev.dimension.flare.ui.component.HorizontalDivider
@@ -48,13 +49,17 @@ public fun AdaptiveCard(
             }
         }
     } else {
+        val cardShape = listCardShape(index = index, totalCount = totalCount)
         Box(
             modifier =
                 modifier
-                    .listCard(
-                        index = index,
-                        totalCount = totalCount,
-                    ).background(PlatformTheme.colorScheme.card),
+                    .clip(cardShape)
+                    .background(PlatformTheme.colorScheme.card)
+                    .border(
+                        0.6.dp,
+                        PlatformTheme.colorScheme.outline.copy(alpha = 0.25f),
+                        cardShape,
+                    ),
         ) {
             content.invoke()
         }

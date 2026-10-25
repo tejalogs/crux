@@ -514,13 +514,13 @@ private fun StatusContent(
                         }
                     }
                     VerticalDivider(
+                        thickness = 2.dp,
+                        color = PlatformTheme.colorScheme.outline.copy(alpha = 0.40f),
                         modifier =
                             Modifier
                                 .zIndex(-1f)
                                 .padding(
-                                    start = screenHorizontalPadding,
-                                ).padding(
-                                    start = AvatarComponentDefaults.size / 2,
+                                    start = screenHorizontalPadding + (AvatarComponentDefaults.size / 2) - 1.dp,
                                 ).padding(
                                     top = AvatarComponentDefaults.size / 2,
                                 ).let {

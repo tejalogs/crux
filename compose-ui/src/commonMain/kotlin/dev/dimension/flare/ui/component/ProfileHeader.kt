@@ -165,6 +165,9 @@ private fun ProfileHeaderSuccess(
         displayName = user.name,
         userKey = user.key,
         handle = user.handle,
+        platformId = user.platformId,
+        host = user.key.host,
+        platformIcon = user.platformIcon,
         headerTrailing = {
             isMe.onSuccess {
                 if (!it) {

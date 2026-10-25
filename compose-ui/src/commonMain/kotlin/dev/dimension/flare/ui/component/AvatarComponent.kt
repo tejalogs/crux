@@ -50,7 +50,7 @@ public fun AvatarComponent(
         )
 
         if (hasBadge) {
-            val badgeSize = (size * 0.40f).coerceIn(14.dp, 20.dp)
+            val badgeSize = (size * 0.32f).coerceIn(14.dp, 28.dp)
             NetworkBadge(
                 platformId = platformId,
                 host = host,

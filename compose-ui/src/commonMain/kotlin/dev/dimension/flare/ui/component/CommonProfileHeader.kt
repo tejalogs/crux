@@ -1,6 +1,7 @@
 package dev.dimension.flare.ui.component
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,14 +15,19 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import dev.dimension.flare.compose.ui.Res
 import dev.dimension.flare.compose.ui.profile_banner
@@ -30,6 +36,7 @@ import dev.dimension.flare.model.MicroBlogKey
 import dev.dimension.flare.ui.component.platform.PlatformText
 import dev.dimension.flare.ui.component.platform.isBigScreen
 import dev.dimension.flare.ui.model.UiHandle
+import dev.dimension.flare.ui.model.UiIcon
 import dev.dimension.flare.ui.model.UiMedia
 import dev.dimension.flare.ui.render.UiRichText
 import dev.dimension.flare.ui.theme.PlatformTheme
@@ -44,6 +51,9 @@ internal fun CommonProfileHeader(
     userKey: MicroBlogKey,
     handle: UiHandle,
     modifier: Modifier = Modifier,
+    platformId: String? = null,
+    host: String? = null,
+    platformIcon: UiIcon? = null,
     onAvatarClick: (() -> Unit)? = null,
     onBannerClick: (() -> Unit)? = null,
     headerTrailing: @Composable RowScope.() -> Unit = {},
@@ -63,54 +73,79 @@ internal fun CommonProfileHeader(
     Box(
         modifier =
             modifier
-//                .sharedBounds(
-//                    rememberSharedContentState(key = "header-$userKey"),
-//                    animatedVisibilityScope = this@AnimatedVisibilityScope,
-//                    renderInOverlayDuringTransition = false,
-//                    enter = EnterTransition.None,
-//                    exit = ExitTransition.None,
-//                    resizeMode =
-//                        SharedTransitionScope.ResizeMode.ScaleToBounds(
-//                            contentScale = ContentScale.FillWidth,
-//                            alignment = Alignment.TopStart,
-//                        ),
-//                    placeHolderSize = SharedTransitionScope.PlaceHolderSize.animatedSize,
-//                )
-//                .background(MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp))
                 .padding(bottom = 8.dp),
     ) {
-        banner?.let {
-            NetworkImage(
-                model = it.url,
-                contentDescription = stringResource(Res.string.profile_banner, profileName),
-                customHeaders = it.customHeaders,
-                modifier =
-                    Modifier
-//                        .sharedElement(
-//                            rememberSharedContentState(key = "profile-banner-$userKey"),
-//                            animatedVisibilityScope = this@AnimatedVisibilityScope,
-//                        )
-                        .clipToBounds()
-                        .fillMaxWidth()
-                        .height(actualBannerHeight)
-                        .let {
-                            if (onBannerClick != null) {
-                                it.clickable {
-                                    onBannerClick.invoke()
-                                }
-                            } else {
-                                it
-                            }
-                        },
-            )
-        } ?: Box(
+        Box(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .height(actualBannerHeight)
-                    .background(PlatformTheme.colorScheme.card),
-        )
-        // avatar
+                    .height(actualBannerHeight),
+        ) {
+            banner?.let {
+                NetworkImage(
+                    model = it.url,
+                    contentDescription = stringResource(Res.string.profile_banner, profileName),
+                    customHeaders = it.customHeaders,
+                    modifier =
+                        Modifier
+                            .clipToBounds()
+                            .fillMaxWidth()
+                            .height(actualBannerHeight)
+                            .let {
+                                if (onBannerClick != null) {
+                                    it.clickable {
+                                        onBannerClick.invoke()
+                                    }
+                                } else {
+                                    it
+                                }
+                            },
+                )
+            } ?: Box(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .height(actualBannerHeight)
+                        .background(PlatformTheme.colorScheme.card),
+            )
+
+            // Top soft scrim for status bar legibility
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .height(statusBarHeight + 36.dp)
+                        .background(
+                            Brush.verticalGradient(
+                                colors =
+                                    listOf(
+                                        Color.Black.copy(alpha = 0.40f),
+                                        Color.Transparent,
+                                    ),
+                            ),
+                        ),
+            )
+
+            // Bottom soft scrim for depth
+            Box(
+                modifier =
+                    Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .height(48.dp)
+                        .background(
+                            Brush.verticalGradient(
+                                colors =
+                                    listOf(
+                                        Color.Transparent,
+                                        Color.Black.copy(alpha = 0.35f),
+                                    ),
+                            ),
+                        ),
+            )
+        }
+
+        // avatar & user info
         Column(
             modifier =
                 Modifier
@@ -129,18 +164,16 @@ internal fun CommonProfileHeader(
                         Modifier
                             .padding(
                                 top = (actualBannerHeight - ProfileHeaderConstants.AVATAR_SIZE.dp / 2),
-                            ),
+                            ).clip(CircleShape)
+                            .border(3.5.dp, PlatformTheme.colorScheme.card, CircleShape),
                 ) {
                     AvatarComponent(
                         data = avatar,
+                        platformId = platformId,
+                        host = host ?: userKey.host,
+                        platformIcon = platformIcon,
                         size = ProfileHeaderConstants.AVATAR_SIZE.dp,
                         contentDescription = stringResource(Res.string.profile_picture, profileName),
-//                        beforeModifier =
-//                            Modifier
-//                                .sharedElement(
-//                                    rememberSharedContentState(key = "profile-avatar-$userKey"),
-//                                    animatedVisibilityScope = this@AnimatedVisibilityScope,
-//                                ),
                         modifier =
                             Modifier
                                 .let {
@@ -189,12 +222,7 @@ internal fun CommonProfileHeader(
                         RichText(
                             text = displayName,
                             textStyle = PlatformTheme.typography.title,
-//                        modifier =
-//                            Modifier
-//                                .sharedElement(
-//                                    rememberSharedContentState(key = "profile-display-name-$userKey"),
-//                                    animatedVisibilityScope = this@AnimatedVisibilityScope,
-//                                ),
+                            fontWeight = FontWeight.Bold,
                         )
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -202,13 +230,8 @@ internal fun CommonProfileHeader(
                         ) {
                             PlatformText(
                                 text = handle.canonical,
-                                style = PlatformTheme.typography.caption,
-//                            modifier =
-//                                Modifier
-//                                    .sharedElement(
-//                                        rememberSharedContentState(key = "profile-handle-$userKey"),
-//                                        animatedVisibilityScope = this@AnimatedVisibilityScope,
-//                                    ),
+                                style = PlatformTheme.typography.body,
+                                color = PlatformTheme.colorScheme.caption,
                             )
                             handleTrailing.invoke(this)
                         }

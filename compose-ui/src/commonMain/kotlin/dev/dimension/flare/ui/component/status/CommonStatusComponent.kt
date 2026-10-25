@@ -298,6 +298,11 @@ public fun CommonStatusComponent(
                                 )
                             }
                             if (!isDetail) {
+                                PlatformText(
+                                    text = "·",
+                                    style = PlatformTheme.typography.caption,
+                                    color = PlatformTheme.colorScheme.caption.copy(alpha = 0.6f),
+                                )
                                 DateTimeText(
                                     item.createdAt,
                                     style = PlatformTheme.typography.caption,
@@ -369,6 +374,7 @@ public fun CommonStatusComponent(
                             nameModifier = nameModifier,
                             handleModifier = handleModifier,
                             avatarModifier = avatarModifier,
+                            avatarSize = if (isDetail) 48.dp else AvatarComponentDefaults.size,
                             onUserClick = {
                                 user.onClicked.invoke(
                                     ClickContext(
@@ -489,12 +495,46 @@ public fun CommonStatusComponent(
             }
 
             if (isDetail) {
+                Spacer(modifier = Modifier.height(10.dp))
+                HorizontalDivider(
+                    color = PlatformTheme.colorScheme.outline.copy(alpha = 0.25f),
+                    thickness = 0.6.dp,
+                )
                 Spacer(modifier = Modifier.height(8.dp))
-                DateTimeText(
-                    item.createdAt,
-                    style = PlatformTheme.typography.caption,
-                    color = PlatformTheme.colorScheme.caption,
-                    fullTime = true,
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    DateTimeText(
+                        item.createdAt,
+                        style = PlatformTheme.typography.caption,
+                        color = PlatformTheme.colorScheme.caption,
+                        fullTime = true,
+                    )
+                    if (appearanceSettings.showPlatformLogo) {
+                        PlatformText(
+                            text = "·",
+                            style = PlatformTheme.typography.caption,
+                            color = PlatformTheme.colorScheme.caption.copy(alpha = 0.6f),
+                        )
+                        FAIcon(
+                            imageVector = item.platformIcon.toImageVector(),
+                            contentDescription = stringResource(Res.string.status_platform, item.platformId),
+                            modifier = Modifier.size(13.dp),
+                            tint = PlatformTheme.colorScheme.caption,
+                        )
+                        PlatformText(
+                            text = item.platformId.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() },
+                            style = PlatformTheme.typography.caption,
+                            color = PlatformTheme.colorScheme.caption,
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                HorizontalDivider(
+                    color = PlatformTheme.colorScheme.outline.copy(alpha = 0.25f),
+                    thickness = 0.6.dp,
                 )
             }
             if ((appearanceSettings.postActionStyle != PostActionStyle.Hidden || isDetail) && !forceHideActions) {
@@ -508,7 +548,7 @@ public fun CommonStatusComponent(
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .padding(top = 8.dp)
+                                    .padding(top = 10.dp)
                                     .then(actionsModifier),
                         )
                     }
@@ -577,9 +617,9 @@ internal fun StatusMediasComponent(
             sensitive = item.sensitive,
             shape =
                 if (isQuote) {
-                    PlatformTheme.shapes.small
+                    RoundedCornerShape(10.dp)
                 } else {
-                    PlatformTheme.shapes.medium
+                    RoundedCornerShape(14.dp)
                 },
             allowCarousel = allowMediaCarousel,
             carouselLeadingPadding = carouselLeadingPadding,
@@ -622,12 +662,13 @@ private fun StatusQuoteComponent(
     Box(
         modifier =
             modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .background(PlatformTheme.colorScheme.cardAlt.copy(alpha = 0.45f))
                 .border(
-                    FlareDividerDefaults.thickness,
-                    color = FlareDividerDefaults.color,
-                    shape = PlatformTheme.shapes.medium,
-                ).clip(
-                    shape = PlatformTheme.shapes.medium,
+                    0.8.dp,
+                    color = PlatformTheme.colorScheme.outline.copy(alpha = 0.35f),
+                    shape = RoundedCornerShape(14.dp),
                 ),
     ) {
         Column {
@@ -644,10 +685,13 @@ private fun StatusQuoteComponent(
                         allowMediaCarousel = allowMediaCarousel,
                         modifier =
                             Modifier
-                                .padding(8.dp),
+                                .padding(10.dp),
                     )
                     if (index != quotes.lastIndex && quotes.size > 1) {
-                        HorizontalDivider()
+                        HorizontalDivider(
+                            color = PlatformTheme.colorScheme.outline.copy(alpha = 0.25f),
+                            thickness = 0.6.dp,
+                        )
                     }
                 }
             }
