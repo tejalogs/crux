@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -48,9 +49,23 @@ import compose.icons.FontAwesomeIcons
 import compose.icons.fontawesomeicons.Brands
 import compose.icons.fontawesomeicons.Solid
 import compose.icons.fontawesomeicons.brands.Chrome
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Surface
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+import compose.icons.fontawesomeicons.solid.ArrowRight
 import compose.icons.fontawesomeicons.solid.Bookmark
 import compose.icons.fontawesomeicons.solid.Language
 import compose.icons.fontawesomeicons.solid.ShareNodes
+import compose.icons.fontawesomeicons.solid.WandMagicSparkles
+import dev.dimension.flare.model.AccountType
+import dev.dimension.flare.model.MicroBlogKey
+import dev.dimension.flare.ui.route.DeeplinkRoute
+import dev.dimension.flare.ui.route.toUri
 import dev.dimension.flare.R
 import dev.dimension.flare.common.OfflineMediaPrefetcher
 import dev.dimension.flare.common.encodeJson
@@ -181,6 +196,35 @@ internal fun RssDetailScreen(
                             contentDescription = stringResource(R.string.rss_detail_open_in_browser),
                         )
                     }
+                    AnimatedVisibility(state.data.isSuccess) {
+                        IconButton(
+                            onClick = {
+                                val doc = (state.data as? UiState.Success)?.data
+                                val title = doc?.title?.takeIf { it.isNotBlank() } ?: descriptionTitle.orEmpty()
+                                val body = doc?.textContent?.takeIf { it.isNotBlank() }
+                                    ?: doc?.content?.takeIf { it.isNotBlank() }
+                                    ?: descriptionHtml.orEmpty()
+                                val author = doc?.byline ?: doc?.siteName ?: "RSS Feed"
+                                uriHandler.openUri(
+                                    DeeplinkRoute.Status.OmniScribe(
+                                        statusKey = MicroBlogKey(url.hashCode().toString(), "rss"),
+                                        accountType = AccountType.Guest,
+                                        initialText = body,
+                                        authorName = author,
+                                        authorHandle = "rss",
+                                        articleTitle = title,
+                                        sourceUrl = url,
+                                    ).toUri(),
+                                )
+                            },
+                        ) {
+                            FAIcon(
+                                FontAwesomeIcons.Solid.WandMagicSparkles,
+                                contentDescription = "Synthesize into Post & Carousel",
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                    }
                     IconButton(
                         onClick = {
                             val title =
@@ -309,6 +353,75 @@ internal fun RssDetailScreen(
                                         )
                                     }
                                 }
+                            }
+                        }
+
+                        Surface(
+                            onClick = {
+                                val body = documentData.textContent.takeIf { it.isNotBlank() } ?: documentData.content
+                                uriHandler.openUri(
+                                    DeeplinkRoute.Status.OmniScribe(
+                                        statusKey = MicroBlogKey(url.hashCode().toString(), "rss"),
+                                        accountType = AccountType.Guest,
+                                        initialText = body,
+                                        authorName = documentData.byline ?: documentData.siteName.orEmpty(),
+                                        authorHandle = "rss",
+                                        articleTitle = displayTitle,
+                                        sourceUrl = url,
+                                    ).toUri(),
+                                )
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(14.dp),
+                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+                            border = BorderStroke(0.8.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.weight(1f),
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(32.dp)
+                                            .clip(CircleShape)
+                                            .background(MaterialTheme.colorScheme.primary),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        FAIcon(
+                                            FontAwesomeIcons.Solid.WandMagicSparkles,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onPrimary,
+                                            modifier = Modifier.size(14.dp),
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Column {
+                                        Text(
+                                            text = "Synthesize Post & Carousel",
+                                            style = MaterialTheme.typography.titleSmall,
+                                            fontWeight = FontWeight.Bold,
+                                        )
+                                        Text(
+                                            text = "Distill key thesis, evidence & 4:5 slides with on-device Gemma",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            fontSize = 11.sp,
+                                        )
+                                    }
+                                }
+                                FAIcon(
+                                    FontAwesomeIcons.Solid.ArrowRight,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(13.dp),
+                                )
                             }
                         }
                     }.onError {

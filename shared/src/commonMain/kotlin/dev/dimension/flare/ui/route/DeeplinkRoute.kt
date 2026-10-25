@@ -111,6 +111,17 @@ public sealed class DeeplinkRoute {
             val initialText: String = "",
             val authorName: String = "",
             val authorHandle: String = "",
+            val articleTitle: String = "",
+            val sourceUrl: String = "",
+        ) : Status()
+
+        @Serializable
+        public data class SmartReply(
+            val statusKey: MicroBlogKey,
+            val accountType: AccountType,
+            val initialText: String = "",
+            val authorName: String = "",
+            val authorHandle: String = "",
         ) : Status()
     }
 
@@ -155,6 +166,7 @@ public sealed class DeeplinkRoute {
         public data class Reply(
             val accountKey: MicroBlogKey,
             val statusKey: MicroBlogKey,
+            val initialText: String = "",
         ) : Compose()
 
         @Serializable

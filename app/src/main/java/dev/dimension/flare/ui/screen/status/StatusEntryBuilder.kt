@@ -13,6 +13,7 @@ import dev.dimension.flare.ui.screen.status.action.DeleteStatusConfirmDialog
 import dev.dimension.flare.ui.screen.status.action.MastodonReportDialog
 import dev.dimension.flare.ui.screen.status.action.MisskeyReportDialog
 import dev.dimension.flare.ui.screen.status.action.OmniScribeBottomSheet
+import dev.dimension.flare.ui.screen.status.action.SmartReplyBottomSheet
 import dev.dimension.flare.ui.screen.status.action.StatusInsightSheet
 import dev.dimension.flare.ui.screen.status.action.StatusShareSheet
 
@@ -137,6 +138,24 @@ internal fun EntryProviderScope<NavKey>.statusEntryBuilder(
         )
     ) { args ->
         OmniScribeBottomSheet(
+            statusKey = args.statusKey,
+            accountType = args.accountType,
+            initialText = args.initialText,
+            authorName = args.authorName,
+            authorHandle = args.authorHandle,
+            articleTitle = args.articleTitle,
+            sourceUrl = args.sourceUrl,
+            navigate = navigate,
+            onBack = onBack,
+        )
+    }
+
+    entry<Route.Status.SmartReply>(
+        metadata = BottomSheetSceneStrategy.bottomSheet(
+            expandFully = false,
+        )
+    ) { args ->
+        SmartReplyBottomSheet(
             statusKey = args.statusKey,
             accountType = args.accountType,
             initialText = args.initialText,

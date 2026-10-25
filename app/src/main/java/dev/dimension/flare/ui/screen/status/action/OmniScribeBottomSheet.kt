@@ -103,6 +103,8 @@ internal fun OmniScribeBottomSheet(
     initialText: String,
     authorName: String,
     authorHandle: String,
+    articleTitle: String = "",
+    sourceUrl: String = "",
     navigate: (Route) -> Unit,
     onBack: () -> Unit,
 ) {
@@ -128,6 +130,8 @@ internal fun OmniScribeBottomSheet(
                     authorHandle = authorHandle,
                     style = selectedStyle,
                     includeAttribution = false,
+                    articleTitle = articleTitle,
+                    sourceUrl = sourceUrl,
                 ),
             ),
         )
@@ -179,6 +183,8 @@ internal fun OmniScribeBottomSheet(
                 authorHandle = authorHandle,
                 style = selectedStyle,
                 includeAttribution = false,
+                articleTitle = articleTitle,
+                sourceUrl = sourceUrl,
             ),
         )
         currentResult = res
@@ -227,7 +233,7 @@ internal fun OmniScribeBottomSheet(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         Text(
-                            text = "Omni-Scribe Studio",
+                            text = if (articleTitle.isNotBlank()) "Article Synthesis Studio" else "Omni-Scribe Studio",
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                             color = MaterialTheme.colorScheme.onSurface,
                         )
@@ -237,7 +243,7 @@ internal fun OmniScribeBottomSheet(
                                 color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
                             ) {
                                 Text(
-                                    text = arc.themeLabel,
+                                    text = if (articleTitle.isNotBlank()) "IN-DEPTH ARTICLE" else arc.themeLabel,
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 9.sp,
@@ -249,7 +255,7 @@ internal fun OmniScribeBottomSheet(
                         }
                     }
                     Text(
-                        text = "Standalone Original Post • Deep Context + Carousel",
+                        text = if (articleTitle.isNotBlank()) "Article to Social Publication • 4-Slide Carousel" else "Standalone Original Post • Deep Context + Carousel",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

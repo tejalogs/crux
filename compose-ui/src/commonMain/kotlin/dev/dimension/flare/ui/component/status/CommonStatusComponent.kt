@@ -104,6 +104,7 @@ import dev.dimension.flare.compose.ui.show_media
 import dev.dimension.flare.compose.ui.status_detail_tldr
 import dev.dimension.flare.compose.ui.status_detail_translate
 import dev.dimension.flare.compose.ui.status_remix_scribe
+import dev.dimension.flare.compose.ui.status_smart_reply_gemma
 import dev.dimension.flare.compose.ui.status_open_post
 import dev.dimension.flare.compose.ui.status_platform
 import dev.dimension.flare.compose.ui.status_view_insight
@@ -909,7 +910,7 @@ private fun TranslationComponent(
             PlatformTextButton(
                 onClick = {
                     uriHandler.openUri(
-                        DeeplinkRoute.Status.OmniScribe(
+                        DeeplinkRoute.Status.SmartReply(
                             statusKey = item.statusKey,
                             accountType = item.accountType,
                             initialText = rawContent,
@@ -927,7 +928,7 @@ private fun TranslationComponent(
                 )
                 Spacer(modifier = Modifier.width(5.dp))
                 PlatformText(
-                    text = stringResource(resource = Res.string.status_remix_scribe),
+                    text = stringResource(resource = Res.string.status_smart_reply_gemma),
                     color = PlatformTheme.colorScheme.primary,
                 )
             }
@@ -1342,6 +1343,7 @@ private fun ActionMenu.Item.Text.asString(): String =
                     ActionMenu.Item.Text.Localized.Type.Favorite -> Res.string.favourite
                     ActionMenu.Item.Text.Localized.Type.UnFavorite -> Res.string.unfavourite
                     ActionMenu.Item.Text.Localized.Type.OmniScribe -> Res.string.status_remix_scribe
+                    ActionMenu.Item.Text.Localized.Type.SmartReply -> Res.string.status_smart_reply_gemma
                 }
             stringResource(resource, *parameters.toTypedArray())
         }

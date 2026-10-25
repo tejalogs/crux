@@ -78,6 +78,7 @@ internal fun EntryProviderScope<NavKey>.composeEntryBuilder(
             onBack = onBack,
             status = ComposeStatus.Reply(args.statusKey),
             accountType = AccountType.Specific(accountKey = args.accountKey),
+            initialText = args.initialText,
             onOpenDraftBox = {
                 navigate(Route.DraftBox)
             },

@@ -70,6 +70,8 @@ public data class OmniScribeInput(
     public val authorHandle: String = "",
     public val style: OmniScribeStyle = OmniScribeStyle.Punchy,
     public val includeAttribution: Boolean = false,
+    public val articleTitle: String = "",
+    public val sourceUrl: String = "",
 )
 
 /**
@@ -147,16 +149,32 @@ public object OmniScribeEngine {
     }
 
     /**
-     * Repackages an input post into a standalone, context-complete human publication.
+     * Repackages an input post or long-form article into a standalone, context-complete publication.
      */
     public fun repackage(input: OmniScribeInput): OmniScribeResult {
         val startMark = TimeSource.Monotonic.markNow()
-        val beats = normalizeAndSegmentBeats(input.originalText)
+        val isArticle = input.articleTitle.isNotBlank()
+
+        val beats = if (isArticle) {
+            normalizeAndSegmentArticleBeats(input.articleTitle, input.originalText)
+        } else {
+            normalizeAndSegmentBeats(input.originalText)
+        }
+
         val cleanedOriginal = beats.joinToString(" ")
         val arc = extractContextArc(beats, input.style)
 
-        val microDraft = generateMicroPost(arc, input.style)
-        val storyDraft = generateStoryPost(arc, input.style)
+        val microDraft = if (isArticle) {
+            generateArticleMicroPost(input.articleTitle, arc, input.sourceUrl, input.style)
+        } else {
+            generateMicroPost(arc, input.style)
+        }
+
+        val storyDraft = if (isArticle) {
+            generateArticleStoryPost(input.articleTitle, arc, input.sourceUrl, input.style)
+        } else {
+            generateStoryPost(arc, input.style)
+        }
 
         val elapsedMs = startMark.elapsedNow().inWholeMilliseconds.coerceAtLeast(1L)
         val estimatedTokens = ((cleanedOriginal.length + microDraft.length + storyDraft.length) / 4).coerceAtLeast(1)
@@ -164,12 +182,41 @@ public object OmniScribeEngine {
         return OmniScribeResult(
             microPost = microDraft,
             storyPost = storyDraft,
-            essence = arc.hook,
+            essence = if (isArticle) input.articleTitle else arc.hook,
             hatTip = null,
             style = input.style,
             tokensProcessed = estimatedTokens,
             latencyMs = elapsedMs,
             contextArc = arc,
+        )
+    }
+
+    public fun extractContextArc(
+        cleanText: String,
+        style: OmniScribeStyle = OmniScribeStyle.Punchy,
+    ): PostContextArc {
+        val beats = normalizeAndSegmentBeats(cleanText)
+        return extractContextArc(beats, style)
+    }
+
+    /**
+     * Synthesizes a rich long-form RSS/blog article into high-impact social copy and carousel slides.
+     */
+    public fun synthesizeArticle(
+        title: String,
+        content: String,
+        sourceUrl: String = "",
+        authorName: String = "",
+        style: OmniScribeStyle = OmniScribeStyle.Punchy,
+    ): OmniScribeResult {
+        return repackage(
+            OmniScribeInput(
+                originalText = content,
+                authorName = authorName,
+                style = style,
+                articleTitle = title,
+                sourceUrl = sourceUrl,
+            ),
         )
     }
 
@@ -467,6 +514,113 @@ public object OmniScribeEngine {
                 appendLine()
                 append(arc.takeaway)
             }
+        }
+    }
+
+    internal fun normalizeAndSegmentArticleBeats(title: String, rawContent: String): List<String> {
+        // Strip HTML tags and clean whitespace
+        val clean = rawContent
+            .replace(Regex("<[^>]*>"), " ")
+            .replace(Regex("&nbsp;"), " ")
+            .replace(Regex("&amp;"), "&")
+            .replace(Regex("&lt;"), "<")
+            .replace(Regex("&gt;"), ">")
+            .replace(Regex("https?://\\S+"), "")
+            .trim()
+
+        val paragraphs = clean.split(Regex("\\n\\s*\\n"))
+            .map { it.trim() }
+            .filter { it.length > 30 }
+
+        if (paragraphs.size >= 3) {
+            val beats = mutableListOf<String>()
+            // Beat 1: Setup / Thesis rooted in the article title and lead
+            val lead = paragraphs.first()
+            val leadSentence = lead.split(Regex("[.!?]\\s+")).firstOrNull().orEmpty().trim()
+            beats.add(if (leadSentence.length > 20) ensurePeriod(leadSentence) else ensurePeriod(title))
+
+            // Beat 2: Tension / Analytical evidence from middle
+            val midPara = paragraphs[paragraphs.size / 2]
+            val midSentence = midPara.split(Regex("[.!?]\\s+")).firstOrNull().orEmpty().trim()
+            beats.add(if (midSentence.length > 20) ensurePeriod(midSentence) else ensurePeriod(midPara.take(160)))
+
+            // Beat 3: Pivot / Critical turning point from later in the text
+            val latePara = if (paragraphs.size >= 4) paragraphs[paragraphs.size - 2] else paragraphs[1]
+            val lateSentence = latePara.split(Regex("[.!?]\\s+")).firstOrNull().orEmpty().trim()
+            beats.add(if (lateSentence.length > 20) ensurePeriod(lateSentence) else ensurePeriod(latePara.take(160)))
+
+            // Beat 4: Conclusion / Takeaway from final paragraph
+            val lastPara = paragraphs.last()
+            val lastSentence = lastPara.split(Regex("[.!?]\\s+")).lastOrNull { it.length > 20 }?.trim() ?: lastPara.take(160)
+            beats.add(ensurePeriod(lastSentence))
+            return beats
+        }
+
+        // Fallback for shorter articles: segment by sentences
+        val segmented = normalizeAndSegmentBeats(clean)
+        return if (segmented.size >= 2) {
+            listOf(ensurePeriod(title)) + segmented.take(3)
+        } else {
+            listOf(ensurePeriod(title), clean)
+        }
+    }
+
+    private fun generateArticleMicroPost(
+        title: String,
+        arc: PostContextArc,
+        sourceUrl: String,
+        style: OmniScribeStyle,
+    ): String {
+        val linkText = if (sourceUrl.isNotBlank()) "\n\nSource: $sourceUrl" else ""
+        val takeaway = when (style) {
+            OmniScribeStyle.Punchy -> arc.takeaway
+            OmniScribeStyle.Narrative -> "When fundamental constraints shift, the entire landscape follows."
+            OmniScribeStyle.Philosophical -> "Return to first principles to understand the real trajectory."
+        }
+
+        // Try: Title + Core insight + Takeaway + Link
+        val candidate = "$title:\n\n${arc.hook} ${arc.pivot}\n\n$takeaway$linkText".trim()
+        if (candidate.length <= 280) {
+            return candidate
+        }
+
+        val shorterCandidate = "$title: ${arc.hook}\n\n$takeaway$linkText".trim()
+        if (shorterCandidate.length <= 280) {
+            return shorterCandidate
+        }
+
+        val minimalCandidate = "$title\n\n$takeaway$linkText".trim()
+        if (minimalCandidate.length <= 280) {
+            return minimalCandidate
+        }
+
+        return truncateToSentenceOrWords(minimalCandidate, 280)
+    }
+
+    private fun generateArticleStoryPost(
+        title: String,
+        arc: PostContextArc,
+        sourceUrl: String,
+        style: OmniScribeStyle,
+    ): String = buildString {
+        appendLine("Breakthrough Analysis: $title")
+        appendLine()
+        appendLine(arc.hook)
+        appendLine()
+        appendLine("${arc.tension} ${arc.pivot}")
+        appendLine()
+        appendLine(arc.takeaway)
+        appendLine()
+        appendLine(
+            when (style) {
+                OmniScribeStyle.Punchy -> "The biggest shifts happen quietly before everyone notices the consensus has changed."
+                OmniScribeStyle.Narrative -> "Behind every major development is a fundamental realignment of incentives and execution."
+                OmniScribeStyle.Philosophical -> "Look beyond the immediate commentary. The underlying structural trend is what endures."
+            }
+        )
+        if (sourceUrl.isNotBlank()) {
+            appendLine()
+            append("Full article: $sourceUrl")
         }
     }
 

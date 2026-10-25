@@ -96,6 +96,17 @@ internal sealed interface Route : NavKey {
             val initialText: String = "",
             val authorName: String = "",
             val authorHandle: String = "",
+            val articleTitle: String = "",
+            val sourceUrl: String = "",
+        ) : Status
+
+        @Serializable
+        data class SmartReply(
+            val statusKey: MicroBlogKey,
+            val accountType: AccountType,
+            val initialText: String = "",
+            val authorName: String = "",
+            val authorHandle: String = "",
         ) : Status
     }
 
@@ -472,6 +483,7 @@ internal sealed interface Route : NavKey {
         data class Reply(
             val accountKey: MicroBlogKey,
             val statusKey: MicroBlogKey,
+            val initialText: String = "",
         ) : Compose
 
         @Serializable
@@ -626,6 +638,7 @@ internal sealed interface Route : NavKey {
                     Compose.Reply(
                         accountKey = deeplinkRoute.accountKey,
                         statusKey = deeplinkRoute.statusKey,
+                        initialText = deeplinkRoute.initialText,
                     )
                 }
 
@@ -749,6 +762,18 @@ internal sealed interface Route : NavKey {
 
                 is DeeplinkRoute.Status.OmniScribe -> {
                     Status.OmniScribe(
+                        statusKey = deeplinkRoute.statusKey,
+                        accountType = deeplinkRoute.accountType,
+                        initialText = deeplinkRoute.initialText,
+                        authorName = deeplinkRoute.authorName,
+                        authorHandle = deeplinkRoute.authorHandle,
+                        articleTitle = deeplinkRoute.articleTitle,
+                        sourceUrl = deeplinkRoute.sourceUrl,
+                    )
+                }
+
+                is DeeplinkRoute.Status.SmartReply -> {
+                    Status.SmartReply(
                         statusKey = deeplinkRoute.statusKey,
                         accountType = deeplinkRoute.accountType,
                         initialText = deeplinkRoute.initialText,
