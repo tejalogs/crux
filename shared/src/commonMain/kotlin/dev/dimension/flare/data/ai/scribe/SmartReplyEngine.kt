@@ -114,25 +114,25 @@ public object SmartReplyEngine {
         val lower = raw.lower()
         return when {
             "security" in lower || "risk" in lower || "privilege" in lower || "breach" in lower -> {
-                "The real friction here is that security tooling has scaled faster than the organizational bandwidth to triage alerts. Until the default runtime primitives are secure by design rather than audited after the fact, the surface area always wins."
+                "We’re drowning in alert dashboards while the front door is propped open with a brick. Until security is baked into the runtime like concrete rather than slapped on like caution tape, the sprawling surface area always wins."
             }
             "critic" in lower || "movie" in lower || "audience" in lower || "review" in lower -> {
-                "The perceived gap often stems from algorithmic amplification: outrage and extreme divergence drive more engagement on social feeds than the quiet consensus that actually exists in ticket sales and audience scores."
+                "Algorithms feast on manufactured hysteria, but the quiet consensus in theater seats tells a completely different story. Good storytelling has always cut straight through the noise of online culture wars."
             }
             "wheelchair" in lower || "patent" in lower || "trademark" in lower || "hardware" in lower -> {
-                "This highlights an underappreciated truth: when you open-source the physical mechanical architecture, the real moat shifts from legal monopolies to community goodwill and global manufacturing speed."
+                "When you open-source physical mechanical blueprints, you trade legal paper for real-world velocity. The real moat isn't a locked patent in a drawer—it's having the grit to manufacture cleaner, faster, and fairer than anyone else."
             }
             "agent" in lower || "llm" in lower || "ai" in lower || "model" in lower -> {
-                "The critical leap isn't raw reasoning capability anymore—it's verifiable agency and deterministic guardrails. Once agents can reliably inspect state without hallucinating drift, the operational leverage compounds fast."
+                "The bottleneck was never raw token generation; it's verifiable judgment. An agent is only as powerful as the deterministic guardrails that keep it from quietly sleepwalking off an operational cliff."
             }
             "founder" in lower || "startup" in lower || "market" in lower || "pricing" in lower -> {
-                "Distribution velocity always compounds faster than pure feature parity in the early innings. Building with ruthless simplicity keeps the feedback loop tight enough to adapt before runway evaporates."
+                "Most founders build extra features to hide from distribution. But ruthless simplicity is the only thing that buys you enough breathing room to hear what your customers are actually screaming for."
             }
             arc.narrativeBeats.size >= 2 -> {
-                "A key dynamic here: ${arc.narrativeBeats.first().lowercase().trimEnd('.')}. When you strip away the secondary noise, getting the core architectural primitive right upfront saves orders of magnitude in operational debt later."
+                "Here is the quiet truth underneath: ${arc.narrativeBeats.first().lowercase().trimEnd('.')}. When you strip away the secondary theater, getting the core foundation right saves years of agony down the road."
             }
             else -> {
-                "Strong point. The biggest leverage rarely comes from adding more surface area—it comes from eliminating unnecessary friction at the foundation so the core objective compounds naturally."
+                "Spot on. Real leverage never comes from adding more moving parts—it comes from stripping away the cruft until the core loop works with zero friction."
             }
         }
     }
@@ -141,22 +141,22 @@ public object SmartReplyEngine {
         val lower = raw.lower()
         return when {
             "security" in lower || "risk" in lower || "enterprise" in lower -> {
-                "Given how fragmented the stack already is, do you see consolidation around unified runtime platforms happening first, or will automated agents bridging across specialized niche tools be the pragmatic path forward?"
+                "Given how hopelessly fragmented enterprise stacks are right now, do you see teams consolidating around unified platforms first, or will lightweight autonomous agents end up bridging the cracks?"
             }
             "critic" in lower || "movie" in lower || "audience" in lower -> {
-                "Do you think binary aggregator scores (like Fresh/Rotten percentages) manufactured much of this perceived divide by stripping out the nuanced middle ground where reviewers and audiences actually overlap?"
+                "Did binary aggregator scores—turning complex craft into a Rotten percentage—manufacture this whole divide just to fuel online engagement?"
             }
             "wheelchair" in lower || "open" in lower || "hardware" in lower -> {
-                "What do you think is the biggest barrier preventing more hardware innovators from taking an open-standard approach like this—supply chain capital or intellectual property culture?"
+                "What do you think is the real blocker keeping more hardware innovators from open-sourcing their designs—supply chain anxiety or stubborn intellectual property dogma?"
             }
             "agent" in lower || "ai" in lower -> {
-                "Curious where you see the biggest near-term bottleneck for long-running agents: is it reliable context window retention, or reliable deterministic error recovery when an action fails?"
+                "Where do you see long-running agents breaking first in production: drift across context windows, or compounding silent errors when an external tool misbehaves?"
             }
             "startup" in lower || "market" in lower || "pricing" in lower -> {
-                "In your view, does this shift the competitive advantage more toward incumbents with existing distribution, or toward lean operators who can re-architect from scratch with zero legacy overhead?"
+                "In your view, does this shift the edge to incumbents who own the firehose of distribution, or to lean operators who can build from scratch with zero legacy baggage?"
             }
             else -> {
-                "Curious how you see this playing out over the next 12–18 months: what will be the earliest leading indicator that the industry has actually adapted?"
+                "Curious where you think this hits the wall first over the next year: in technical execution, or in the human friction of getting people to change their habits?"
             }
         }
     }
@@ -165,22 +165,22 @@ public object SmartReplyEngine {
         val lower = raw.lower()
         return when {
             "security" in lower || "enterprise" in lower -> {
-                "Spot on about enterprise complexity, though an interesting twist is that smaller startups often have an advantage here: zero legacy debt means adopting modern memory-safe and zero-trust defaults from day one, whereas enterprise inertia is where the real risk lingers."
+                "That holds true for enterprise complexity, though the fascinating twist is that lean startups actually have the upper hand here: zero legacy rot means adopting secure defaults on day one, while enterprise inertia is where the real risk lingers."
             }
             "critic" in lower || "movie" in lower || "audience" in lower -> {
-                "While broad aggregates often align on crowd-pleasers, the real divergence still shows up in mid-budget and unconventional indie cinema, where critics value formal experimentation far more than general weekend moviegoers."
+                "Audiences and reviewers align on broad crowd-pleasers, but the real divergence still flares up in unconventional, mid-budget indie films where critics reward formal experimentation while casual moviegoers just want two hours of comfort."
             }
             "wheelchair" in lower || "open" in lower || "manufactur" in lower -> {
-                "The open-source strategy is admirable here, but the tricky tradeoff without IP protection is maintaining strict quality control and safety standards once overseas clone manufacturers scale without oversight."
+                "The open-blueprint strategy is deeply admirable, but the brutal tradeoff without patent protection is maintaining strict safety standards once overseas clone factories flood the market with cheap knockoffs."
             }
             "agent" in lower || "ai" in lower -> {
-                "Exciting progress, though the hidden trap with agentic automation is debugging non-deterministic cascade failures when multiple autonomous tools interact across complex environments."
+                "The promise is massive, but the hidden landmine is silent failure cascades: when three autonomous tools each introduce a subtle 5% error, the compounding drift derails the entire workflow before anyone catches it."
             }
             "pricing" in lower || "market" in lower || "cost" in lower -> {
-                "Aggressive pricing creates immediate goodwill, though the difficulty is surviving long enough to build durable unit economics when supplier costs fluctuate unpredictably."
+                "Aggressive pricing wins instant goodwill, but the startup graveyard is filled with teams that gave away too much value before their unit economics could survive unpredictable supplier swings."
             }
             else -> {
-                "While that holds true in most mature environments, the calculus changes significantly at smaller scale where moving fast with imperfect primitives is often safer than waiting for consensus."
+                "While that holds true in mature environments, the calculus changes in early-stage building where shipping something raw and imperfect often beats waiting for the elegant architecture."
             }
         }
     }
@@ -189,22 +189,22 @@ public object SmartReplyEngine {
         val lower = raw.lower()
         return when {
             "security" in lower || "enterprise" in lower -> {
-                "Security isn't a tooling problem anymore—it's an architecture and signal-to-noise problem. Getting the fundamentals right at the start is 10x cheaper than retrofitting compliance later."
+                "Security isn't a tooling problem—it's a signal-to-noise problem. Get the foundation right once, or spend millions triaging false alarms forever."
             }
             "critic" in lower || "movie" in lower || "audience" in lower -> {
-                "Turns out good storytelling is more universally recognized than online discourse suggests. The critic-audience divide was always mostly theater."
+                "Good stories resonate. The critic-audience divide was always mostly theater designed for outrage clicks."
             }
             "wheelchair" in lower || "freedom" in lower || "afford" in lower -> {
-                "Accessibility shouldn't be a luxury good. Real innovation isn't just what you build—it's making sure the people who need it can actually get it."
+                "Tools that change lives shouldn't be luxury goods. The best innovation is the kind that actually reaches human hands."
             }
             "agent" in lower || "ai" in lower -> {
-                "The best AI tools are the ones that disappear into the background and let humans focus on judgment rather than plumbing."
+                "The best AI tools are the ones that disappear into the background and let humans focus on taste, judgment, and craft."
             }
             "startup" in lower || "market" in lower -> {
-                "Simplicity and trust remain the only real moats when market conditions tighten. Ship the core value, cut the vanity."
+                "Ruthless simplicity and trust remain the only real moats when market conditions turn cold. Ship the signal, cut the vanity."
             }
             else -> {
-                "Spot on. Focus on the first-principles foundation and the rest of the operational noise solves itself."
+                "Strip away the secondary noise and obsess over the foundation. Everything else takes care of itself."
             }
         }
     }

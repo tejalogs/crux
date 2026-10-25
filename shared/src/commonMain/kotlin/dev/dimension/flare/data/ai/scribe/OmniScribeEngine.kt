@@ -397,27 +397,27 @@ public object OmniScribeEngine {
     ): String {
         return when (style) {
             OmniScribeStyle.Punchy -> when (theme) {
-                DomainTheme.Builder -> "The best builders don't complain about broken markets—they engineer the alternative."
-                DomainTheme.Software -> "Obsess over the fundamentals that users actually feel every day."
-                DomainTheme.Resilience -> "Purpose is forged when personal necessity turns into action for others."
-                DomainTheme.Market -> "Solve a real problem at an honest price and you change an entire industry."
-                DomainTheme.Craft -> "Cut the noise. Protect the signal. Execute relentlessly."
+                DomainTheme.Builder -> "The best builders don't complain about broken markets—they roll up their sleeves and build the alternative."
+                DomainTheme.Software -> "Obsess over the quiet details that users actually feel every single day."
+                DomainTheme.Resilience -> "Adversity stops being a trap the moment you turn it into a tool for others."
+                DomainTheme.Market -> "Solve a real problem at an honest price, and an entire industry has to answer."
+                DomainTheme.Craft -> "Cut the static. Protect the signal. Execute relentlessly."
             }
 
             OmniScribeStyle.Narrative -> when (theme) {
-                DomainTheme.Builder -> "The most meaningful companies rarely start with a pitch deck—they start when someone refuses to accept a broken status quo and builds what should have existed all along."
-                DomainTheme.Software -> "Every enduring product is built on humility: listening closely, dropping ego, and refining the details that genuinely serve people."
-                DomainTheme.Resilience -> "Behind almost every breakthrough is a human story of turning an unexpected hardship into a lasting gift for thousands."
-                DomainTheme.Market -> "When you anchor your work in genuine human utility rather than convention, you don't just compete—you redefine the standard."
-                DomainTheme.Craft -> "When you look at work that truly endures, it always comes back to intentional discipline and clarity of purpose."
+                DomainTheme.Builder -> "The most meaningful breakthroughs rarely start in boardroom pitch decks—they ignite when someone refuses to accept a broken status quo and builds what should have existed all along."
+                DomainTheme.Software -> "Enduring craft requires quiet humility: listening past the noise, dropping ego, and sweating the invisible hinges of the work."
+                DomainTheme.Resilience -> "Behind almost every leap forward is a human story of transforming personal hardship into a lasting gift for thousands."
+                DomainTheme.Market -> "When you anchor your work in genuine human utility rather than industry theater, you don't just compete—you rewrite the rules."
+                DomainTheme.Craft -> "Work that truly endures always comes back to ruthless intentionality and the quiet patience of true mastery."
             }
 
             OmniScribeStyle.Philosophical -> when (theme) {
-                DomainTheme.Builder -> "First principles in action: when an industry confuses scarcity with value, return to the physics of the problem and build what is needed."
-                DomainTheme.Software -> "Complexity is the path of least resistance; simplicity requires the courage to subtract until only the essential remains."
-                DomainTheme.Resilience -> "External events are beyond our choice, but our response—and what we build from them—defines our character."
-                DomainTheme.Market -> "True leverage belongs to those who question inherited assumptions and rebuild from foundational truth."
-                DomainTheme.Craft -> "Noise compounds quickly; wisdom is reductive. Master the fundamentals before chasing novelty."
+                DomainTheme.Builder -> "First principles in action: when an industry confuses scarcity with value, return to the bedrock physics and build what ought to exist."
+                DomainTheme.Software -> "Complexity is easy; simplicity takes immense courage. Master the art of subtracting until only the essential truth remains."
+                DomainTheme.Resilience -> "We cannot choose external disruption, but what we forge from it reveals the caliber of our character."
+                DomainTheme.Market -> "True leverage belongs to those who dismantle inherited dogmas and reconstruct from foundational truth."
+                DomainTheme.Craft -> "Noise compounds rapidly; wisdom is reductive. Master the foundational chords before chasing the spotlight."
             }
         }
     }
@@ -603,7 +603,12 @@ public object OmniScribeEngine {
         sourceUrl: String,
         style: OmniScribeStyle,
     ): String = buildString {
-        appendLine("Breakthrough Analysis: $title")
+        val header = when (style) {
+            OmniScribeStyle.Punchy -> "$title — and the quiet shift underneath."
+            OmniScribeStyle.Narrative -> "$title: A story of craft, conviction, and building what matters."
+            OmniScribeStyle.Philosophical -> "$title — First principles in motion."
+        }
+        appendLine(header)
         appendLine()
         appendLine(arc.hook)
         appendLine()
@@ -613,14 +618,14 @@ public object OmniScribeEngine {
         appendLine()
         appendLine(
             when (style) {
-                OmniScribeStyle.Punchy -> "The biggest shifts happen quietly before everyone notices the consensus has changed."
-                OmniScribeStyle.Narrative -> "Behind every major development is a fundamental realignment of incentives and execution."
-                OmniScribeStyle.Philosophical -> "Look beyond the immediate commentary. The underlying structural trend is what endures."
+                OmniScribeStyle.Punchy -> "The biggest shifts happen quietly in the dark before everyone notices the consensus has moved."
+                OmniScribeStyle.Narrative -> "Behind every enduring breakthrough is a stubborn refusal to accept that things have to stay broken."
+                OmniScribeStyle.Philosophical -> "Look past the immediate commentary. The deeper structural current is what truly endures."
             }
         )
         if (sourceUrl.isNotBlank()) {
             appendLine()
-            append("Full article: $sourceUrl")
+            append("Read the full piece: $sourceUrl")
         }
     }
 

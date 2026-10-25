@@ -136,11 +136,11 @@ internal fun AccountSelectionModal(
                 }
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Instagram (Web)",
+                        text = "Instagram",
                         style = MaterialTheme.typography.titleSmall,
                     )
                     Text(
-                        text = "Sandboxed session with ad & privacy shield",
+                        text = "Sync feed to unified timeline • Ad & privacy shield",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -190,11 +190,11 @@ internal fun AccountSelectionModal(
                 }
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "LinkedIn (Web)",
+                        text = "LinkedIn",
                         style = MaterialTheme.typography.titleSmall,
                     )
                     Text(
-                        text = "Sandboxed session with ad & privacy shield",
+                        text = "Sync feed to unified timeline • Ad & privacy shield",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

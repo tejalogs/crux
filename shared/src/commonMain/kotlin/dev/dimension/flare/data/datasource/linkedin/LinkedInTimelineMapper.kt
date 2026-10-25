@@ -57,11 +57,12 @@ public object LinkedInTimelineMapper {
 
         val avatarUrl = extractAvatarUrl(actor.image)
         val profileUrl = actor.navigationUrl ?: "https://www.linkedin.com/in/"
+        val cleanHandle = extractHandle(actor.navigationUrl, actorName)
 
         val profile = UiProfile(
             key = authorKey,
             handle = UiHandle(
-                raw = headline ?: actorName,
+                raw = cleanHandle,
                 host = "linkedin.com",
             ),
             avatar = avatarUrl.toUiImage(),
@@ -241,6 +242,20 @@ public object LinkedInTimelineMapper {
             post = post,
             presentation = presentation,
         )
+    }
+
+    internal fun extractHandle(navigationUrl: String?, actorName: String): String {
+        if (!navigationUrl.isNullOrBlank()) {
+            val match = Regex("/(?:in|company|school)/([^/?#]+)").find(navigationUrl)
+            if (match != null) {
+                val slug = match.groupValues[1].trim().removeSuffix("/")
+                if (slug.isNotBlank()) return slug
+            }
+        }
+        val cleaned = actorName.lowercase()
+            .replace(Regex("[^a-z0-9_]"), "")
+            .take(30)
+        return if (cleaned.isNotBlank()) cleaned else "linkedin"
     }
 
     private fun extractAvatarUrl(imageAttr: LinkedInImageAttributes?): String? {

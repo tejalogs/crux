@@ -531,6 +531,15 @@ internal fun InstagramWebScreen(
                         BackButton(onBack = onBack)
                     },
                     actions = {
+                        if (isFeedSynced) {
+                            TextButton(onClick = onBack) {
+                                Text(
+                                    text = "Native Feed",
+                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                        }
                         val detectedProfile = remember(currentUrl) { extractInstagramProfile(currentUrl) }
                         if (detectedProfile != null && onNavigateToRss != null) {
                             IconButton(onClick = { onNavigateToRss.invoke("https://instagram.com/$detectedProfile") }) {

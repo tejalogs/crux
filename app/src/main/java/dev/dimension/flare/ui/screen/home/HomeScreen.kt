@@ -328,7 +328,7 @@ internal fun HomeScreen(afterInit: () -> Unit) {
                                 )
                             },
                             label = {
-                                Text(text = "Instagram (Web)")
+                                Text(text = "Instagram")
                             },
                         )
                         item(
@@ -343,7 +343,7 @@ internal fun HomeScreen(afterInit: () -> Unit) {
                                 )
                             },
                             label = {
-                                Text(text = "LinkedIn (Web)")
+                                Text(text = "LinkedIn")
                             },
                         )
                         item(

@@ -21,6 +21,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -355,6 +356,7 @@ internal fun LinkedInWebScreen(
                                         .clip(RoundedCornerShape(12.dp))
                                         .background(Color(0xFF0A66C2).copy(alpha = 0.15f))
                                         .border(0.6.dp, Color(0xFF0A66C2).copy(alpha = 0.40f), RoundedCornerShape(12.dp))
+                                        .clickable { onBack() }
                                         .padding(horizontal = 6.dp, vertical = 2.dp),
                                 ) {
                                     Text(
@@ -369,6 +371,15 @@ internal fun LinkedInWebScreen(
                         }
                     },
                     actions = {
+                        if (isFeedSynced) {
+                            TextButton(onClick = onBack) {
+                                Text(
+                                    text = "Native Feed",
+                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = Color(0xFF0A66C2),
+                                )
+                            }
+                        }
                         IconButton(
                             onClick = {
                                 scope.launch {

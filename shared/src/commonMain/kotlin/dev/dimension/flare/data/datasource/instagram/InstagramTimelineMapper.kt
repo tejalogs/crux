@@ -94,11 +94,14 @@ public object InstagramTimelineMapper {
                         )
                     )
                 } else if (imageCandidate != null) {
-                    val previewUrl = carouselItem.image_versions2.candidates.lastOrNull()?.url ?: imageCandidate.url
+                    val candidates = carouselItem.image_versions2.candidates
+                    val previewCandidate = candidates.find { it.width in 640..1080 }
+                        ?: candidates.firstOrNull()
+                        ?: imageCandidate
                     mediaList.add(
                         UiMedia.Image(
                             url = imageCandidate.url,
-                            previewUrl = previewUrl,
+                            previewUrl = previewCandidate.url,
                             description = captionText,
                             height = imageCandidate.height.toFloat(),
                             width = imageCandidate.width.toFloat(),
@@ -123,10 +126,14 @@ public object InstagramTimelineMapper {
                     )
                 )
             } else if (imageCandidate != null) {
+                val candidates = mediaOrAd.image_versions2.candidates
+                val previewCandidate = candidates.find { it.width in 640..1080 }
+                    ?: candidates.firstOrNull()
+                    ?: imageCandidate
                 mediaList.add(
                     UiMedia.Image(
                         url = imageCandidate.url,
-                        previewUrl = imageCandidate.url,
+                        previewUrl = previewCandidate.url,
                         description = captionText,
                         height = imageCandidate.height.toFloat(),
                         width = imageCandidate.width.toFloat(),
@@ -138,11 +145,14 @@ public object InstagramTimelineMapper {
             // 3. Single Photo
             val imageCandidate = mediaOrAd.image_versions2?.candidates?.firstOrNull()
             if (imageCandidate != null) {
-                val previewUrl = mediaOrAd.image_versions2.candidates.lastOrNull()?.url ?: imageCandidate.url
+                val candidates = mediaOrAd.image_versions2.candidates
+                val previewCandidate = candidates.find { it.width in 640..1080 }
+                    ?: candidates.firstOrNull()
+                    ?: imageCandidate
                 mediaList.add(
                     UiMedia.Image(
                         url = imageCandidate.url,
-                        previewUrl = previewUrl,
+                        previewUrl = previewCandidate.url,
                         description = captionText,
                         height = imageCandidate.height.toFloat(),
                         width = imageCandidate.width.toFloat(),

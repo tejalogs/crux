@@ -241,11 +241,11 @@ public fun ServiceSelectionScreenContent(
                                 modifier = Modifier.size(32.dp),
                             )
                             PlatformText(
-                                text = "Instagram Web Client",
+                                text = "Instagram",
                                 style = PlatformTheme.typography.title,
                             )
                             PlatformText(
-                                text = "Launch sandboxed web session with ad and tracker blocking.",
+                                text = "Native timeline sync with ad and tracker shield.",
                                 style = PlatformTheme.typography.caption,
                                 textAlign = TextAlign.Center,
                             )
@@ -253,7 +253,7 @@ public fun ServiceSelectionScreenContent(
                                 onClick = { onToInstagramWeb.invoke() },
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
-                                PlatformText(text = "Launch Instagram Web")
+                                PlatformText(text = "Connect Instagram")
                             }
                         }
                     }
@@ -323,11 +323,11 @@ public fun ServiceSelectionScreenContent(
                             )
                             Column(modifier = Modifier.weight(1f)) {
                                 PlatformText(
-                                    text = "Instagram (Web)",
+                                    text = "Instagram",
                                     style = PlatformTheme.typography.title,
                                 )
                                 PlatformText(
-                                    text = "Isolated privacy sandbox with ad & tracking shield",
+                                    text = "Sync feed to unified timeline • Ad & tracking shield",
                                     style = PlatformTheme.typography.caption,
                                 )
                             }
@@ -363,11 +363,11 @@ public fun ServiceSelectionScreenContent(
                             )
                             Column(modifier = Modifier.weight(1f)) {
                                 PlatformText(
-                                    text = "LinkedIn (Web)",
+                                    text = "LinkedIn",
                                     style = PlatformTheme.typography.title,
                                 )
                                 PlatformText(
-                                    text = "Isolated privacy sandbox with ad & tracking shield",
+                                    text = "Sync feed to unified timeline • Ad & tracking shield",
                                     style = PlatformTheme.typography.caption,
                                 )
                             }
