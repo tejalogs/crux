@@ -12,6 +12,7 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import dev.dimension.flare.ui.component.FAIcon
+import dev.dimension.flare.ui.component.NetworkBadge
 import dev.dimension.flare.ui.component.RichText
 import dev.dimension.flare.ui.component.platform.PlatformText
 import dev.dimension.flare.ui.model.UiProfile
@@ -40,7 +41,13 @@ internal fun StatusRetweetHeaderComponent(
             tint = color,
         )
         if (user != null) {
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(6.dp))
+            NetworkBadge(
+                platformId = user.platformId,
+                host = user.key.host,
+                badgeSize = 13.dp,
+            )
+            Spacer(modifier = Modifier.width(4.dp))
             RichText(
                 text = user.name,
                 layoutDirection = LocalLayoutDirection.current,
@@ -53,7 +60,7 @@ internal fun StatusRetweetHeaderComponent(
                 color = color,
             )
         }
-        Spacer(modifier = Modifier.width(8.dp))
+        Spacer(modifier = Modifier.width(6.dp))
         PlatformText(
             text = text,
             style = textStyle,

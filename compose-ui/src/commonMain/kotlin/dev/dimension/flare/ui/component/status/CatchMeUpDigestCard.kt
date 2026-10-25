@@ -5,8 +5,8 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,12 +22,11 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import dev.dimension.flare.ui.component.HorizontalDivider
+import dev.dimension.flare.ui.component.platform.PlatformIconButton
+import dev.dimension.flare.ui.component.platform.PlatformText
+import dev.dimension.flare.ui.component.platform.PlatformTextButton
+import dev.dimension.flare.ui.theme.PlatformTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -90,13 +89,13 @@ public fun CatchMeUpDigestCard(
         )
     }
 
-    Surface(
-        shape = RoundedCornerShape(20.dp),
-        border = BorderStroke(1.dp, prismBorder),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+    Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = screenHorizontalPadding, vertical = 8.dp),
+            .padding(horizontal = screenHorizontalPadding, vertical = 8.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .background(PlatformTheme.colorScheme.cardAlt.copy(alpha = 0.35f))
+            .border(1.dp, prismBorder, RoundedCornerShape(20.dp)),
     ) {
         Column(
             modifier = Modifier
@@ -131,36 +130,37 @@ public fun CatchMeUpDigestCard(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        Text(
+                        PlatformText(
                             text = digest.title,
-                            style = MaterialTheme.typography.titleMedium,
+                            style = PlatformTheme.typography.title,
                             fontWeight = FontWeight.Bold,
                         )
                         // Gemma 4 Edge Pill Badge
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(PlatformTheme.colorScheme.primary.copy(alpha = 0.12f))
+                                .padding(horizontal = 8.dp, vertical = 2.dp),
                         ) {
-                            Text(
+                            PlatformText(
                                 text = "Gemma 4 Edge",
-                                style = MaterialTheme.typography.labelSmall,
+                                style = PlatformTheme.typography.caption,
                                 fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                color = PlatformTheme.colorScheme.primary,
                             )
                         }
                     }
-                    Text(
+                    PlatformText(
                         text = digest.subtitle,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = PlatformTheme.typography.caption,
+                        color = PlatformTheme.colorScheme.caption,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
 
                 // Expand/Collapse toggle
-                IconButton(
+                PlatformIconButton(
                     onClick = { expanded = !expanded },
                     modifier = Modifier.size(32.dp),
                 ) {
@@ -168,12 +168,12 @@ public fun CatchMeUpDigestCard(
                         imageVector = if (expanded) FontAwesomeIcons.Solid.AngleUp else FontAwesomeIcons.Solid.AngleDown,
                         contentDescription = "Toggle Digest",
                         modifier = Modifier.size(16.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        tint = PlatformTheme.colorScheme.caption,
                     )
                 }
 
                 // Dismiss button
-                IconButton(
+                PlatformIconButton(
                     onClick = onDismiss,
                     modifier = Modifier.size(32.dp),
                 ) {
@@ -181,7 +181,7 @@ public fun CatchMeUpDigestCard(
                         imageVector = FontAwesomeIcons.Solid.Xmark,
                         contentDescription = "Dismiss",
                         modifier = Modifier.size(16.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        tint = PlatformTheme.colorScheme.caption,
                     )
                 }
             }
@@ -201,17 +201,18 @@ public fun CatchMeUpDigestCard(
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             items(digest.topTopics) { topic ->
-                                Surface(
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.80f),
-                                    border = BorderStroke(0.6.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.25f)),
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(PlatformTheme.colorScheme.card.copy(alpha = 0.80f))
+                                        .border(0.6.dp, PlatformTheme.colorScheme.outline.copy(alpha = 0.25f), RoundedCornerShape(8.dp))
+                                        .padding(horizontal = 8.dp, vertical = 4.dp),
                                 ) {
-                                    Text(
+                                    PlatformText(
                                         text = topic,
-                                        style = MaterialTheme.typography.labelMedium,
+                                        style = PlatformTheme.typography.caption,
                                         fontWeight = FontWeight.Medium,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                        color = PlatformTheme.colorScheme.text,
                                     )
                                 }
                             }
@@ -220,7 +221,7 @@ public fun CatchMeUpDigestCard(
                     }
 
                     HorizontalDivider(
-                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f),
+                        color = PlatformTheme.colorScheme.outline.copy(alpha = 0.15f),
                         thickness = 0.8.dp,
                     )
                     Spacer(modifier = Modifier.height(10.dp))
@@ -248,7 +249,7 @@ public fun CatchMeUpDigestCard(
                                             .padding(top = 4.dp)
                                             .size(8.dp)
                                             .clip(CircleShape)
-                                            .background(MaterialTheme.colorScheme.primary),
+                                            .background(PlatformTheme.colorScheme.primary),
                                     )
                                 }
 
@@ -257,26 +258,26 @@ public fun CatchMeUpDigestCard(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                                     ) {
-                                        Text(
+                                        PlatformText(
                                             text = highlight.topic,
-                                            style = MaterialTheme.typography.labelMedium,
+                                            style = PlatformTheme.typography.caption,
                                             fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.primary,
+                                            color = PlatformTheme.colorScheme.primary,
                                         )
                                         if (!highlight.authorHandle.isNullOrBlank()) {
-                                            Text(
+                                            PlatformText(
                                                 text = "· ${highlight.authorHandle}",
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                style = PlatformTheme.typography.caption,
+                                                color = PlatformTheme.colorScheme.caption,
                                                 maxLines = 1,
                                                 overflow = TextOverflow.Ellipsis,
                                             )
                                         }
                                     }
-                                    Text(
+                                    PlatformText(
                                         text = highlight.summary,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurface,
+                                        style = PlatformTheme.typography.body,
+                                        color = PlatformTheme.colorScheme.text,
                                         modifier = Modifier.padding(top = 2.dp),
                                     )
                                 }
@@ -293,22 +294,26 @@ public fun CatchMeUpDigestCard(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         if (onRefresh != null) {
-                            TextButton(onClick = onRefresh) {
+                            PlatformTextButton(onClick = onRefresh) {
                                 FAIcon(
                                     imageVector = FontAwesomeIcons.Solid.RotateRight,
                                     contentDescription = null,
                                     modifier = Modifier.size(14.dp),
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("Refresh", style = MaterialTheme.typography.labelMedium)
+                                PlatformText("Refresh", style = PlatformTheme.typography.caption)
                             }
                         } else {
                             Spacer(modifier = Modifier.width(1.dp))
                         }
 
                         if (onScrollToFeed != null) {
-                            TextButton(onClick = onScrollToFeed) {
-                                Text("Dive into Feed ↓", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                            PlatformTextButton(onClick = onScrollToFeed) {
+                                PlatformText(
+                                    "Dive into Feed ↓",
+                                    style = PlatformTheme.typography.caption,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
                             }
                         }
                     }

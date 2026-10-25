@@ -330,4 +330,132 @@ class LinkedInFeedIntegrationTest {
         assertEquals("Cached Author", post.user?.name?.innerText)
         assertEquals("Cached update from WebView bridge", post.content.original.innerText)
     }
+
+    @Test
+    fun parsesDashGraphQLUpdatesWithEntityUrnAndTitleSubtitle() {
+        val dashJson = """
+            {
+              "data": {
+                "feedDashUpdates": {
+                  "elements": [
+                    {
+                      "entityUrn": "urn:li:fsd_update:(urn:li:activity:7999888777)",
+                      "actor": {
+                        "title": { "text": "Sundar Pichai" },
+                        "subtitle": { "text": "CEO at Alphabet and Google" },
+                        "navigationUrl": "https://www.linkedin.com/in/sundarpichai",
+                        "image": {
+                          "url": "https://media.licdn.com/dms/image/sundar.jpg"
+                        }
+                      },
+                      "commentary": {
+                        "text": { "text": "Excited to share our latest breakthroughs in on-device AI models." }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+        """.trimIndent()
+
+        val parsed = LinkedInFeedParser.parse(dashJson)
+        assertEquals(1, parsed.elements.size)
+        val update = parsed.elements[0]
+        assertEquals("urn:li:fsd_update:(urn:li:activity:7999888777)", update.id)
+        assertEquals("Sundar Pichai", update.actor?.title?.text)
+        assertEquals("CEO at Alphabet and Google", update.actor?.subtitle?.text)
+
+        val rendered = LinkedInTimelineMapper.render(update, accountKey)
+        assertNotNull(rendered)
+        assertEquals("Sundar Pichai", rendered.post.user?.name?.innerText)
+        assertEquals("CEO at Alphabet and Google", rendered.post.user?.description?.innerText)
+        assertEquals("Excited to share our latest breakthroughs in on-device AI models.", rendered.post.content.original.innerText)
+    }
+
+    @Test
+    fun mapsDocumentCarouselAndUpdateWithPollCorrectly() {
+        val updateWithDocAndPoll = LinkedInUpdate(
+            id = "urn:li:activity:doc_and_poll",
+            actor = LinkedInActor(
+                name = LinkedInText("Tech Analyst"),
+                title = LinkedInText("Tech Analyst"),
+            ),
+            commentary = LinkedInCommentary(
+                text = LinkedInText("Check out our new comprehensive benchmark guide and vote in our poll!"),
+            ),
+            content = LinkedInContent(
+                documentComponent = LinkedInDocumentComponent(
+                    title = "State of On-Device AI 2026",
+                    totalPageCount = 18,
+                    thumbnail = "https://media.licdn.com/doc/thumb.jpg",
+                    navigationUrl = "https://www.linkedin.com/feed/update/urn:li:activity:doc_and_poll/",
+                ),
+                pollComponent = LinkedInPollComponent(
+                    question = LinkedInText("Which on-device model architecture do you prefer?"),
+                    totalVotes = 3420L,
+                    pollStatus = "OPEN",
+                    options = listOf(
+                        LinkedInPollOption(optionText = LinkedInText("Gemma 4 Edge"), votePercentage = 68, voteCount = 2325L),
+                        LinkedInPollOption(optionText = LinkedInText("Others"), votePercentage = 32, voteCount = 1095L),
+                    ),
+                ),
+            ),
+        )
+
+        val rendered = LinkedInTimelineMapper.render(updateWithDocAndPoll, accountKey)
+        assertNotNull(rendered)
+        assertEquals(1, rendered.post.images.size)
+        assertEquals("https://media.licdn.com/doc/thumb.jpg", (rendered.post.images[0] as? UiMedia.Image)?.url)
+        val poll = rendered.post.poll
+        assertNotNull(poll)
+        assertEquals(2, poll.options.size)
+        assertEquals("Gemma 4 Edge", poll.options[0].title)
+        assertEquals(0.68f, poll.options[0].percentage)
+    }
+
+    @Test
+    fun paginatesThroughMultipleCachedPagesSmoothlyWhenOffline() = runTest {
+        val mockEngine = MockEngine { _ ->
+            respond(
+                content = "{}",
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "application/json"),
+            )
+        }
+
+        val service = LinkedInFeedService(HttpClient(mockEngine))
+        val credentialFlow = flowOf(
+            LinkedInCredential(
+                cookies = "li_at=token123; JSESSIONID=\"ajax:456\"",
+                userId = "u_cached",
+            )
+        )
+
+        val syncService = LinkedInSyncService()
+        val updates = (1..15).map { index ->
+            LinkedInUpdate(
+                id = "li_offline_$index",
+                actor = LinkedInActor(name = LinkedInText("Author $index")),
+                commentary = LinkedInCommentary(text = LinkedInText("Post number $index content")),
+            )
+        }
+        syncService.cacheUpdates(updates)
+
+        val loader = LinkedInHomeTimelineRemoteLoader(
+            service = service,
+            accountKey = accountKey,
+            credentialFlow = credentialFlow,
+            syncService = syncService,
+        )
+
+        // Page 1: 10 items
+        val page1 = loader.load(pageSize = 10, request = PagingRequest.Refresh)
+        assertEquals(10, page1.data.size)
+        assertEquals("10", page1.nextKey)
+
+        // Page 2: remaining 5 items
+        val page2 = loader.load(pageSize = 10, request = PagingRequest.Append("10"))
+        assertEquals(5, page2.data.size)
+        assertNull(page2.nextKey)
+    }
 }

@@ -1,26 +1,34 @@
 package dev.dimension.flare.ui.screen.home
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
 import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -31,8 +39,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import compose.icons.FontAwesomeIcons
@@ -52,10 +63,13 @@ import dev.dimension.flare.ui.component.AvatarComponent
 import dev.dimension.flare.ui.component.FAIcon
 import dev.dimension.flare.ui.component.FlareDropdownMenu
 import dev.dimension.flare.ui.component.FlareScaffold
+import dev.dimension.flare.ui.component.LocalGlobalAppearance
 import dev.dimension.flare.ui.component.LocalTimelineAppearance
 import dev.dimension.flare.ui.component.RefreshContainer
 import dev.dimension.flare.ui.component.SearchBar
 import dev.dimension.flare.ui.component.SearchBarState
+import dev.dimension.flare.ui.haptic.FlareHapticEvent
+import dev.dimension.flare.ui.haptic.rememberFlareHapticFeedback
 import dev.dimension.flare.ui.component.placeholder
 import dev.dimension.flare.ui.component.platform.isBigScreen
 import dev.dimension.flare.ui.component.searchBarPresenter
@@ -84,6 +98,8 @@ internal fun DiscoverScreen(
     val lazyListState = rememberLazyStaggeredGridState()
     val isBigScreen = isBigScreen()
     val showAskAi = LocalTimelineAppearance.current.aiConfig.agent
+    val haptics = rememberFlareHapticFeedback(LocalGlobalAppearance.current.hapticsEnabled)
+    var selectedCategory by remember { mutableStateOf(DiscoverCategory.All) }
     RegisterTabCallback(
         lazyListState = lazyListState,
         onRefresh = {
@@ -234,6 +250,31 @@ internal fun DiscoverScreen(
                             }
                         }
                     }
+                    item(
+                        span = StaggeredGridItemSpan.FullLine,
+                    ) {
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier =
+                                Modifier
+                                    .padding(horizontal = screenHorizontalPadding)
+                                    .padding(bottom = 8.dp),
+                        ) {
+                            items(DiscoverCategory.entries.toTypedArray()) { category ->
+                                FilterChip(
+                                    selected = selectedCategory == category,
+                                    onClick = {
+                                        haptics.perform(FlareHapticEvent.SelectionChange)
+                                        selectedCategory = category
+                                        if (category == DiscoverCategory.TechAi) {
+                                            state.commitSearch("AI")
+                                        }
+                                    },
+                                    label = { Text(category.label) },
+                                )
+                            }
+                        }
+                    }
                     if (state.isInSearchMode) {
                         searchContent(
                             searchUsers = state.searchState.users,
@@ -336,7 +377,7 @@ internal fun DiscoverScreen(
                             ) {
                                 FlowRow(
                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp),
                                     modifier =
                                         Modifier
                                             .let {
@@ -349,44 +390,33 @@ internal fun DiscoverScreen(
                                                 }
                                             },
                                 ) {
-                                    repeat(
-                                        itemCount,
-                                    ) {
-                                        val hashtag = get(it)
-                                        AdaptiveOutlinedCard(
-                                            modifier =
-                                                Modifier
-                                                    .clickable {
-                                                        hashtag?.searchContent?.let { it1 ->
-                                                            state.commitSearch(
-                                                                it1,
-                                                            )
+                                    if (itemCount > 0) {
+                                        repeat(itemCount) { idx ->
+                                            val hashtag = get(idx)
+                                            val gradient = TrendingGradients[idx % TrendingGradients.size]
+                                            if (hashtag != null) {
+                                                TrendingTopicChip(
+                                                    tag = hashtag.hashtag,
+                                                    subtitle = "Trending",
+                                                    gradient = gradient,
+                                                    onClick = {
+                                                        hashtag.searchContent.let { searchTag ->
+                                                            state.commitSearch(searchTag)
                                                         }
                                                     },
-                                        ) {
-                                            Box(
-                                                modifier =
-                                                    Modifier
-                                                        .padding(8.dp),
-                                            ) {
-                                                if (hashtag != null) {
-                                                    Text(
-                                                        text = hashtag.hashtag,
-                                                        maxLines = 1,
-                                                        overflow = TextOverflow.Ellipsis,
-                                                    )
-                                                } else {
-                                                    Text(
-                                                        text = "Lorem Ipsum is simply dummy text",
-                                                        modifier =
-                                                            Modifier.placeholder(
-                                                                true,
-                                                            ),
-                                                        maxLines = 1,
-                                                        overflow = TextOverflow.Ellipsis,
-                                                    )
-                                                }
+                                                )
                                             }
+                                        }
+                                    } else {
+                                        CuratedTrendingTopics.forEach { (tag, subtitle, gradient) ->
+                                            TrendingTopicChip(
+                                                tag = tag,
+                                                subtitle = subtitle,
+                                                gradient = gradient,
+                                                onClick = {
+                                                    state.commitSearch(tag)
+                                                },
+                                            )
                                         }
                                     }
                                 }
@@ -494,3 +524,87 @@ private fun discoverPresenter() =
             }
         }
     }
+
+private enum class DiscoverCategory(val label: String) {
+    All("All"),
+    Trending("Trending"),
+    TechAi("Tech & AI"),
+    Media("Media"),
+    People("People"),
+}
+
+private val TrendingGradients =
+    listOf(
+        Brush.linearGradient(listOf(Color(0xFF4285F4), Color(0xFF9B51E0))),
+        Brush.linearGradient(listOf(Color(0xFF34A853), Color(0xFF00C853))),
+        Brush.linearGradient(listOf(Color(0xFF7F52FF), Color(0xFFE4405F))),
+        Brush.linearGradient(listOf(Color(0xFF00B4D8), Color(0xFF0077B6))),
+        Brush.linearGradient(listOf(Color(0xFFFF9F1C), Color(0xFFFF4081))),
+        Brush.linearGradient(listOf(Color(0xFF6C5CE7), Color(0xFFA29BFE))),
+    )
+
+private val CuratedTrendingTopics =
+    listOf(
+        Triple("Gemma4", "On-Device AI", Brush.linearGradient(listOf(Color(0xFF4285F4), Color(0xFF9B51E0)))),
+        Triple("Android", "Mobile Ecosystem", Brush.linearGradient(listOf(Color(0xFF34A853), Color(0xFF00C853)))),
+        Triple("Kotlin", "Multiplatform", Brush.linearGradient(listOf(Color(0xFF7F52FF), Color(0xFFE4405F)))),
+        Triple("Privacy", "Zero Egress Hub", Brush.linearGradient(listOf(Color(0xFF00B4D8), Color(0xFF0077B6)))),
+        Triple("OpenSource", "Decentralized", Brush.linearGradient(listOf(Color(0xFFFF9F1C), Color(0xFFFF4081)))),
+        Triple("Decentralized", "Fediverse & ATProto", Brush.linearGradient(listOf(Color(0xFF6C5CE7), Color(0xFFA29BFE)))),
+    )
+
+@Composable
+private fun TrendingTopicChip(
+    tag: String,
+    subtitle: String? = null,
+    gradient: Brush? = null,
+    onClick: () -> Unit,
+) {
+    val haptics = rememberFlareHapticFeedback(LocalGlobalAppearance.current.hapticsEnabled)
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
+        modifier =
+            Modifier.clickable {
+                haptics.perform(FlareHapticEvent.Confirm)
+                onClick()
+            },
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Box(
+                modifier =
+                    Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(
+                            gradient
+                                ?: Brush.linearGradient(
+                                    listOf(
+                                        MaterialTheme.colorScheme.primary,
+                                        MaterialTheme.colorScheme.tertiary,
+                                    ),
+                                ),
+                        ),
+            )
+            Column {
+                Text(
+                    text = if (tag.startsWith("#")) tag else "#$tag",
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (subtitle != null) {
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.outline,
+                    )
+                }
+            }
+        }
+    }
+}

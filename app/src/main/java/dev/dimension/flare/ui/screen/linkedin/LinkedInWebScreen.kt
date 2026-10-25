@@ -166,7 +166,7 @@ private const val PRISM_LINKEDIN_SHIELD_JS = """
                     try {
                         var arg = arguments[0];
                         var u = typeof arg === 'string' ? arg : (arg ? arg.url : '');
-                        if (u && (u.indexOf('voyager/api/feed') !== -1 || u.indexOf('feedUpdates') !== -1 || u.indexOf('voyager/api/graphql') !== -1)) {
+                        if (u && (u.indexOf('voyager/api/feed') !== -1 || u.indexOf('feedUpdates') !== -1 || u.indexOf('voyager/api/graphql') !== -1 || u.indexOf('dash/updates') !== -1 || u.indexOf('updatesV2') !== -1)) {
                             response.clone().text().then(function(t) {
                                 if (window.LinkedInPrismBridge && t) {
                                     window.LinkedInPrismBridge.onFeedData(t);
@@ -187,7 +187,13 @@ private const val PRISM_LINKEDIN_SHIELD_JS = """
             XMLHttpRequest.prototype.send = function() {
                 this.addEventListener('load', function() {
                     try {
-                        if (this.__prismUrl && (this.__prismUrl.indexOf('voyager/api/feed') !== -1 || this.__prismUrl.indexOf('feedUpdates') !== -1)) {
+                        if (this.__prismUrl && (
+                            this.__prismUrl.indexOf('voyager/api/feed') !== -1 ||
+                            this.__prismUrl.indexOf('feedUpdates') !== -1 ||
+                            this.__prismUrl.indexOf('voyager/api/graphql') !== -1 ||
+                            this.__prismUrl.indexOf('dash/updates') !== -1 ||
+                            this.__prismUrl.indexOf('updatesV2') !== -1
+                        )) {
                             if (window.LinkedInPrismBridge && this.responseText) {
                                 window.LinkedInPrismBridge.onFeedData(this.responseText);
                             }
@@ -198,6 +204,27 @@ private const val PRISM_LINKEDIN_SHIELD_JS = """
             };
         } catch (_) {}
     }
+})();
+"""
+
+private const val PRISM_LINKEDIN_FETCH_FEED_JS = """
+(function() {
+    try {
+        var csrf = (document.cookie.match(/JSESSIONID="?([^";]+)"?/) || [])[1] || '';
+        if (csrf && window.LinkedInPrismBridge) {
+            fetch('/voyager/api/feed/dash/updates?count=20&q=feedUpdates', {
+                headers: { 'csrf-token': csrf }
+            }).then(function(r) { return r.text(); }).then(function(t) {
+                if (t && window.LinkedInPrismBridge) window.LinkedInPrismBridge.onFeedData(t);
+            }).catch(function() {
+                fetch('/voyager/api/feed/updatesV2?count=20&q=feedUpdates', {
+                    headers: { 'csrf-token': csrf }
+                }).then(function(r) { return r.text(); }).then(function(t) {
+                    if (t && window.LinkedInPrismBridge) window.LinkedInPrismBridge.onFeedData(t);
+                }).catch(function() {});
+            });
+        }
+    } catch (_) {}
 })();
 """
 
@@ -257,6 +284,7 @@ internal fun LinkedInWebScreen(
     fun checkAndSyncSession(silent: Boolean = false) {
         val cookies = CookieManager.getInstance().getCookie("https://www.linkedin.com")
         if (!cookies.isNullOrBlank() && LinkedInFeedService.hasActiveSession(cookies)) {
+            webViewRef.value?.evaluateJavascript(PRISM_LINKEDIN_FETCH_FEED_JS, null)
             scope.launch {
                 val synced = linkedInSyncService.syncSession(cookies)
                 if (synced) {
@@ -475,6 +503,7 @@ internal fun LinkedInWebScreen(
                                     canGoForward = view?.canGoForward() ?: false
                                 }
                                 view?.evaluateJavascript(PRISM_LINKEDIN_SHIELD_JS, null)
+                                view?.evaluateJavascript(PRISM_LINKEDIN_FETCH_FEED_JS, null)
                                 checkAndSyncSession(silent = true)
                             }
 

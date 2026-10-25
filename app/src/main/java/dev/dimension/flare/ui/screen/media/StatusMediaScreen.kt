@@ -130,6 +130,8 @@ import dev.dimension.flare.model.MicroBlogKey
 import dev.dimension.flare.ui.component.FAIcon
 import dev.dimension.flare.ui.component.LocalGlobalAppearance
 import dev.dimension.flare.ui.component.LocalTimelineAppearance
+import dev.dimension.flare.ui.haptic.FlareHapticEvent
+import dev.dimension.flare.ui.haptic.rememberFlareHapticFeedback
 import dev.dimension.flare.ui.component.MediaViewerPlayback
 import dev.dimension.flare.ui.component.MediaViewerSelection
 import dev.dimension.flare.ui.component.SurfaceBindingManager
@@ -1308,12 +1310,23 @@ private fun ImageItem(
     val currentOnLongClick by rememberUpdatedState(onLongClick)
     val currentSetLockPager by rememberUpdatedState(setLockPager)
     val scope = rememberCoroutineScope()
+    val haptics = rememberFlareHapticFeedback(LocalGlobalAppearance.current.hapticsEnabled)
     val zoomableState =
         rememberZoomableState(zoomSpec = ZoomSpec(maxZoomFactor = 10f))
+    var lastZoomFraction by remember { mutableFloatStateOf(0f) }
     LaunchedEffect(zoomableState.zoomFraction) {
-        zoomableState.zoomFraction?.let {
-            currentSetLockPager(it > 0.01f)
-        } ?: currentSetLockPager(false)
+        val fraction = zoomableState.zoomFraction ?: 0f
+        currentSetLockPager(fraction > 0.01f)
+        if ((lastZoomFraction <= 0.01f && fraction > 0.01f) ||
+            (lastZoomFraction > 0.01f && fraction <= 0.01f)
+        ) {
+            haptics.perform(FlareHapticEvent.Confirm)
+        } else if ((lastZoomFraction < 0.5f && fraction >= 0.5f) ||
+            (lastZoomFraction > 0.5f && fraction <= 0.5f)
+        ) {
+            haptics.perform(FlareHapticEvent.Tick)
+        }
+        lastZoomFraction = fraction
     }
     BackHandler(
         enabled = (zoomableState.zoomFraction ?: 0f) > 0.01f,

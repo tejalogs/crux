@@ -45,6 +45,8 @@ import dev.dimension.flare.ui.component.FlareTopAppBar
 import dev.dimension.flare.ui.component.LocalGlobalAppearance
 import dev.dimension.flare.ui.component.LocalTimelineAppearance
 import dev.dimension.flare.ui.component.RefreshContainer
+import dev.dimension.flare.ui.haptic.FlareHapticEvent
+import dev.dimension.flare.ui.haptic.rememberFlareHapticFeedback
 import dev.dimension.flare.ui.component.platform.isCompatScreen
 import dev.dimension.flare.ui.component.status.LazyStatusVerticalStaggeredGrid
 import dev.dimension.flare.ui.component.status.status
@@ -73,6 +75,7 @@ internal fun NotificationScreen() {
         },
     )
     val isCompatScreen = isCompatScreen()
+    val haptics = rememberFlareHapticFeedback(LocalGlobalAppearance.current.hapticsEnabled)
     val topAppBarScrollBehavior =
         if (LocalGlobalAppearance.current.bottomBarBehavior == BottomBarBehavior.AlwaysShow) {
             TopAppBarDefaults.pinnedScrollBehavior()
@@ -124,7 +127,10 @@ internal fun NotificationScreen() {
                                 selectedContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
                                 unselectedContentColor = LocalContentColor.current,
                                 selected = state.isUnified,
-                                onClick = { state.setAllAccounts() },
+                                onClick = {
+                                    haptics.perform(FlareHapticEvent.SelectionChange)
+                                    state.setAllAccounts()
+                                },
                                 text = { Text(text = stringResource(id = R.string.notification_tab_unified), maxLines = 1) },
                                 icon = {
                                     Box(contentAlignment = Alignment.BottomEnd) {
@@ -153,6 +159,7 @@ internal fun NotificationScreen() {
                                     unselectedContentColor = LocalContentColor.current,
                                     selected = state.selectedAccount?.key == account.key,
                                     onClick = {
+                                        haptics.perform(FlareHapticEvent.SelectionChange)
                                         state.setAccount(account)
                                     },
                                     text = {
@@ -259,6 +266,7 @@ private fun NotificationFilterSelector(
     onFilterChanged: (NotificationFilter) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val haptics = rememberFlareHapticFeedback(LocalGlobalAppearance.current.hapticsEnabled)
     Row(
         modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -267,6 +275,7 @@ private fun NotificationFilterSelector(
             FilterChip(
                 selected = filter == selectedFilter,
                 onClick = {
+                    haptics.perform(FlareHapticEvent.SelectionChange)
                     onFilterChanged(filter)
                 },
                 label = {

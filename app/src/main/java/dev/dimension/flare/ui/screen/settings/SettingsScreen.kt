@@ -296,17 +296,17 @@ internal fun SettingsScreen(
                 },
                 shapes = ListItemDefaults.single(),
                 content = {
-                    Text(text = stringResource(id = R.string.settings_privacy_title))
+                    Text(text = "Sovereign Privacy Hub & Zero-Trust Egress")
                 },
                 leadingContent = {
                     ThemedIcon(
                         imageVector = FontAwesomeIcons.Solid.Lock,
                         contentDescription = stringResource(id = R.string.settings_privacy_title),
-                        color = ThemeIconData.Color.SapphireBlue,
+                        color = ThemeIconData.Color.ForestGreen,
                     )
                 },
                 supportingContent = {
-                    Text(text = stringResource(id = R.string.settings_privacy_traffic_log_open_description))
+                    Text(text = "Live zero-trust network inspector, tracker blocker, and sovereign bridges")
                 },
             )
 
@@ -389,7 +389,7 @@ internal fun SettingsScreen(
                         )
                     },
                     supportingContent = {
-                        Text(text = stringResource(id = R.string.settings_ai_config_description))
+                        Text(text = "On-Device Gemma 4 E2B AI, zero-egress semantic search, and feed digests")
                     },
                 )
                 SegmentedListItem(

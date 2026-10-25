@@ -117,20 +117,30 @@ public object LinkedInFeedParser {
                 val type = (elem as? JsonObject)?.get("\$type")?.jsonPrimitive?.contentOrNull.orEmpty()
                 if (type.contains("Update") || type.contains("Activity") || type.contains("Share") || type.contains("Feed")) {
                     val update = extractUpdate(elem)
-                    if (update != null && update.actor != null) {
+                    if (update != null) {
                         updates.add(update)
                     }
                 }
             }
         }
 
-        // 3. Data.*elements or Data.elements
+        // 3. Data.*elements or Data.elements or feedDashUpdates
         if (updates.isEmpty()) {
             val dataObj = root["data"] as? JsonObject
-            val dataElements = (dataObj?.get("*elements") as? JsonArray)
-                ?: (dataObj?.get("elements") as? JsonArray)
-            dataElements?.forEach { elem ->
+            val feedDash = (dataObj?.get("feedDashUpdates") as? JsonObject)
+                ?: (root["feedDashUpdates"] as? JsonObject)
+            val feedElements = (feedDash?.get("elements") as? JsonArray)
+                ?: (feedDash?.get("*elements") as? JsonArray)
+            feedElements?.forEach { elem ->
                 extractUpdate(elem)?.let { updates.add(it) }
+            }
+
+            if (updates.isEmpty()) {
+                val dataElements = (dataObj?.get("*elements") as? JsonArray)
+                    ?: (dataObj?.get("elements") as? JsonArray)
+                dataElements?.forEach { elem ->
+                    extractUpdate(elem)?.let { updates.add(it) }
+                }
             }
         }
 
@@ -142,7 +152,7 @@ public object LinkedInFeedParser {
             ?: pagingObj?.get("next")?.jsonPrimitive?.contentOrNull
 
         return LinkedInFeedResponse(
-            elements = updates.distinctBy { it.id.ifBlank { it.urn.orEmpty() } },
+            elements = updates.distinctBy { it.id.ifBlank { it.urn ?: it.entityUrn ?: it.trackingUrn }.orEmpty() },
             metadata = LinkedInFeedMetadata(
                 paginationToken = paginationToken,
                 count = updates.size,
@@ -157,23 +167,29 @@ public object LinkedInFeedParser {
         val valueObj = obj["value"] as? JsonObject
         val targetObj = if (valueObj != null) {
             valueObj.values.filterIsInstance<JsonObject>().firstOrNull {
-                it.containsKey("actor") || it.containsKey("urn")
+                it.containsKey("actor") || it.containsKey("urn") || it.containsKey("entityUrn")
             } ?: valueObj
         } else {
             obj
         }
 
-        return try {
+        val decoded = try {
             JSON.decodeFromJsonElement(LinkedInUpdate.serializer(), targetObj)
         } catch (_: Exception) {
             extractUpdateFallback(targetObj)
+        } ?: return null
+
+        val resolvedId = decoded.id.ifBlank {
+            decoded.urn ?: decoded.entityUrn ?: decoded.trackingUrn ?: ""
         }
+        return decoded.copy(id = resolvedId)
     }
 
     private fun extractUpdateFallback(obj: JsonObject): LinkedInUpdate? {
         val urn = obj["urn"]?.jsonPrimitive?.contentOrNull
-            ?: obj["id"]?.jsonPrimitive?.contentOrNull
             ?: obj["entityUrn"]?.jsonPrimitive?.contentOrNull
+            ?: obj["trackingUrn"]?.jsonPrimitive?.contentOrNull
+            ?: obj["id"]?.jsonPrimitive?.contentOrNull
             ?: return null
 
         val actorObj = obj["actor"] as? JsonObject
@@ -185,6 +201,8 @@ public object LinkedInFeedParser {
 
         val actorHeadline = (actorObj?.get("description") as? JsonPrimitive)?.contentOrNull
             ?: (actorObj?.get("description") as? JsonObject)?.get("text")?.jsonPrimitive?.contentOrNull
+            ?: (actorObj?.get("subtitle") as? JsonPrimitive)?.contentOrNull
+            ?: (actorObj?.get("subtitle") as? JsonObject)?.get("text")?.jsonPrimitive?.contentOrNull
             ?: (actorObj?.get("subDescription") as? JsonPrimitive)?.contentOrNull
             ?: (actorObj?.get("subDescription") as? JsonObject)?.get("text")?.jsonPrimitive?.contentOrNull
 
@@ -204,12 +222,16 @@ public object LinkedInFeedParser {
 
         val actor = LinkedInActor(
             urn = actorObj?.get("urn")?.jsonPrimitive?.contentOrNull,
+            entityUrn = actorObj?.get("entityUrn")?.jsonPrimitive?.contentOrNull,
             name = LinkedInText(actorName),
+            title = LinkedInText(actorName),
             description = actorHeadline?.let { LinkedInText(it) },
+            subtitle = actorHeadline?.let { LinkedInText(it) },
             navigationUrl = actorNav,
             image = avatarUrl?.let {
                 LinkedInImageAttributes(
                     attributes = listOf(LinkedInImageDetail(sourceWebImageUrl = it)),
+                    url = it,
                 )
             },
         )
@@ -217,6 +239,7 @@ public object LinkedInFeedParser {
         return LinkedInUpdate(
             id = urn,
             urn = urn,
+            entityUrn = urn,
             actor = actor,
             commentary = commentaryText?.let { LinkedInCommentary(LinkedInText(it)) },
         )

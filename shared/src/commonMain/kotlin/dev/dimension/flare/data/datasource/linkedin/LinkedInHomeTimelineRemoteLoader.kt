@@ -47,10 +47,14 @@ public class LinkedInHomeTimelineRemoteLoader(
         )
 
         val networkUpdates = response?.elements.orEmpty()
+        val allCached = resolvedSyncService?.getLatestCachedUpdates().orEmpty()
+
         val updates = if (networkUpdates.isNotEmpty()) {
+            resolvedSyncService?.cacheUpdates(networkUpdates)
             networkUpdates
-        } else if (cursor == null) {
-            resolvedSyncService?.getLatestCachedUpdates().orEmpty()
+        } else if (allCached.isNotEmpty()) {
+            val startIndex = cursor?.toIntOrNull() ?: 0
+            allCached.drop(startIndex).take(pageSize)
         } else {
             emptyList()
         }
@@ -63,9 +67,13 @@ public class LinkedInHomeTimelineRemoteLoader(
         }
 
         val currentStart = cursor?.toIntOrNull() ?: 0
-        val nextKey = if (updates.isNotEmpty()) {
+        val nextKey = if (networkUpdates.isNotEmpty()) {
             response?.metadata?.paginationToken ?: (currentStart + updates.size).toString()
-        } else null
+        } else if (allCached.isNotEmpty() && currentStart + updates.size < allCached.size) {
+            (currentStart + updates.size).toString()
+        } else {
+            null
+        }
 
         val endReached = updates.isEmpty() || nextKey == null
 

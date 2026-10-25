@@ -67,9 +67,7 @@ public fun LazyStaggeredGridScope.status(
                     GalleryTimelineItem(item = item)
                 } else {
                     AdaptiveCard(
-//                    modifier =
-//                        Modifier
-//                            .animateItem(),
+                        modifier = Modifier.animateItem(),
                         index = index,
                         totalCount = itemCount,
                         respectTimelineMode = true,
@@ -90,8 +88,7 @@ public fun LazyStaggeredGridScope.status(
                 span = StaggeredGridItemSpan.FullLine,
             ) {
                 OnError(
-                    modifier = Modifier.fillMaxSize(),
-//                    modifier = Modifier.animateItem(),
+                    modifier = Modifier.fillMaxSize().animateItem(),
                     error = it,
                     onRetry = onRetry,
                 )
@@ -108,7 +105,7 @@ public fun LazyStaggeredGridScope.status(
                     modifier =
                         Modifier
                             .fillMaxSize()
-//                            .animateItem()
+                            .animateItem()
                             .clickable {
                                 refresh()
                             },

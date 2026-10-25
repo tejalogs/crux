@@ -34,19 +34,24 @@ public object LinkedInTimelineMapper {
         }
 
         val actor = update.actor ?: return null
-        val actorName = actor.name?.text?.takeIf { it.isNotBlank() } ?: "LinkedIn Member"
+        val actorName = actor.name?.text?.takeIf { it.isNotBlank() }
+            ?: actor.title?.text?.takeIf { it.isNotBlank() }
+            ?: "LinkedIn Member"
         val headline = actor.description?.text?.takeIf { it.isNotBlank() }
+            ?: actor.subtitle?.text?.takeIf { it.isNotBlank() }
+            ?: actor.headline?.text?.takeIf { it.isNotBlank() }
             ?: actor.subDescription?.text?.takeIf { it.isNotBlank() }
 
-        val id = update.id.ifBlank { update.urn.orEmpty() }
-        if (id.isBlank()) return null
+        val id = update.id.ifBlank {
+            update.urn ?: update.entityUrn ?: update.trackingUrn
+        }.takeIf { !it.isNullOrBlank() } ?: "li_${actorName.hashCode()}_${update.created?.time ?: Clock.System.now().toEpochMilliseconds()}"
 
         val statusKey = MicroBlogKey(
             id = id,
             host = "linkedin.com",
         )
         val authorKey = MicroBlogKey(
-            id = actor.urn ?: actorName,
+            id = actor.urn ?: actor.entityUrn ?: actorName,
             host = "linkedin.com",
         )
 
@@ -79,8 +84,11 @@ public object LinkedInTimelineMapper {
         )
 
         val commentaryText = update.commentary?.text?.text?.takeIf { it.isNotBlank() }
+            ?: update.header?.text?.takeIf { it.isNotBlank() }
+            ?: update.title?.text?.takeIf { it.isNotBlank() }
             ?: update.content?.articleComponent?.title?.takeIf { it.isNotBlank() }
             ?: update.content?.entityComponent?.title?.text?.takeIf { it.isNotBlank() }
+            ?: update.content?.documentComponent?.title?.takeIf { it.isNotBlank() }
             ?: ""
         val mediaList = mutableListOf<UiMedia>()
 
@@ -129,8 +137,43 @@ public object LinkedInTimelineMapper {
             )
         }
 
-        // 3. Article / Link Preview Card
+        // 3. Document Carousel Preview
+        val docComp = update.content?.documentComponent
+        if (docComp != null && !docComp.thumbnail.isNullOrBlank() && mediaList.isEmpty()) {
+            mediaList.add(
+                UiMedia.Image(
+                    url = docComp.thumbnail,
+                    previewUrl = docComp.thumbnail,
+                    description = docComp.title ?: commentaryText,
+                    height = 600f,
+                    width = 800f,
+                    sensitive = false,
+                )
+            )
+        }
+
+        // 4. Article / Link / Document Preview Card
         val card = extractCard(update.content, commentaryText)
+
+        // 5. Poll Component
+        val poll = update.content?.pollComponent?.let { p ->
+            val options = p.options.map { opt ->
+                dev.dimension.flare.ui.model.UiPoll.Option(
+                    title = opt.optionText?.text ?: "",
+                    votesCount = opt.voteCount ?: 0L,
+                    percentage = (opt.votePercentage ?: 0).toFloat() / 100f,
+                )
+            }
+            dev.dimension.flare.ui.model.UiPoll(
+                id = "poll_$id",
+                options = options.toImmutableList(),
+                multiple = false,
+                ownVotes = persistentListOf(),
+                voteEvent = null,
+                expiresAt = if (p.pollStatus.equals("CLOSED", ignoreCase = true)) Clock.System.now() else null,
+                enabled = false,
+            )
+        }
 
         val postUrl = update.permalink ?: "https://www.linkedin.com/feed/update/$id/"
 
@@ -166,7 +209,7 @@ public object LinkedInTimelineMapper {
             platformIcon = UiIcon.LinkedIn,
             content = UiTranslatableText(original = commentaryText.toUiPlainText()),
             actions = actions,
-            poll = null,
+            poll = poll,
             statusKey = statusKey,
             card = card,
             createdAt = createdAtInstant.toUi(),
@@ -174,13 +217,19 @@ public object LinkedInTimelineMapper {
             accountType = AccountType.Specific(accountKey),
         )
 
-        // 4. Handle Quote / Reshared Update if present
+        // 6. Handle Quote / Reshared Update if present
         val presentation = if (update.resharedUpdate != null) {
             val resharedItem = render(update.resharedUpdate, accountKey)
             if (resharedItem != null) {
-                UiTimelineV2.PostPresentation(
-                    quotes = persistentListOf(resharedItem.post),
-                )
+                if (commentaryText.isBlank()) {
+                    UiTimelineV2.PostPresentation(
+                        repost = resharedItem.post,
+                    )
+                } else {
+                    UiTimelineV2.PostPresentation(
+                        quotes = persistentListOf(resharedItem.post),
+                    )
+                }
             } else {
                 UiTimelineV2.PostPresentation()
             }
@@ -195,6 +244,8 @@ public object LinkedInTimelineMapper {
     }
 
     private fun extractAvatarUrl(imageAttr: LinkedInImageAttributes?): String? {
+        if (!imageAttr?.url.isNullOrBlank()) return imageAttr.url
+        if (!imageAttr?.sourceWebImageUrl.isNullOrBlank()) return imageAttr.sourceWebImageUrl
         val attributes = imageAttr?.attributes.orEmpty()
         for (detail in attributes) {
             if (!detail.sourceWebImageUrl.isNullOrBlank()) {
@@ -238,6 +289,46 @@ public object LinkedInTimelineMapper {
                 description = article.subtitle,
                 media = thumbMedia,
                 url = article.navigationUrl,
+            )
+        }
+
+        val doc = content?.documentComponent
+        if (doc != null && !doc.navigationUrl.isNullOrBlank()) {
+            val thumbMedia = doc.thumbnail?.let { url ->
+                UiMedia.Image(
+                    url = url,
+                    previewUrl = url,
+                    description = doc.title ?: fallbackText,
+                    height = 400f,
+                    width = 800f,
+                    sensitive = false,
+                )
+            }
+            return UiCard(
+                title = doc.title ?: "Document",
+                description = "${doc.totalPageCount ?: 1} page document carousel",
+                media = thumbMedia,
+                url = doc.navigationUrl,
+            )
+        }
+
+        val mediaComp = content?.mediaComponent
+        if (mediaComp != null && !mediaComp.navigationUrl.isNullOrBlank()) {
+            val thumbMedia = mediaComp.thumbnail?.let { url ->
+                UiMedia.Image(
+                    url = url,
+                    previewUrl = url,
+                    description = mediaComp.title?.text ?: fallbackText,
+                    height = 400f,
+                    width = 800f,
+                    sensitive = false,
+                )
+            }
+            return UiCard(
+                title = mediaComp.title?.text ?: "LinkedIn Media",
+                description = mediaComp.subtitle?.text,
+                media = thumbMedia,
+                url = mediaComp.navigationUrl,
             )
         }
 

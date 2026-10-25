@@ -1,22 +1,28 @@
 package dev.dimension.flare.ui.component.status
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
@@ -212,10 +218,12 @@ import dev.dimension.flare.compose.ui.vvo_notification_like
 import dev.dimension.flare.data.datasource.microblog.ActionMenu
 import dev.dimension.flare.data.model.PostActionStyle
 import dev.dimension.flare.model.MicroBlogKey
+import dev.dimension.flare.ui.component.AvatarComponent
 import dev.dimension.flare.ui.component.AvatarComponentDefaults
 import dev.dimension.flare.ui.component.FAIcon
 import dev.dimension.flare.ui.component.FlareDividerDefaults
 import dev.dimension.flare.ui.component.LocalTimelineAppearance
+import dev.dimension.flare.ui.component.NetworkBadge
 import dev.dimension.flare.ui.component.VerticalDivider
 import dev.dimension.flare.ui.component.platform.PlatformButton
 import dev.dimension.flare.ui.component.platform.PlatformCard
@@ -409,49 +417,105 @@ private fun UserListContent(
     modifier: Modifier = Modifier,
 ) {
     val uriHandler = LocalUriHandler.current
+    val appearance = LocalTimelineAppearance.current
+    val platformId = data.post?.platformId ?: data.users.firstOrNull()?.platformId
+    val host = data.post?.statusKey?.host ?: data.users.firstOrNull()?.key?.host ?: data.statusKey.host
+
     Column(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
+        // Modernized Grouped Notification Header
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            // Stacked Overlapping Actor Avatars
+            val displayUsers = data.users.take(5)
+            val overflowCount = data.users.size - displayUsers.size
+            val avatarSize = 32.dp
+            val overlapOffset = 20.dp
+            val totalAvatarWidth = (displayUsers.size - 1).coerceAtLeast(0) * 20 + 32 + (if (overflowCount > 0) 24 else 0)
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Box(
+                    modifier =
+                        Modifier
+                            .width(totalAvatarWidth.dp)
+                            .height(avatarSize),
+                ) {
+                    displayUsers.forEachIndexed { index, user ->
+                        Box(
+                            modifier =
+                                Modifier
+                                    .offset(x = (index * 20).dp)
+                                    .zIndex((displayUsers.size - index).toFloat())
+                                    .size(avatarSize)
+                                    .border(2.dp, PlatformTheme.colorScheme.card, CircleShape)
+                                    .clip(CircleShape)
+                                    .clickable {
+                                        user.onClicked.invoke(
+                                            ClickContext(
+                                                launcher = { uriHandler.openUri(it) },
+                                            ),
+                                        )
+                                    },
+                        ) {
+                            AvatarComponent(
+                                data = user.avatar,
+                                size = avatarSize,
+                            )
+                        }
+                    }
+                    if (overflowCount > 0) {
+                        Box(
+                            modifier =
+                                Modifier
+                                    .offset(x = (displayUsers.size * 20).dp)
+                                    .zIndex(0f)
+                                    .size(avatarSize)
+                                    .border(2.dp, PlatformTheme.colorScheme.card, CircleShape)
+                                    .clip(CircleShape)
+                                    .background(PlatformTheme.colorScheme.primaryContainer),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            PlatformText(
+                                text = "+$overflowCount",
+                                style = PlatformTheme.typography.caption.copy(fontWeight = FontWeight.Bold),
+                                color = PlatformTheme.colorScheme.onPrimaryContainer,
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Origin platform signature badge (Twitter, Bluesky, Mastodon, Instagram, LinkedIn)
+            NetworkBadge(
+                platformId = platformId,
+                host = host,
+                badgeSize = 18.dp,
+            )
+        }
+
         data.message?.let { message ->
             TopMessageComponent(
                 data = message,
                 topMessageOnly = false,
                 modifier =
                     Modifier
-                        .fillMaxWidth()
-                        .padding(),
+                        .fillMaxWidth(),
             )
         }
-        LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            items(data.users.size) {
-                val user = data.users[it]
-                PlatformCard(
-                    modifier = Modifier.width(256.dp),
-                ) {
-                    CommonStatusHeaderComponent(
-                        data = user,
-                        onUserClick = {
-                            user.onClicked.invoke(
-                                ClickContext(
-                                    launcher = {
-                                        uriHandler.openUri(it)
-                                    },
-                                ),
-                            )
-                        },
-                        modifier = Modifier.padding(8.dp),
-                    )
-                }
-            }
-        }
+
         val status = data.post
         if (status != null) {
             CompositionLocalProvider(
                 LocalTimelineAppearance provides
-                    LocalTimelineAppearance.current.copy(
+                    appearance.copy(
                         postActionStyle = PostActionStyle.Hidden,
                     ),
             ) {

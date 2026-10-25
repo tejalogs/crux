@@ -18,6 +18,8 @@ public data class LinkedInFeedMetadata(
 public data class LinkedInUpdate(
     val id: String = "",
     val urn: String? = null,
+    val entityUrn: String? = null,
+    val trackingUrn: String? = null,
     val actor: LinkedInActor? = null,
     val commentary: LinkedInCommentary? = null,
     val created: LinkedInTimestamp? = null,
@@ -26,6 +28,8 @@ public data class LinkedInUpdate(
     val resharedUpdate: LinkedInUpdate? = null,
     val isSponsored: Boolean? = null,
     val permalink: String? = null,
+    val title: LinkedInText? = null,
+    val header: LinkedInText? = null,
 )
 
 @Serializable
@@ -36,8 +40,12 @@ public data class LinkedInTimestamp(
 @Serializable
 public data class LinkedInActor(
     val urn: String? = null,
+    val entityUrn: String? = null,
     val name: LinkedInText? = null,
+    val title: LinkedInText? = null,
     val description: LinkedInText? = null, // Professional headline (e.g. "Software Engineer at Google")
+    val subtitle: LinkedInText? = null,
+    val headline: LinkedInText? = null,
     val subDescription: LinkedInText? = null, // Relative timestamp
     val navigationUrl: String? = null,
     val image: LinkedInImageAttributes? = null,
@@ -56,6 +64,8 @@ public data class LinkedInCommentary(
 @Serializable
 public data class LinkedInImageAttributes(
     val attributes: List<LinkedInImageDetail> = emptyList(),
+    val url: String? = null,
+    val sourceWebImageUrl: String? = null,
 )
 
 @Serializable
@@ -95,6 +105,42 @@ public data class LinkedInContent(
     val imagesComponent: LinkedInMultiImagesComponent? = null,
     val videoComponent: LinkedInVideoComponent? = null,
     val entityComponent: LinkedInEntityComponent? = null,
+    val documentComponent: LinkedInDocumentComponent? = null,
+    val pollComponent: LinkedInPollComponent? = null,
+    val mediaComponent: LinkedInMediaComponent? = null,
+)
+
+@Serializable
+public data class LinkedInDocumentComponent(
+    val title: String? = null,
+    val totalPageCount: Int? = null,
+    val downloadUrl: String? = null,
+    val navigationUrl: String? = null,
+    val thumbnail: String? = null,
+)
+
+@Serializable
+public data class LinkedInPollComponent(
+    val question: LinkedInText? = null,
+    val totalVotes: Long? = null,
+    val pollStatus: String? = null,
+    val options: List<LinkedInPollOption> = emptyList(),
+)
+
+@Serializable
+public data class LinkedInPollOption(
+    val optionText: LinkedInText? = null,
+    val votePercentage: Int? = null,
+    val voteCount: Long? = null,
+)
+
+@Serializable
+public data class LinkedInMediaComponent(
+    val title: LinkedInText? = null,
+    val subtitle: LinkedInText? = null,
+    val navigationUrl: String? = null,
+    val thumbnail: String? = null,
+    val url: String? = null,
 )
 
 @Serializable
