@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Pure White Silhouette with Negative Space Refraction Cuts -->
+    <!-- Left Wing -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M48.5,83.2C38.2,82.5 28.5,73.8 28.5,61.2C28.5,49.5 36.8,40.8 45.2,31.5C45.6,40.8 41.2,48.6 41.2,57.5C41.2,66.8 46.2,73.2 53.5,76.5C51.6,79.2 50.1,82.5 48.5,83.2Z"/>
+    <!-- Right Wing -->
+    <path
+        android:fillColor="#D9FFFFFF"
+        android:pathData="M53.5,76.5C65.2,73.5 79.5,64.2 79.5,52.2C79.5,42.5 71.8,37.8 65.5,32.2C68.2,38.5 70.2,45.8 67.5,52.2C64.2,59.5 56.5,63.5 48.5,68.2C50.8,71.5 52.5,74.2 53.5,76.5Z"/>
+    <!-- Central Core -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M46.2,77.5C44.2,66.8 47.2,57.5 52.2,46.8C54.8,41.5 55.8,35.5 53.8,27.5C57.5,35.5 62.5,44.8 60.5,55.5C58.5,64.2 51.5,71.8 46.2,77.5Z"/>
+    <!-- Apex -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M53.8,27.5C53.2,31.8 51.2,37.5 49.2,43.2C51.5,41.8 54.2,41.2 56.2,42.8C56.8,38.5 55.8,32.5 53.8,27.5Z"/>
+</vector>
