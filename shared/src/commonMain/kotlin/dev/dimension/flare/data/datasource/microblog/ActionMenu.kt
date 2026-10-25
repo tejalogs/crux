@@ -175,7 +175,6 @@ public sealed class ActionMenu {
                     ShowOriginal,
                     Favorite,
                     UnFavorite,
-                    OmniScribe,
                     SmartReply,
                 }
             }

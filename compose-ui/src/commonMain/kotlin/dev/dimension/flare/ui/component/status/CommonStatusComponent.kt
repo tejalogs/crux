@@ -103,7 +103,6 @@ import dev.dimension.flare.compose.ui.share
 import dev.dimension.flare.compose.ui.show_media
 import dev.dimension.flare.compose.ui.status_detail_tldr
 import dev.dimension.flare.compose.ui.status_detail_translate
-import dev.dimension.flare.compose.ui.status_remix_scribe
 import dev.dimension.flare.compose.ui.status_smart_reply_gemma
 import dev.dimension.flare.compose.ui.status_open_post
 import dev.dimension.flare.compose.ui.status_platform
@@ -1342,7 +1341,6 @@ private fun ActionMenu.Item.Text.asString(): String =
                     ActionMenu.Item.Text.Localized.Type.ShowOriginal -> Res.string.translation_show_original
                     ActionMenu.Item.Text.Localized.Type.Favorite -> Res.string.favourite
                     ActionMenu.Item.Text.Localized.Type.UnFavorite -> Res.string.unfavourite
-                    ActionMenu.Item.Text.Localized.Type.OmniScribe -> Res.string.status_remix_scribe
                     ActionMenu.Item.Text.Localized.Type.SmartReply -> Res.string.status_smart_reply_gemma
                 }
             stringResource(resource, *parameters.toTypedArray())

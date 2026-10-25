@@ -26,6 +26,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -58,6 +59,7 @@ import compose.icons.fontawesomeicons.solid.Question
 import compose.icons.fontawesomeicons.solid.Reply
 import compose.icons.fontawesomeicons.solid.ScaleBalanced
 import compose.icons.fontawesomeicons.solid.WandMagicSparkles
+import compose.icons.fontawesomeicons.solid.Xmark
 import dev.dimension.flare.data.ai.scribe.SmartReplyAngle
 import dev.dimension.flare.data.ai.scribe.SmartReplyEngine
 import dev.dimension.flare.data.ai.scribe.SmartReplyResult
@@ -66,8 +68,13 @@ import dev.dimension.flare.model.MicroBlogKey
 import dev.dimension.flare.ui.component.FAIcon
 import dev.dimension.flare.ui.haptic.FlareHapticEvent
 import dev.dimension.flare.ui.haptic.rememberFlareHapticFeedback
+import dev.dimension.flare.ui.model.takeSuccess
+import dev.dimension.flare.ui.presenter.invoke
+import dev.dimension.flare.ui.presenter.settings.AccountsPresenter
 import dev.dimension.flare.ui.route.Route
+import dev.dimension.flare.ui.theme.screenHorizontalPadding
 import kotlinx.coroutines.launch
+import moe.tlaster.precompose.molecule.producePresenter
 
 /**
  * Contextual Smart Reply bottom sheet powered by on-device Gemma AI.
@@ -102,6 +109,10 @@ internal fun SmartReplyBottomSheet(
         )
     }
 
+    val accountsState by producePresenter {
+        remember { AccountsPresenter() }.invoke()
+    }
+
     val currentOption = replyResult.options.firstOrNull { it.angle == selectedAngle }
         ?: replyResult.options.first()
 
@@ -109,67 +120,54 @@ internal fun SmartReplyBottomSheet(
         mutableStateOf(currentOption.replyText)
     }
 
-    Surface(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .navigationBarsPadding(),
-        color = MaterialTheme.colorScheme.surface,
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+            .padding(horizontal = screenHorizontalPadding)
+            .navigationBarsPadding()
+            .padding(bottom = 24.dp)
+            .verticalScroll(rememberScrollState()),
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 16.dp)
-                .verticalScroll(rememberScrollState()),
+        Spacer(modifier = Modifier.height(6.dp))
+
+        // Studio Header
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            // Drag Handle Bar
-            Box(
-                modifier = Modifier
-                    .size(width = 36.dp, height = 4.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
-                    .align(Alignment.CenterHorizontally),
-            )
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // Studio Header
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(34.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primaryContainer),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        FAIcon(
-                            imageVector = FontAwesomeIcons.Solid.WandMagicSparkles,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(16.dp),
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column {
-                        Text(
-                            text = "Smart Reply with Gemma",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                        )
-                        Text(
-                            text = "On-Device Contextual Co-Pilot • Zero Egress",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 11.sp,
-                        )
-                    }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primaryContainer),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    FAIcon(
+                        imageVector = FontAwesomeIcons.Solid.WandMagicSparkles,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(16.dp),
+                    )
                 }
+                Spacer(modifier = Modifier.width(10.dp))
+                Column {
+                    Text(
+                        text = "Smart Reply with Gemma",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(
+                        text = "On-Device Contextual Co-Pilot • Zero Egress",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 11.sp,
+                    )
+                }
+            }
 
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 // Theme badge
                 Surface(
                     shape = RoundedCornerShape(8.dp),
@@ -184,12 +182,22 @@ internal fun SmartReplyBottomSheet(
                         fontSize = 10.sp,
                     )
                 }
+                Spacer(modifier = Modifier.width(6.dp))
+                IconButton(onClick = onBack) {
+                    FAIcon(
+                        imageVector = FontAwesomeIcons.Solid.Xmark,
+                        contentDescription = "Close",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
             }
+        }
 
-            Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
-            // Source Post Context Card
-            Surface(
+        // Source Post Context Card
+        Surface(
                 modifier = Modifier
                     .fillMaxWidth()
                     .border(
@@ -376,8 +384,10 @@ internal fun SmartReplyBottomSheet(
                 Button(
                     onClick = {
                         haptic.perform(FlareHapticEvent.Confirm)
+                        val accKey = (accountType as? AccountType.Specific)?.accountKey
+                            ?: accountsState.accounts.takeSuccess()?.firstOrNull()?.account?.accountKey
+                            ?: statusKey
                         onBack()
-                        val accKey = (accountType as? AccountType.Specific)?.accountKey ?: statusKey
                         navigate(
                             Route.Compose.Reply(
                                 accountKey = accKey,
@@ -408,5 +418,4 @@ internal fun SmartReplyBottomSheet(
 
             Spacer(modifier = Modifier.height(10.dp))
         }
-    }
 }

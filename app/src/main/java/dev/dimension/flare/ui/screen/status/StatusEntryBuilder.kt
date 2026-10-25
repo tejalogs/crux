@@ -152,7 +152,7 @@ internal fun EntryProviderScope<NavKey>.statusEntryBuilder(
 
     entry<Route.Status.SmartReply>(
         metadata = BottomSheetSceneStrategy.bottomSheet(
-            expandFully = false,
+            expandFully = true,
         )
     ) { args ->
         SmartReplyBottomSheet(

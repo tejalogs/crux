@@ -44,6 +44,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -82,26 +83,35 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import compose.icons.FontAwesomeIcons
 import compose.icons.fontawesomeicons.Solid
+import compose.icons.fontawesomeicons.solid.Bolt
 import compose.icons.fontawesomeicons.solid.FaceSmile
 import compose.icons.fontawesomeicons.solid.Image
+import compose.icons.fontawesomeicons.solid.Lightbulb
 import compose.icons.fontawesomeicons.solid.PaperPlane
 import compose.icons.fontawesomeicons.solid.Plus
+import compose.icons.fontawesomeicons.solid.Question
+import compose.icons.fontawesomeicons.solid.ScaleBalanced
 import compose.icons.fontawesomeicons.solid.SquarePollHorizontal
 import compose.icons.fontawesomeicons.solid.TriangleExclamation
+import compose.icons.fontawesomeicons.solid.WandMagicSparkles
 import compose.icons.fontawesomeicons.solid.Xmark
 import dev.dimension.flare.R
 import dev.dimension.flare.common.FileItem
 import dev.dimension.flare.common.InAppNotification
 import dev.dimension.flare.common.Message
+import dev.dimension.flare.data.ai.scribe.SmartReplyAngle
+import dev.dimension.flare.data.ai.scribe.SmartReplyEngine
 import dev.dimension.flare.data.datasource.microblog.ComposeConfig
 import dev.dimension.flare.data.datasource.microblog.ComposeData
 import dev.dimension.flare.data.model.PostActionStyle
@@ -116,6 +126,8 @@ import dev.dimension.flare.ui.component.NetworkImage
 import dev.dimension.flare.ui.component.status.CommonStatusComponent
 import dev.dimension.flare.ui.component.status.StatusVisibilityComponent
 import dev.dimension.flare.ui.component.toImageVector
+import dev.dimension.flare.ui.haptic.FlareHapticEvent
+import dev.dimension.flare.ui.haptic.rememberFlareHapticFeedback
 import dev.dimension.flare.ui.model.UiEmoji
 import dev.dimension.flare.ui.model.UiProfile
 import dev.dimension.flare.ui.model.UiState
@@ -743,8 +755,8 @@ internal fun ComposeScreen(
             }
 
             state.state.replyState?.let { replyState ->
-                replyState.onSuccess { state ->
-                    val content = state.contentPostOrNull()
+                replyState.onSuccess { replyItemState ->
+                    val content = replyItemState.contentPostOrNull()
                     if (content != null) {
                         Card(
                             modifier = Modifier.padding(horizontal = screenHorizontalPadding),
@@ -770,6 +782,22 @@ internal fun ComposeScreen(
                                     isClickable = false,
                                 )
                             }
+                        }
+
+                        val parentRawText = content.content.original.raw.ifBlank { content.content.translation?.raw.orEmpty() }
+                        if (parentRawText.isNotBlank()) {
+                            SmartReplyComposerChipsBar(
+                                parentText = parentRawText,
+                                authorName = content.user?.name?.raw.orEmpty(),
+                                authorHandle = content.user?.handle?.canonical.orEmpty(),
+                                onSelectReply = { replyDraft ->
+                                    state.textFieldState.edit {
+                                        delete(0, length)
+                                        append(replyDraft)
+                                        selection = TextRange(length)
+                                    }
+                                },
+                            )
                         }
                     }
                 }
@@ -1644,3 +1672,106 @@ internal val UiTimelineV2.Post.Visibility.localDescription: Int
                 R.string.misskey_visibility_public_description
             }
         }
+
+@Composable
+private fun SmartReplyComposerChipsBar(
+    parentText: String,
+    authorName: String,
+    authorHandle: String,
+    onSelectReply: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val haptic = rememberFlareHapticFeedback(true)
+    var selectedAngle by remember { mutableStateOf<SmartReplyAngle?>(null) }
+    val replyResult = remember(parentText, authorName, authorHandle) {
+        SmartReplyEngine.generateReplies(
+            postText = parentText,
+            authorName = authorName,
+            authorHandle = authorHandle,
+        )
+    }
+
+    Column(
+        modifier = modifier
+            .padding(horizontal = screenHorizontalPadding)
+            .padding(top = 8.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                FAIcon(
+                    imageVector = FontAwesomeIcons.Solid.WandMagicSparkles,
+                    contentDescription = null,
+                    modifier = Modifier.size(12.dp),
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+                Text(
+                    text = "Gemma Smart Reply",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    letterSpacing = 0.5.sp,
+                )
+            }
+            Text(
+                text = replyResult.detectedTheme,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 10.sp,
+            )
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            replyResult.options.forEach { option ->
+                val isSelected = selectedAngle == option.angle
+                val icon = when (option.angle) {
+                    SmartReplyAngle.Insight -> FontAwesomeIcons.Solid.Lightbulb
+                    SmartReplyAngle.Question -> FontAwesomeIcons.Solid.Question
+                    SmartReplyAngle.Counterpoint -> FontAwesomeIcons.Solid.ScaleBalanced
+                    SmartReplyAngle.Punchy -> FontAwesomeIcons.Solid.Bolt
+                }
+
+                FilterChip(
+                    selected = isSelected,
+                    onClick = {
+                        haptic.perform(FlareHapticEvent.SelectionChange)
+                        selectedAngle = option.angle
+                        onSelectReply(option.replyText)
+                    },
+                    label = {
+                        Text(
+                            text = option.angle.displayName,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                        )
+                    },
+                    leadingIcon = {
+                        FAIcon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            modifier = Modifier.size(11.dp),
+                            tint = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    ),
+                )
+            }
+        }
+    }
+}

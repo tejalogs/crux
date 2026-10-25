@@ -170,12 +170,12 @@ internal fun UiTimelineV2.applyTranslation(
                         } ?: contentWarning
                 val translatedActions = actions
                     .withTranslationMenuAction(menuAction, accountType, statusKey)
-                    .withOmniScribeMenuAction(
+                    .withSmartReplyMenuAction(
                         accountType = accountType,
                         statusKey = statusKey,
                         authorName = user?.name?.raw.orEmpty(),
                         authorHandle = user?.handle?.raw.orEmpty(),
-                        postText = content.original.raw,
+                        postText = content.original.raw.ifBlank { content.translation?.raw.orEmpty() },
                     )
                 if (
                     translatedContent === content &&
@@ -528,12 +528,12 @@ private fun ActionMenu.isTranslationAction(): Boolean {
         localized?.type == ActionMenu.Item.Text.Localized.Type.ShowOriginal
 }
 
-private fun ActionMenu.isOmniScribeAction(): Boolean {
+private fun ActionMenu.isSmartReplyAction(): Boolean {
     val localized = (this as? ActionMenu.Item)?.text as? ActionMenu.Item.Text.Localized
-    return localized?.type == ActionMenu.Item.Text.Localized.Type.OmniScribe
+    return localized?.type == ActionMenu.Item.Text.Localized.Type.SmartReply
 }
 
-private fun kotlinx.collections.immutable.ImmutableList<ActionMenu>.withOmniScribeMenuAction(
+private fun kotlinx.collections.immutable.ImmutableList<ActionMenu>.withSmartReplyMenuAction(
     accountType: dev.dimension.flare.model.AccountType,
     statusKey: dev.dimension.flare.model.MicroBlogKey,
     authorName: String,
@@ -546,7 +546,7 @@ private fun kotlinx.collections.immutable.ImmutableList<ActionMenu>.withOmniScri
     val mapped =
         map { menu ->
             menu
-                .prependOmniScribeAction(
+                .prependSmartReplyAction(
                     accountKey = accountType.accountKey,
                     statusKey = statusKey,
                     authorName = authorName,
@@ -557,7 +557,7 @@ private fun kotlinx.collections.immutable.ImmutableList<ActionMenu>.withOmniScri
     return if (!changed) this else mapped.toPersistentList()
 }
 
-private fun ActionMenu.prependOmniScribeAction(
+private fun ActionMenu.prependSmartReplyAction(
     accountKey: dev.dimension.flare.model.MicroBlogKey,
     statusKey: dev.dimension.flare.model.MicroBlogKey,
     authorName: String,
@@ -567,12 +567,12 @@ private fun ActionMenu.prependOmniScribeAction(
     when (this) {
         is ActionMenu.Group -> {
             if (displayItem.text.isMoreMenuText()) {
-                val omniAction =
+                val smartReplyAction =
                     ActionMenu.Item(
-                        text = ActionMenu.Item.Text.Localized(ActionMenu.Item.Text.Localized.Type.OmniScribe),
+                        text = ActionMenu.Item.Text.Localized(ActionMenu.Item.Text.Localized.Type.SmartReply),
                         clickEvent =
                             ClickEvent.Deeplink(
-                                DeeplinkRoute.Status.OmniScribe(
+                                DeeplinkRoute.Status.SmartReply(
                                     statusKey = statusKey,
                                     accountType = AccountType.Specific(accountKey),
                                     initialText = postText,
@@ -580,16 +580,16 @@ private fun ActionMenu.prependOmniScribeAction(
                                     authorHandle = authorHandle,
                                 ),
                             ),
-                        icon = UiIcon.Edit,
-                        actionFamily = PostActionFamily.Share,
+                        icon = UiIcon.Reply,
+                        actionFamily = PostActionFamily.Reply,
                     )
-                if (actions.any { it.isOmniScribeAction() }) {
+                if (actions.any { it.isSmartReplyAction() }) {
                     this
                 } else {
                     val translationIndex = actions.indexOfFirst { it.isTranslationAction() }
                     val insertIndex = if (translationIndex >= 0) translationIndex + 1 else 0
                     val mutable = actions.toMutableList()
-                    mutable.add(insertIndex.coerceAtMost(mutable.size), omniAction)
+                    mutable.add(insertIndex.coerceAtMost(mutable.size), smartReplyAction)
                     copy(
                         actions = mutable.toPersistentList(),
                     )
