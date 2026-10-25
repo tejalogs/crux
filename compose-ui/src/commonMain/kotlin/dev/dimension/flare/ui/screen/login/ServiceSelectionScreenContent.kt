@@ -36,6 +36,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.LinkAnnotation
@@ -50,6 +51,7 @@ import compose.icons.FontAwesomeIcons
 import compose.icons.fontawesomeicons.Brands
 import compose.icons.fontawesomeicons.Solid
 import compose.icons.fontawesomeicons.brands.Instagram
+import compose.icons.fontawesomeicons.brands.LinkedinIn
 import compose.icons.fontawesomeicons.solid.CircleQuestion
 import compose.icons.fontawesomeicons.solid.MagnifyingGlass
 import compose.icons.fontawesomeicons.solid.Xmark
@@ -125,6 +127,7 @@ public fun ServiceSelectionScreenContent(
     contentPadding: PaddingValues,
     listState: LazyStaggeredGridState = rememberLazyStaggeredGridState(),
     onToInstagramWeb: (() -> Unit)? = null,
+    onToLinkedInWeb: (() -> Unit)? = null,
 ) {
     val state by producePresenter {
         remember { SelectionPresenter(onBack) }.body()
@@ -330,6 +333,46 @@ public fun ServiceSelectionScreenContent(
                             }
                             PlatformButton(
                                 onClick = { onToInstagramWeb.invoke() },
+                            ) {
+                                PlatformText(text = "Connect")
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (onToLinkedInWeb != null) {
+                item(span = StaggeredGridItemSpan.FullLine) {
+                    AdaptiveCard(
+                        modifier = Modifier.padding(horizontal = screenHorizontalPadding),
+                    ) {
+                        Row(
+                            modifier =
+                                Modifier
+                                    .clickable { onToLinkedInWeb.invoke() }
+                                    .fillMaxWidth()
+                                    .padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(14.dp),
+                        ) {
+                            FAIcon(
+                                imageVector = FontAwesomeIcons.Brands.LinkedinIn,
+                                contentDescription = "LinkedIn",
+                                tint = Color(0xFF0A66C2),
+                                modifier = Modifier.size(28.dp),
+                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                PlatformText(
+                                    text = "LinkedIn (Web)",
+                                    style = PlatformTheme.typography.title,
+                                )
+                                PlatformText(
+                                    text = "Isolated privacy sandbox with ad & tracking shield",
+                                    style = PlatformTheme.typography.caption,
+                                )
+                            }
+                            PlatformButton(
+                                onClick = { onToLinkedInWeb.invoke() },
                             ) {
                                 PlatformText(text = "Connect")
                             }

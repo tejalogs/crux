@@ -240,6 +240,11 @@ internal sealed interface Route : NavKey {
     ) : Route
 
     @Serializable
+    data class LinkedInWeb(
+        val initialUrl: String? = null,
+    ) : Route
+
+    @Serializable
     data object ReadingList : Route
 
     @Serializable

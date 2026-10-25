@@ -21,6 +21,7 @@ import dev.dimension.flare.ui.screen.login.ServiceSelectionScreenContent
 internal fun ServiceSelectScreen(
     onWebViewLogin: (url: String, cookieCallback: (cookies: String?) -> Boolean) -> Unit,
     onToInstagramWeb: () -> Unit = {},
+    onToLinkedInWeb: () -> Unit = {},
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -44,6 +45,7 @@ internal fun ServiceSelectScreen(
         ServiceSelectionScreenContent(
             onWebViewLogin = onWebViewLogin,
             onToInstagramWeb = onToInstagramWeb,
+            onToLinkedInWeb = onToLinkedInWeb,
             contentPadding = contentPadding,
             openUri = uriHandler::openUri,
             registerDeeplinkCallback = { callback ->

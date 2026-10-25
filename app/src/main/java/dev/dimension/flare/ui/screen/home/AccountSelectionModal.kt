@@ -30,6 +30,7 @@ import compose.icons.FontAwesomeIcons
 import compose.icons.fontawesomeicons.Brands
 import compose.icons.fontawesomeicons.Solid
 import compose.icons.fontawesomeicons.brands.Instagram
+import compose.icons.fontawesomeicons.brands.LinkedinIn
 import compose.icons.fontawesomeicons.solid.ArrowUpRightFromSquare
 import dev.dimension.flare.R
 import dev.dimension.flare.ui.component.FAIcon
@@ -136,6 +137,60 @@ internal fun AccountSelectionModal(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "Instagram (Web)",
+                        style = MaterialTheme.typography.titleSmall,
+                    )
+                    Text(
+                        text = "Sandboxed session with ad & privacy shield",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                FAIcon(
+                    imageVector = FontAwesomeIcons.Solid.ArrowUpRightFromSquare,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(14.dp),
+                )
+            }
+        }
+
+        OutlinedCard(
+            onClick = {
+                onBack.invoke()
+                navigate(Route.LinkedInWeb())
+            },
+            modifier = Modifier.fillMaxWidth(),
+            colors =
+                CardDefaults.outlinedCardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                ),
+        ) {
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                Box(
+                    modifier =
+                        Modifier
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF0A66C2)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    FAIcon(
+                        imageVector = FontAwesomeIcons.Brands.LinkedinIn,
+                        contentDescription = "LinkedIn",
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "LinkedIn (Web)",
                         style = MaterialTheme.typography.titleSmall,
                     )
                     Text(

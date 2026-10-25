@@ -19,6 +19,7 @@ import compose.icons.fontawesomeicons.Brands
 import compose.icons.fontawesomeicons.Solid
 import compose.icons.fontawesomeicons.brands.Bluesky
 import compose.icons.fontawesomeicons.brands.Instagram
+import compose.icons.fontawesomeicons.brands.LinkedinIn
 import compose.icons.fontawesomeicons.brands.Mastodon
 import compose.icons.fontawesomeicons.brands.Pixiv
 import compose.icons.fontawesomeicons.brands.Threads
@@ -39,6 +40,7 @@ public object NetworkBadgeDefaults {
         return when {
             platform.contains("bluesky") || h.contains("bsky") -> Color(0xFF0085FF)
             platform.contains("instagram") || h.contains("instagram.com") -> Color(0xFFE1306C)
+            platform.contains("linkedin") || h.contains("linkedin.com") -> Color(0xFF0A66C2)
             platform.contains("threads") || h.contains("threads.net") -> Color(0xFF101010)
             platform.contains("pixelfed") || h.contains("pixelfed") -> Color(0xFF6366F1)
             platform.contains("mastodon") || h.contains("mastodon") -> Color(0xFF6364FF)
@@ -78,6 +80,7 @@ public object NetworkBadgeDefaults {
         return when {
             platform.contains("bluesky") || h.contains("bsky") -> FontAwesomeIcons.Brands.Bluesky
             platform.contains("instagram") || h.contains("instagram.com") -> FontAwesomeIcons.Brands.Instagram
+            platform.contains("linkedin") || h.contains("linkedin.com") -> FontAwesomeIcons.Brands.LinkedinIn
             platform.contains("threads") || h.contains("threads.net") -> FontAwesomeIcons.Brands.Threads
             platform.contains("pixelfed") || h.contains("pixelfed") -> FontAwesomeIcons.Solid.Camera
             platform.contains("mastodon") || h.contains("mastodon") -> FontAwesomeIcons.Brands.Mastodon

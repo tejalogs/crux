@@ -7,6 +7,7 @@ import compose.icons.fontawesomeicons.Regular
 import compose.icons.fontawesomeicons.Solid
 import compose.icons.fontawesomeicons.brands.Bluesky
 import compose.icons.fontawesomeicons.brands.Instagram
+import compose.icons.fontawesomeicons.brands.LinkedinIn
 import compose.icons.fontawesomeicons.brands.Mastodon
 import compose.icons.fontawesomeicons.brands.Pixiv
 import compose.icons.fontawesomeicons.brands.Threads
@@ -116,4 +117,5 @@ public fun UiIcon.toImageVector(): ImageVector =
         UiIcon.Pixelfed -> FontAwesomeIcons.Solid.Camera
         UiIcon.Instagram -> FontAwesomeIcons.Brands.Instagram
         UiIcon.Threads -> FontAwesomeIcons.Brands.Threads
+        UiIcon.LinkedIn -> FontAwesomeIcons.Brands.LinkedinIn
     }

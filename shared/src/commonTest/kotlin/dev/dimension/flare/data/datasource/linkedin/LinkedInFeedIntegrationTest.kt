@@ -1,0 +1,223 @@
+package dev.dimension.flare.data.datasource.linkedin
+
+import dev.dimension.flare.data.datasource.microblog.paging.PagingRequest
+import dev.dimension.flare.data.platform.LinkedInCredential
+import dev.dimension.flare.data.platform.LinkedInPlatformSpec
+import dev.dimension.flare.model.MicroBlogKey
+import dev.dimension.flare.ui.model.UiIcon
+import dev.dimension.flare.ui.model.UiMedia
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.mock.MockEngine
+import io.ktor.client.engine.mock.respond
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.headersOf
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.runTest
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+
+class LinkedInFeedIntegrationTest {
+
+    private val accountKey = MicroBlogKey(id = "li_user_123", host = "linkedin.com")
+
+    @Test
+    fun extractsCsrfAndUserIdFromCookiesCorrectly() {
+        val cookies = "bcookie=\"v=2\"; JSESSIONID=\"ajax:9876543210\"; li_at=AQEDATejaSessionToken12345; lang=v=2"
+        assertEquals("ajax:9876543210", LinkedInFeedService.extractCsrfToken(cookies))
+        assertNotNull(LinkedInFeedService.extractUserId(cookies))
+        assertTrue(LinkedInFeedService.hasActiveSession(cookies))
+
+        val incompleteCookies = "bcookie=\"v=2\"; lang=v=2"
+        assertFalse(LinkedInFeedService.hasActiveSession(incompleteCookies))
+    }
+
+    @Test
+    fun mapsSinglePostWithCommentaryAndAuthorCorrectly() {
+        val update = LinkedInUpdate(
+            id = "urn:li:activity:7123456789",
+            actor = LinkedInActor(
+                urn = "urn:li:member:998877",
+                name = LinkedInText(text = "Satya Nadella"),
+                description = LinkedInText(text = "Chairman and CEO at Microsoft"),
+                navigationUrl = "https://www.linkedin.com/in/satyanadella",
+                image = LinkedInImageAttributes(
+                    attributes = listOf(
+                        LinkedInImageDetail(
+                            sourceWebImageUrl = "https://media.licdn.com/dms/image/satya.jpg",
+                        )
+                    )
+                ),
+            ),
+            commentary = LinkedInCommentary(
+                text = LinkedInText(text = "Excited about our new AI advancements and partner ecosystem!"),
+            ),
+            content = LinkedInContent(
+                imageComponent = LinkedInImageComponent(
+                    url = "https://media.licdn.com/dms/image/keynote.jpg",
+                    width = 1200,
+                    height = 630,
+                    altText = "Keynote photo",
+                ),
+            ),
+            socialDetail = LinkedInSocialDetail(
+                totalSocialActivityCounts = LinkedInSocialCounts(
+                    numLikes = 15200L,
+                    numComments = 840L,
+                    numShares = 412L,
+                ),
+                reactions = LinkedInReactions(
+                    hasLiked = true,
+                ),
+            ),
+        )
+
+        val rendered = LinkedInTimelineMapper.render(update, accountKey)
+        assertNotNull(rendered)
+
+        val post = rendered.post
+        assertEquals("linkedin", post.platformId)
+        assertEquals(UiIcon.LinkedIn, post.platformIcon)
+        assertEquals("Satya Nadella", post.user?.name?.innerText)
+        assertEquals("Chairman and CEO at Microsoft", post.user?.handle?.normalizedRaw)
+        assertEquals("https://media.licdn.com/dms/image/satya.jpg", post.user?.avatar?.url)
+        assertEquals(MicroBlogKey(id = "urn:li:activity:7123456789", host = "linkedin.com"), post.statusKey)
+        assertEquals("Excited about our new AI advancements and partner ecosystem!", post.content.original.innerText)
+
+        assertEquals(1, post.images.size)
+        val image = post.images[0] as UiMedia.Image
+        assertEquals("https://media.licdn.com/dms/image/keynote.jpg", image.url)
+
+        assertEquals(3, post.actions.size)
+    }
+
+    @Test
+    fun mapsArticleCardCorrectly() {
+        val update = LinkedInUpdate(
+            id = "urn:li:activity:7199999999",
+            actor = LinkedInActor(
+                name = LinkedInText(text = "Tech Lead"),
+            ),
+            content = LinkedInContent(
+                articleComponent = LinkedInArticleComponent(
+                    title = "Building Scalable Kotlin Multiplatform Social Apps",
+                    subtitle = "A deep dive into sovereign, privacy-preserving client architecture.",
+                    navigationUrl = "https://blog.example.com/kmp-social-hub",
+                    thumbnail = "https://blog.example.com/thumb.jpg",
+                ),
+            ),
+        )
+
+        val rendered = LinkedInTimelineMapper.render(update, accountKey)
+        assertNotNull(rendered)
+        val card = rendered.post.card
+        assertNotNull(card)
+        assertEquals("Building Scalable Kotlin Multiplatform Social Apps", card.title)
+        assertEquals("A deep dive into sovereign, privacy-preserving client architecture.", card.description)
+        assertEquals("https://blog.example.com/kmp-social-hub", card.url)
+    }
+
+    @Test
+    fun mapsResharedUpdateCorrectly() {
+        val original = LinkedInUpdate(
+            id = "urn:li:activity:111111",
+            actor = LinkedInActor(
+                name = LinkedInText(text = "Linus Torvalds"),
+                description = LinkedInText(text = "Linux Creator"),
+            ),
+            commentary = LinkedInCommentary(
+                text = LinkedInText(text = "Linux kernel 6.14 released!"),
+            ),
+        )
+
+        val repostUpdate = LinkedInUpdate(
+            id = "urn:li:activity:222222",
+            actor = LinkedInActor(
+                name = LinkedInText(text = "Open Source Advocate"),
+            ),
+            commentary = LinkedInCommentary(
+                text = LinkedInText(text = "Great news for developers."),
+            ),
+            resharedUpdate = original,
+        )
+
+        val rendered = LinkedInTimelineMapper.render(repostUpdate, accountKey)
+        assertNotNull(rendered)
+        assertEquals(1, rendered.presentation.quotes.size)
+        val quote = rendered.presentation.quotes[0]
+        assertEquals("Linus Torvalds", quote.user?.name?.innerText)
+        assertEquals("Linux kernel 6.14 released!", quote.content.original.innerText)
+    }
+
+    @Test
+    fun filtersOutSponsoredUpdates() {
+        val sponsored = LinkedInUpdate(
+            id = "ad_li_999",
+            actor = LinkedInActor(name = LinkedInText(text = "Sponsored Brand")),
+            isSponsored = true,
+        )
+        assertNull(LinkedInTimelineMapper.render(sponsored, accountKey))
+    }
+
+    @Test
+    fun remoteLoaderPaginatesWithMockEngine() = runTest {
+        val sampleJson = """
+            {
+              "elements": [
+                {
+                  "id": "li_update_1",
+                  "actor": {
+                    "urn": "urn:li:member:1",
+                    "name": { "text": "Alice Engineer" }
+                  },
+                  "commentary": {
+                    "text": { "text": "Hello LinkedIn from Prism!" }
+                  }
+                }
+              ],
+              "metadata": {
+                "paginationToken": "next_token_456",
+                "count": 1
+              }
+            }
+        """.trimIndent()
+
+        val mockEngine = MockEngine { _ ->
+            respond(
+                content = sampleJson,
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "application/json"),
+            )
+        }
+
+        val service = LinkedInFeedService(HttpClient(mockEngine))
+        val credentialFlow = flowOf(
+            LinkedInCredential(
+                cookies = "li_at=token123; JSESSIONID=\"ajax:456\"",
+                userId = "u_alice",
+            )
+        )
+
+        val loader = LinkedInHomeTimelineRemoteLoader(
+            service = service,
+            accountKey = accountKey,
+            credentialFlow = credentialFlow,
+        )
+
+        val result = loader.load(pageSize = 20, request = PagingRequest.Refresh)
+        assertEquals(1, result.data.size)
+        assertEquals("next_token_456", result.nextKey)
+    }
+
+    @Test
+    fun platformSpecHasCorrectMetadataAndId() {
+        assertEquals("linkedin", LinkedInPlatformSpec.platformId)
+        assertEquals("LinkedIn", LinkedInPlatformSpec.metadata.displayName)
+        assertEquals(UiIcon.LinkedIn, LinkedInPlatformSpec.metadata.icon)
+        assertEquals(1, LinkedInPlatformSpec.timelineSpecs.size)
+    }
+}

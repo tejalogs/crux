@@ -21,6 +21,9 @@ internal fun EntryProviderScope<NavKey>.serviceSelectEntryBuilder(
             onToInstagramWeb = {
                 navigate(Route.InstagramWeb())
             },
+            onToLinkedInWeb = {
+                navigate(Route.LinkedInWeb())
+            },
             onBack = onBack,
         )
     }

@@ -57,6 +57,7 @@ import compose.icons.FontAwesomeIcons
 import compose.icons.fontawesomeicons.Brands
 import compose.icons.fontawesomeicons.Solid
 import compose.icons.fontawesomeicons.brands.Instagram
+import compose.icons.fontawesomeicons.brands.LinkedinIn
 import compose.icons.fontawesomeicons.solid.Bars
 import compose.icons.fontawesomeicons.solid.Bell
 import compose.icons.fontawesomeicons.solid.Bookmark
@@ -322,6 +323,21 @@ internal fun HomeScreen(afterInit: () -> Unit) {
                             },
                             label = {
                                 Text(text = "Instagram (Web)")
+                            },
+                        )
+                        item(
+                            selected = currentRoute is Route.LinkedInWeb,
+                            onClick = {
+                                state.navigate(Route.LinkedInWeb())
+                            },
+                            icon = {
+                                FAIcon(
+                                    imageVector = FontAwesomeIcons.Brands.LinkedinIn,
+                                    contentDescription = "LinkedIn",
+                                )
+                            },
+                            label = {
+                                Text(text = "LinkedIn (Web)")
                             },
                         )
                         item(
@@ -638,6 +654,14 @@ private fun presenter(uriHandler: UriHandler) =
                                 wideNavigationRailState = wideNavigationRailState,
                                 scope = scope,
                             )
+                        } else if (isLinkedInUrl(linkUrl)) {
+                            navigate(
+                                route = Route.LinkedInWeb(initialUrl = linkUrl),
+                                topLevelBackStack = topLevelBackStack.takeSuccess(),
+                                topLevelRoutes = topLevelRoutes.takeSuccess(),
+                                wideNavigationRailState = wideNavigationRailState,
+                                scope = scope,
+                            )
                         } else {
                             currentUriHandler.value.openUri(linkUrl)
                         }
@@ -874,4 +898,12 @@ private fun isInstagramUrl(url: String): Boolean {
         clean.startsWith("https://www.instagram.com") ||
         clean.startsWith("http://instagram.com") ||
         clean.startsWith("http://www.instagram.com")
+}
+
+private fun isLinkedInUrl(url: String): Boolean {
+    val clean = url.trim().lowercase()
+    return clean.startsWith("https://linkedin.com") ||
+        clean.startsWith("https://www.linkedin.com") ||
+        clean.startsWith("http://linkedin.com") ||
+        clean.startsWith("http://www.linkedin.com")
 }

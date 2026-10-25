@@ -15,6 +15,7 @@ import dev.dimension.flare.ui.route.Route
 import dev.dimension.flare.ui.screen.agent.AgentChatScreen
 import dev.dimension.flare.ui.screen.agent.LocalHistoryAgentScreen
 import dev.dimension.flare.ui.screen.instagram.InstagramWebScreen
+import dev.dimension.flare.ui.screen.linkedin.LinkedInWebScreen
 import dev.dimension.flare.ui.screen.readinglist.ReadingListScreen
 import kotlin.time.Clock
 
@@ -150,6 +151,15 @@ internal fun EntryProviderScope<NavKey>.homeEntryBuilder(
             onNavigateToRss = { rssUrl ->
                 navigate(Route.Rss.Create(initialUrl = rssUrl))
             },
+        )
+    }
+
+    entry<Route.LinkedInWeb>(
+        metadata = ListDetailSceneStrategy.detailPane("linkedin_web"),
+    ) { args ->
+        LinkedInWebScreen(
+            onBack = onBack,
+            initialUrl = args.initialUrl,
         )
     }
 

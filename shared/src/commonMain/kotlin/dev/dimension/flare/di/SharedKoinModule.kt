@@ -1,6 +1,7 @@
 package dev.dimension.flare.di
 
 import dev.dimension.flare.data.platform.InstagramPlatformSpec
+import dev.dimension.flare.data.platform.LinkedInPlatformSpec
 import dev.dimension.flare.model.PlatformSpec
 import org.koin.core.annotation.ComponentScan
 import org.koin.core.annotation.Configuration
@@ -15,4 +16,7 @@ import kotlin.native.HiddenFromObjC
 internal class SharedKoinModule {
     @Single(binds = [PlatformSpec::class])
     fun instagramPlatformSpec(): InstagramPlatformSpec = InstagramPlatformSpec
+
+    @Single(binds = [PlatformSpec::class])
+    fun linkedInPlatformSpec(): LinkedInPlatformSpec = LinkedInPlatformSpec
 }
