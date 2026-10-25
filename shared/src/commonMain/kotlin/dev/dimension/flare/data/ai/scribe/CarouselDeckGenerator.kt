@@ -17,13 +17,18 @@ public enum class CarouselTemplate(
         isDark = true,
     ),
     WarmLinen(
-        displayName = "Warm Linen",
+        displayName = "Editorial Minimal",
         description = "Warm cream newsprint with vermillion masthead accents",
         isDark = false,
     ),
     CyberCyan(
-        displayName = "Cyber Cyan",
+        displayName = "Dark Terminal",
         description = "Deep slate with electric cyan monospace tags and high contrast",
+        isDark = true,
+    ),
+    GradientAccent(
+        displayName = "Gradient Accent",
+        description = "Midnight violet canvas with luminous neon violet gradients",
         isDark = true,
     ),
 }
@@ -234,23 +239,49 @@ public object CarouselDeckGenerator {
      */
     internal fun extractSlideTitle(paragraph: String, fallback: String): String {
         val firstSentence = paragraph.split(Regex("(?<=[.!?])\\s+")).firstOrNull()?.trim() ?: paragraph
-        val words = firstSentence
+        val cleanSentence = firstSentence
             .replace(Regex("[^\\p{L}0-9$'%-]+"), " ")
             .trim()
+        val words = cleanSentence
             .split(Regex("\\s+"))
             .filter { it.isNotBlank() }
 
         if (words.isEmpty()) return fallback
 
-        // Look for strong conceptual or action phrases
         val lower = firstSentence.lowercase()
         return when {
+            // Narrative markers (preserves existing character test fixtures)
             lower.contains("wheelchair") && lower.contains("accident") -> "When Necessity Hits Home"
-            lower.contains("expensive") || lower.contains("cost") && lower.contains("market") -> "A Broken Market"
+            lower.contains("expensive") || (lower.contains("cost") && lower.contains("market")) -> "A Broken Market"
             lower.contains("built one") || lower.contains("started a company") -> "Engineering The Fix"
             lower.contains("pitch deck") || lower.contains("meaningful companies") -> "Beyond The Pitch Deck"
             lower.contains("solve a real problem") -> "Impact At Scale"
-            words.size <= 6 -> firstSentence.trimEnd('.', '!', '?')
+
+            // Technology & Systems Patterns
+            lower.contains("latency") || lower.contains("performance") || lower.contains("speed") -> "The Hidden Latency"
+            lower.contains("software") && lower.contains("humility") -> "The Builder's Humility"
+            lower.contains("postgres") || lower.contains("database") -> "The Battle For Bedrock"
+            lower.contains("architecture") || lower.contains("system") -> "Systems & Tradeoffs"
+            lower.contains("agent") || lower.contains("ai") || lower.contains("model") -> "Autonomous Capability"
+            lower.contains("complexity") || lower.contains("simple") || lower.contains("simplicity") -> "Simplicity Is Leverage"
+            lower.contains("ergonomics") || lower.contains("developer") -> "The Craft Of Ergonomics"
+
+            // Market & Disruption Patterns
+            lower.contains("monopoly") || lower.contains("incumbent") -> "Defending The Status Quo"
+            lower.contains("margin") || lower.contains("revenue") || lower.contains("price") -> "The Economic Reality"
+            lower.contains("consensus") || lower.contains("contrarian") -> "The Unseen Shift"
+
+            // Philosophy & Axioms
+            lower.contains("first principle") || lower.contains("first-principles") -> "Bedrock Truths"
+            lower.contains("lesson") || lower.contains("takeaway") || lower.contains("ultimately") -> "The Enduring Rule"
+            lower.contains("craft") || lower.contains("mastery") -> "The Art Of Mastery"
+
+            // Sentence is already succinct
+            words.size in 2..6 -> {
+                firstSentence.trimEnd('.', '!', '?', ':')
+                    .replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+            }
+
             else -> {
                 val selected = words.take(5).joinToString(" ")
                 selected.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }

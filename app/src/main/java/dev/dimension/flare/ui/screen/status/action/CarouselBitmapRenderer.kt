@@ -73,6 +73,15 @@ internal object CarouselBitmapRenderer {
                 accentColor = Color.rgb(0, 240, 255),
                 borderColor = Color.argb(75, 0, 240, 255),
             )
+
+            CarouselTemplate.GradientAccent -> Palette(
+                bgColor = Color.rgb(15, 12, 28),
+                cardColor = Color.rgb(24, 20, 44),
+                textColor = Color.rgb(248, 246, 255),
+                mutedColor = Color.rgb(168, 158, 198),
+                accentColor = Color.rgb(168, 85, 247),
+                borderColor = Color.argb(85, 168, 85, 247),
+            )
         }
 
     /**

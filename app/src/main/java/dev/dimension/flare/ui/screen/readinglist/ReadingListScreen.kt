@@ -26,6 +26,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -55,6 +56,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -75,9 +77,14 @@ import compose.icons.fontawesomeicons.solid.Database
 import compose.icons.fontawesomeicons.solid.Ellipsis
 import compose.icons.fontawesomeicons.solid.Rss
 import compose.icons.fontawesomeicons.solid.TrashCan
+import compose.icons.fontawesomeicons.solid.WandMagicSparkles
 import dev.dimension.flare.common.OfflineMediaPrefetcher
 import dev.dimension.flare.data.readinglist.ReadingListItem
 import dev.dimension.flare.data.readinglist.ReadingListRepository
+import dev.dimension.flare.model.AccountType
+import dev.dimension.flare.model.MicroBlogKey
+import dev.dimension.flare.ui.route.DeeplinkRoute
+import dev.dimension.flare.ui.route.toUri
 import dev.dimension.flare.di.koinInject
 import dev.dimension.flare.ui.component.BackButton
 import dev.dimension.flare.ui.component.FAIcon
@@ -469,11 +476,41 @@ private fun ReadingListItemCard(
             }
 
             // Actions row: Read/Unread, Delete, Open
+            val uriHandler = LocalUriHandler.current
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                TextButton(
+                    onClick = {
+                        val uri = DeeplinkRoute.Status.OmniScribe(
+                            statusKey = MicroBlogKey(item.id.hashCode().toString(), item.platformId),
+                            accountType = AccountType.Guest,
+                            initialText = item.contentText,
+                            authorName = item.authorName.takeIf { it.isNotBlank() } ?: item.authorHandle,
+                            authorHandle = item.authorHandle,
+                            articleTitle = item.title,
+                            sourceUrl = item.sourceUrl,
+                        ).toUri()
+                        uriHandler.openUri(uri)
+                    },
+                ) {
+                    FAIcon(
+                        imageVector = FontAwesomeIcons.Solid.WandMagicSparkles,
+                        contentDescription = null,
+                        modifier = Modifier.size(12.dp),
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "Synthesize",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+
                 TextButton(onClick = onToggleRead) {
                     FAIcon(
                         imageVector = FontAwesomeIcons.Solid.Check,
@@ -545,6 +582,7 @@ private fun ReadingListDetailSheet(
     onDelete: () -> Unit,
 ) {
     val context = LocalContext.current
+    val uriHandler = LocalUriHandler.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     ModalBottomSheet(
@@ -633,6 +671,34 @@ private fun ReadingListDetailSheet(
             }
 
             Spacer(modifier = Modifier.height(8.dp))
+
+            Button(
+                onClick = {
+                    val uri = DeeplinkRoute.Status.OmniScribe(
+                        statusKey = MicroBlogKey(item.id.hashCode().toString(), item.platformId),
+                        accountType = AccountType.Guest,
+                        initialText = item.contentText,
+                        authorName = item.authorName.takeIf { it.isNotBlank() } ?: item.authorHandle,
+                        authorHandle = item.authorHandle,
+                        articleTitle = item.title,
+                        sourceUrl = item.sourceUrl,
+                    ).toUri()
+                    uriHandler.openUri(uri)
+                    onDismiss()
+                },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+            ) {
+                FAIcon(
+                    imageVector = FontAwesomeIcons.Solid.WandMagicSparkles,
+                    contentDescription = null,
+                    modifier = Modifier.size(15.dp),
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Synthesize Post & Carousel", fontWeight = FontWeight.Bold)
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
 
             // Action Buttons
             Row(

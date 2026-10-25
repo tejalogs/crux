@@ -115,6 +115,71 @@ class OmniScribeEngineTest {
         assertTrue(prompt.contains("280 characters"), "Prompt should specify character limits")
     }
 
+    @Test
+    fun testRssLongformArticleDistillationIntoStandalonePostAndCarousels() {
+        val articleTitle = "Why Postgres Is Winning The Modern Database War"
+        val articleHtml = """
+            <article>
+                <p>The developer ecosystem is witnessing a fundamental shift away from specialized niche databases.</p>
+                <p>However, running seven separate distributed engines introduced catastrophic operational complexity and fragility across engineering teams.</p>
+                <p>Instead of managing fragmented datastores, teams benchmarked extensions: pgvector delivered 95% of specialized vector DB performance while slashing infrastructure costs by $40k/month.</p>
+                <p>Ultimately, developers will always trade 5% peak synthetic performance for boring reliability and unified ACID guarantees.</p>
+                <p>Subscribe to our newsletter for more database engineering deep dives. Originally published on TechBlog.</p>
+            </article>
+        """.trimIndent()
+
+        OmniScribeStyle.entries.forEach { style ->
+            val result = OmniScribeEngine.synthesizeArticle(
+                title = articleTitle,
+                content = articleHtml,
+                sourceUrl = "https://techblog.dev/postgres-war",
+                authorName = "Martin Kleppmann",
+                style = style,
+            )
+
+            assertTrue(result.microPost.length <= 280, "Article micro post for $style exceeded 280: ${result.microPost.length}")
+            assertFalse(result.microPost.contains("HT @"), "Article micro post must not contain HT @")
+            assertFalse(result.microPost.contains("Subscribe to our newsletter"), "Must strip RSS boilerplate")
+
+            assertTrue(result.storyPost.contains("\n\n"), "Story post should have paragraph breaks")
+            assertTrue(result.storyPost.contains("Postgres"), "Story post must preserve core subject")
+            assertFalse(result.storyPost.contains("HT @"), "Story post must not contain HT @")
+
+            val deck = CarouselDeckGenerator.generateDeck(
+                text = result.storyPost,
+                authorName = "Tech Synthesis",
+                authorHandle = "rss",
+                template = CarouselTemplate.ObsidianGold,
+                contextArc = result.contextArc,
+            )
+
+            assertEqualsOrGreater(deck.slides.size, 3)
+            assertTrue(deck.slides.first().isCover)
+            assertTrue(deck.slides.last().isFinal)
+            deck.slides.forEach { slide ->
+                assertFalse(slide.headline.isBlank(), "Slide headline should not be blank")
+                assertFalse(slide.body.isBlank(), "Slide body should not be blank")
+                assertFalse(slide.body.contains("Subscribe to"), "Slide body must not contain boilerplate")
+            }
+        }
+    }
+
+    @Test
+    fun testShortRssArticleWithMinimalDescription() {
+        val result = OmniScribeEngine.synthesizeArticle(
+            title = "A Tiny Microchip That Runs on Ambient Radio Waves",
+            content = "Researchers built an ultra-low power sensor that harvests energy directly from Wi-Fi signals.",
+            sourceUrl = "https://mit.edu/ambient-chip",
+            authorName = "MIT News",
+            style = OmniScribeStyle.Punchy,
+        )
+
+        assertTrue(result.microPost.length <= 280, "Minimal RSS micro post exceeded 280: ${result.microPost.length}")
+        assertTrue(result.microPost.isNotBlank())
+        assertTrue(result.storyPost.isNotBlank())
+        assertFalse(result.microPost.contains("HT @"))
+    }
+
     private fun assertEqualsOrGreater(actual: Int, minExpected: Int) {
         assertTrue(actual >= minExpected, "Expected at least $minExpected but got $actual")
     }

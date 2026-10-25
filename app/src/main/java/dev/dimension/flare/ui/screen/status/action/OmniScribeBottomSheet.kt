@@ -2,6 +2,7 @@ package dev.dimension.flare.ui.screen.status.action
 
 import android.net.Uri
 import android.widget.Toast
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -9,6 +10,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,6 +20,8 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -37,17 +41,20 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -56,6 +63,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import compose.icons.FontAwesomeIcons
 import compose.icons.fontawesomeicons.Solid
+import compose.icons.fontawesomeicons.solid.ArrowLeft
+import compose.icons.fontawesomeicons.solid.ArrowRight
 import compose.icons.fontawesomeicons.solid.Check
 import compose.icons.fontawesomeicons.solid.Download
 import compose.icons.fontawesomeicons.solid.PaperPlane
@@ -65,6 +74,7 @@ import compose.icons.fontawesomeicons.solid.WandMagicSparkles
 import compose.icons.fontawesomeicons.solid.Xmark
 import dev.dimension.flare.common.FileItem
 import dev.dimension.flare.data.ai.scribe.BroadcastTargetAccount
+import dev.dimension.flare.data.ai.scribe.CarouselDeck
 import dev.dimension.flare.data.ai.scribe.CarouselDeckGenerator
 import dev.dimension.flare.data.ai.scribe.CarouselSlide
 import dev.dimension.flare.data.ai.scribe.CarouselTemplate
@@ -88,6 +98,7 @@ import dev.dimension.flare.ui.route.Route
 import dev.dimension.flare.ui.theme.screenHorizontalPadding
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.math.absoluteValue
 import moe.tlaster.precompose.molecule.producePresenter
 
 /**
@@ -159,11 +170,29 @@ internal fun OmniScribeBottomSheet(
 
     var selectedCarouselTemplate by remember { mutableStateOf(CarouselTemplate.ObsidianGold) }
 
-    val carouselDeck = remember(editedText, currentResult.contextArc, selectedCarouselTemplate) {
+    val initialCarouselDeck = remember(editedText, currentResult.contextArc, selectedCarouselTemplate, authorName, authorHandle) {
         CarouselDeckGenerator.generateDeck(
             text = editedText,
+            authorName = authorName,
+            authorHandle = authorHandle,
             template = selectedCarouselTemplate,
             contextArc = currentResult.contextArc,
+        )
+    }
+
+    val editableSlides = remember { mutableStateListOf<CarouselSlide>() }
+
+    LaunchedEffect(initialCarouselDeck.slides) {
+        editableSlides.clear()
+        editableSlides.addAll(initialCarouselDeck.slides)
+    }
+
+    val activeDeck = remember(editableSlides.toList(), selectedCarouselTemplate, authorName, authorHandle) {
+        CarouselDeck(
+            template = selectedCarouselTemplate,
+            authorName = authorName,
+            authorHandle = authorHandle,
+            slides = editableSlides.toList(),
         )
     }
 
@@ -441,166 +470,76 @@ internal fun OmniScribeBottomSheet(
 
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
 
-        // 6. Carousel Poster Studio (1080x1350 4:5 Portrait Deck)
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        // 6. Interactive In-App Carousel Live-Preview Widget & Theme Studio
+        InteractiveCarouselStudioWidget(
+            deck = activeDeck,
+            editableSlides = editableSlides,
+            selectedTemplate = selectedCarouselTemplate,
+            onTemplateSelect = { tmpl ->
+                selectedCarouselTemplate = tmpl
+            },
+            onSavePngs = {
+                haptic.perform(FlareHapticEvent.Confirm)
+                isSavingGallery = true
+                scope.launch {
+                    val count = runCatching {
+                        CarouselBitmapRenderer.saveDeckToGallery(context, activeDeck)
+                    }.getOrDefault(0)
+                    isSavingGallery = false
+                    if (count > 0) {
+                        gallerySavedToast = true
+                        Toast.makeText(
+                            context,
+                            "Saved $count high-res 1080×1350 slides to Pictures/Prism Carousels",
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                        delay(2500)
+                        gallerySavedToast = false
+                    }
+                }
+            },
+            isSavingPngs = isSavingGallery,
+            pngsSavedToast = gallerySavedToast,
+        )
+
+        // Toggle: Attach Carousel Slides when Posting
+        Surface(
+            shape = RoundedCornerShape(12.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            border = BorderStroke(0.8.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable {
+                    haptic.perform(FlareHapticEvent.SelectionChange)
+                    attachCarouselToPost = !attachCarouselToPost
+                },
+        ) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Carousel Poster Deck (${carouselDeck.slides.size} Slides • 1080×1350)",
-                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                        text = "Attach Carousel Posters (${editableSlides.size} images) to Post",
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                     Text(
-                        text = "High-res 4:5 slides rendered on-device for your standalone post",
+                        text = "Publishes both your rewritten text and the rendered 4:5 poster slides together",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-
-                // Save to Gallery Action
-                Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = if (gallerySavedToast) Color(0xFF00C853).copy(alpha = 0.16f) else MaterialTheme.colorScheme.surfaceContainerHigh,
-                    border = BorderStroke(
-                        0.8.dp,
-                        if (gallerySavedToast) Color(0xFF00C853) else MaterialTheme.colorScheme.outlineVariant,
-                    ),
-                    modifier = Modifier.clickable(enabled = !isSavingGallery) {
-                        haptic.perform(FlareHapticEvent.Confirm)
-                        isSavingGallery = true
-                        scope.launch {
-                            val count = runCatching {
-                                CarouselBitmapRenderer.saveDeckToGallery(context, carouselDeck)
-                            }.getOrDefault(0)
-                            isSavingGallery = false
-                            if (count > 0) {
-                                gallerySavedToast = true
-                                Toast.makeText(
-                                    context,
-                                    "Saved $count high-res 1080×1350 slides to Pictures/Prism Carousels",
-                                    Toast.LENGTH_SHORT,
-                                ).show()
-                                delay(2500)
-                                gallerySavedToast = false
-                            }
-                        }
-                    },
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        FAIcon(
-                            imageVector = if (gallerySavedToast) FontAwesomeIcons.Solid.Check else FontAwesomeIcons.Solid.Download,
-                            contentDescription = "Save Slides",
-                            tint = if (gallerySavedToast) Color(0xFF00C853) else MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.size(12.dp),
-                        )
-                        Text(
-                            text = if (gallerySavedToast) "Saved to Gallery" else "Save PNGs",
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                            color = if (gallerySavedToast) Color(0xFF00C853) else MaterialTheme.colorScheme.onSurface,
-                        )
-                    }
-                }
-            }
-
-            // Template Switcher Chips
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                CarouselTemplate.entries.forEach { tmpl ->
-                    val isSelected = selectedCarouselTemplate == tmpl
-                    Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = if (isSelected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainer,
-                        border = BorderStroke(
-                            1.dp,
-                            if (isSelected) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
-                        ),
-                        modifier = Modifier.clickable {
-                            haptic.perform(FlareHapticEvent.SelectionChange)
-                            selectedCarouselTemplate = tmpl
-                        },
-                    ) {
-                        Text(
-                            text = when (tmpl) {
-                                CarouselTemplate.ObsidianGold -> "⚡ Obsidian Gold"
-                                CarouselTemplate.WarmLinen -> "📖 Warm Linen"
-                                CarouselTemplate.CyberCyan -> "💎 Cyber Cyan"
-                            },
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            ),
-                            color = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
-                        )
-                    }
-                }
-            }
-
-            // Horizontal Swipeable Slide Deck Preview (4:5 Ratio)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                carouselDeck.slides.forEach { slide ->
-                    CarouselSlidePreviewCard(
-                        slide = slide,
-                        template = selectedCarouselTemplate,
-                    )
-                }
-            }
-
-            // Toggle: Attach Carousel Slides when Posting
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerLow,
-                border = BorderStroke(0.8.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable {
+                Switch(
+                    checked = attachCarouselToPost,
+                    onCheckedChange = {
                         haptic.perform(FlareHapticEvent.SelectionChange)
-                        attachCarouselToPost = !attachCarouselToPost
+                        attachCarouselToPost = it
                     },
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Attach Carousel Posters (${carouselDeck.slides.size} images) to Post",
-                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                            color = MaterialTheme.colorScheme.onSurface,
-                        )
-                        Text(
-                            text = "Publishes both your rewritten text and the rendered 4:5 poster slides together",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    Switch(
-                        checked = attachCarouselToPost,
-                        onCheckedChange = {
-                            haptic.perform(FlareHapticEvent.SelectionChange)
-                            attachCarouselToPost = it
-                        },
-                    )
-                }
+                )
             }
         }
 
@@ -690,7 +629,7 @@ internal fun OmniScribeBottomSheet(
                         CarouselBitmapRenderer.shareDeckExternally(
                             context = context,
                             postText = editedText,
-                            deck = carouselDeck,
+                            deck = activeDeck,
                             includeImages = attachCarouselToPost,
                         )
                     }
@@ -716,7 +655,7 @@ internal fun OmniScribeBottomSheet(
                     scope.launch {
                         val mediaUris = if (attachCarouselToPost) {
                             runCatching {
-                                CarouselBitmapRenderer.renderDeckToFileUris(context, carouselDeck)
+                                CarouselBitmapRenderer.renderDeckToFileUris(context, activeDeck)
                                     .map { it.toString() }
                             }.getOrDefault(emptyList())
                         } else {
@@ -766,7 +705,7 @@ internal fun OmniScribeBottomSheet(
                     scope.launch {
                         val renderedFiles = if (attachCarouselToPost) {
                             runCatching {
-                                CarouselBitmapRenderer.renderDeckToCacheFiles(context, carouselDeck)
+                                CarouselBitmapRenderer.renderDeckToCacheFiles(context, activeDeck)
                             }.getOrDefault(emptyList())
                         } else {
                             emptyList()
@@ -775,7 +714,7 @@ internal fun OmniScribeBottomSheet(
                         val medias = renderedFiles.mapIndexed { idx, file ->
                             ComposeData.Media(
                                 file = FileItem(context, Uri.fromFile(file)),
-                                altText = carouselDeck.slides.getOrNull(idx)?.body ?: "Carousel slide ${idx + 1}",
+                                altText = activeDeck.slides.getOrNull(idx)?.body ?: "Carousel slide ${idx + 1}",
                             )
                         }
 
@@ -861,58 +800,387 @@ internal fun OmniScribeBottomSheet(
 }
 
 /**
+ * In-App Interactive Carousel Live-Preview Widget & Theme Studio.
+ * Swipeable 1080x1350 preview with animated page dots, visual theme picker, and live canvas editing.
+ */
+@Composable
+private fun InteractiveCarouselStudioWidget(
+    deck: CarouselDeck,
+    editableSlides: SnapshotStateList<CarouselSlide>,
+    selectedTemplate: CarouselTemplate,
+    onTemplateSelect: (CarouselTemplate) -> Unit,
+    onSavePngs: () -> Unit,
+    isSavingPngs: Boolean,
+    pngsSavedToast: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val haptic = rememberFlareHapticFeedback(true)
+    val scope = rememberCoroutineScope()
+    val pagerState = rememberPagerState(pageCount = { editableSlides.size })
+    val (bg, cardBg, textColor, mutedColor, accentColor) = when (selectedTemplate) {
+        CarouselTemplate.ObsidianGold -> arrayOf(
+            Color(0xFF0E0E0E),
+            Color(0xFF18181A),
+            Color(0xFFF4F1EA),
+            Color(0xFF9C9890),
+            Color(0xFFE8B948),
+        )
+        CarouselTemplate.WarmLinen -> arrayOf(
+            Color(0xFFF4F1EA),
+            Color(0xFFFCFAF5),
+            Color(0xFF161616),
+            Color(0xFF5A584F),
+            Color(0xFFB8341B),
+        )
+        CarouselTemplate.CyberCyan -> arrayOf(
+            Color(0xFF101318),
+            Color(0xFF181C24),
+            Color(0xFFF1F4F8),
+            Color(0xFF8C9AAC),
+            Color(0xFF00F0FF),
+        )
+        CarouselTemplate.GradientAccent -> arrayOf(
+            Color(0xFF0F0C1C),
+            Color(0xFF18142C),
+            Color(0xFFF8F6FF),
+            Color(0xFFA89EC6),
+            Color(0xFFA855F7),
+        )
+    }
+
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        // 1. Studio Header & Quick PNG Save
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Carousel Poster Studio (${editableSlides.size} Slides • 1080×1350)",
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = "Swipe slides • Live-edit text • Instant real-time re-rendering",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = if (pngsSavedToast) Color(0xFF00C853).copy(alpha = 0.16f) else MaterialTheme.colorScheme.surfaceContainerHigh,
+                border = BorderStroke(
+                    0.8.dp,
+                    if (pngsSavedToast) Color(0xFF00C853) else MaterialTheme.colorScheme.outlineVariant,
+                ),
+                modifier = Modifier.clickable(enabled = !isSavingPngs) {
+                    onSavePngs()
+                },
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    FAIcon(
+                        imageVector = if (pngsSavedToast) FontAwesomeIcons.Solid.Check else FontAwesomeIcons.Solid.Download,
+                        contentDescription = "Save Slides",
+                        tint = if (pngsSavedToast) Color(0xFF00C853) else MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.size(12.dp),
+                    )
+                    Text(
+                        text = if (pngsSavedToast) "Saved to Gallery" else "Save PNGs",
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                        color = if (pngsSavedToast) Color(0xFF00C853) else MaterialTheme.colorScheme.onSurface,
+                    )
+                }
+            }
+        }
+
+        // 2. Visual Theme Picker Chips
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            CarouselTemplate.entries.forEach { tmpl ->
+                val isSelected = selectedTemplate == tmpl
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = if (isSelected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainer,
+                    border = BorderStroke(
+                        1.dp,
+                        if (isSelected) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
+                    ),
+                    modifier = Modifier.clickable {
+                        haptic.perform(FlareHapticEvent.SelectionChange)
+                        onTemplateSelect(tmpl)
+                    },
+                ) {
+                    Text(
+                        text = when (tmpl) {
+                            CarouselTemplate.ObsidianGold -> "⚡ Obsidian Gold"
+                            CarouselTemplate.WarmLinen -> "📖 Editorial Minimal"
+                            CarouselTemplate.CyberCyan -> "💻 Dark Terminal"
+                            CarouselTemplate.GradientAccent -> "🔮 Gradient Accent"
+                        },
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                        ),
+                        color = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                    )
+                }
+            }
+        }
+
+        // 3. Interactive Swipeable 4:5 Poster Pager
+        if (editableSlides.isNotEmpty()) {
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(horizontal = 46.dp),
+                pageSpacing = 16.dp,
+            ) { page ->
+                val slide = editableSlides.getOrNull(page) ?: return@HorizontalPager
+                val pageOffset = ((pagerState.currentPage - page) + pagerState.currentPageOffsetFraction).absoluteValue
+                val scale = (1f - pageOffset * 0.08f).coerceIn(0.92f, 1f)
+                val alpha = (1f - pageOffset * 0.25f).coerceIn(0.72f, 1f)
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .graphicsLayer {
+                            scaleX = scale
+                            scaleY = scale
+                            this.alpha = alpha
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CarouselSlidePreviewCard(
+                        slide = slide,
+                        template = selectedTemplate,
+                        modifier = Modifier
+                            .width(260.dp)
+                            .height(325.dp), // 4:5 Aspect Ratio
+                    )
+                }
+            }
+
+            // 4. Smooth Page Dots Indicator with Quick Step Arrows
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(
+                    onClick = {
+                        if (pagerState.currentPage > 0) {
+                            haptic.perform(FlareHapticEvent.SelectionChange)
+                            scope.launch { pagerState.animateScrollToPage(pagerState.currentPage - 1) }
+                        }
+                    },
+                    enabled = pagerState.currentPage > 0,
+                    modifier = Modifier.size(28.dp),
+                ) {
+                    FAIcon(
+                        imageVector = FontAwesomeIcons.Solid.ArrowLeft,
+                        contentDescription = "Previous Slide",
+                        tint = if (pagerState.currentPage > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                        modifier = Modifier.size(11.dp),
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    editableSlides.indices.forEach { index ->
+                        val isCurrent = pagerState.currentPage == index
+                        val dotWidth by animateDpAsState(targetValue = if (isCurrent) 22.dp else 6.dp)
+                        val dotColor = if (isCurrent) accentColor else mutedColor.copy(alpha = 0.35f)
+
+                        Box(
+                            modifier = Modifier
+                                .width(dotWidth)
+                                .height(6.dp)
+                                .clip(CircleShape)
+                                .background(dotColor)
+                                .clickable {
+                                    haptic.perform(FlareHapticEvent.SelectionChange)
+                                    scope.launch { pagerState.animateScrollToPage(index) }
+                                },
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                IconButton(
+                    onClick = {
+                        if (pagerState.currentPage < editableSlides.size - 1) {
+                            haptic.perform(FlareHapticEvent.SelectionChange)
+                            scope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) }
+                        }
+                    },
+                    enabled = pagerState.currentPage < editableSlides.size - 1,
+                    modifier = Modifier.size(28.dp),
+                ) {
+                    FAIcon(
+                        imageVector = FontAwesomeIcons.Solid.ArrowRight,
+                        contentDescription = "Next Slide",
+                        tint = if (pagerState.currentPage < editableSlides.size - 1) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                        modifier = Modifier.size(11.dp),
+                    )
+                }
+            }
+
+            // 5. In-Canvas Live Slide Text Editor
+            val currentIndex = pagerState.currentPage
+            val currentSlide = editableSlides.getOrNull(currentIndex)
+            if (currentSlide != null) {
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    border = BorderStroke(0.8.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            ) {
+                                FAIcon(
+                                    imageVector = FontAwesomeIcons.Solid.PenToSquare,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(13.dp),
+                                )
+                                Text(
+                                    text = "Live Edit Slide 0${currentIndex + 1} of 0${editableSlides.size}",
+                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                            }
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = accentColor.copy(alpha = 0.16f),
+                            ) {
+                                Text(
+                                    text = currentSlide.kicker,
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = FontFamily.Monospace,
+                                    ),
+                                    color = accentColor,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                )
+                            }
+                        }
+
+                        OutlinedTextField(
+                            value = currentSlide.headline,
+                            onValueChange = { newHeadline ->
+                                editableSlides[currentIndex] = currentSlide.copy(headline = newHeadline)
+                            },
+                            label = { Text("Slide Headline") },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp),
+                            textStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                            singleLine = true,
+                        )
+
+                        OutlinedTextField(
+                            value = currentSlide.body,
+                            onValueChange = { newBody ->
+                                editableSlides[currentIndex] = currentSlide.copy(body = newBody)
+                            },
+                            label = { Text("Slide Body Content") },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 72.dp, max = 135.dp),
+                            shape = RoundedCornerShape(10.dp),
+                            textStyle = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
  * 4:5 Aspect Ratio Editorial Preview Card for an individual Carousel Poster Slide.
  */
 @Composable
 private fun CarouselSlidePreviewCard(
     slide: CarouselSlide,
     template: CarouselTemplate,
+    modifier: Modifier = Modifier,
 ) {
     val (bg, cardBg, textColor, mutedColor, accentColor) = when (template) {
-        CarouselTemplate.ObsidianGold -> {
-            arrayOf(
-                Color(0xFF0E0E0E),
-                Color(0xFF18181A),
-                Color(0xFFF4F1EA),
-                Color(0xFF9C9890),
-                Color(0xFFE8B948),
-            )
-        }
-        CarouselTemplate.WarmLinen -> {
-            arrayOf(
-                Color(0xFFF4F1EA),
-                Color(0xFFFCFAF5),
-                Color(0xFF161616),
-                Color(0xFF5A584F),
-                Color(0xFFB8341B),
-            )
-        }
-        CarouselTemplate.CyberCyan -> {
-            arrayOf(
-                Color(0xFF101318),
-                Color(0xFF181C24),
-                Color(0xFFF1F4F8),
-                Color(0xFF8C9AAC),
-                Color(0xFF00F0FF),
-            )
-        }
+        CarouselTemplate.ObsidianGold -> arrayOf(
+            Color(0xFF0E0E0E),
+            Color(0xFF18181A),
+            Color(0xFFF4F1EA),
+            Color(0xFF9C9890),
+            Color(0xFFE8B948),
+        )
+        CarouselTemplate.WarmLinen -> arrayOf(
+            Color(0xFFF4F1EA),
+            Color(0xFFFCFAF5),
+            Color(0xFF161616),
+            Color(0xFF5A584F),
+            Color(0xFFB8341B),
+        )
+        CarouselTemplate.CyberCyan -> arrayOf(
+            Color(0xFF101318),
+            Color(0xFF181C24),
+            Color(0xFFF1F4F8),
+            Color(0xFF8C9AAC),
+            Color(0xFF00F0FF),
+        )
+        CarouselTemplate.GradientAccent -> arrayOf(
+            Color(0xFF0F0C1C),
+            Color(0xFF18142C),
+            Color(0xFFF8F6FF),
+            Color(0xFFA89EC6),
+            Color(0xFFA855F7),
+        )
     }
 
     Surface(
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(16.dp),
         color = bg,
-        border = BorderStroke(1.dp, accentColor.copy(alpha = 0.38f)),
-        modifier = Modifier
-            .width(196.dp)
-            .height(245.dp),
+        border = BorderStroke(1.2.dp, accentColor.copy(alpha = 0.38f)),
+        modifier = modifier,
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(8.dp)
-                .clip(RoundedCornerShape(10.dp))
+                .clip(RoundedCornerShape(12.dp))
                 .background(cardBg)
-                .padding(12.dp),
+                .padding(14.dp),
         ) {
             Column(
                 modifier = Modifier.fillMaxSize(),
@@ -930,7 +1198,7 @@ private fun CarouselSlidePreviewCard(
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = FontWeight.Bold,
                                 fontFamily = FontFamily.Monospace,
-                                fontSize = 8.sp,
+                                fontSize = 8.5.sp,
                             ),
                             color = accentColor,
                             maxLines = 1,
@@ -941,7 +1209,7 @@ private fun CarouselSlidePreviewCard(
                             text = "0${slide.index}/0${slide.totalSlides}",
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontFamily = FontFamily.Monospace,
-                                fontSize = 8.sp,
+                                fontSize = 8.5.sp,
                             ),
                             color = mutedColor,
                         )
@@ -949,49 +1217,50 @@ private fun CarouselSlidePreviewCard(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(0.6.dp)
-                            .background(accentColor.copy(alpha = 0.22f)),
+                            .height(0.8.dp)
+                            .background(accentColor.copy(alpha = 0.28f)),
                     )
                 }
 
                 // Middle Narrative Content
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
                         text = slide.headline,
                         style = MaterialTheme.typography.labelLarge.copy(
                             fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp,
-                            lineHeight = 16.sp,
+                            fontFamily = if (template == CarouselTemplate.WarmLinen) FontFamily.Serif else FontFamily.Default,
+                            fontSize = 15.sp,
+                            lineHeight = 19.sp,
                         ),
                         color = textColor,
-                        maxLines = 2,
+                        maxLines = 3,
                         overflow = TextOverflow.Ellipsis,
                     )
                     Box(
                         modifier = Modifier
-                            .width(26.dp)
-                            .height(2.5.dp)
+                            .width(32.dp)
+                            .height(3.dp)
                             .background(accentColor, shape = CircleShape),
                     )
                     Text(
                         text = slide.body,
                         style = MaterialTheme.typography.bodySmall.copy(
-                            fontSize = 10.sp,
-                            lineHeight = 13.5.sp,
+                            fontSize = 11.sp,
+                            lineHeight = 15.sp,
                         ),
                         color = textColor.copy(alpha = 0.92f),
-                        maxLines = 6,
+                        maxLines = 7,
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
 
                 // Bottom Editorial Progress Dots & CTA
-                Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(0.6.dp)
-                            .background(accentColor.copy(alpha = 0.22f)),
+                            .height(0.8.dp)
+                            .background(accentColor.copy(alpha = 0.28f)),
                     )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -1005,7 +1274,7 @@ private fun CarouselSlidePreviewCard(
                             for (i in 1..slide.totalSlides) {
                                 Box(
                                     modifier = Modifier
-                                        .size(if (i == slide.index) 5.dp else 4.dp)
+                                        .size(if (i == slide.index) 6.dp else 4.dp)
                                         .clip(CircleShape)
                                         .background(
                                             if (i == slide.index) accentColor else mutedColor.copy(alpha = 0.4f),
@@ -1017,7 +1286,7 @@ private fun CarouselSlidePreviewCard(
                             text = if (slide.isFinal) "SAVE & SHARE" else "SWIPE →",
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 7.5.sp,
+                                fontSize = 8.sp,
                             ),
                             color = accentColor,
                         )

@@ -104,6 +104,7 @@ public object OmniScribeEngine {
         "in today's fast-paced world",
         "let that sink in",
         "delve into",
+        "delves into",
         "game-changer",
         "game changer",
         "buckle up",
@@ -117,6 +118,14 @@ public object OmniScribeEngine {
         "foster",
         "synergy",
         "paradigm shift",
+        "in a world where",
+        "fast forward to",
+        "masterclass",
+        "at the end of the day",
+        "let's be honest",
+        "dive in",
+        "dives in",
+        "vital to note",
     )
 
     private enum class DomainTheme(val kicker: String) {
@@ -518,50 +527,110 @@ public object OmniScribeEngine {
     }
 
     internal fun normalizeAndSegmentArticleBeats(title: String, rawContent: String): List<String> {
-        // Strip HTML tags and clean whitespace
-        val clean = rawContent
+        // 1. Transform HTML block tags to distinct paragraph linebreaks
+        var text = rawContent
+            .replace(Regex("(?i)<(script|style)[^>]*>[\\s\\S]*?</\\1>"), " ")
+            .replace(Regex("(?i)<(br|p|div|h[1-6]|li|article|section|blockquote)\\s*/?>"), "\n\n")
+            .replace(Regex("(?i)</(p|div|h[1-6]|li|article|section|blockquote)>"), "\n\n")
             .replace(Regex("<[^>]*>"), " ")
-            .replace(Regex("&nbsp;"), " ")
-            .replace(Regex("&amp;"), "&")
-            .replace(Regex("&lt;"), "<")
-            .replace(Regex("&gt;"), ">")
+            .replace("&nbsp;", " ")
+            .replace("&amp;", "&")
+            .replace("&lt;", "<")
+            .replace("&gt;", ">")
+            .replace("&quot;", "\"")
+            .replace("&#39;", "'")
             .replace(Regex("https?://\\S+"), "")
-            .trim()
 
-        val paragraphs = clean.split(Regex("\\n\\s*\\n"))
-            .map { it.trim() }
-            .filter { it.length > 30 }
+        // 2. Strip banned AI tropes
+        for (trope in BannedAiTropes) {
+            text = text.replace(Regex("(?i)\\b" + Regex.escape(trope) + "\\b"), "")
+        }
 
-        if (paragraphs.size >= 3) {
+        // 3. Filter marketing and RSS boilerplate
+        val boilerplateRegexes = listOf(
+            Regex("(?i)^\\s*(read more|the post .* appeared first on|subscribe to|share this|follow us|comments?|written by|source:?|originally published on).*"),
+            Regex("(?i)^\\s*(sign up for our newsletter|leave a comment|related articles|tagged:).*"),
+        )
+
+        val cleanParagraphs = text.lines()
+            .map { it.trim().replace(Regex("\\s+"), " ") }
+            .filter { line ->
+                line.length > 25 && boilerplateRegexes.none { it.matches(line) }
+            }
+
+        // Extract individual candidate sentences from the clean text
+        val allSentences = cleanParagraphs.flatMap { para ->
+            para.split(Regex("(?<=[.!?])\\s+"))
+                .map { it.trim() }
+                .filter { it.length > 20 && !it.startsWith("http") }
+        }
+
+        if (allSentences.size >= 4) {
             val beats = mutableListOf<String>()
-            // Beat 1: Setup / Thesis rooted in the article title and lead
-            val lead = paragraphs.first()
-            val leadSentence = lead.split(Regex("[.!?]\\s+")).firstOrNull().orEmpty().trim()
-            beats.add(if (leadSentence.length > 20) ensurePeriod(leadSentence) else ensurePeriod(title))
 
-            // Beat 2: Tension / Analytical evidence from middle
-            val midPara = paragraphs[paragraphs.size / 2]
-            val midSentence = midPara.split(Regex("[.!?]\\s+")).firstOrNull().orEmpty().trim()
-            beats.add(if (midSentence.length > 20) ensurePeriod(midSentence) else ensurePeriod(midPara.take(160)))
+            // Beat 1: Hook / Setup — Best thesis statement near the start or grounded in title
+            val thesisCandidates = allSentences.take(minOf(allSentences.size, 6))
+            val bestThesis = thesisCandidates.firstOrNull { s ->
+                val lower = s.lowercase()
+                lower.contains("why") || lower.contains("reason") || lower.contains("instead") ||
+                    lower.contains("real") || lower.contains("truth") || lower.contains("most people") ||
+                    lower.contains("problem") || lower.contains("fundamentally") || lower.contains("shift")
+            } ?: thesisCandidates.firstOrNull { it.length > 35 } ?: title
 
-            // Beat 3: Pivot / Critical turning point from later in the text
-            val latePara = if (paragraphs.size >= 4) paragraphs[paragraphs.size - 2] else paragraphs[1]
-            val lateSentence = latePara.split(Regex("[.!?]\\s+")).firstOrNull().orEmpty().trim()
-            beats.add(if (lateSentence.length > 20) ensurePeriod(lateSentence) else ensurePeriod(latePara.take(160)))
+            beats.add(ensurePeriod(bestThesis))
 
-            // Beat 4: Conclusion / Takeaway from final paragraph
-            val lastPara = paragraphs.last()
-            val lastSentence = lastPara.split(Regex("[.!?]\\s+")).lastOrNull { it.length > 20 }?.trim() ?: lastPara.take(160)
-            beats.add(ensurePeriod(lastSentence))
+            // Beat 2: Tension / Dilemma — Look for conflict, friction, cost, or contrast
+            val midSentences = allSentences.drop(1).dropLast(1)
+            val bestTension = midSentences.firstOrNull { s ->
+                val lower = s.lowercase()
+                lower.contains("however") || lower.contains("yet") || lower.contains("cost") ||
+                    lower.contains("broken") || lower.contains("failure") || lower.contains("struggle") ||
+                    lower.contains("bottleneck") || lower.contains("dilemma") || lower.contains("friction") ||
+                    lower.contains("expensive") || lower.contains("complexity") || lower.contains("fragile")
+            } ?: midSentences.firstOrNull() ?: "Conventional solutions break down under real-world pressure."
+
+            beats.add(ensurePeriod(bestTension))
+
+            // Beat 3: Pivot / Breakthrough — Look for mechanisms, data points, or turning points
+            val pivotCandidates = allSentences.drop(2)
+            val bestPivot = pivotCandidates.firstOrNull { s ->
+                val lower = s.lowercase()
+                s != bestTension && (
+                    Regex("\\b\\d+([.,]\\d+)?(%|x|k|M|B)?\\b").containsMatchIn(s) ||
+                    lower.contains("built") || lower.contains("engineered") || lower.contains("discovered") ||
+                    lower.contains("turning point") || lower.contains("mechanism") || lower.contains("result") ||
+                    lower.contains("architecture") || lower.contains("model") || lower.contains("designed")
+                )
+            } ?: pivotCandidates.getOrNull(pivotCandidates.size / 2) ?: "The turning point was redesigning the mechanism from first principles."
+
+            beats.add(ensurePeriod(bestPivot))
+
+            // Beat 4: Takeaway / Axiom — Look for philosophical or concluding summary near end
+            val lateCandidates = allSentences.takeLast(minOf(allSentences.size, 5))
+            val bestTakeaway = lateCandidates.lastOrNull { s ->
+                val lower = s.lowercase()
+                s != bestPivot && s != bestTension && (
+                    lower.contains("ultimately") || lower.contains("lesson") || lower.contains("takeaway") ||
+                    lower.contains("endure") || lower.contains("matter") || lower.contains("principle") ||
+                    lower.contains("always") || lower.contains("future") || lower.contains("truth")
+                )
+            } ?: lateCandidates.lastOrNull { it != bestPivot && it != bestTension } ?: title
+
+            beats.add(ensurePeriod(bestTakeaway))
             return beats
         }
 
-        // Fallback for shorter articles: segment by sentences
-        val segmented = normalizeAndSegmentBeats(clean)
-        return if (segmented.size >= 2) {
-            listOf(ensurePeriod(title)) + segmented.take(3)
-        } else {
-            listOf(ensurePeriod(title), clean)
+        // Fallback for short RSS descriptions:
+        val fallbackBeats = normalizeAndSegmentBeats(text)
+        return when {
+            fallbackBeats.size >= 4 -> fallbackBeats.take(4)
+            fallbackBeats.size in 2..3 -> listOf(ensurePeriod(title)) + fallbackBeats
+            else -> listOf(
+                ensurePeriod(title),
+                "Conventional approaches often fail to address the core human problem.",
+                if (fallbackBeats.isNotEmpty()) fallbackBeats.first() else "First-principles engineering always wins over inherited conventions.",
+                "Simplify relentlessly until only the foundational truth remains.",
+            )
         }
     }
 
@@ -571,30 +640,46 @@ public object OmniScribeEngine {
         sourceUrl: String,
         style: OmniScribeStyle,
     ): String {
-        val linkText = if (sourceUrl.isNotBlank()) "\n\nSource: $sourceUrl" else ""
-        val takeaway = when (style) {
-            OmniScribeStyle.Punchy -> arc.takeaway
-            OmniScribeStyle.Narrative -> "When fundamental constraints shift, the entire landscape follows."
-            OmniScribeStyle.Philosophical -> "Return to first principles to understand the real trajectory."
+        val linkText = if (sourceUrl.isNotBlank()) "\n\n$sourceUrl" else ""
+        val cleanTitle = title.trim().trimEnd('.', '!', ':')
+
+        val coreBody = when (style) {
+            OmniScribeStyle.Punchy -> "${arc.hook}\n\n${arc.tension} ${arc.takeaway}"
+            OmniScribeStyle.Narrative -> "${arc.hook}\n\n${arc.pivot}\n\n${arc.takeaway}"
+            OmniScribeStyle.Philosophical -> "${arc.hook}\n\n${arc.pivot}\n\n${arc.takeaway}"
         }
 
-        // Try: Title + Core insight + Takeaway + Link
-        val candidate = "$title:\n\n${arc.hook} ${arc.pivot}\n\n$takeaway$linkText".trim()
-        if (candidate.length <= 280) {
-            return candidate
+        // Option 1: Full Title + Core Body + Link
+        val fullCandidate = "$cleanTitle:\n\n$coreBody$linkText".trim()
+        if (fullCandidate.length <= 280) {
+            return fullCandidate
         }
 
-        val shorterCandidate = "$title: ${arc.hook}\n\n$takeaway$linkText".trim()
-        if (shorterCandidate.length <= 280) {
-            return shorterCandidate
+        // Option 2: Core Body + Link (omit title if hook already carries it)
+        val bodyAndLink = "$coreBody$linkText".trim()
+        if (bodyAndLink.length <= 280) {
+            return bodyAndLink
         }
 
-        val minimalCandidate = "$title\n\n$takeaway$linkText".trim()
-        if (minimalCandidate.length <= 280) {
-            return minimalCandidate
+        // Option 3: Title + Hook + Takeaway + Link
+        val compactWithLink = "$cleanTitle:\n\n${arc.hook}\n\n${arc.takeaway}$linkText".trim()
+        if (compactWithLink.length <= 280) {
+            return compactWithLink
         }
 
-        return truncateToSentenceOrWords(minimalCandidate, 280)
+        // Option 4: Hook + Takeaway + Link
+        val minimalWithLink = "${arc.hook}\n\n${arc.takeaway}$linkText".trim()
+        if (minimalWithLink.length <= 280) {
+            return minimalWithLink
+        }
+
+        // Option 5: Truncate cleanly without link
+        val compactNoLink = "$cleanTitle: ${arc.hook} ${arc.takeaway}".trim()
+        if (compactNoLink.length <= 280) {
+            return compactNoLink
+        }
+
+        return truncateToSentenceOrWords(compactNoLink, 280)
     }
 
     private fun generateArticleStoryPost(
@@ -603,19 +688,27 @@ public object OmniScribeEngine {
         sourceUrl: String,
         style: OmniScribeStyle,
     ): String = buildString {
+        val cleanTitle = title.trim().trimEnd('.', '!', ':')
         val header = when (style) {
-            OmniScribeStyle.Punchy -> "$title — and the quiet shift underneath."
-            OmniScribeStyle.Narrative -> "$title: A story of craft, conviction, and building what matters."
-            OmniScribeStyle.Philosophical -> "$title — First principles in motion."
+            OmniScribeStyle.Punchy -> "$cleanTitle — and the quiet shift underneath."
+            OmniScribeStyle.Narrative -> "$cleanTitle: A story of craft, conviction, and building what matters."
+            OmniScribeStyle.Philosophical -> "$cleanTitle — First principles in motion."
         }
         appendLine(header)
         appendLine()
+        // Act I: The Anomaly / Paradox
         appendLine(arc.hook)
         appendLine()
-        appendLine("${arc.tension} ${arc.pivot}")
+        // Act II: The Structural Friction
+        appendLine(arc.tension)
         appendLine()
+        // Act III: The Turning Point / Mechanism
+        appendLine(arc.pivot)
+        appendLine()
+        // Act IV: The Enduring Law
         appendLine(arc.takeaway)
         appendLine()
+        // Act V: Resonant Human Reflection
         appendLine(
             when (style) {
                 OmniScribeStyle.Punchy -> "The biggest shifts happen quietly in the dark before everyone notices the consensus has moved."
@@ -625,7 +718,7 @@ public object OmniScribeEngine {
         )
         if (sourceUrl.isNotBlank()) {
             appendLine()
-            append("Read the full piece: $sourceUrl")
+            append("Read the original dispatch: $sourceUrl")
         }
     }
 
