@@ -252,6 +252,12 @@ private fun SearchContent(
                                         },
                                         label = { Text("#hashtag") },
                                     )
+                                    SuggestionChip(
+                                        onClick = {
+                                            onSearch.invoke("gemma")
+                                        },
+                                        label = { Text("✦ Semantic (Gemma AI)") },
+                                    )
                                 }
                             }
                         }

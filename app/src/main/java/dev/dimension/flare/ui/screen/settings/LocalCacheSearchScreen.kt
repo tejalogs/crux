@@ -16,6 +16,7 @@ import androidx.compose.material3.ExpandedFullScreenSearchBar
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.SearchBarValue
 import androidx.compose.material3.Text
@@ -189,10 +190,11 @@ internal fun LocalCacheSearchScreen(
                     modifier =
                         Modifier
                             .padding(horizontal = screenHorizontalPadding, vertical = 8.dp)
-                            .widthIn(max = 300.dp),
+                            .fillMaxWidth(),
                     horizontalArrangement =
                         androidx.compose.foundation.layout.Arrangement
                             .spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     items.forEach { (searchType, title) ->
                         FilterChip(
@@ -205,12 +207,52 @@ internal fun LocalCacheSearchScreen(
                             },
                         )
                     }
+                    if (state.selectedSearchType == SearchType.Status) {
+                        FilterChip(
+                            selected = state.isSemanticMode,
+                            onClick = {
+                                state.setSemanticMode(!state.isSemanticMode)
+                            },
+                            label = {
+                                Text("✦ Semantic (Gemma AI)")
+                            },
+                        )
+                    }
+                }
+            }
+            if (state.isSemanticMode && textFieldState.text.isNotEmpty()) {
+                item(span = StaggeredGridItemSpan.FullLine) {
+                    androidx.compose.material3.Surface(
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = screenHorizontalPadding, vertical = 4.dp),
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        ) {
+                            Text(
+                                text = "✦ On-Device Gemma 4 Semantic Ranking",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                            Text(
+                                text = "• Zero Cloud Egress",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
                 }
             }
             when (state.selectedSearchType) {
                 SearchType.Status -> {
                     status(
-                        if (textFieldState.text.isEmpty()) {
+                        if (textFieldState.text.isEmpty() && !state.isSemanticMode) {
                             state.history
                         } else {
                             state.data

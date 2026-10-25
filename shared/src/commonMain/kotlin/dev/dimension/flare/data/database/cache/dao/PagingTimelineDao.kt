@@ -323,6 +323,18 @@ internal interface PagingTimelineDao {
     ): List<DbStatusWithReference>
 
     @Transaction
+    @RewriteQueriesToDropUnusedColumns
+    @Query(
+        "SELECT * FROM DbStatus " +
+            "WHERE DbStatus.text IS NOT NULL AND LENGTH(DbStatus.text) > 0 " +
+            "ORDER BY DbStatus.rowid DESC " +
+            "LIMIT :limit",
+    )
+    suspend fun getRecentCachedStatuses(
+        limit: Int = 200,
+    ): List<DbStatusWithReference>
+
+    @Transaction
     @Query(
         TIMELINE_WITH_STATUS_QUERY +
             "WHERE DbPagingTimeline.pagingKey = :pagingKey " +

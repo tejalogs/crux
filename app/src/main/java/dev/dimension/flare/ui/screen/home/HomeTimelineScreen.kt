@@ -35,6 +35,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.staggeredgrid.LazyStaggeredGridState
+import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
 import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -63,6 +64,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -89,6 +91,7 @@ import compose.icons.fontawesomeicons.solid.Check
 import compose.icons.fontawesomeicons.solid.Sliders
 import dev.dimension.flare.R
 import dev.dimension.flare.common.onSuccess
+import dev.dimension.flare.data.ai.CatchMeUpDigestEngine
 import dev.dimension.flare.data.datastore.model.TimelineAutoRefreshInterval
 import dev.dimension.flare.data.model.BottomBarBehavior
 import dev.dimension.flare.data.model.TimelineDisplayMode
@@ -111,6 +114,7 @@ import dev.dimension.flare.ui.component.platform.WindowSizeClass
 import dev.dimension.flare.ui.component.platform.isBigScreen
 import dev.dimension.flare.ui.component.platform.isCompatScreen
 import dev.dimension.flare.ui.component.status.AdaptiveCard
+import dev.dimension.flare.ui.component.status.CatchMeUpDigestCard
 import dev.dimension.flare.ui.component.status.LazyStatusVerticalStaggeredGrid
 import dev.dimension.flare.ui.component.status.status
 import dev.dimension.flare.ui.model.map
@@ -585,6 +589,17 @@ internal fun TimelineItemContent(
         )
     val latestState by rememberUpdatedState(state)
     val lifecycleOwner = LocalLifecycleOwner.current
+    var isDigestDismissed by rememberSaveable(item.id) { mutableStateOf(false) }
+    val feedDigest =
+        remember(state.listState) {
+            val success = state.listState as? dev.dimension.flare.common.PagingState.Success<dev.dimension.flare.ui.model.UiTimelineV2>
+            if (success != null && success.itemCount >= 3) {
+                val posts = (0 until minOf(25, success.itemCount)).mapNotNull { success.peek(it) }
+                CatchMeUpDigestEngine.generateDigest(posts)
+            } else {
+                null
+            }
+        }
     LaunchedEffect(isHomeTimeline, autoRefreshInterval, isCurrentlyVisible, lifecycleOwner) {
         if (!isHomeTimeline || !isCurrentlyVisible || autoRefreshInterval == TimelineAutoRefreshInterval.DISABLED) {
             return@LaunchedEffect
@@ -611,6 +626,7 @@ internal fun TimelineItemContent(
     RefreshContainer(
         modifier = modifier,
         onRefresh = {
+            isDigestDismissed = false
             state.refreshSync()
             changeLogState?.dismissChangeLog()
         },
@@ -666,6 +682,23 @@ internal fun TimelineItemContent(
                                 }
                             }
                         }
+                    }
+                }
+
+                if (isHomeTimeline && !isDigestDismissed && feedDigest != null) {
+                    item(span = StaggeredGridItemSpan.FullLine) {
+                        CatchMeUpDigestCard(
+                            digest = feedDigest,
+                            onDismiss = { isDigestDismissed = true },
+                            onScrollToFeed = {
+                                scope.launch {
+                                    state.lazyListState.animateScrollToItem(1)
+                                }
+                            },
+                            onRefresh = {
+                                state.refreshSync()
+                            },
+                        )
                     }
                 }
 
