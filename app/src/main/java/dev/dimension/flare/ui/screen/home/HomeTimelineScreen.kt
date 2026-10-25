@@ -97,6 +97,8 @@ import dev.dimension.flare.data.model.BottomBarBehavior
 import dev.dimension.flare.data.model.TimelineDisplayMode
 import dev.dimension.flare.data.model.tab.UiTimelineTabItem
 import dev.dimension.flare.data.model.tab.resolveTimelineAppearance
+import dev.dimension.flare.model.AccountType
+import dev.dimension.flare.model.MicroBlogKey
 import dev.dimension.flare.ui.component.AvatarComponent
 import dev.dimension.flare.ui.component.FAIcon
 import dev.dimension.flare.ui.component.FlareDropdownMenu
@@ -118,6 +120,9 @@ import dev.dimension.flare.ui.component.status.CatchMeUpDigestCard
 import dev.dimension.flare.ui.component.status.LazyStatusVerticalStaggeredGrid
 import dev.dimension.flare.ui.component.status.status
 import dev.dimension.flare.ui.model.map
+import dev.dimension.flare.ui.route.DeeplinkRoute
+import dev.dimension.flare.ui.route.toUri
+import kotlin.time.Clock
 import dev.dimension.flare.ui.model.onError
 import dev.dimension.flare.ui.model.onLoading
 import dev.dimension.flare.ui.model.onSuccess
@@ -589,6 +594,7 @@ internal fun TimelineItemContent(
         )
     val latestState by rememberUpdatedState(state)
     val lifecycleOwner = LocalLifecycleOwner.current
+    val uriHandler = LocalUriHandler.current
     var isDigestDismissed by rememberSaveable(item.id) { mutableStateOf(false) }
     val feedDigest =
         remember(state.listState) {
@@ -697,6 +703,26 @@ internal fun TimelineItemContent(
                             },
                             onRefresh = {
                                 state.refreshSync()
+                            },
+                            onSynthesizeCarousel = { digest ->
+                                val highlightsSummary = buildString {
+                                    appendLine("Executive Feed Digest:")
+                                    digest.highlights.forEach { h ->
+                                        val authorPart = if (!h.authorName.isNullOrBlank()) " (${h.authorName})" else ""
+                                        appendLine("• ${h.topic}$authorPart: ${h.summary}")
+                                    }
+                                }
+                                val initialText = if (highlightsSummary.isNotBlank()) highlightsSummary else digest.title
+                                val digestUri = DeeplinkRoute.Status.OmniScribe(
+                                    statusKey = MicroBlogKey(digest.title.hashCode().toString(), "pulse"),
+                                    accountType = AccountType.Guest,
+                                    initialText = initialText.trim(),
+                                    authorName = "Executive Pulse",
+                                    authorHandle = "flare",
+                                    articleTitle = "${digest.title} • Executive Brief",
+                                    sourceUrl = "",
+                                ).toUri()
+                                uriHandler.openUri(digestUri)
                             },
                         )
                     }

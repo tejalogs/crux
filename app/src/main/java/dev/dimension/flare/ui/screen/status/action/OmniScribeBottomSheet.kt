@@ -172,6 +172,9 @@ internal fun OmniScribeBottomSheet(
         availableTargets = targets
         if (selectedAccountKeys.isEmpty() && targets.isNotEmpty()) {
             selectedAccountKeys.addAll(targets.map { it.accountKey })
+            targets.forEach { target ->
+                composeState.selectAccount(target.accountKey)
+            }
         }
     }
 
@@ -791,7 +794,7 @@ internal fun OmniScribeBottomSheet(
                                     haptic.perform(FlareHapticEvent.Confirm)
                                     Toast.makeText(
                                         context,
-                                        "Published standalone post with ${medias.size} carousel slides!",
+                                        "Broadcast post with ${medias.size} carousel slides across ${selectedAccountKeys.size} accounts!",
                                         Toast.LENGTH_SHORT,
                                     ).show()
                                     delay(500)
@@ -828,7 +831,7 @@ internal fun OmniScribeBottomSheet(
                         strokeWidth = 2.dp,
                     )
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text(text = "Posting...")
+                    Text(text = "Broadcasting...")
                 } else if (publishDone) {
                     FAIcon(
                         imageVector = FontAwesomeIcons.Solid.Check,
@@ -837,7 +840,7 @@ internal fun OmniScribeBottomSheet(
                         modifier = Modifier.size(16.dp),
                     )
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text(text = "Published!")
+                    Text(text = "Dispatched!")
                 } else {
                     FAIcon(
                         imageVector = FontAwesomeIcons.Solid.PaperPlane,
@@ -847,7 +850,7 @@ internal fun OmniScribeBottomSheet(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "Post Separate",
+                        text = if (selectedAccountKeys.size > 1) "Broadcast (${selectedAccountKeys.size})" else "Publish Separate",
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
                     )

@@ -1,6 +1,12 @@
 package dev.dimension.flare.ui.component.status
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -30,6 +36,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -39,6 +46,8 @@ import compose.icons.fontawesomeicons.Solid
 import compose.icons.fontawesomeicons.solid.AngleDown
 import compose.icons.fontawesomeicons.solid.AngleRight
 import compose.icons.fontawesomeicons.solid.AngleUp
+import compose.icons.fontawesomeicons.solid.CirclePause
+import compose.icons.fontawesomeicons.solid.CirclePlay
 import compose.icons.fontawesomeicons.solid.RotateRight
 import compose.icons.fontawesomeicons.solid.WandMagicSparkles
 import compose.icons.fontawesomeicons.solid.Xmark
@@ -53,12 +62,83 @@ import dev.dimension.flare.ui.model.ClickContext
 import dev.dimension.flare.ui.model.toUiImage
 import dev.dimension.flare.ui.theme.PlatformTheme
 import dev.dimension.flare.ui.theme.screenHorizontalPadding
+import java.util.Calendar
 
 /**
- * Refined Material 3 Expressive On-Device Feed Digest Card ("Catch Me Up").
+ * Animated 4-bar equalizer that pulses rhythmically during on-device Audio Briefing.
+ */
+@Composable
+private fun AudioWaveAnimation(
+    isPlaying: Boolean,
+    modifier: Modifier = Modifier,
+    color: Color = PlatformTheme.colorScheme.primary,
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "audio_wave_transition")
+
+    val h1 by infiniteTransition.animateFloat(
+        initialValue = 0.25f,
+        targetValue = 1.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(450, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "h1",
+    )
+    val h2 by infiniteTransition.animateFloat(
+        initialValue = 0.85f,
+        targetValue = 0.3f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(380, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "h2",
+    )
+    val h3 by infiniteTransition.animateFloat(
+        initialValue = 0.4f,
+        targetValue = 0.95f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(520, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "h3",
+    )
+    val h4 by infiniteTransition.animateFloat(
+        initialValue = 0.9f,
+        targetValue = 0.2f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(410, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "h4",
+    )
+
+    Row(
+        modifier = modifier.height(20.dp),
+        horizontalArrangement = Arrangement.spacedBy(3.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        val heights = listOf(h1, h2, h3, h4)
+        heights.forEach { factor ->
+            val actualHeight = if (isPlaying) (20 * factor).coerceIn(4f, 20f).dp else 4.dp
+            Box(
+                modifier = Modifier
+                    .width(3.2.dp)
+                    .height(actualHeight)
+                    .clip(RoundedCornerShape(50))
+                    .background(color),
+            )
+        }
+    }
+}
+
+/**
+ * Refined Material 3 Expressive On-Device Feed Digest Card ("Catch Me Up" / Executive Pulse).
  *
- * Distills unread timeline updates into interactive, multi-sentence executive
- * topic highlights using zero-egress on-device intelligence.
+ * Features:
+ * - Dynamic time-of-day greeting ("Morning Pulse", "Midday Brief", "Evening Dispatch", "Nightly Digest").
+ * - Hands-free on-device Text-To-Speech (TTS) audio dispatch with play, pause, and stop controls.
+ * - Interactive multi-sentence narrative highlights with topic filters.
+ * - 1-tap "✨ Synthesize Carousel" action that launches editorial carousel generation.
  */
 @Composable
 public fun CatchMeUpDigestCard(
@@ -67,10 +147,40 @@ public fun CatchMeUpDigestCard(
     modifier: Modifier = Modifier,
     onScrollToFeed: (() -> Unit)? = null,
     onRefresh: (() -> Unit)? = null,
+    onSynthesizeCarousel: ((FeedDigest) -> Unit)? = null,
 ) {
     val uriHandler = LocalUriHandler.current
     var expanded by remember { mutableStateOf(true) }
     var selectedTopicFilter by remember { mutableStateOf<String?>(null) }
+    val audioState = rememberAudioBriefingState()
+
+    // Dynamic Time-of-Day Greeting
+    val currentHour = remember {
+        Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+    }
+    val greeting = remember(currentHour) {
+        when (currentHour) {
+            in 5..11 -> "Morning Pulse"
+            in 12..16 -> "Midday Brief"
+            in 17..21 -> "Evening Dispatch"
+            else -> "Nightly Digest"
+        }
+    }
+
+    // Hands-Free TTS Speech Script
+    val audioScript = remember(digest, greeting) {
+        buildString {
+            append("Good day. Here is your $greeting, distilling ${digest.postCount} updates from your timeline. ")
+            digest.highlights.forEachIndexed { index, highlight ->
+                append("Topic ${index + 1}: ${highlight.topic}. ")
+                append("${highlight.summary} ")
+                if (!highlight.authorName.isNullOrBlank()) {
+                    append("Shared by ${highlight.authorName}. ")
+                }
+            }
+            append("That concludes your executive briefing.")
+        }
+    }
 
     val displayedHighlights = remember(digest.highlights, selectedTopicFilter) {
         val filter = selectedTopicFilter
@@ -88,12 +198,16 @@ public fun CatchMeUpDigestCard(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = screenHorizontalPadding, vertical = 6.dp)
-            .clip(RoundedCornerShape(18.dp))
-            .background(PlatformTheme.colorScheme.cardAlt.copy(alpha = 0.48f))
+            .clip(RoundedCornerShape(20.dp))
+            .background(PlatformTheme.colorScheme.cardAlt.copy(alpha = 0.52f))
             .border(
-                width = 0.8.dp,
-                color = PlatformTheme.colorScheme.outline.copy(alpha = 0.24f),
-                shape = RoundedCornerShape(18.dp),
+                width = 0.9.dp,
+                color = if (audioState.isSpeaking) {
+                    PlatformTheme.colorScheme.primary.copy(alpha = 0.45f)
+                } else {
+                    PlatformTheme.colorScheme.outline.copy(alpha = 0.24f)
+                },
+                shape = RoundedCornerShape(20.dp),
             ),
     ) {
         Column(
@@ -112,9 +226,9 @@ public fun CatchMeUpDigestCard(
                 // Editorial Tonal Squircle Icon
                 Box(
                     modifier = Modifier
-                        .size(34.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(PlatformTheme.colorScheme.primary.copy(alpha = 0.14f)),
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(11.dp))
+                        .background(PlatformTheme.colorScheme.primary.copy(alpha = 0.15f)),
                     contentAlignment = Alignment.Center,
                 ) {
                     FAIcon(
@@ -132,7 +246,7 @@ public fun CatchMeUpDigestCard(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         PlatformText(
-                            text = digest.title,
+                            text = greeting,
                             style = PlatformTheme.typography.title,
                             fontWeight = FontWeight.Bold,
                         )
@@ -143,7 +257,7 @@ public fun CatchMeUpDigestCard(
                                 .padding(horizontal = 8.dp, vertical = 2.dp),
                         ) {
                             PlatformText(
-                                text = "${digest.postCount} Updates",
+                                text = "${digest.postCount} Signals",
                                 style = PlatformTheme.typography.caption,
                                 fontWeight = FontWeight.SemiBold,
                                 color = PlatformTheme.colorScheme.primary,
@@ -151,7 +265,11 @@ public fun CatchMeUpDigestCard(
                         }
                     }
                     PlatformText(
-                        text = if (expanded) digest.subtitle else "Tap to expand ${digest.highlights.size} executive highlights",
+                        text = if (expanded) {
+                            "${digest.highlights.size} Curated Insights • Zero Egress"
+                        } else {
+                            "Tap to expand executive briefing"
+                        },
                         style = PlatformTheme.typography.caption,
                         color = PlatformTheme.colorScheme.caption,
                         maxLines = 1,
@@ -174,7 +292,10 @@ public fun CatchMeUpDigestCard(
 
                 // Dismiss button
                 PlatformIconButton(
-                    onClick = onDismiss,
+                    onClick = {
+                        audioState.stop()
+                        onDismiss()
+                    },
                     modifier = Modifier.size(30.dp),
                 ) {
                     FAIcon(
@@ -192,6 +313,111 @@ public fun CatchMeUpDigestCard(
                 exit = fadeOut() + shrinkVertically(),
             ) {
                 Column(modifier = Modifier.fillMaxWidth()) {
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Audio Briefing Control Bar
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(13.dp))
+                            .background(
+                                if (audioState.isSpeaking) {
+                                    PlatformTheme.colorScheme.primary.copy(alpha = 0.12f)
+                                } else {
+                                    PlatformTheme.colorScheme.card.copy(alpha = 0.65f)
+                                }
+                            )
+                            .border(
+                                width = 0.7.dp,
+                                color = if (audioState.isSpeaking) {
+                                    PlatformTheme.colorScheme.primary.copy(alpha = 0.45f)
+                                } else {
+                                    PlatformTheme.colorScheme.outline.copy(alpha = 0.16f)
+                                },
+                                shape = RoundedCornerShape(13.dp),
+                            )
+                            .padding(horizontal = 11.dp, vertical = 8.dp),
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                AudioWaveAnimation(
+                                    isPlaying = audioState.isSpeaking,
+                                    color = if (audioState.isSpeaking) PlatformTheme.colorScheme.primary else PlatformTheme.colorScheme.caption,
+                                )
+                                Column {
+                                    PlatformText(
+                                        text = when {
+                                            audioState.isSpeaking -> "Executive Audio Briefing Playing"
+                                            audioState.isPaused -> "Briefing Paused"
+                                            else -> "Hands-Free Audio Dispatch"
+                                        },
+                                        style = PlatformTheme.typography.caption,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (audioState.isSpeaking) PlatformTheme.colorScheme.primary else PlatformTheme.colorScheme.text,
+                                    )
+                                    PlatformText(
+                                        text = when {
+                                            audioState.isSpeaking -> "On-Device Speech Synthesis • Zero Egress"
+                                            audioState.isPaused -> "Tap play to resume your executive dispatch"
+                                            else -> "Listen to this digest aloud"
+                                        },
+                                        style = PlatformTheme.typography.caption,
+                                        color = PlatformTheme.colorScheme.caption,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
+                            }
+
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                // Play / Pause Button
+                                PlatformIconButton(
+                                    onClick = {
+                                        when {
+                                            audioState.isSpeaking -> audioState.pause()
+                                            audioState.isPaused -> audioState.resume()
+                                            else -> audioState.speak(audioScript)
+                                        }
+                                    },
+                                    modifier = Modifier.size(34.dp),
+                                ) {
+                                    FAIcon(
+                                        imageVector = if (audioState.isSpeaking) FontAwesomeIcons.Solid.CirclePause else FontAwesomeIcons.Solid.CirclePlay,
+                                        contentDescription = if (audioState.isSpeaking) "Pause Briefing" else "Play Briefing",
+                                        modifier = Modifier.size(20.dp),
+                                        tint = PlatformTheme.colorScheme.primary,
+                                    )
+                                }
+
+                                // Stop Button (visible if speaking or paused)
+                                if (audioState.isSpeaking || audioState.isPaused) {
+                                    PlatformIconButton(
+                                        onClick = { audioState.stop() },
+                                        modifier = Modifier.size(32.dp),
+                                    ) {
+                                        FAIcon(
+                                            imageVector = FontAwesomeIcons.Solid.Xmark,
+                                            contentDescription = "Stop Briefing",
+                                            modifier = Modifier.size(13.dp),
+                                            tint = PlatformTheme.colorScheme.caption,
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     Spacer(modifier = Modifier.height(10.dp))
 
                     // Interactive Topic Filter Chips
@@ -355,28 +581,51 @@ public fun CatchMeUpDigestCard(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 2.dp),
+                            .padding(top = 4.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        if (onRefresh != null) {
-                            PlatformTextButton(onClick = onRefresh) {
-                                FAIcon(
-                                    imageVector = FontAwesomeIcons.Solid.RotateRight,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(12.dp),
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                PlatformText("Refresh Brief", style = PlatformTheme.typography.caption)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            if (onSynthesizeCarousel != null) {
+                                PlatformTextButton(
+                                    onClick = { onSynthesizeCarousel(digest) },
+                                ) {
+                                    FAIcon(
+                                        imageVector = FontAwesomeIcons.Solid.WandMagicSparkles,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(13.dp),
+                                        tint = PlatformTheme.colorScheme.primary,
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    PlatformText(
+                                        text = "Synthesize Carousel",
+                                        style = PlatformTheme.typography.caption,
+                                        fontWeight = FontWeight.Bold,
+                                        color = PlatformTheme.colorScheme.primary,
+                                    )
+                                }
                             }
-                        } else {
-                            Spacer(modifier = Modifier.width(1.dp))
+
+                            if (onRefresh != null) {
+                                PlatformTextButton(onClick = onRefresh) {
+                                    FAIcon(
+                                        imageVector = FontAwesomeIcons.Solid.RotateRight,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(12.dp),
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    PlatformText("Refresh", style = PlatformTheme.typography.caption)
+                                }
+                            }
                         }
 
                         if (onScrollToFeed != null) {
                             PlatformTextButton(onClick = onScrollToFeed) {
                                 PlatformText(
-                                    "Continue to Timeline ↓",
+                                    "Timeline ↓",
                                     style = PlatformTheme.typography.caption,
                                     fontWeight = FontWeight.SemiBold,
                                 )
