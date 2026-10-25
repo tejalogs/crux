@@ -74,6 +74,12 @@ android {
             }
         }
         release {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
             optimization {
                 enable = true
             }
@@ -90,6 +96,18 @@ android {
             } else {
                 signingConfig = signingConfigs.getByName("debug")
             }
+        }
+    }
+
+    packaging {
+        resources {
+            excludes += setOf(
+                "/META-INF/{AL2.0,LGPL2.1}",
+                "DebugProbesKt.bin",
+                "org/fusesource/jansi/**",
+                "META-INF/INDEX.LIST",
+                "META-INF/io.netty.versions.properties",
+            )
         }
     }
 

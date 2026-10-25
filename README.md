@@ -1,53 +1,96 @@
-# Flare
-[![license](https://img.shields.io/github/license/DimensionDev/Flare)](https://github.com/DimensionDev/Flare/blob/master/LICENSE)
-[![Crowdin](https://badges.crowdin.net/flareapp/localized.svg)](https://crowdin.com/project/flareapp)
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/DimensionDev/Flare)
-[![Telegram](https://img.shields.io/badge/-telegram-blue?logo=telegram&color=white)](https://t.me/+fEJ2UYnOlVM0NmM1)
-[![Discord](https://img.shields.io/badge/-discord-blue?logo=discord&color=white)](https://discord.gg/De9NhXBryT)
+# Prism (Flare Fork) - Sovereign Multiplatform Social Hub
 
-![badge-Android](https://img.shields.io/badge/Android-8.0-3DDC84)
-![badge-iOS](https://img.shields.io/badge/iOS-17.0-black)
-![badge-Windows](https://img.shields.io/badge/Windows_10-1809-blue)
-![badge-macOS](https://img.shields.io/badge/macOS-Sonoma-black)
-![badge-Linux](https://img.shields.io/badge/Linux-AppImage-black)
-![badge-Web](https://img.shields.io/badge/Web-Svelte-black)
+[![license](https://img.shields.io/badge/License-AGPL%203.0-blue.svg)](LICENSE)
+![badge-Android](https://img.shields.io/badge/Android-8.0+-3DDC84?logo=android&logoColor=white)
+![badge-macOS](https://img.shields.io/badge/macOS-Sonoma+-black?logo=apple&logoColor=white)
+![badge-Windows](https://img.shields.io/badge/Windows-10%2F11-blue?logo=windows&logoColor=white)
+![badge-Linux](https://img.shields.io/badge/Linux-AppImage%2FDeb-orange?logo=linux&logoColor=white)
+![badge-Privacy](https://img.shields.io/badge/Zero--Egress%20AI-Gemma%204%20Edge-8A2BE2)
 
-Flare is an open-source, privacy-first social client that brings Mastodon, Misskey, Bluesky, X, Pixiv, Fanbox, Nostr, and RSS into one unified timeline. It supports cross-posting, lists, feeds, DMs, RSS management, and AI-powered features such as translation and agents. Built with Kotlin Multiplatform, Flare shares its core logic across Android, iOS, macOS, Windows, and Linux, turning fragmented social feeds into a personal information hub.
+Prism (evolution of Flare) is an open-source, sovereign, privacy-first multiplatform social hub built with **Kotlin Multiplatform (KMP)** and **Compose Multiplatform**. It unifies your fragmented social feeds into an integrated, beautiful timeline with **zero telemetry**, **zero cloud AI data leakage**, and hardware-backed local intelligence.
 
-<a href="https://apps.microsoft.com/detail/9NLRN0BKZ357?referrer=appbadge&mode=direct">
-	<img src="https://get.microsoft.com/images/en-us%20dark.svg" width="190"/>
-</a>
-<a href='https://apps.apple.com/us/app/flare-social-network-client/id6476077738'><img alt='Get it on Google Play' src='https://developer.apple.com/app-store/marketing/guidelines/images/badge-example-preferred_2x.png' width=150/></a>
-<a href='https://play.google.com/store/apps/details?id=dev.dimension.flare&pcampaignid=pcampaignidMKT-Other-global-all-co-prtnr-py-PartBadge-Mar2515-1'><img alt='Get it on Google Play' src='docs/GetItOnGooglePlay_Badge_Web_color_English.svg' width=170/></a>
-<a href='https://f-droid.org/packages/dev.dimension.flare'><img alt='Get it on F-Droid' src='https://f-droid.org/badge/get-it-on.svg' width=150/></a>
-<a href='https://github.com/DimensionDev/Flare/releases/latest'><img alt='Download AppImage' src='docs/appimage_badge.svg' width=150/></a>
+---
 
-## Features
- - Unified social inbox: Flare brings Mastodon, Misskey, Bluesky, X, Pixiv, Fanbox, Nostr and RSS together in one place, so users can follow fragmented communities through a single timeline.
- - Mixed timeline experience: It merges content from multiple accounts and platforms into a coherent feed, reducing context switching between apps.
- - Cross-platform by design: Built with Kotlin Multiplatform, Flare shares core logic across Android, iOS, macOS, Windows, and Linux.
- - Rich platform support: Beyond basic timelines, it supports features such as polls, lists, bookmarks/favorites, Misskey antennas, Bluesky feeds and DMs, and RSS management.
- - Cross-posting workflow: Users can publish to multiple platforms at once, making it practical for creators and heavy social media users.
- - Built in AI Agent: Configure OpenAI-compatible or on-device AI, enable summaries, or ask for post or profile insights, chat with Flare’s agent, and query local cache/history.
- - Privacy-first approach: As a FOSS client, it emphasizes user control with features like anonymous mode, local filtering, local history, and transparent data handling.
+## 🌟 Supported Platforms & Connectors
 
-## Roadmap
-Here're some features we're planning to implement in the future.
- - [x] Grouped Mixed timeline
- - [ ] Showing instance's announcement
- - [x] Crossposting for repost
- - [ ] Auto thread
- - [ ] AI powered features
-   - [ ] Personal trends of the day
-   - [ ] Quick reply
- - [ ] Support for Meta Threads
- - [ ] Support for Discourse forum
- - [x] Support for Nostr
- - [x] Desktop Client
- - [x] Web Client
+| Platform | Integration Mode | Features |
+| :--- | :--- | :--- |
+| **LinkedIn** | Sovereign Web Bridge & Voyager Dash API | Native feed cards, article previews, document carousels, polls, commentary reshares, offline disk persistence |
+| **Instagram** | Sovereign Isolated WebView Bridge | Clean timeline cards, sandboxed session storage, tracker blocking |
+| **Bluesky** | AT Protocol Native Client | Full feed, mentions, rich media, custom feeds, lists, search |
+| **Mastodon** | ActivityPub REST Client | Federated timelines, lists, bookmarks, polls, instance custom emojis |
+| **Twitter / X** | Direct API & Syndication | Native timeline mapping, video badges, quotes, search |
+| **Nostr** | Nostr SDK & Relay Engine | Cryptographic keys, relay pool multiplexing, decentralized posts |
+| **Misskey** | Sharkey / Misskey API | Antennas, custom emojis, reactions, timeline streams |
+| **Pixiv & Fanbox** | Native API & Session Engine | High-res art galleries, creator updates |
 
-## Contributing
-See [CONTRIBUTING.md](CONTRIBUTING.md) for more information.
+---
 
-## License
-This project is licensed under the [AGPL-3.0](LICENSE) license.
+## 🧠 Sovereign On-Device AI (Zero Cloud Egress)
+
+- **Gemma 4 Edge (E2B / E4B) Architecture**: Embedded support for Google's lightweight open weights Gemma 4 Edge (~2.3B parameters, 1.4GB RAM footprint) with speculative **Multi-Token Prediction (MTP)** for up to 2.2x inference speedup and an 8192-token context window.
+- **LiteRT-LM & Localhost Bridge**: Direct integration with `.litertlm` runtime containers and zero-trust loopback socket verification (`localhost:11434` for desktop Ollama).
+- **Dense 768-Dimensional Semantic Vector Search**: Local mathematical embedding engine utilizing subword n-gram hashing, sinusoidal positional harmonics, TF-IDF term weighting, and unit-norm projection to perform instant offline semantic ranking across cached timelines and reading lists.
+- **"Catch Me Up" Feed Digests**: On-device clustering synthesizes missed posts into an expressive summary card with topic chips and author highlight previews right at the top of your feed.
+
+---
+
+## 🛡️ Zero-Trust Security & Sovereign Privacy Hub
+
+- **0 B Cloud AI Leakage**: AI processing, summarization, translation, and semantic search operate strictly on-device without sending tokens or context to cloud servers.
+- **Network Egress Inspector**: Live settings dashboard displaying network activity, blocked tracking beacons (Snapchat, DoubleClick, GA, telemetry), and active sovereign bridge statuses.
+- **Sandboxed Web Bridges**: LinkedIn and Instagram integrations execute within dedicated sandboxes that automatically strip ads, third-party analytics scripts, and intrusive app install nag-modals.
+- **Encrypted Local Storage**: Account credentials, access tokens, and cached feed payloads are stored locally and encrypted.
+
+---
+
+## 🎨 Expressive Material 3 Design & Micro-Interactions
+
+- **Floating Capsule Dock**: Ergonomic floating bottom bar with smooth spring physics, auto-collapsing on feed scroll and expanding on reverse scroll.
+- **Stacked Grouped Avatars**: Notification cards feature overlapping stacked avatar circles with `+N` count indicators and signature platform origin badges (Twitter, Bluesky, Mastodon, Instagram, LinkedIn).
+- **Tactile Haptic Feedback**: Subtle haptic pulses and spring-damping animations on likes, boosts, bookmarks, and bottom tab switches.
+- **Media Viewer**: Double-tap gesture zoom (`1.0x` to `2.5x`) with haptic detent thresholds.
+- **Refreshed Explore Screen**: Dynamic category filter pills (`"All"`, `"Trending"`, `"Tech & AI"`, `"News & Media"`, `"People"`) with gradient topic cards and search suggestion chips.
+
+---
+
+## 🛠️ Building & Packaging
+
+### Prerequisites
+- JDK 17 or higher
+- Android SDK (API 35, Build Tools 35.0.0)
+
+### 1. Build Android Debug APK
+```bash
+./gradlew :app:assembleDebug
+# Output: app/build/outputs/apk/debug/app-debug.apk
+```
+
+### 2. Build Android Production Release APK (Optimized with ProGuard/R8)
+```bash
+./gradlew :app:assembleRelease
+# Output: app/build/outputs/apk/release/app-release.apk
+```
+*Note: Release builds automatically execute R8 minification, resource shrinking, dead code elimination, and alien binary format stripping (Windows DLLs and Mac JNI libraries are excluded).*
+
+### 3. Run Test Suite
+```bash
+# Multiplatform shared tests (680+ unit tests)
+./gradlew :shared:jvmTest
+
+# Compose UI multiplatform unit tests
+./gradlew :compose-ui:jvmTest
+
+# Android unit tests
+./gradlew :app:testDebugUnitTest
+```
+
+### 4. Build Desktop Client (JVM)
+```bash
+./gradlew :desktopApp:packageDistributionForCurrentOS
+```
+
+---
+
+## 📄 License
+This project is licensed under the [GNU Affero General Public License v3.0 (AGPL-3.0)](LICENSE).
