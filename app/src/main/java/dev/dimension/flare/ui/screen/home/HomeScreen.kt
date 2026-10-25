@@ -266,8 +266,14 @@ internal fun HomeScreen(afterInit: () -> Unit) {
                                 selected = currentRoute == tab.route,
                                 onClick = {
                                     if (currentRoute == tab.route) {
+                                        hapticFeedback.performHapticFeedback(
+                                            HapticFeedbackType.GestureThresholdActivate,
+                                        )
                                         state.scrollToTopRegistry.scrollToTop()
                                     } else {
+                                        hapticFeedback.performHapticFeedback(
+                                            HapticFeedbackType.SegmentTick,
+                                        )
                                         state.navigate(tab.route)
                                     }
                                 },

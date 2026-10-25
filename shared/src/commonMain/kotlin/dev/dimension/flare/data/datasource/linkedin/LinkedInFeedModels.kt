@@ -43,12 +43,12 @@ public data class LinkedInActor(
     val image: LinkedInImageAttributes? = null,
 )
 
-@Serializable
+@Serializable(with = LinkedInTextSerializer::class)
 public data class LinkedInText(
     val text: String? = null,
 )
 
-@Serializable
+@Serializable(with = LinkedInCommentarySerializer::class)
 public data class LinkedInCommentary(
     val text: LinkedInText? = null,
 )

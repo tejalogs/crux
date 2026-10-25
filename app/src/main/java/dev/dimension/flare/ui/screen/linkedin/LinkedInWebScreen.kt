@@ -155,6 +155,49 @@ private const val PRISM_LINKEDIN_SHIELD_JS = """
         } catch (_) {}
     }
     cleanDOM();
+
+    if (!window.__prismFeedHooked) {
+        window.__prismFeedHooked = true;
+        try {
+            var origFetch = window.fetch;
+            if (origFetch) {
+                window.fetch = async function() {
+                    var response = await origFetch.apply(this, arguments);
+                    try {
+                        var arg = arguments[0];
+                        var u = typeof arg === 'string' ? arg : (arg ? arg.url : '');
+                        if (u && (u.indexOf('voyager/api/feed') !== -1 || u.indexOf('feedUpdates') !== -1 || u.indexOf('voyager/api/graphql') !== -1)) {
+                            response.clone().text().then(function(t) {
+                                if (window.LinkedInPrismBridge && t) {
+                                    window.LinkedInPrismBridge.onFeedData(t);
+                                }
+                            });
+                        }
+                    } catch (_) {}
+                    return response;
+                };
+            }
+
+            var origOpen = XMLHttpRequest.prototype.open;
+            var origSend = XMLHttpRequest.prototype.send;
+            XMLHttpRequest.prototype.open = function(method, url) {
+                this.__prismUrl = url;
+                return origOpen.apply(this, arguments);
+            };
+            XMLHttpRequest.prototype.send = function() {
+                this.addEventListener('load', function() {
+                    try {
+                        if (this.__prismUrl && (this.__prismUrl.indexOf('voyager/api/feed') !== -1 || this.__prismUrl.indexOf('feedUpdates') !== -1)) {
+                            if (window.LinkedInPrismBridge && this.responseText) {
+                                window.LinkedInPrismBridge.onFeedData(this.responseText);
+                            }
+                        }
+                    } catch (_) {}
+                });
+                return origSend.apply(this, arguments);
+            };
+        } catch (_) {}
+    }
 })();
 """
 
@@ -382,6 +425,18 @@ internal fun LinkedInWebScreen(
                     val cookieManager = CookieManager.getInstance()
                     cookieManager.setAcceptCookie(true)
                     cookieManager.setAcceptThirdPartyCookies(webView, false)
+
+                    webView.addJavascriptInterface(
+                        object {
+                            @android.webkit.JavascriptInterface
+                            fun onFeedData(json: String) {
+                                scope.launch {
+                                    linkedInSyncService.cacheFeedPayload(json)
+                                }
+                            }
+                        },
+                        "LinkedInPrismBridge",
+                    )
 
                     webView.webViewClient =
                         object : WebViewClient() {

@@ -84,6 +84,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -888,6 +889,14 @@ private fun NavigationSuiteSegmentedDefaultItem(
     itemsCount: Int,
     contentPadding: PaddingValues = ListItemDefaults.ContentPadding,
 ) {
+    val scale by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (item.selected) 1.05f else 1.0f,
+        animationSpec = androidx.compose.animation.core.spring(
+            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
+            stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow,
+        ),
+        label = "segmented_nav_item_bounce",
+    )
     SegmentedListItem(
         content = {
             item.label?.invoke()
@@ -903,6 +912,10 @@ private fun NavigationSuiteSegmentedDefaultItem(
                 modifier =
                     Modifier
                         .size(36.dp)
+                        .graphicsLayer {
+                            scaleX = scale
+                            scaleY = scale
+                        }
                         .clip(RoundedCornerShape(10.dp))
                         .background(
                             if (item.selected) {
@@ -1000,11 +1013,23 @@ private fun NavigationSuiteAdaptiveDefaultItem(
     actualLayoutType: NavigationSuiteType,
     modifier: Modifier = Modifier,
 ) {
+    val scale by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (item.selected) 1.08f else 1.0f,
+        animationSpec = androidx.compose.animation.core.spring(
+            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
+            stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow,
+        ),
+        label = "nav_item_bounce",
+    )
     androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteItem(
         modifier = item.modifier.then(modifier),
         selected = item.selected,
         onClick = item.onClick,
-        icon = item.icon,
+        icon = {
+            Box(modifier = Modifier.graphicsLayer { scaleX = scale; scaleY = scale }) {
+                item.icon()
+            }
+        },
         enabled = item.enabled,
         label = item.label,
         interactionSource = item.interactionSource,

@@ -4,6 +4,7 @@ import dev.dimension.flare.data.datasource.microblog.paging.CacheableRemoteLoade
 import dev.dimension.flare.data.datasource.microblog.paging.PagingRequest
 import dev.dimension.flare.data.datasource.microblog.paging.PagingResult
 import dev.dimension.flare.data.platform.LinkedInCredential
+import dev.dimension.flare.di.koinGet
 import dev.dimension.flare.model.MicroBlogKey
 import dev.dimension.flare.ui.model.UiTimelineV2
 import kotlinx.coroutines.flow.Flow
@@ -13,11 +14,16 @@ public class LinkedInHomeTimelineRemoteLoader(
     private val service: LinkedInFeedService,
     private val accountKey: MicroBlogKey,
     private val credentialFlow: Flow<LinkedInCredential>,
+    private val syncService: LinkedInSyncService? = null,
 ) : CacheableRemoteLoader<UiTimelineV2> {
 
     override val pagingKey: String = "home_$accountKey"
     override val supportPrepend: Boolean = false
     override val collapseReplyChains: Boolean = false
+
+    private val resolvedSyncService: LinkedInSyncService? by lazy {
+        syncService ?: runCatching { koinGet<LinkedInSyncService>() }.getOrNull()
+    }
 
     override suspend fun load(
         pageSize: Int,
@@ -40,7 +46,15 @@ public class LinkedInHomeTimelineRemoteLoader(
             cursor = cursor,
         )
 
-        val updates = response?.elements.orEmpty()
+        val networkUpdates = response?.elements.orEmpty()
+        val updates = if (networkUpdates.isNotEmpty()) {
+            networkUpdates
+        } else if (cursor == null) {
+            resolvedSyncService?.getLatestCachedUpdates().orEmpty()
+        } else {
+            emptyList()
+        }
+
         val renderedPosts = updates.mapNotNull { update ->
             LinkedInTimelineMapper.render(
                 update = update,

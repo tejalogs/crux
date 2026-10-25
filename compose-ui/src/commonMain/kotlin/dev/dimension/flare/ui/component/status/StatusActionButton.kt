@@ -3,6 +3,7 @@ package dev.dimension.flare.ui.component.status
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -11,6 +12,7 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -27,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
@@ -41,12 +44,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.dimension.flare.ui.component.AnimatedNumber
 import dev.dimension.flare.ui.component.FAIcon
+import dev.dimension.flare.ui.component.LocalGlobalAppearance
 import dev.dimension.flare.ui.component.LocalTimelineAppearance
 import dev.dimension.flare.ui.component.platform.PlatformDropdownMenu
 import dev.dimension.flare.ui.component.platform.PlatformDropdownMenuScope
 import dev.dimension.flare.ui.component.platform.PlatformText
 import dev.dimension.flare.ui.component.platform.PlatformTextStyle
 import dev.dimension.flare.ui.component.platform.rippleIndication
+import dev.dimension.flare.ui.haptic.FlareHapticEvent
+import dev.dimension.flare.ui.haptic.rememberFlareHapticFeedback
 import dev.dimension.flare.ui.model.UiNumber
 import dev.dimension.flare.ui.theme.PlatformContentColor
 import dev.dimension.flare.ui.theme.PlatformTheme
@@ -64,7 +70,29 @@ public fun StatusActionButton(
     isStretched: Boolean = false,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
     val appearanceSettings = LocalTimelineAppearance.current
+    val globalAppearance = LocalGlobalAppearance.current
+    val haptics = rememberFlareHapticFeedback(globalAppearance.hapticsEnabled)
+
+    val bounceScale by animateFloatAsState(
+        targetValue = if (isPressed) 0.82f else 1.0f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMediumLow,
+        ),
+        label = "status_action_bounce",
+    )
+
+    val handleClicked = remember(enabled, onClicked, haptics) {
+        {
+            if (enabled) {
+                haptics.perform(FlareHapticEvent.Confirm)
+                onClicked.invoke()
+            }
+        }
+    }
+
     val displayNumber =
         number?.takeIf {
             appearanceSettings.showNumbers && it.humanized.isNotEmpty()
@@ -88,7 +116,7 @@ public fun StatusActionButton(
                     }
                     onClick {
                         if (enabled) {
-                            onClicked.invoke()
+                            handleClicked.invoke()
                             true
                         } else {
                             false
@@ -123,10 +151,14 @@ public fun StatusActionButton(
                 contentDescription = contentDescription,
                 modifier =
                     Modifier
+                        .graphicsLayer {
+                            scaleX = bounceScale
+                            scaleY = bounceScale
+                        }
                         .height(PlatformTextStyle.current.fontSize.value.dp + 2.dp)
                         .pointerHoverIcon(if (enabled) PointerIcon.Hand else PointerIcon.Default)
                         .clickable(
-                            onClick = onClicked,
+                            onClick = handleClicked,
                             enabled = enabled,
                             interactionSource = interactionSource,
                             indication =
@@ -192,7 +224,7 @@ public fun StatusActionButton(
                             .then(if (isStretched) Modifier.clipToBounds() else Modifier)
                             .pointerHoverIcon(if (enabled) PointerIcon.Hand else PointerIcon.Default)
                             .clickable(
-                                onClick = onClicked,
+                                onClick = handleClicked,
                                 enabled = enabled,
                                 interactionSource = interactionSource,
                                 indication = null,

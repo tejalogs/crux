@@ -36,6 +36,7 @@ public object LinkedInTimelineMapper {
         val actor = update.actor ?: return null
         val actorName = actor.name?.text?.takeIf { it.isNotBlank() } ?: "LinkedIn Member"
         val headline = actor.description?.text?.takeIf { it.isNotBlank() }
+            ?: actor.subDescription?.text?.takeIf { it.isNotBlank() }
 
         val id = update.id.ifBlank { update.urn.orEmpty() }
         if (id.isBlank()) return null
@@ -77,7 +78,10 @@ public object LinkedInTimelineMapper {
             bottomContent = null,
         )
 
-        val commentaryText = update.commentary?.text?.text.orEmpty()
+        val commentaryText = update.commentary?.text?.text?.takeIf { it.isNotBlank() }
+            ?: update.content?.articleComponent?.title?.takeIf { it.isNotBlank() }
+            ?: update.content?.entityComponent?.title?.text?.takeIf { it.isNotBlank() }
+            ?: ""
         val mediaList = mutableListOf<UiMedia>()
 
         // 1. Single Image or Multi-Image
@@ -191,20 +195,29 @@ public object LinkedInTimelineMapper {
     }
 
     private fun extractAvatarUrl(imageAttr: LinkedInImageAttributes?): String? {
-        val detail = imageAttr?.attributes?.firstOrNull() ?: return null
-        if (!detail.sourceWebImageUrl.isNullOrBlank()) {
-            return detail.sourceWebImageUrl
+        val attributes = imageAttr?.attributes.orEmpty()
+        for (detail in attributes) {
+            if (!detail.sourceWebImageUrl.isNullOrBlank()) {
+                return detail.sourceWebImageUrl
+            }
+            val nonEntity = detail.detailData?.nonEntityProfilePicture?.url
+            if (!nonEntity.isNullOrBlank()) {
+                return nonEntity
+            }
+            val vector = detail.detailData?.vectorImage
+            if (vector != null) {
+                val rootUrl = vector.rootUrl.orEmpty()
+                val artifactPath = vector.artifacts.lastOrNull()?.fileIdentifyingUrlPathSegment.orEmpty()
+                if (rootUrl.isNotBlank() && artifactPath.isNotBlank()) {
+                    return if (rootUrl.endsWith("/") || artifactPath.startsWith("/")) {
+                        rootUrl + artifactPath
+                    } else {
+                        "$rootUrl/$artifactPath"
+                    }
+                }
+            }
         }
-        val nonEntity = detail.detailData?.nonEntityProfilePicture?.url
-        if (!nonEntity.isNullOrBlank()) {
-            return nonEntity
-        }
-        val vector = detail.detailData?.vectorImage ?: return null
-        val rootUrl = vector.rootUrl.orEmpty()
-        val artifactPath = vector.artifacts.lastOrNull()?.fileIdentifyingUrlPathSegment.orEmpty()
-        return if (rootUrl.isNotBlank() && artifactPath.isNotBlank()) {
-            rootUrl + artifactPath
-        } else null
+        return null
     }
 
     private fun extractCard(content: LinkedInContent?, fallbackText: String): UiCard? {

@@ -16,8 +16,23 @@ import kotlin.native.HiddenFromObjC
 @HiddenFromObjC
 @Single
 public class LinkedInSyncService(
-    private val accountService: AccountService,
+    private val accountService: AccountService? = null,
 ) {
+
+    private val cachedUpdates = kotlinx.coroutines.flow.MutableStateFlow<List<LinkedInUpdate>>(emptyList())
+
+    public fun cacheFeedPayload(jsonText: String) {
+        val parsed = LinkedInFeedParser.parse(jsonText)
+        if (parsed.elements.isNotEmpty()) {
+            val current = cachedUpdates.value
+            val merged = (parsed.elements + current)
+                .distinctBy { it.id.ifBlank { it.urn.orEmpty() } }
+                .take(100)
+            cachedUpdates.value = merged
+        }
+    }
+
+    public fun getLatestCachedUpdates(): List<LinkedInUpdate> = cachedUpdates.value
 
     public suspend fun syncSession(cookies: String, explicitUserId: String? = null): Boolean {
         if (!LinkedInFeedService.hasActiveSession(cookies)) {
@@ -30,11 +45,12 @@ public class LinkedInSyncService(
             host = LINKEDIN_HOST,
         )
 
-        val existingAccounts = accountService.allAccountServicesFlow().first()
+        val service = accountService ?: return false
+        val existingAccounts = service.allAccountServicesFlow().first()
         val existingAccount = existingAccounts.firstOrNull { it.accountKey == accountKey }
 
         if (existingAccount == null) {
-            accountService.addAccount(
+            service.addAccount(
                 account = UiAccount(
                     accountKey = accountKey,
                     platformId = LINKEDIN_PLATFORM_ID,
@@ -47,7 +63,7 @@ public class LinkedInSyncService(
                 ),
             )
         } else {
-            accountService.updateCredential(
+            service.updateCredential(
                 accountKey = accountKey,
                 credential = LinkedInCredential(
                     cookies = cookies,
@@ -60,7 +76,8 @@ public class LinkedInSyncService(
     }
 
     public suspend fun isLinkedInAccountRegistered(): Boolean {
-        val existingAccounts = accountService.allAccountServicesFlow().first()
+        val service = accountService ?: return false
+        val existingAccounts = service.allAccountServicesFlow().first()
         return existingAccounts.any { it.platformId == LINKEDIN_PLATFORM_ID }
     }
 }

@@ -12,6 +12,7 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.isSuccess
 
 public const val LINKEDIN_FEED_TIMELINE_URL: String = "https://www.linkedin.com/voyager/api/feed/updatesV2"
+public const val LINKEDIN_FEED_DASH_URL: String = "https://www.linkedin.com/voyager/api/feed/dash/updates"
 public const val LINKEDIN_USER_AGENT: String =
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36"
 
@@ -26,13 +27,36 @@ public class LinkedInFeedService(
         if (cookies.isBlank()) return null
         val csrfToken = extractCsrfToken(cookies)
 
+        val primaryResult = fetchFromEndpoint(LINKEDIN_FEED_TIMELINE_URL, cookies, csrfToken, cursor)
+        if (primaryResult != null && primaryResult.elements.isNotEmpty()) {
+            return primaryResult
+        }
+
+        // Fallback to Dash updates endpoint if primary returned empty
+        val fallbackResult = fetchFromEndpoint(LINKEDIN_FEED_DASH_URL, cookies, csrfToken, cursor)
+        return fallbackResult ?: primaryResult
+    }
+
+    private suspend fun fetchFromEndpoint(
+        url: String,
+        cookies: String,
+        csrfToken: String?,
+        cursor: String?,
+    ): LinkedInFeedResponse? {
         return try {
-            val response = client.get(LINKEDIN_FEED_TIMELINE_URL) {
+            val response = client.get(url) {
                 header(HttpHeaders.UserAgent, LINKEDIN_USER_AGENT)
                 header(HttpHeaders.Cookie, cookies)
-                header(HttpHeaders.Accept, "application/vnd.linkedin.normalized+json+2.1, application/json")
+                header(HttpHeaders.Accept, "application/json, application/vnd.linkedin.normalized+json+2.1")
                 header(HttpHeaders.Referrer, "https://www.linkedin.com/feed/")
                 header("x-restli-protocol-version", "2.0.0")
+                header("sec-ch-ua", "\"Chromium\";v=\"130\", \"Google Chrome\";v=\"130\", \"Not?A_Brand\";v=\"99\"")
+                header("sec-ch-ua-mobile", "?0")
+                header("sec-ch-ua-platform", "\"macOS\"")
+                header("sec-fetch-dest", "empty")
+                header("sec-fetch-mode", "cors")
+                header("sec-fetch-site", "same-origin")
+                header("accept-language", "en-US,en;q=0.9")
                 csrfToken?.let { header("csrf-token", it) }
 
                 parameter("count", "20")
@@ -45,11 +69,8 @@ public class LinkedInFeedService(
             }
 
             val bodyText = response.bodyAsText()
-            JSON.decodeFromStringWithNullableFallback(
-                LinkedInFeedResponse.serializer(),
-                bodyText,
-            )
-        } catch (e: Exception) {
+            LinkedInFeedParser.parse(bodyText)
+        } catch (_: Exception) {
             null
         }
     }

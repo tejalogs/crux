@@ -1119,7 +1119,6 @@ internal fun StatusActions(
                         isStretched = isStretched,
                         onClicked = {
                             action.onClicked.let { onClick ->
-                                haptics.performHapticFeedback(HapticFeedbackType.ContextClick)
                                 onClick.invoke(
                                     ClickContext(
                                         launcher = {

@@ -220,4 +220,114 @@ class LinkedInFeedIntegrationTest {
         assertEquals(UiIcon.LinkedIn, LinkedInPlatformSpec.metadata.icon)
         assertEquals(1, LinkedInPlatformSpec.timelineSpecs.size)
     }
+
+    @Test
+    fun parsesNormalizedVoyagerPayloadWithIncludedArray() {
+        val normalizedJson = """
+            {
+              "data": {
+                "*elements": ["urn:li:activity:999888"]
+              },
+              "included": [
+                {
+                  "${'$'}type": "com.linkedin.voyager.feed.render.UpdateV2",
+                  "urn": "urn:li:activity:999888",
+                  "actor": {
+                    "name": { "text": "Sundar Pichai" },
+                    "description": { "text": "CEO at Alphabet and Google" }
+                  },
+                  "commentary": {
+                    "text": { "text": "Excited for Google I/O and Gemma developments!" }
+                  }
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val parsed = LinkedInFeedParser.parse(normalizedJson)
+        assertEquals(1, parsed.elements.size)
+        val update = parsed.elements[0]
+        assertEquals("urn:li:activity:999888", update.urn)
+        assertEquals("Sundar Pichai", update.actor?.name?.text)
+        assertEquals("Excited for Google I/O and Gemma developments!", update.commentary?.text?.text)
+    }
+
+    @Test
+    fun parsesValueEnvelopePayloadWithPrimitiveStrings() {
+        val envelopeJson = """
+            {
+              "elements": [
+                {
+                  "value": {
+                    "com.linkedin.voyager.feed.render.UpdateV2": {
+                      "id": "li_env_1",
+                      "actor": {
+                        "name": "Demis Hassabis",
+                        "description": "CEO at Google DeepMind"
+                      },
+                      "commentary": "Announcing breakthrough reasoning models."
+                    }
+                  }
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val parsed = LinkedInFeedParser.parse(envelopeJson)
+        assertEquals(1, parsed.elements.size)
+        val update = parsed.elements[0]
+        assertEquals("li_env_1", update.id)
+        assertEquals("Demis Hassabis", update.actor?.name?.text)
+        assertEquals("Announcing breakthrough reasoning models.", update.commentary?.text?.text)
+    }
+
+    @Test
+    fun fallsBackToCachedUpdatesWhenNetworkReturnsEmpty() = runTest {
+        val mockEngine = MockEngine { _ ->
+            respond(
+                content = "{}",
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "application/json"),
+            )
+        }
+
+        val service = LinkedInFeedService(HttpClient(mockEngine))
+        val credentialFlow = flowOf(
+            LinkedInCredential(
+                cookies = "li_at=token123; JSESSIONID=\"ajax:456\"",
+                userId = "u_cached",
+            )
+        )
+
+        val syncService = LinkedInSyncService()
+        syncService.cacheFeedPayload("""
+            {
+              "elements": [
+                {
+                  "id": "li_cached_99",
+                  "actor": {
+                    "name": { "text": "Cached Author" }
+                  },
+                  "commentary": {
+                    "text": { "text": "Cached update from WebView bridge" }
+                  }
+                }
+              ]
+            }
+        """.trimIndent())
+
+        val loader = LinkedInHomeTimelineRemoteLoader(
+            service = service,
+            accountKey = accountKey,
+            credentialFlow = credentialFlow,
+            syncService = syncService,
+        )
+
+        val result = loader.load(pageSize = 20, request = PagingRequest.Refresh)
+        assertEquals(1, result.data.size)
+        val post = (result.data[0] as? dev.dimension.flare.ui.model.UiTimelineV2.TimelinePostItem)?.post
+        assertNotNull(post)
+        assertEquals("Cached Author", post.user?.name?.innerText)
+        assertEquals("Cached update from WebView bridge", post.content.original.innerText)
+    }
 }
