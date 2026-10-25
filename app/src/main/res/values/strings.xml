@@ -205,6 +205,17 @@
     <string name="settings_ai_config_type_select">Select</string>
     <string name="settings_ai_config_type_on_device">On-device AI</string>
     <string name="settings_ai_config_type_on_device_description">Run supported AI models locally on this device</string>
+    <string name="settings_ai_config_on_device_model">On-device Model</string>
+    <string name="settings_ai_config_on_device_model_desc">Local edge neural network architecture</string>
+    <string name="settings_ai_config_on_device_backend">Hardware Backend</string>
+    <string name="settings_ai_config_on_device_backend_desc">Local acceleration hardware for neural execution</string>
+    <string name="settings_ai_config_on_device_mtp">Multi-Token Prediction (MTP)</string>
+    <string name="settings_ai_config_on_device_mtp_desc">Speculative multi-token decoding (~2.2x speedup on mobile GPU/NPU)</string>
+    <string name="settings_ai_config_on_device_privacy">Zero Cloud Egress Guaranteed</string>
+    <string name="settings_ai_config_on_device_privacy_desc">100% offline inference and 768-dim semantic embeddings. Raw tokens never leave device memory.</string>
+    <string name="settings_ai_config_on_device_ollama">Localhost Ollama Endpoint</string>
+    <string name="settings_ai_config_on_device_ollama_desc">Optional loopback bridge for local desktop/Ollama server</string>
+    <string name="settings_ai_config_on_device_ollama_hint">http://localhost:11434</string>
     <string name="settings_ai_config_type_openai">OpenAI-compatible API</string>
     <string name="settings_ai_config_type_openai_description">Use an OpenAI-compatible endpoint for AI features</string>
     <string name="settings_ai_config_value_empty_placeholder">Not set</string>

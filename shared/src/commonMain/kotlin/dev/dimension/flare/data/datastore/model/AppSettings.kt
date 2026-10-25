@@ -107,7 +107,21 @@ public data class AppSettings(
         @Serializable
         public sealed interface Type {
             @Serializable
-            public data object OnDevice : Type
+            @SerialName("dev.dimension.flare.data.datastore.model.AppSettings.AiConfig.Type.OnDevice")
+            public data class OnDevice(
+                val model: String = DEFAULT_MODEL,
+                val hardwareBackend: String = DEFAULT_HARDWARE_BACKEND,
+                val contextLength: Long = DEFAULT_CONTEXT_LENGTH,
+                val enableMtp: Boolean = true,
+                val localhostEndpoint: String = DEFAULT_LOCALHOST_ENDPOINT,
+            ) : Type {
+                public companion object {
+                    public const val DEFAULT_MODEL: String = "gemma-4-e2b"
+                    public const val DEFAULT_HARDWARE_BACKEND: String = "auto"
+                    public const val DEFAULT_CONTEXT_LENGTH: Long = 8192L
+                    public const val DEFAULT_LOCALHOST_ENDPOINT: String = "http://localhost:11434"
+                }
+            }
 
             @Serializable
             public data class OpenAI(

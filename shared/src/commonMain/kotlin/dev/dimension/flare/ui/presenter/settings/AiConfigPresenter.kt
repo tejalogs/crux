@@ -87,12 +87,24 @@ public class AiConfigPresenter : PresenterBase<AiConfigPresenter.State>() {
         public val preferPlatformTranslation: Boolean
         public val showOriginalWithTranslation: Boolean
         public val autoTranslateExcludedLanguages: ImmutableList<String>
+        public val onDeviceModel: String
+        public val onDeviceHardwareBackend: String
+        public val onDeviceMtpEnabled: Boolean
+        public val onDeviceLocalhostEndpoint: String
 
         public fun selectType(type: AiTypeOption)
 
         public fun selectTranslateProvider(type: TranslateProviderOption)
 
         public fun setAIType(value: AiTypeOption)
+
+        public fun setOnDeviceModel(value: String)
+
+        public fun setOnDeviceHardwareBackend(value: String)
+
+        public fun setOnDeviceMtpEnabled(value: Boolean)
+
+        public fun setOnDeviceLocalhostEndpoint(value: String)
 
         public fun setTranslateProvider(value: TranslateProviderOption)
 
@@ -244,9 +256,20 @@ public class AiConfigPresenter : PresenterBase<AiConfigPresenter.State>() {
             override val serverSuggestions: ImmutableList<String> = SERVER_SUGGESTIONS
             override val aiType: AiTypeOption =
                 when (appSettings.aiConfig.type) {
-                    AppSettings.AiConfig.Type.OnDevice -> AiTypeOption.OnDevice
+                    is AppSettings.AiConfig.Type.OnDevice -> AiTypeOption.OnDevice
                     is AppSettings.AiConfig.Type.OpenAI -> AiTypeOption.OpenAI
                 }
+            override val onDeviceModel: String =
+                (appSettings.aiConfig.type as? AppSettings.AiConfig.Type.OnDevice)?.model
+                    ?: AppSettings.AiConfig.Type.OnDevice.DEFAULT_MODEL
+            override val onDeviceHardwareBackend: String =
+                (appSettings.aiConfig.type as? AppSettings.AiConfig.Type.OnDevice)?.hardwareBackend
+                    ?: AppSettings.AiConfig.Type.OnDevice.DEFAULT_HARDWARE_BACKEND
+            override val onDeviceMtpEnabled: Boolean =
+                (appSettings.aiConfig.type as? AppSettings.AiConfig.Type.OnDevice)?.enableMtp ?: true
+            override val onDeviceLocalhostEndpoint: String =
+                (appSettings.aiConfig.type as? AppSettings.AiConfig.Type.OnDevice)?.localhostEndpoint
+                    ?: AppSettings.AiConfig.Type.OnDevice.DEFAULT_LOCALHOST_ENDPOINT
             override val translateProvider: TranslateProviderOption =
                 when (appSettings.translateConfig.provider) {
                     AppSettings.TranslateConfig.Provider.AI -> TranslateProviderOption.AI
@@ -371,7 +394,7 @@ public class AiConfigPresenter : PresenterBase<AiConfigPresenter.State>() {
                         type =
                             when (value) {
                                 AiTypeOption.OnDevice -> {
-                                    AppSettings.AiConfig.Type.OnDevice
+                                    AppSettings.AiConfig.Type.OnDevice()
                                 }
 
                                 AiTypeOption.OpenAI -> {
@@ -385,6 +408,34 @@ public class AiConfigPresenter : PresenterBase<AiConfigPresenter.State>() {
                                 }
                             },
                     )
+                }
+            }
+
+            override fun setOnDeviceModel(value: String) {
+                update {
+                    val current = type as? AppSettings.AiConfig.Type.OnDevice ?: AppSettings.AiConfig.Type.OnDevice()
+                    copy(type = current.copy(model = value.trim()))
+                }
+            }
+
+            override fun setOnDeviceHardwareBackend(value: String) {
+                update {
+                    val current = type as? AppSettings.AiConfig.Type.OnDevice ?: AppSettings.AiConfig.Type.OnDevice()
+                    copy(type = current.copy(hardwareBackend = value.trim()))
+                }
+            }
+
+            override fun setOnDeviceMtpEnabled(value: Boolean) {
+                update {
+                    val current = type as? AppSettings.AiConfig.Type.OnDevice ?: AppSettings.AiConfig.Type.OnDevice()
+                    copy(type = current.copy(enableMtp = value))
+                }
+            }
+
+            override fun setOnDeviceLocalhostEndpoint(value: String) {
+                update {
+                    val current = type as? AppSettings.AiConfig.Type.OnDevice ?: AppSettings.AiConfig.Type.OnDevice()
+                    copy(type = current.copy(localhostEndpoint = value.trim()))
                 }
             }
 
@@ -549,7 +600,7 @@ public class AiConfigPresenter : PresenterBase<AiConfigPresenter.State>() {
                 update {
                     when (type) {
                         AiTypeOption.OnDevice -> {
-                            copy(type = AppSettings.AiConfig.Type.OnDevice)
+                            copy(type = AppSettings.AiConfig.Type.OnDevice())
                         }
 
                         AiTypeOption.OpenAI -> {

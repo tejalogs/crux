@@ -47,11 +47,19 @@ class AiAgentEnabledPresenterTest {
                 ).isAiAgentEnabled(),
         )
 
-        assertFalse(
+        assertTrue(
             AppSettings
                 .AiConfig(
                     agent = true,
-                    type = AppSettings.AiConfig.Type.OnDevice,
+                    type = AppSettings.AiConfig.Type.OnDevice(),
+                ).isAiAgentEnabled(),
+        )
+
+        assertFalse(
+            AppSettings
+                .AiConfig(
+                    agent = false,
+                    type = AppSettings.AiConfig.Type.OnDevice(),
                 ).isAiAgentEnabled(),
         )
     }

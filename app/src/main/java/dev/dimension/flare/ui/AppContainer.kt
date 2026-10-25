@@ -64,7 +64,9 @@ fun FlareApp(content: @Composable () -> Unit) {
                         TimelineAppearance.AiConfig(
                             translation = true,
                             tldr = appSettings.aiConfig.tldr,
-                            agent = appSettings.aiConfig.agent && !openAIConfig?.model.isNullOrBlank(),
+                            agent =
+                                appSettings.aiConfig.agent &&
+                                    (appSettings.aiConfig.type is AppSettings.AiConfig.Type.OnDevice || !openAIConfig?.model.isNullOrBlank()),
                             showOriginalWithTranslation =
                                 appSettings.translateConfig.showOriginalWithTranslation,
                         ),

@@ -6,16 +6,15 @@ import com.sun.jna.Platform
 import com.sun.jna.Pointer
 import com.sun.jna.ptr.IntByReference
 import com.sun.jna.ptr.PointerByReference
+import dev.dimension.flare.data.ai.SovereignOnDeviceSummarizer
+import dev.dimension.flare.data.ai.SovereignOnDeviceTranslator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.koin.core.annotation.Single
 
 @Single(binds = [OnDeviceAI::class])
 internal class JvmOnDeviceAI : OnDeviceAI {
-    override suspend fun isAvailable(): Boolean =
-        withContext(Dispatchers.IO) {
-            FoundationModelsBridge.isAvailable()
-        }
+    override suspend fun isAvailable(): Boolean = true
 
     override suspend fun translate(
         source: String,
@@ -23,7 +22,12 @@ internal class JvmOnDeviceAI : OnDeviceAI {
         prompt: String,
     ): String? =
         withContext(Dispatchers.IO) {
-            FoundationModelsBridge.generate(prompt)
+            val bridgeResult = FoundationModelsBridge.generate(prompt)
+            if (!bridgeResult.isNullOrBlank()) {
+                bridgeResult
+            } else {
+                SovereignOnDeviceTranslator.translate(source, targetLanguage, prompt)
+            }
         }
 
     override suspend fun tldr(
@@ -32,7 +36,12 @@ internal class JvmOnDeviceAI : OnDeviceAI {
         prompt: String,
     ): String? =
         withContext(Dispatchers.IO) {
-            FoundationModelsBridge.generate(prompt)
+            val bridgeResult = FoundationModelsBridge.generate(prompt)
+            if (!bridgeResult.isNullOrBlank()) {
+                bridgeResult
+            } else {
+                SovereignOnDeviceSummarizer.summarize(source, targetLanguage)
+            }
         }
 }
 

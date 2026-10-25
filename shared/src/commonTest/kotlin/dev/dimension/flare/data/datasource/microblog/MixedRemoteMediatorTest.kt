@@ -1464,7 +1464,7 @@ class MixedRemoteMediatorTest : RobolectricTest() {
                     translateConfig = aiPreTranslateConfig(),
                     aiConfig =
                         AppSettings.AiConfig(
-                            type = AppSettings.AiConfig.Type.OnDevice,
+                            type = AppSettings.AiConfig.Type.OnDevice(),
                         ),
                 )
             }
@@ -1575,7 +1575,7 @@ class MixedRemoteMediatorTest : RobolectricTest() {
                     translateConfig = aiPreTranslateConfig(),
                     aiConfig =
                         AppSettings.AiConfig(
-                            type = AppSettings.AiConfig.Type.OnDevice,
+                            type = AppSettings.AiConfig.Type.OnDevice(),
                         ),
                 )
             }
@@ -1657,7 +1657,7 @@ class MixedRemoteMediatorTest : RobolectricTest() {
                     translateConfig = aiPreTranslateConfig(),
                     aiConfig =
                         AppSettings.AiConfig(
-                            type = AppSettings.AiConfig.Type.OnDevice,
+                            type = AppSettings.AiConfig.Type.OnDevice(),
                         ),
                 )
             }
@@ -1750,7 +1750,7 @@ class MixedRemoteMediatorTest : RobolectricTest() {
                         ),
                     aiConfig =
                         AppSettings.AiConfig(
-                            type = AppSettings.AiConfig.Type.OnDevice,
+                            type = AppSettings.AiConfig.Type.OnDevice(),
                         ),
                 )
             }
@@ -1831,7 +1831,7 @@ class MixedRemoteMediatorTest : RobolectricTest() {
                     translateConfig = aiPreTranslateConfig(),
                     aiConfig =
                         AppSettings.AiConfig(
-                            type = AppSettings.AiConfig.Type.OnDevice,
+                            type = AppSettings.AiConfig.Type.OnDevice(),
                         ),
                 )
             }
@@ -1923,7 +1923,7 @@ class MixedRemoteMediatorTest : RobolectricTest() {
                     translateConfig = aiPreTranslateConfig(),
                     aiConfig =
                         AppSettings.AiConfig(
-                            type = AppSettings.AiConfig.Type.OnDevice,
+                            type = AppSettings.AiConfig.Type.OnDevice(),
                         ),
                 )
             }
@@ -2192,7 +2192,7 @@ class MixedRemoteMediatorTest : RobolectricTest() {
                     translateConfig = aiPreTranslateConfig(),
                     aiConfig =
                         AppSettings.AiConfig(
-                            type = AppSettings.AiConfig.Type.OnDevice,
+                            type = AppSettings.AiConfig.Type.OnDevice(),
                         ),
                 )
             }
@@ -2231,7 +2231,7 @@ class MixedRemoteMediatorTest : RobolectricTest() {
                     translateConfig = aiPreTranslateConfig(),
                     aiConfig =
                         AppSettings.AiConfig(
-                            type = AppSettings.AiConfig.Type.OnDevice,
+                            type = AppSettings.AiConfig.Type.OnDevice(),
                         ),
                 )
             }
@@ -2307,7 +2307,7 @@ class MixedRemoteMediatorTest : RobolectricTest() {
                     translateConfig = aiPreTranslateConfig(),
                     aiConfig =
                         AppSettings.AiConfig(
-                            type = AppSettings.AiConfig.Type.OnDevice,
+                            type = AppSettings.AiConfig.Type.OnDevice(),
                         ),
                 )
             }

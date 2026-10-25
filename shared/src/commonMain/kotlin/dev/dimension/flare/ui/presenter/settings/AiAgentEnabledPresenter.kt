@@ -29,4 +29,4 @@ public class AiAgentEnabledPresenter : PresenterBase<AiAgentEnabledPresenter.Sta
 }
 
 internal fun AppSettings.AiConfig.isAiAgentEnabled(): Boolean =
-    agent && (type as? AppSettings.AiConfig.Type.OpenAI)?.model?.isNotBlank() == true
+    agent && (type is AppSettings.AiConfig.Type.OnDevice || (type as? AppSettings.AiConfig.Type.OpenAI)?.model?.isNotBlank() == true)

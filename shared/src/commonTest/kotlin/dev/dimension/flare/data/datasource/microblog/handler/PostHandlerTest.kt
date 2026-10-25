@@ -816,7 +816,7 @@ class PostHandlerTest : RobolectricTest() {
                     translateConfig = aiPreTranslateConfig(),
                     aiConfig =
                         AppSettings.AiConfig(
-                            type = AppSettings.AiConfig.Type.OnDevice,
+                            type = AppSettings.AiConfig.Type.OnDevice(),
                         ),
                 )
             }

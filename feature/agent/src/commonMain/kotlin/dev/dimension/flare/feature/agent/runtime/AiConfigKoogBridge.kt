@@ -12,8 +12,8 @@ import dev.dimension.flare.data.datastore.model.AppSettings
 internal class AiConfigKoogBridge {
     fun availability(aiConfig: AppSettings.AiConfig): AgentAvailability =
         when (val type = aiConfig.type) {
-            AppSettings.AiConfig.Type.OnDevice -> {
-                AgentAvailability.Unavailable(AgentAvailability.Reason.OnDeviceAiUnsupported)
+            is AppSettings.AiConfig.Type.OnDevice -> {
+                AgentAvailability.Available
             }
 
             is AppSettings.AiConfig.Type.OpenAI -> {
@@ -45,42 +45,71 @@ internal class AiConfigKoogBridge {
             return null
         }
 
-        val openAIConfig = aiConfig.type as? AppSettings.AiConfig.Type.OpenAI ?: return null
-        val client =
-            OpenAILLMClient(
-                apiKey = openAIConfig.apiKey,
-                settings =
-                    OpenAIClientSettings(
-                        baseUrl = openAIConfig.serverUrl.trimEnd('/'),
-                        chatCompletionsPath = "chat/completions",
-                        responsesAPIPath = "responses",
-                        embeddingsPath = "embeddings",
-                        moderationsPath = "moderations",
-                        modelsPath = "models",
-                    ),
-                httpClientFactory = httpClientFactory,
-            )
-        val model =
-            LLModel(
-                provider = LLMProvider.OpenAI,
-                id = openAIConfig.model,
-                capabilities =
-                    listOf(
-                        LLMCapability.Completion,
-                        LLMCapability.OpenAIEndpoint.Completions,
-                        LLMCapability.Temperature,
-                        LLMCapability.Tools,
-                        LLMCapability.ToolChoice,
-                        LLMCapability.Vision.Image,
-                    ),
-                contextLength = DEFAULT_CONTEXT_LENGTH,
-            )
+        return when (val type = aiConfig.type) {
+            is AppSettings.AiConfig.Type.OnDevice -> {
+                val model =
+                    LLModel(
+                        provider = LLMProvider.Ollama,
+                        id = type.model.ifBlank { AppSettings.AiConfig.Type.OnDevice.DEFAULT_MODEL },
+                        capabilities =
+                            listOf(
+                                LLMCapability.Completion,
+                                LLMCapability.OpenAIEndpoint.Completions,
+                                LLMCapability.Temperature,
+                                LLMCapability.Tools,
+                                LLMCapability.ToolChoice,
+                                LLMCapability.Vision.Image,
+                            ),
+                        contextLength = type.contextLength,
+                    )
+                FlareAgentRuntime(
+                    promptExecutor =
+                        OnDevicePromptExecutor(
+                            config = type,
+                            httpClientFactory = httpClientFactory,
+                        ),
+                    model = model,
+                    aiConfig = aiConfig,
+                )
+            }
 
-        return FlareAgentRuntime(
-            promptExecutor = MultiLLMPromptExecutor(client),
-            model = model,
-            aiConfig = aiConfig,
-        )
+            is AppSettings.AiConfig.Type.OpenAI -> {
+                val client =
+                    OpenAILLMClient(
+                        apiKey = type.apiKey,
+                        settings =
+                            OpenAIClientSettings(
+                                baseUrl = type.serverUrl.trimEnd('/'),
+                                chatCompletionsPath = "chat/completions",
+                                responsesAPIPath = "responses",
+                                embeddingsPath = "embeddings",
+                                moderationsPath = "moderations",
+                                modelsPath = "models",
+                            ),
+                        httpClientFactory = httpClientFactory,
+                    )
+                val model =
+                    LLModel(
+                        provider = LLMProvider.OpenAI,
+                        id = type.model,
+                        capabilities =
+                            listOf(
+                                LLMCapability.Completion,
+                                LLMCapability.OpenAIEndpoint.Completions,
+                                LLMCapability.Temperature,
+                                LLMCapability.Tools,
+                                LLMCapability.ToolChoice,
+                                LLMCapability.Vision.Image,
+                            ),
+                        contextLength = DEFAULT_CONTEXT_LENGTH,
+                    )
+                FlareAgentRuntime(
+                    promptExecutor = MultiLLMPromptExecutor(client),
+                    model = model,
+                    aiConfig = aiConfig,
+                )
+            }
+        }
     }
 
     private companion object {

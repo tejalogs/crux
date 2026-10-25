@@ -83,7 +83,7 @@ class TranslationProviderAiPlaceholderTest {
             version = "",
             aiConfig =
                 AppSettings.AiConfig(
-                    type = AppSettings.AiConfig.Type.OnDevice,
+                    type = AppSettings.AiConfig.Type.OnDevice(),
                     translatePrompt = AiPromptDefaults.TRANSLATE_PROMPT,
                 ),
             translateConfig =

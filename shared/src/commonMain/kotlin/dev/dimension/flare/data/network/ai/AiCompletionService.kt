@@ -36,7 +36,7 @@ internal class AiCompletionService(
         onDeviceCall: suspend () -> String?,
     ): String? =
         when (type) {
-            AppSettings.AiConfig.Type.OnDevice -> {
+            is AppSettings.AiConfig.Type.OnDevice -> {
                 if (onDeviceAI.isAvailable()) {
                     onDeviceCall()
                 } else {

@@ -424,7 +424,7 @@ class UserHandlerTest : RobolectricTest() {
                     translateConfig = aiPreTranslateConfig(),
                     aiConfig =
                         AppSettings.AiConfig(
-                            type = AppSettings.AiConfig.Type.OnDevice,
+                            type = AppSettings.AiConfig.Type.OnDevice(),
                         ),
                 )
             }
@@ -465,7 +465,7 @@ class UserHandlerTest : RobolectricTest() {
                         ),
                     aiConfig =
                         AppSettings.AiConfig(
-                            type = AppSettings.AiConfig.Type.OnDevice,
+                            type = AppSettings.AiConfig.Type.OnDevice(),
                         ),
                 )
             }
@@ -503,7 +503,7 @@ class UserHandlerTest : RobolectricTest() {
                     translateConfig = aiPreTranslateConfig(),
                     aiConfig =
                         AppSettings.AiConfig(
-                            type = AppSettings.AiConfig.Type.OnDevice,
+                            type = AppSettings.AiConfig.Type.OnDevice(),
                         ),
                 )
             }
@@ -560,7 +560,7 @@ class UserHandlerTest : RobolectricTest() {
                     translateConfig = aiPreTranslateConfig(),
                     aiConfig =
                         AppSettings.AiConfig(
-                            type = AppSettings.AiConfig.Type.OnDevice,
+                            type = AppSettings.AiConfig.Type.OnDevice(),
                         ),
                 )
             }

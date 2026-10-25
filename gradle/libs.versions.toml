@@ -88,6 +88,7 @@ ksoup = { group = "com.fleeksoft.ksoup", name = "ksoup", version.ref = "ksoup" }
 koog-agents = { module = "moe.tlaster:koog-agents", version.ref = "koog" }
 koog-agents-features-memory = { module = "moe.tlaster:agents-features-memory", version.ref = "koog" }
 koog-http-client-ktor = { module = "moe.tlaster:http-client-ktor", version.ref = "koog" }
+koog-prompt-executor-ollama-client = { module = "moe.tlaster:prompt-executor-ollama-client", version.ref = "koog" }
 lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycle-runtime-ktx" }
 lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "lifecycle-runtime-ktx" }
 activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activity-compose" }

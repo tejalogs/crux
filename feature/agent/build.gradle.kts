@@ -37,6 +37,7 @@ kotlin {
                 implementation(libs.koog.agents)
                 implementation(libs.koog.agents.features.memory)
                 implementation(libs.koog.http.client.ktor)
+                implementation(libs.koog.prompt.executor.ollama.client)
                 implementation(libs.bundles.kotlinx)
                 implementation(libs.room.runtime)
                 implementation(libs.sqlite)

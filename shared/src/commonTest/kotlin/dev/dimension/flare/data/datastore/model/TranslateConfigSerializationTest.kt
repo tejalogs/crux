@@ -147,6 +147,33 @@ class TranslateConfigSerializationTest {
         assertEquals("gpt-5-mini", openAI?.model)
         assertEquals("", openAI?.reasoningEffort)
     }
+
+    @Test
+    fun encodesAndDecodesOnDeviceConfig() {
+        val onDevice =
+            AppSettings(
+                version = "1",
+                aiConfig =
+                    AppSettings.AiConfig(
+                        type =
+                            AppSettings.AiConfig.Type.OnDevice(
+                                model = "gemma-4-e2b",
+                                hardwareBackend = "gpu",
+                                enableMtp = true,
+                                localhostEndpoint = "http://localhost:11434",
+                            ),
+                    ),
+            )
+
+        val bytes = ProtoBuf.encodeToByteArray(AppSettings.serializer(), onDevice)
+        val decoded = ProtoBuf.decodeFromByteArray(AppSettings.serializer(), bytes)
+        val decodedOnDevice = decoded.aiConfig.type as? AppSettings.AiConfig.Type.OnDevice
+
+        assertEquals("gemma-4-e2b", decodedOnDevice?.model)
+        assertEquals("gpu", decodedOnDevice?.hardwareBackend)
+        assertEquals(true, decodedOnDevice?.enableMtp)
+        assertEquals("http://localhost:11434", decodedOnDevice?.localhostEndpoint)
+    }
 }
 
 @Serializable

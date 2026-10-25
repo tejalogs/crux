@@ -7,6 +7,8 @@ import com.google.mlkit.genai.prompt.Generation
 import com.google.mlkit.genai.summarization.Summarization
 import com.google.mlkit.genai.summarization.SummarizationRequest
 import com.google.mlkit.genai.summarization.SummarizerOptions
+import dev.dimension.flare.data.ai.SovereignOnDeviceSummarizer
+import dev.dimension.flare.data.ai.SovereignOnDeviceTranslator
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.suspendCancellableCoroutine
 import org.koin.core.annotation.Provided
@@ -19,41 +21,38 @@ import kotlin.coroutines.resumeWithException
 internal class AndroidOnDeviceAI(
     @Provided private val context: Context,
 ) : OnDeviceAI {
-    override suspend fun isAvailable(): Boolean =
-        runCatching {
-            val summarizer = createSummarizer("en")
-            try {
-                val status = summarizer.checkFeatureStatus().await()
-                status == FeatureStatus.AVAILABLE ||
-                    status == FeatureStatus.DOWNLOADABLE ||
-                    status == FeatureStatus.DOWNLOADING
-            } finally {
-                summarizer.close()
-            }
-        }.getOrDefault(false)
+    override suspend fun isAvailable(): Boolean = true
 
     override suspend fun translate(
         source: String,
         targetLanguage: String,
         prompt: String,
-    ): String? =
-        runCatching {
-            val model = Generation.getClient()
-            try {
-                if (!ensureModelReady(model)) {
-                    return@runCatching null
+    ): String? {
+        val mlKitResult =
+            runCatching {
+                val model = Generation.getClient()
+                try {
+                    if (!ensureModelReady(model)) {
+                        return@runCatching null
+                    }
+                    model
+                        .generateContent(prompt)
+                        .candidates
+                        .firstOrNull()
+                        ?.text
+                        ?.trim()
+                        .takeUnless { it.isNullOrBlank() }
+                } finally {
+                    model.close()
                 }
-                model
-                    .generateContent(prompt)
-                    .candidates
-                    .firstOrNull()
-                    ?.text
-                    ?.trim()
-                    .takeUnless { it.isNullOrBlank() }
-            } finally {
-                model.close()
-            }
-        }.getOrNull()
+            }.getOrNull()
+
+        if (!mlKitResult.isNullOrBlank()) {
+            return mlKitResult
+        }
+
+        return SovereignOnDeviceTranslator.translate(source, targetLanguage, prompt)
+    }
 
     override suspend fun tldr(
         source: String,
@@ -94,6 +93,10 @@ internal class AndroidOnDeviceAI(
             }.getOrNull()
         if (!summary.isNullOrBlank()) {
             return summary
+        }
+        val sovereignSummary = SovereignOnDeviceSummarizer.summarize(source, targetLanguage)
+        if (sovereignSummary.isNotBlank()) {
+            return sovereignSummary
         }
         return translate(
             source = source,
