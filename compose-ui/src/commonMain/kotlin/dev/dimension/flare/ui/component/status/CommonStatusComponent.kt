@@ -48,6 +48,7 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.UriHandler
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.intl.Locale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
@@ -68,6 +69,7 @@ import compose.icons.fontawesomeicons.solid.Reply
 import compose.icons.fontawesomeicons.solid.Robot
 import compose.icons.fontawesomeicons.solid.TriangleExclamation
 import compose.icons.fontawesomeicons.solid.Tv
+import compose.icons.fontawesomeicons.solid.WandMagicSparkles
 import dev.dimension.flare.compose.ui.Res
 import dev.dimension.flare.compose.ui.bookmark_add
 import dev.dimension.flare.compose.ui.bookmark_remove
@@ -101,6 +103,7 @@ import dev.dimension.flare.compose.ui.share
 import dev.dimension.flare.compose.ui.show_media
 import dev.dimension.flare.compose.ui.status_detail_tldr
 import dev.dimension.flare.compose.ui.status_detail_translate
+import dev.dimension.flare.compose.ui.status_remix_scribe
 import dev.dimension.flare.compose.ui.status_open_post
 import dev.dimension.flare.compose.ui.status_platform
 import dev.dimension.flare.compose.ui.status_view_insight
@@ -867,7 +870,11 @@ private fun TranslationComponent(
     var enabledTldr by rememberSaveable("tldr-$statusKey") {
         mutableStateOf(false)
     }
-    Row {
+    val uriHandler = LocalUriHandler.current
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         PlatformTextButton(
             onClick = {
                 if (!enabledTranslate) {
@@ -895,6 +902,33 @@ private fun TranslationComponent(
                         stringResource(
                             resource = Res.string.status_detail_tldr,
                         ),
+                )
+            }
+        }
+        if (rawContent.isNotBlank()) {
+            PlatformTextButton(
+                onClick = {
+                    uriHandler.openUri(
+                        DeeplinkRoute.Status.OmniScribe(
+                            statusKey = item.statusKey,
+                            accountType = item.accountType,
+                            initialText = rawContent,
+                            authorName = item.user?.name?.raw.orEmpty(),
+                            authorHandle = item.user?.handle?.canonical.orEmpty(),
+                        ).toUri(),
+                    )
+                },
+            ) {
+                FAIcon(
+                    imageVector = FontAwesomeIcons.Solid.WandMagicSparkles,
+                    contentDescription = null,
+                    modifier = Modifier.size(13.dp),
+                    tint = PlatformTheme.colorScheme.primary,
+                )
+                Spacer(modifier = Modifier.width(5.dp))
+                PlatformText(
+                    text = stringResource(resource = Res.string.status_remix_scribe),
+                    color = PlatformTheme.colorScheme.primary,
                 )
             }
         }
@@ -1307,6 +1341,7 @@ private fun ActionMenu.Item.Text.asString(): String =
                     ActionMenu.Item.Text.Localized.Type.ShowOriginal -> Res.string.translation_show_original
                     ActionMenu.Item.Text.Localized.Type.Favorite -> Res.string.favourite
                     ActionMenu.Item.Text.Localized.Type.UnFavorite -> Res.string.unfavourite
+                    ActionMenu.Item.Text.Localized.Type.OmniScribe -> Res.string.status_remix_scribe
                 }
             stringResource(resource, *parameters.toTypedArray())
         }
@@ -1763,11 +1798,14 @@ private fun ExpandedCard(
         Column(
             modifier =
                 Modifier
-                    .padding(8.dp),
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             PlatformText(
                 text = card.title,
+                fontWeight = FontWeight.SemiBold,
                 maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
             )
             card.description?.let {
                 PlatformText(
@@ -1775,6 +1813,7 @@ private fun ExpandedCard(
                     style = PlatformTheme.typography.caption,
                     color = PlatformTheme.colorScheme.caption,
                     maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }

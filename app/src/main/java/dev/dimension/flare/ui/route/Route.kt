@@ -88,6 +88,15 @@ internal sealed interface Route : NavKey {
             val accountType: AccountType,
             val statusKey: MicroBlogKey,
         ) : Status
+
+        @Serializable
+        data class OmniScribe(
+            val statusKey: MicroBlogKey,
+            val accountType: AccountType,
+            val initialText: String = "",
+            val authorName: String = "",
+            val authorHandle: String = "",
+        ) : Status
     }
 
     @Serializable
@@ -449,6 +458,12 @@ internal sealed interface Route : NavKey {
         data object New : Compose
 
         @Serializable
+        data class OmniDraft(
+            val initialText: String = "",
+            val initialMediaUris: kotlin.collections.List<String> = emptyList(),
+        ) : Compose
+
+        @Serializable
         data class Draft(
             val draftGroupId: String,
         ) : Compose
@@ -729,6 +744,16 @@ internal sealed interface Route : NavKey {
                     Status.Insight(
                         accountType = deeplinkRoute.accountType,
                         statusKey = deeplinkRoute.statusKey,
+                    )
+                }
+
+                is DeeplinkRoute.Status.OmniScribe -> {
+                    Status.OmniScribe(
+                        statusKey = deeplinkRoute.statusKey,
+                        accountType = deeplinkRoute.accountType,
+                        initialText = deeplinkRoute.initialText,
+                        authorName = deeplinkRoute.authorName,
+                        authorHandle = deeplinkRoute.authorHandle,
                     )
                 }
 

@@ -12,6 +12,7 @@ import dev.dimension.flare.ui.screen.status.action.BlueskyReportStatusDialog
 import dev.dimension.flare.ui.screen.status.action.DeleteStatusConfirmDialog
 import dev.dimension.flare.ui.screen.status.action.MastodonReportDialog
 import dev.dimension.flare.ui.screen.status.action.MisskeyReportDialog
+import dev.dimension.flare.ui.screen.status.action.OmniScribeBottomSheet
 import dev.dimension.flare.ui.screen.status.action.StatusInsightSheet
 import dev.dimension.flare.ui.screen.status.action.StatusShareSheet
 
@@ -127,6 +128,22 @@ internal fun EntryProviderScope<NavKey>.statusEntryBuilder(
             accountType = args.accountType,
             statusKey = args.statusKey,
             navigate = navigate,
+        )
+    }
+
+    entry<Route.Status.OmniScribe>(
+        metadata = BottomSheetSceneStrategy.bottomSheet(
+            expandFully = true,
+        )
+    ) { args ->
+        OmniScribeBottomSheet(
+            statusKey = args.statusKey,
+            accountType = args.accountType,
+            initialText = args.initialText,
+            authorName = args.authorName,
+            authorHandle = args.authorHandle,
+            navigate = navigate,
+            onBack = onBack,
         )
     }
 }

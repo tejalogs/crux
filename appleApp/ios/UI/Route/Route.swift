@@ -449,6 +449,8 @@ enum Route: Hashable, Identifiable {
             return Route.statusVVOStatus(data.accountType, data.statusKey)
         case .shareSheet(let data):
             return Route.statusShareSheet(data.accountType, data.statusKey, data.shareUrl, data.fxShareUrl, data.fixvxShareUrl)
+        default:
+            return nil
         }
     }
     

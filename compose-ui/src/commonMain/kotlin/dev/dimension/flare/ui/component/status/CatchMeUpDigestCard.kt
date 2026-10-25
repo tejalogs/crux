@@ -22,11 +22,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import dev.dimension.flare.ui.component.HorizontalDivider
-import dev.dimension.flare.ui.component.platform.PlatformIconButton
-import dev.dimension.flare.ui.component.platform.PlatformText
-import dev.dimension.flare.ui.component.platform.PlatformTextButton
-import dev.dimension.flare.ui.theme.PlatformTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -35,29 +30,35 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import dev.dimension.flare.ui.model.toUiImage
 import compose.icons.FontAwesomeIcons
 import compose.icons.fontawesomeicons.Solid
 import compose.icons.fontawesomeicons.solid.AngleDown
+import compose.icons.fontawesomeicons.solid.AngleRight
 import compose.icons.fontawesomeicons.solid.AngleUp
-import compose.icons.fontawesomeicons.solid.Robot
 import compose.icons.fontawesomeicons.solid.RotateRight
+import compose.icons.fontawesomeicons.solid.WandMagicSparkles
 import compose.icons.fontawesomeicons.solid.Xmark
 import dev.dimension.flare.data.ai.FeedDigest
 import dev.dimension.flare.ui.component.AvatarComponent
 import dev.dimension.flare.ui.component.FAIcon
+import dev.dimension.flare.ui.component.HorizontalDivider
+import dev.dimension.flare.ui.component.platform.PlatformIconButton
+import dev.dimension.flare.ui.component.platform.PlatformText
+import dev.dimension.flare.ui.component.platform.PlatformTextButton
+import dev.dimension.flare.ui.model.ClickContext
+import dev.dimension.flare.ui.model.toUiImage
+import dev.dimension.flare.ui.theme.PlatformTheme
 import dev.dimension.flare.ui.theme.screenHorizontalPadding
 
 /**
- * Modern Material 3 Expressive On-Device Feed Digest Card.
+ * Refined Material 3 Expressive On-Device Feed Digest Card ("Catch Me Up").
  *
- * Distills unread timeline updates into executive topic highlights
- * using on-device Gemma 4 Edge zero-egress intelligence.
+ * Distills unread timeline updates into interactive, multi-sentence executive
+ * topic highlights using zero-egress on-device intelligence.
  */
 @Composable
 public fun CatchMeUpDigestCard(
@@ -67,60 +68,60 @@ public fun CatchMeUpDigestCard(
     onScrollToFeed: (() -> Unit)? = null,
     onRefresh: (() -> Unit)? = null,
 ) {
+    val uriHandler = LocalUriHandler.current
     var expanded by remember { mutableStateOf(true) }
+    var selectedTopicFilter by remember { mutableStateOf<String?>(null) }
 
-    val prismBorder = remember {
-        Brush.linearGradient(
-            colors = listOf(
-                Color(0xFF8B5CF6).copy(alpha = 0.55f),
-                Color(0xFF4F46E5).copy(alpha = 0.40f),
-                Color(0xFF06B6D4).copy(alpha = 0.55f),
-            )
-        )
-    }
-
-    val prismIconGradient = remember {
-        Brush.linearGradient(
-            colors = listOf(
-                Color(0xFF8B5CF6),
-                Color(0xFF6366F1),
-                Color(0xFF06B6D4),
-            )
-        )
+    val displayedHighlights = remember(digest.highlights, selectedTopicFilter) {
+        val filter = selectedTopicFilter
+        if (filter == null) {
+            digest.highlights
+        } else {
+            digest.highlights.filter {
+                it.topic.equals(filter, ignoreCase = true) ||
+                    it.summary.contains(filter.removePrefix("#"), ignoreCase = true)
+            }.ifEmpty { digest.highlights }
+        }
     }
 
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = screenHorizontalPadding, vertical = 8.dp)
-            .clip(RoundedCornerShape(20.dp))
-            .background(PlatformTheme.colorScheme.cardAlt.copy(alpha = 0.35f))
-            .border(1.dp, prismBorder, RoundedCornerShape(20.dp)),
+            .padding(horizontal = screenHorizontalPadding, vertical = 6.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .background(PlatformTheme.colorScheme.cardAlt.copy(alpha = 0.48f))
+            .border(
+                width = 0.8.dp,
+                color = PlatformTheme.colorScheme.outline.copy(alpha = 0.24f),
+                shape = RoundedCornerShape(18.dp),
+            ),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(horizontal = 14.dp, vertical = 12.dp),
         ) {
-            // Header
+            // Header Row (Clickable to expand/collapse)
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = !expanded },
             ) {
-                // Prism Squircle Icon
+                // Editorial Tonal Squircle Icon
                 Box(
                     modifier = Modifier
-                        .size(38.dp)
-                        .clip(RoundedCornerShape(11.dp))
-                        .background(prismIconGradient),
+                        .size(34.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(PlatformTheme.colorScheme.primary.copy(alpha = 0.14f)),
                     contentAlignment = Alignment.Center,
                 ) {
                     FAIcon(
-                        imageVector = FontAwesomeIcons.Solid.Robot,
+                        imageVector = FontAwesomeIcons.Solid.WandMagicSparkles,
                         contentDescription = null,
-                        modifier = Modifier.size(20.dp),
-                        tint = Color.White,
+                        modifier = Modifier.size(16.dp),
+                        tint = PlatformTheme.colorScheme.primary,
                     )
                 }
 
@@ -135,15 +136,14 @@ public fun CatchMeUpDigestCard(
                             style = PlatformTheme.typography.title,
                             fontWeight = FontWeight.Bold,
                         )
-                        // Gemma 4 Edge Pill Badge
                         Box(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(12.dp))
+                                .clip(RoundedCornerShape(50))
                                 .background(PlatformTheme.colorScheme.primary.copy(alpha = 0.12f))
                                 .padding(horizontal = 8.dp, vertical = 2.dp),
                         ) {
                             PlatformText(
-                                text = "Gemma 4 Edge",
+                                text = "${digest.postCount} Updates",
                                 style = PlatformTheme.typography.caption,
                                 fontWeight = FontWeight.SemiBold,
                                 color = PlatformTheme.colorScheme.primary,
@@ -151,7 +151,7 @@ public fun CatchMeUpDigestCard(
                         }
                     }
                     PlatformText(
-                        text = digest.subtitle,
+                        text = if (expanded) digest.subtitle else "Tap to expand ${digest.highlights.size} executive highlights",
                         style = PlatformTheme.typography.caption,
                         color = PlatformTheme.colorScheme.caption,
                         maxLines = 1,
@@ -162,12 +162,12 @@ public fun CatchMeUpDigestCard(
                 // Expand/Collapse toggle
                 PlatformIconButton(
                     onClick = { expanded = !expanded },
-                    modifier = Modifier.size(32.dp),
+                    modifier = Modifier.size(30.dp),
                 ) {
                     FAIcon(
                         imageVector = if (expanded) FontAwesomeIcons.Solid.AngleUp else FontAwesomeIcons.Solid.AngleDown,
                         contentDescription = "Toggle Digest",
-                        modifier = Modifier.size(16.dp),
+                        modifier = Modifier.size(14.dp),
                         tint = PlatformTheme.colorScheme.caption,
                     )
                 }
@@ -175,12 +175,12 @@ public fun CatchMeUpDigestCard(
                 // Dismiss button
                 PlatformIconButton(
                     onClick = onDismiss,
-                    modifier = Modifier.size(32.dp),
+                    modifier = Modifier.size(30.dp),
                 ) {
                     FAIcon(
                         imageVector = FontAwesomeIcons.Solid.Xmark,
                         contentDescription = "Dismiss",
-                        modifier = Modifier.size(16.dp),
+                        modifier = Modifier.size(14.dp),
                         tint = PlatformTheme.colorScheme.caption,
                     )
                 }
@@ -192,27 +192,45 @@ public fun CatchMeUpDigestCard(
                 exit = fadeOut() + shrinkVertically(),
             ) {
                 Column(modifier = Modifier.fillMaxWidth()) {
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
-                    // Trending Topics Pill Chips
+                    // Interactive Topic Filter Chips
                     if (digest.topTopics.isNotEmpty()) {
                         LazyRow(
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             items(digest.topTopics) { topic ->
+                                val isSelected = selectedTopicFilter == topic
                                 Box(
                                     modifier = Modifier
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(PlatformTheme.colorScheme.card.copy(alpha = 0.80f))
-                                        .border(0.6.dp, PlatformTheme.colorScheme.outline.copy(alpha = 0.25f), RoundedCornerShape(8.dp))
-                                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                                        .clip(RoundedCornerShape(50))
+                                        .background(
+                                            if (isSelected) {
+                                                PlatformTheme.colorScheme.primary.copy(alpha = 0.16f)
+                                            } else {
+                                                PlatformTheme.colorScheme.card.copy(alpha = 0.85f)
+                                            }
+                                        )
+                                        .border(
+                                            0.7.dp,
+                                            if (isSelected) {
+                                                PlatformTheme.colorScheme.primary.copy(alpha = 0.55f)
+                                            } else {
+                                                PlatformTheme.colorScheme.outline.copy(alpha = 0.22f)
+                                            },
+                                            RoundedCornerShape(50),
+                                        )
+                                        .clickable {
+                                            selectedTopicFilter = if (isSelected) null else topic
+                                        }
+                                        .padding(horizontal = 10.dp, vertical = 4.dp),
                                 ) {
                                     PlatformText(
                                         text = topic,
                                         style = PlatformTheme.typography.caption,
-                                        fontWeight = FontWeight.Medium,
-                                        color = PlatformTheme.colorScheme.text,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (isSelected) PlatformTheme.colorScheme.primary else PlatformTheme.colorScheme.text,
                                     )
                                 }
                             }
@@ -220,76 +238,124 @@ public fun CatchMeUpDigestCard(
                         Spacer(modifier = Modifier.height(10.dp))
                     }
 
-                    HorizontalDivider(
-                        color = PlatformTheme.colorScheme.outline.copy(alpha = 0.15f),
-                        thickness = 0.8.dp,
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    // Key Highlights
+                    // Key Highlights (Interactive Cards)
                     Column(
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        digest.highlights.forEach { highlight ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                verticalAlignment = Alignment.Top,
-                            ) {
-                                // Author avatar or bullet squircle
-                                if (!highlight.authorAvatar.isNullOrBlank()) {
-                                    AvatarComponent(
-                                        data = highlight.authorAvatar.toUiImage(),
-                                        size = 24.dp,
+                        displayedHighlights.forEach { highlight ->
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(PlatformTheme.colorScheme.card.copy(alpha = 0.72f))
+                                    .border(
+                                        0.6.dp,
+                                        PlatformTheme.colorScheme.outline.copy(alpha = 0.16f),
+                                        RoundedCornerShape(12.dp),
                                     )
-                                } else {
-                                    Box(
-                                        modifier = Modifier
-                                            .padding(top = 4.dp)
-                                            .size(8.dp)
-                                            .clip(CircleShape)
-                                            .background(PlatformTheme.colorScheme.primary),
-                                    )
-                                }
-
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                    ) {
-                                        PlatformText(
-                                            text = highlight.topic,
-                                            style = PlatformTheme.typography.caption,
-                                            fontWeight = FontWeight.Bold,
-                                            color = PlatformTheme.colorScheme.primary,
-                                        )
-                                        if (!highlight.authorHandle.isNullOrBlank()) {
-                                            PlatformText(
-                                                text = "· ${highlight.authorHandle}",
-                                                style = PlatformTheme.typography.caption,
-                                                color = PlatformTheme.colorScheme.caption,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis,
-                                            )
+                                    .let { mod ->
+                                        val clickHandler = highlight.onClick
+                                        if (clickHandler != null) {
+                                            mod.clickable {
+                                                clickHandler.invoke(
+                                                    ClickContext(
+                                                        launcher = { url -> uriHandler.openUri(url) }
+                                                    )
+                                                )
+                                            }
+                                        } else {
+                                            mod
                                         }
                                     }
-                                    PlatformText(
-                                        text = highlight.summary,
-                                        style = PlatformTheme.typography.body,
-                                        color = PlatformTheme.colorScheme.text,
-                                        modifier = Modifier.padding(top = 2.dp),
-                                    )
+                                    .padding(horizontal = 11.dp, vertical = 9.dp),
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                    verticalAlignment = Alignment.Top,
+                                ) {
+                                    // Author avatar or bullet indicator
+                                    val avatarUrl = highlight.authorAvatar
+                                    if (!avatarUrl.isNullOrBlank()) {
+                                        AvatarComponent(
+                                            data = avatarUrl.toUiImage(),
+                                            size = 26.dp,
+                                        )
+                                    } else {
+                                        Box(
+                                            modifier = Modifier
+                                                .padding(top = 5.dp)
+                                                .size(8.dp)
+                                                .clip(CircleShape)
+                                                .background(PlatformTheme.colorScheme.primary),
+                                        )
+                                    }
+
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                            modifier = Modifier.fillMaxWidth(),
+                                        ) {
+                                            val authorName = highlight.authorName
+                                            if (!authorName.isNullOrBlank()) {
+                                                PlatformText(
+                                                    text = authorName,
+                                                    style = PlatformTheme.typography.caption,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = PlatformTheme.colorScheme.text,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis,
+                                                )
+                                            }
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(6.dp))
+                                                    .background(PlatformTheme.colorScheme.primary.copy(alpha = 0.11f))
+                                                    .padding(horizontal = 6.dp, vertical = 1.dp),
+                                            ) {
+                                                PlatformText(
+                                                    text = highlight.topic,
+                                                    style = PlatformTheme.typography.caption,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = PlatformTheme.colorScheme.primary,
+                                                    maxLines = 1,
+                                                )
+                                            }
+                                            Spacer(modifier = Modifier.weight(1f))
+                                            if (highlight.onClick != null) {
+                                                FAIcon(
+                                                    imageVector = FontAwesomeIcons.Solid.AngleRight,
+                                                    contentDescription = "Open Post",
+                                                    modifier = Modifier.size(11.dp),
+                                                    tint = PlatformTheme.colorScheme.caption.copy(alpha = 0.65f),
+                                                )
+                                            }
+                                        }
+                                        PlatformText(
+                                            text = highlight.summary,
+                                            style = PlatformTheme.typography.body,
+                                            color = PlatformTheme.colorScheme.text.copy(alpha = 0.92f),
+                                            modifier = Modifier.padding(top = 3.dp),
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
+                    HorizontalDivider(
+                        color = PlatformTheme.colorScheme.outline.copy(alpha = 0.14f),
+                        thickness = 0.6.dp,
+                    )
 
                     // Bottom Action Row
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 2.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -298,10 +364,10 @@ public fun CatchMeUpDigestCard(
                                 FAIcon(
                                     imageVector = FontAwesomeIcons.Solid.RotateRight,
                                     contentDescription = null,
-                                    modifier = Modifier.size(14.dp),
+                                    modifier = Modifier.size(12.dp),
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
-                                PlatformText("Refresh", style = PlatformTheme.typography.caption)
+                                PlatformText("Refresh Brief", style = PlatformTheme.typography.caption)
                             }
                         } else {
                             Spacer(modifier = Modifier.width(1.dp))
@@ -310,7 +376,7 @@ public fun CatchMeUpDigestCard(
                         if (onScrollToFeed != null) {
                             PlatformTextButton(onClick = onScrollToFeed) {
                                 PlatformText(
-                                    "Dive into Feed ↓",
+                                    "Continue to Timeline ↓",
                                     style = PlatformTheme.typography.caption,
                                     fontWeight = FontWeight.SemiBold,
                                 )

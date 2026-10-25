@@ -553,6 +553,10 @@ internal sealed interface Route : NavKey {
                     )
                 }
 
+                is DeeplinkRoute.Status.OmniScribe -> {
+                    null
+                }
+
                 is DeeplinkRoute.DirectMessage -> {
                     DmUserConversation(
                         accountType = AccountType.Specific(deeplinkRoute.accountKey),

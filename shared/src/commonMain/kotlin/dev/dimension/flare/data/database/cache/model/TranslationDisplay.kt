@@ -13,6 +13,7 @@ import dev.dimension.flare.ui.model.UiIcon
 import dev.dimension.flare.ui.model.UiProfile
 import dev.dimension.flare.ui.model.UiTimelineV2
 import dev.dimension.flare.ui.render.toUiPlainText
+import dev.dimension.flare.ui.route.DeeplinkRoute
 import kotlinx.collections.immutable.toPersistentList
 
 internal data class TranslationDisplayOptions(
@@ -167,7 +168,15 @@ internal fun UiTimelineV2.applyTranslation(
                                 contentWarning?.copy(translation = payload.contentWarning)
                             }
                         } ?: contentWarning
-                val translatedActions = actions.withTranslationMenuAction(menuAction, accountType, statusKey)
+                val translatedActions = actions
+                    .withTranslationMenuAction(menuAction, accountType, statusKey)
+                    .withOmniScribeMenuAction(
+                        accountType = accountType,
+                        statusKey = statusKey,
+                        authorName = user?.name?.raw.orEmpty(),
+                        authorHandle = user?.handle?.raw.orEmpty(),
+                        postText = content.original.raw,
+                    )
                 if (
                     translatedContent === content &&
                     translatedWarning === contentWarning &&
@@ -518,6 +527,79 @@ private fun ActionMenu.isTranslationAction(): Boolean {
         localized?.type == ActionMenu.Item.Text.Localized.Type.Translate ||
         localized?.type == ActionMenu.Item.Text.Localized.Type.ShowOriginal
 }
+
+private fun ActionMenu.isOmniScribeAction(): Boolean {
+    val localized = (this as? ActionMenu.Item)?.text as? ActionMenu.Item.Text.Localized
+    return localized?.type == ActionMenu.Item.Text.Localized.Type.OmniScribe
+}
+
+private fun kotlinx.collections.immutable.ImmutableList<ActionMenu>.withOmniScribeMenuAction(
+    accountType: dev.dimension.flare.model.AccountType,
+    statusKey: dev.dimension.flare.model.MicroBlogKey,
+    authorName: String,
+    authorHandle: String,
+    postText: String,
+): kotlinx.collections.immutable.ImmutableList<ActionMenu> {
+    if (accountType !is AccountType.Specific) return this
+    if (postText.isBlank()) return this
+    var changed = false
+    val mapped =
+        map { menu ->
+            menu
+                .prependOmniScribeAction(
+                    accountKey = accountType.accountKey,
+                    statusKey = statusKey,
+                    authorName = authorName,
+                    authorHandle = authorHandle,
+                    postText = postText,
+                ).also { changed = changed || it !== menu }
+        }
+    return if (!changed) this else mapped.toPersistentList()
+}
+
+private fun ActionMenu.prependOmniScribeAction(
+    accountKey: dev.dimension.flare.model.MicroBlogKey,
+    statusKey: dev.dimension.flare.model.MicroBlogKey,
+    authorName: String,
+    authorHandle: String,
+    postText: String,
+): ActionMenu =
+    when (this) {
+        is ActionMenu.Group -> {
+            if (displayItem.text.isMoreMenuText()) {
+                val omniAction =
+                    ActionMenu.Item(
+                        text = ActionMenu.Item.Text.Localized(ActionMenu.Item.Text.Localized.Type.OmniScribe),
+                        clickEvent =
+                            ClickEvent.Deeplink(
+                                DeeplinkRoute.Status.OmniScribe(
+                                    statusKey = statusKey,
+                                    accountType = AccountType.Specific(accountKey),
+                                    initialText = postText,
+                                    authorName = authorName,
+                                    authorHandle = authorHandle,
+                                ),
+                            ),
+                        icon = UiIcon.Edit,
+                        actionFamily = PostActionFamily.Share,
+                    )
+                if (actions.any { it.isOmniScribeAction() }) {
+                    this
+                } else {
+                    val translationIndex = actions.indexOfFirst { it.isTranslationAction() }
+                    val insertIndex = if (translationIndex >= 0) translationIndex + 1 else 0
+                    val mutable = actions.toMutableList()
+                    mutable.add(insertIndex.coerceAtMost(mutable.size), omniAction)
+                    copy(
+                        actions = mutable.toPersistentList(),
+                    )
+                }
+            } else {
+                this
+            }
+        }
+        else -> this
+    }
 
 private fun ActionMenu.Item.Text?.isMoreMenuText(): Boolean =
     (this as? ActionMenu.Item.Text.Localized)?.type == ActionMenu.Item.Text.Localized.Type.More

@@ -1,5 +1,6 @@
 package dev.dimension.flare.ui.screen.compose
 
+import android.net.Uri
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.ui.window.DialogProperties
 import androidx.navigation3.runtime.EntryProviderScope
@@ -8,6 +9,7 @@ import androidx.navigation3.scene.DialogSceneStrategy
 import dev.dimension.flare.model.AccountType
 import dev.dimension.flare.ui.presenter.compose.ComposeStatus
 import dev.dimension.flare.ui.route.Route
+import kotlinx.collections.immutable.toImmutableList
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 internal fun EntryProviderScope<NavKey>.composeEntryBuilder(
@@ -24,6 +26,24 @@ internal fun EntryProviderScope<NavKey>.composeEntryBuilder(
         ComposeScreen(
             onBack = onBack,
             accountType = null,
+            onOpenDraftBox = {
+                navigate(Route.DraftBox)
+            },
+        )
+    }
+
+    entry<Route.Compose.OmniDraft>(
+        metadata = DialogSceneStrategy.dialog(
+            dialogProperties = DialogProperties(
+                dismissOnClickOutside = false,
+            )
+        )
+    ) { args ->
+        ComposeScreen(
+            onBack = onBack,
+            accountType = null,
+            initialText = args.initialText,
+            initialMedias = args.initialMediaUris.map(Uri::parse).toImmutableList(),
             onOpenDraftBox = {
                 navigate(Route.DraftBox)
             },

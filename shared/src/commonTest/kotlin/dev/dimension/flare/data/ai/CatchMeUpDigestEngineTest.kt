@@ -89,4 +89,30 @@ class CatchMeUpDigestEngineTest {
             assertNotNull(highlight.authorHandle)
         }
     }
+
+    @Test
+    fun synthesizesMultiSentenceNarrativeWithoutGenericVerbTopics() {
+        val posts = listOf(
+            createPost(
+                "1",
+                "JerryRigEverything's wife had a horse riding accident.\nShe now required a wheel chair to move about\nAll high quality outdoor wheelchairs were expensive\nSo he built one and started a company selling them at low cost"
+            ),
+            createPost(
+                "2",
+                "Open source hardware and wheelchair accessibility engineering are transforming mobility for thousands of families."
+            ),
+            createPost(
+                "3",
+                "Building accessible wheelchair technology at low cost requires rethinking manufacturing from first principles."
+            ),
+        )
+
+        val digest = CatchMeUpDigestEngine.generateDigest(posts)
+        assertNotNull(digest)
+        // Generic verbs like 'started', 'required', 'selling' must not appear as topics
+        val lowerTopics = digest.topTopics.map { it.lowercase() }
+        assertTrue("started" !in lowerTopics, "Generic verb 'started' should be filtered from topics")
+        assertTrue("required" !in lowerTopics, "Generic verb 'required' should be filtered from topics")
+        assertTrue(digest.highlights.first().summary.contains("built one"), "Executive summary should capture the payoff sentence")
+    }
 }

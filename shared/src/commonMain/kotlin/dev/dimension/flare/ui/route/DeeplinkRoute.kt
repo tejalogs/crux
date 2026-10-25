@@ -103,6 +103,15 @@ public sealed class DeeplinkRoute {
             val accountType: AccountType,
             val statusKey: MicroBlogKey,
         ) : Status()
+
+        @Serializable
+        public data class OmniScribe(
+            val statusKey: MicroBlogKey,
+            val accountType: AccountType,
+            val initialText: String = "",
+            val authorName: String = "",
+            val authorHandle: String = "",
+        ) : Status()
     }
 
     @Serializable
