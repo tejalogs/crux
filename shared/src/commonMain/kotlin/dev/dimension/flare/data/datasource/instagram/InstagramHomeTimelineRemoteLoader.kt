@@ -4,6 +4,7 @@ import dev.dimension.flare.data.datasource.microblog.paging.CacheableRemoteLoade
 import dev.dimension.flare.data.datasource.microblog.paging.PagingRequest
 import dev.dimension.flare.data.datasource.microblog.paging.PagingResult
 import dev.dimension.flare.data.platform.InstagramCredential
+import dev.dimension.flare.di.koinGet
 import dev.dimension.flare.model.MicroBlogKey
 import dev.dimension.flare.ui.model.UiTimelineV2
 import kotlinx.coroutines.flow.Flow
@@ -13,11 +14,16 @@ public class InstagramHomeTimelineRemoteLoader(
     private val service: InstagramFeedService,
     private val accountKey: MicroBlogKey,
     private val credentialFlow: Flow<InstagramCredential>,
+    private val syncService: InstagramSyncService? = null,
 ) : CacheableRemoteLoader<UiTimelineV2> {
 
     override val pagingKey: String = "home_$accountKey"
     override val supportPrepend: Boolean = false
     override val collapseReplyChains: Boolean = false
+
+    private val resolvedSyncService: InstagramSyncService? by lazy {
+        syncService ?: runCatching { koinGet<InstagramSyncService>() }.getOrNull()
+    }
 
     override suspend fun load(
         pageSize: Int,
@@ -58,15 +64,36 @@ public class InstagramHomeTimelineRemoteLoader(
             }
         }
 
-        val renderedPosts = candidateItems.mapNotNull { mediaOrAd ->
+        val networkItems = candidateItems.toList()
+        val allCached = resolvedSyncService?.getLatestCachedItems().orEmpty()
+
+        val items = if (networkItems.isNotEmpty()) {
+            resolvedSyncService?.cacheItems(networkItems)
+            networkItems
+        } else if (allCached.isNotEmpty()) {
+            val startIndex = cursor?.toIntOrNull() ?: 0
+            allCached.drop(startIndex).take(pageSize)
+        } else {
+            emptyList()
+        }
+
+        val renderedPosts = items.mapNotNull { mediaOrAd ->
             InstagramTimelineMapper.render(
                 mediaOrAd = mediaOrAd,
                 accountKey = accountKey,
             )
         }
 
-        val nextKey = response?.next_max_id
-        val endReached = candidateItems.isEmpty() || response?.more_available == false || nextKey == null
+        val currentStart = cursor?.toIntOrNull() ?: 0
+        val nextKey = if (networkItems.isNotEmpty()) {
+            response?.next_max_id
+        } else if (allCached.isNotEmpty() && currentStart + items.size < allCached.size) {
+            (currentStart + items.size).toString()
+        } else {
+            null
+        }
+
+        val endReached = items.isEmpty() || (networkItems.isNotEmpty() && response?.more_available == false) || nextKey == null
 
         return PagingResult(
             endOfPaginationReached = endReached,

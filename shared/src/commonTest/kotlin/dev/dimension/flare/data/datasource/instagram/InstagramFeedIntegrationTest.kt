@@ -248,6 +248,53 @@ class InstagramFeedIntegrationTest {
     }
 
     @Test
+    fun fallsBackToCachedItemsWhenNetworkEmpty() = runTest {
+        val mockEngine = MockEngine {
+            respond(
+                content = """{"feed_items":[],"items":[]}""",
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "application/json"),
+            )
+        }
+
+        val service = InstagramFeedService(HttpClient(mockEngine))
+        val credentialFlow = flowOf(
+            InstagramCredential(
+                cookies = "sessionid=123; ds_user_id=u1; csrftoken=token",
+                userId = "u1",
+            )
+        )
+
+        val syncService = InstagramSyncService()
+        syncService.cacheItems(
+            listOf(
+                InstagramMediaOrAd(
+                    id = "ig_cached_1",
+                    caption = InstagramCaption(text = "Cached Sunset Photo"),
+                    user = InstagramUser(pk = "u1", username = "photographer", full_name = "Pro Photo"),
+                    image_versions2 = InstagramImageVersions(
+                        candidates = listOf(InstagramImageCandidate(url = "https://example.com/cached.jpg", width = 800, height = 800))
+                    )
+                )
+            )
+        )
+
+        val loader = InstagramHomeTimelineRemoteLoader(
+            service = service,
+            accountKey = accountKey,
+            credentialFlow = credentialFlow,
+            syncService = syncService,
+        )
+
+        val result = loader.load(pageSize = 20, request = PagingRequest.Refresh)
+        assertEquals(1, result.data.size)
+        val post = (result.data[0] as? dev.dimension.flare.ui.model.UiTimelineV2.TimelinePostItem)?.post
+        assertNotNull(post)
+        assertEquals("Pro Photo", post.user?.name?.innerText)
+        assertEquals("Cached Sunset Photo", post.content.original.innerText)
+    }
+
+    @Test
     fun platformSpecHasCorrectMetadataAndId() {
         assertEquals("instagram", InstagramPlatformSpec.platformId)
         assertEquals("Instagram", InstagramPlatformSpec.metadata.displayName)

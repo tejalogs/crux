@@ -17,6 +17,7 @@ import dev.dimension.flare.data.model.tab.TimelineCandidate
 import dev.dimension.flare.data.model.tab.TimelineSpec
 import dev.dimension.flare.data.platform.CommonTimelineSpecs
 import dev.dimension.flare.data.platform.InstagramCredential
+import dev.dimension.flare.di.koinGet
 import dev.dimension.flare.model.AccountType
 import dev.dimension.flare.model.MicroBlogKey
 import dev.dimension.flare.ui.model.UiHashtag
@@ -38,9 +39,20 @@ public class InstagramDataSource(
     PostDataSource,
     PostEventHandler.Handler {
 
+    private val resolvedSyncService: InstagramSyncService? by lazy {
+        runCatching { koinGet<InstagramSyncService>() }.getOrNull()
+    }
+
     private val postLoader by lazy {
         object : PostLoader {
             override suspend fun status(statusKey: MicroBlogKey): UiTimelineV2 {
+                val cached = resolvedSyncService?.getLatestCachedItems()?.firstOrNull {
+                    it.id == statusKey.id || it.pk == statusKey.id || it.code == statusKey.id
+                }
+                if (cached != null) {
+                    val rendered = InstagramTimelineMapper.render(cached, accountKey)
+                    if (rendered != null) return rendered
+                }
                 throw UnsupportedOperationException("Instagram single post fetch is not supported")
             }
 

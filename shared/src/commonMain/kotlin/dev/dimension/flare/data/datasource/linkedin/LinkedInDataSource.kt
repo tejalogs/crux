@@ -17,6 +17,7 @@ import dev.dimension.flare.data.model.tab.TimelineCandidate
 import dev.dimension.flare.data.model.tab.TimelineSpec
 import dev.dimension.flare.data.platform.CommonTimelineSpecs
 import dev.dimension.flare.data.platform.LinkedInCredential
+import dev.dimension.flare.di.koinGet
 import dev.dimension.flare.model.AccountType
 import dev.dimension.flare.model.MicroBlogKey
 import dev.dimension.flare.ui.model.UiHashtag
@@ -38,9 +39,20 @@ public class LinkedInDataSource(
     PostDataSource,
     PostEventHandler.Handler {
 
+    private val resolvedSyncService: LinkedInSyncService? by lazy {
+        runCatching { koinGet<LinkedInSyncService>() }.getOrNull()
+    }
+
     private val postLoader by lazy {
         object : PostLoader {
             override suspend fun status(statusKey: MicroBlogKey): UiTimelineV2 {
+                val cached = resolvedSyncService?.getLatestCachedUpdates()?.firstOrNull {
+                    it.id == statusKey.id || it.urn == statusKey.id || it.entityUrn == statusKey.id
+                }
+                if (cached != null) {
+                    val rendered = LinkedInTimelineMapper.render(cached, accountKey)
+                    if (rendered != null) return rendered
+                }
                 throw UnsupportedOperationException("LinkedIn single post fetch is not supported")
             }
 
