@@ -82,6 +82,45 @@ class InstagramFeedIntegrationTest {
         assertEquals(1080f, image.height)
 
         assertEquals(3, post.actions.size)
+        val commentAction = post.actions[0] as dev.dimension.flare.data.datasource.microblog.ActionMenu.Item
+        val likeAction = post.actions[1] as dev.dimension.flare.data.datasource.microblog.ActionMenu.Item
+        val moreAction = post.actions[2] as dev.dimension.flare.data.datasource.microblog.ActionMenu.Group
+
+        assertEquals(dev.dimension.flare.data.datasource.microblog.PostActionFamily.Reply, commentAction.actionFamily)
+        assertEquals(dev.dimension.flare.data.datasource.microblog.PostActionFamily.Like, likeAction.actionFamily)
+        assertEquals(UiIcon.Unlike, likeAction.icon)
+        assertEquals(dev.dimension.flare.data.datasource.microblog.ActionMenu.Item.Color.Red, likeAction.color)
+        assertTrue(likeAction.clickEvent is dev.dimension.flare.ui.model.ClickEvent.Deeplink)
+
+        assertEquals(UiIcon.More, moreAction.displayItem.icon)
+        assertEquals(1, moreAction.actions.size)
+        val shareAction = moreAction.actions[0] as dev.dimension.flare.data.datasource.microblog.ActionMenu.Item
+        assertEquals(dev.dimension.flare.data.datasource.microblog.PostActionFamily.Share, shareAction.actionFamily)
+    }
+
+    @Test
+    fun testsInstagramLikeEventNextActionMenuTogglesState() {
+        val event = dev.dimension.flare.data.datasource.microblog.PostEvent.Instagram.Like(
+            postKey = MicroBlogKey(id = "123", host = "instagram.com"),
+            liked = true,
+            count = 10,
+            accountKey = accountKey,
+        )
+        val next = event.nextActionMenu()
+        assertEquals(UiIcon.Like, next.icon)
+        assertNull(next.color)
+        assertEquals(9L, next.count?.value)
+
+        val unlikedEvent = dev.dimension.flare.data.datasource.microblog.PostEvent.Instagram.Like(
+            postKey = MicroBlogKey(id = "123", host = "instagram.com"),
+            liked = false,
+            count = 0,
+            accountKey = accountKey,
+        )
+        val nextLiked = unlikedEvent.nextActionMenu()
+        assertEquals(UiIcon.Unlike, nextLiked.icon)
+        assertEquals(dev.dimension.flare.data.datasource.microblog.ActionMenu.Item.Color.Red, nextLiked.color)
+        assertEquals(1L, nextLiked.count?.value)
     }
 
     @Test

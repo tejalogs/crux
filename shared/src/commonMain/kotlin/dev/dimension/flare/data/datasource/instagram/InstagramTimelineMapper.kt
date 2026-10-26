@@ -166,21 +166,31 @@ public object InstagramTimelineMapper {
         val postUrl = "https://www.instagram.com/p/$code/"
 
         val actions = persistentListOf(
+            ActionMenu.instagramComment(
+                statusKey = statusKey,
+                count = mediaOrAd.comment_count ?: 0L,
+                accountKey = accountKey,
+            ),
             ActionMenu.instagramLike(
                 statusKey = statusKey,
                 liked = mediaOrAd.has_liked == true,
                 count = mediaOrAd.like_count ?: 0L,
                 accountKey = accountKey,
             ),
-            ActionMenu.instagramComment(
-                statusKey = statusKey,
-                count = mediaOrAd.comment_count ?: 0L,
-                accountKey = accountKey,
-            ),
-            ActionMenu.instagramShare(
-                statusKey = statusKey,
-                shareUrl = postUrl,
-                accountKey = accountKey,
+            ActionMenu.Group(
+                displayItem =
+                    ActionMenu.Item(
+                        icon = UiIcon.More,
+                        text = ActionMenu.Item.Text.Localized(ActionMenu.Item.Text.Localized.Type.More),
+                    ),
+                actions =
+                    persistentListOf(
+                        ActionMenu.instagramShare(
+                            statusKey = statusKey,
+                            shareUrl = postUrl,
+                            accountKey = accountKey,
+                        ),
+                    ),
             ),
         )
 

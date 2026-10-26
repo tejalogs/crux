@@ -2,10 +2,13 @@ package dev.dimension.flare.ui.model.mapper
 
 import dev.dimension.flare.data.datasource.microblog.ActionMenu
 import dev.dimension.flare.data.datasource.microblog.PostActionFamily
+import dev.dimension.flare.data.datasource.microblog.PostEvent
+import dev.dimension.flare.model.AccountType
 import dev.dimension.flare.model.MicroBlogKey
 import dev.dimension.flare.ui.model.ClickEvent
 import dev.dimension.flare.ui.model.UiIcon
 import dev.dimension.flare.ui.model.UiNumber
+import dev.dimension.flare.ui.route.DeeplinkRoute
 
 public fun ActionMenu.Companion.instagramLike(
     statusKey: MicroBlogKey,
@@ -22,8 +25,17 @@ public fun ActionMenu.Companion.instagramLike(
             ),
         count = if (count > 0) UiNumber(count) else null,
         color = if (liked) ActionMenu.Item.Color.Red else null,
-        clickEvent = ClickEvent.Noop,
-        actionFamily = PostActionFamily.Favorite,
+        clickEvent =
+            ClickEvent.event(
+                accountKey,
+                PostEvent.Instagram.Like(
+                    postKey = statusKey,
+                    liked = liked,
+                    count = count,
+                    accountKey = accountKey,
+                ),
+            ),
+        actionFamily = PostActionFamily.Like,
     )
 
 public fun ActionMenu.Companion.instagramComment(
@@ -36,7 +48,13 @@ public fun ActionMenu.Companion.instagramComment(
         icon = UiIcon.Comment,
         text = ActionMenu.Item.Text.Localized(ActionMenu.Item.Text.Localized.Type.Reply),
         count = if (count > 0) UiNumber(count) else null,
-        clickEvent = ClickEvent.Noop,
+        clickEvent =
+            ClickEvent.Deeplink(
+                DeeplinkRoute.Compose.Reply(
+                    accountKey = accountKey,
+                    statusKey = statusKey,
+                ),
+            ),
         actionFamily = PostActionFamily.Reply,
     )
 
@@ -49,6 +67,13 @@ public fun ActionMenu.Companion.instagramShare(
         updateKey = "ig_share_$statusKey",
         icon = UiIcon.Share,
         text = ActionMenu.Item.Text.Localized(ActionMenu.Item.Text.Localized.Type.Share),
-        clickEvent = ClickEvent.Noop,
+        clickEvent =
+            ClickEvent.Deeplink(
+                DeeplinkRoute.Status.ShareSheet(
+                    statusKey = statusKey,
+                    accountType = AccountType.Specific(accountKey),
+                    shareUrl = shareUrl,
+                ),
+            ),
         actionFamily = PostActionFamily.Share,
     )

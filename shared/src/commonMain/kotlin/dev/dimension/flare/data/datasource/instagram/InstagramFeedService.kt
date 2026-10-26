@@ -7,6 +7,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.parameter
+import io.ktor.client.request.post
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpHeaders
 import io.ktor.http.isSuccess
@@ -54,6 +55,33 @@ public class InstagramFeedService(
             )
         } catch (e: Exception) {
             null
+        }
+    }
+
+    public suspend fun likePost(
+        mediaId: String,
+        liked: Boolean,
+        cookies: String,
+    ): Boolean {
+        if (cookies.isBlank()) return false
+        val csrfToken = extractCsrfToken(cookies) ?: return false
+        val action = if (liked) "like" else "unlike"
+        val url = "https://www.instagram.com/api/v1/web/likes/$mediaId/$action/"
+
+        return try {
+            val response = client.post(url) {
+                header(HttpHeaders.UserAgent, INSTAGRAM_USER_AGENT)
+                header(HttpHeaders.Cookie, cookies)
+                header(HttpHeaders.Accept, "*/*")
+                header(HttpHeaders.Referrer, "https://www.instagram.com/")
+                header("X-IG-App-ID", INSTAGRAM_APP_ID)
+                header("X-ASBD-ID", INSTAGRAM_ASBD_ID)
+                header("X-Requested-With", "XMLHttpRequest")
+                header("X-CSRFToken", csrfToken)
+            }
+            response.status.isSuccess()
+        } catch (_: Exception) {
+            false
         }
     }
 

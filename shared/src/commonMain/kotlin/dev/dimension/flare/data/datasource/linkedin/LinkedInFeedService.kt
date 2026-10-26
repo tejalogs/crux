@@ -7,8 +7,12 @@ import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.parameter
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
+import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
+import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 
 public const val LINKEDIN_FEED_TIMELINE_URL: String = "https://www.linkedin.com/voyager/api/feed/updatesV2"
@@ -35,6 +39,31 @@ public class LinkedInFeedService(
         // Fallback to Dash updates endpoint if primary returned empty
         val fallbackResult = fetchFromEndpoint(LINKEDIN_FEED_DASH_URL, cookies, csrfToken, cursor)
         return fallbackResult ?: primaryResult
+    }
+
+    public suspend fun likePost(
+        urn: String,
+        liked: Boolean,
+        cookies: String,
+    ): Boolean {
+        if (cookies.isBlank()) return false
+        val csrfToken = extractCsrfToken(cookies) ?: return false
+        val targetUrn = if (urn.startsWith("urn:li:")) urn else "urn:li:activity:$urn"
+        return try {
+            val response = client.post("https://www.linkedin.com/voyager/api/voyagerSocialDashReactions?action=react") {
+                header(HttpHeaders.UserAgent, LINKEDIN_USER_AGENT)
+                header(HttpHeaders.Cookie, cookies)
+                header(HttpHeaders.Accept, "application/json, application/vnd.linkedin.normalized+json+2.1")
+                header(HttpHeaders.Referrer, "https://www.linkedin.com/feed/")
+                header("x-restli-protocol-version", "2.0.0")
+                header("csrf-token", csrfToken)
+                contentType(ContentType.Application.Json)
+                setBody("""{"root":"$targetUrn","reactionType":"LIKE"}""")
+            }
+            response.status.isSuccess()
+        } catch (_: Exception) {
+            false
+        }
     }
 
     private suspend fun fetchFromEndpoint(

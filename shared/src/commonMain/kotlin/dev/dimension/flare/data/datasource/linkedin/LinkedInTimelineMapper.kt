@@ -180,21 +180,31 @@ public object LinkedInTimelineMapper {
 
         val counts = update.socialDetail?.totalSocialActivityCounts
         val actions = persistentListOf(
+            ActionMenu.linkedInComment(
+                statusKey = statusKey,
+                count = counts?.numComments ?: 0L,
+                accountKey = accountKey,
+            ),
             ActionMenu.linkedInLike(
                 statusKey = statusKey,
                 liked = update.socialDetail?.reactions?.hasLiked == true,
                 count = counts?.numLikes ?: 0L,
                 accountKey = accountKey,
             ),
-            ActionMenu.linkedInComment(
-                statusKey = statusKey,
-                count = counts?.numComments ?: 0L,
-                accountKey = accountKey,
-            ),
-            ActionMenu.linkedInShare(
-                statusKey = statusKey,
-                shareUrl = postUrl,
-                accountKey = accountKey,
+            ActionMenu.Group(
+                displayItem =
+                    ActionMenu.Item(
+                        icon = UiIcon.More,
+                        text = ActionMenu.Item.Text.Localized(ActionMenu.Item.Text.Localized.Type.More),
+                    ),
+                actions =
+                    persistentListOf(
+                        ActionMenu.linkedInShare(
+                            statusKey = statusKey,
+                            shareUrl = postUrl,
+                            accountKey = accountKey,
+                        ),
+                    ),
             ),
         )
 

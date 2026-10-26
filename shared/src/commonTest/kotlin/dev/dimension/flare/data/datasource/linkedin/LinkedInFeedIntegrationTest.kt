@@ -94,6 +94,45 @@ class LinkedInFeedIntegrationTest {
         assertEquals("https://media.licdn.com/dms/image/keynote.jpg", image.url)
 
         assertEquals(3, post.actions.size)
+        val commentAction = post.actions[0] as dev.dimension.flare.data.datasource.microblog.ActionMenu.Item
+        val likeAction = post.actions[1] as dev.dimension.flare.data.datasource.microblog.ActionMenu.Item
+        val moreAction = post.actions[2] as dev.dimension.flare.data.datasource.microblog.ActionMenu.Group
+
+        assertEquals(dev.dimension.flare.data.datasource.microblog.PostActionFamily.Reply, commentAction.actionFamily)
+        assertEquals(dev.dimension.flare.data.datasource.microblog.PostActionFamily.Like, likeAction.actionFamily)
+        assertEquals(UiIcon.Unlike, likeAction.icon)
+        assertEquals(dev.dimension.flare.data.datasource.microblog.ActionMenu.Item.Color.Red, likeAction.color)
+        assertTrue(likeAction.clickEvent is dev.dimension.flare.ui.model.ClickEvent.Deeplink)
+
+        assertEquals(UiIcon.More, moreAction.displayItem.icon)
+        assertEquals(1, moreAction.actions.size)
+        val shareAction = moreAction.actions[0] as dev.dimension.flare.data.datasource.microblog.ActionMenu.Item
+        assertEquals(dev.dimension.flare.data.datasource.microblog.PostActionFamily.Share, shareAction.actionFamily)
+    }
+
+    @Test
+    fun testsLinkedInLikeEventNextActionMenuTogglesState() {
+        val event = dev.dimension.flare.data.datasource.microblog.PostEvent.LinkedIn.Like(
+            postKey = MicroBlogKey(id = "urn:li:activity:123", host = "linkedin.com"),
+            liked = true,
+            count = 15200L,
+            accountKey = accountKey,
+        )
+        val next = event.nextActionMenu()
+        assertEquals(UiIcon.Like, next.icon)
+        assertNull(next.color)
+        assertEquals(15199L, next.count?.value)
+
+        val unlikedEvent = dev.dimension.flare.data.datasource.microblog.PostEvent.LinkedIn.Like(
+            postKey = MicroBlogKey(id = "urn:li:activity:123", host = "linkedin.com"),
+            liked = false,
+            count = 0L,
+            accountKey = accountKey,
+        )
+        val nextLiked = unlikedEvent.nextActionMenu()
+        assertEquals(UiIcon.Unlike, nextLiked.icon)
+        assertEquals(dev.dimension.flare.data.datasource.microblog.ActionMenu.Item.Color.Red, nextLiked.color)
+        assertEquals(1L, nextLiked.count?.value)
     }
 
     @Test

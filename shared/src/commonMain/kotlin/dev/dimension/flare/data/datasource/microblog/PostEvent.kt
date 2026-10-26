@@ -6,6 +6,8 @@ import dev.dimension.flare.ui.model.mapper.blueskyBookmark
 import dev.dimension.flare.ui.model.mapper.blueskyLike
 import dev.dimension.flare.ui.model.mapper.blueskyReblog
 import dev.dimension.flare.ui.model.mapper.fanboxLike
+import dev.dimension.flare.ui.model.mapper.instagramLike
+import dev.dimension.flare.ui.model.mapper.linkedInLike
 import dev.dimension.flare.ui.model.mapper.mastodonBookmark
 import dev.dimension.flare.ui.model.mapper.mastodonLike
 import dev.dimension.flare.ui.model.mapper.mastodonRepost
@@ -475,6 +477,46 @@ public sealed interface PostEvent {
                     statusKey = postKey,
                     liked = true,
                     count = (count + if (!liked) 1 else 0).coerceAtLeast(0),
+                    accountKey = accountKey,
+                )
+        }
+    }
+
+    @Serializable
+    public sealed interface Instagram : PostEvent {
+        @Serializable
+        public data class Like(
+            public override val postKey: MicroBlogKey,
+            public val liked: Boolean,
+            public val count: Long = 0,
+            public val accountKey: MicroBlogKey,
+        ) : Instagram,
+            UpdatePostActionMenuEvent {
+            public override fun nextActionMenu(): ActionMenu.Item =
+                ActionMenu.instagramLike(
+                    statusKey = postKey,
+                    liked = !liked,
+                    count = (count + if (!liked) 1 else -1).coerceAtLeast(0),
+                    accountKey = accountKey,
+                )
+        }
+    }
+
+    @Serializable
+    public sealed interface LinkedIn : PostEvent {
+        @Serializable
+        public data class Like(
+            public override val postKey: MicroBlogKey,
+            public val liked: Boolean,
+            public val count: Long = 0,
+            public val accountKey: MicroBlogKey,
+        ) : LinkedIn,
+            UpdatePostActionMenuEvent {
+            public override fun nextActionMenu(): ActionMenu.Item =
+                ActionMenu.linkedInLike(
+                    statusKey = postKey,
+                    liked = !liked,
+                    count = (count + if (!liked) 1 else -1).coerceAtLeast(0),
                     accountKey = accountKey,
                 )
         }
