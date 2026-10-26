@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -33,6 +34,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -60,9 +62,11 @@ import compose.icons.fontawesomeicons.solid.Reply
 import compose.icons.fontawesomeicons.solid.ScaleBalanced
 import compose.icons.fontawesomeicons.solid.WandMagicSparkles
 import compose.icons.fontawesomeicons.solid.Xmark
+import dev.dimension.flare.common.OnDeviceAI
 import dev.dimension.flare.data.ai.scribe.SmartReplyAngle
 import dev.dimension.flare.data.ai.scribe.SmartReplyEngine
 import dev.dimension.flare.data.ai.scribe.SmartReplyResult
+import dev.dimension.flare.di.koinInject
 import dev.dimension.flare.model.AccountType
 import dev.dimension.flare.model.MicroBlogKey
 import dev.dimension.flare.ui.component.FAIcon
@@ -99,7 +103,7 @@ internal fun SmartReplyBottomSheet(
 
     var selectedAngle by remember { mutableStateOf(SmartReplyAngle.Insight) }
 
-    val replyResult by remember(initialText, authorName, authorHandle) {
+    var replyResult by remember(initialText, authorName, authorHandle) {
         mutableStateOf(
             SmartReplyEngine.generateReplies(
                 postText = initialText,
@@ -109,6 +113,9 @@ internal fun SmartReplyBottomSheet(
         )
     }
 
+    var isRefining by remember { mutableStateOf(false) }
+    val onDeviceAI by koinInject<OnDeviceAI>()
+
     val accountsState by producePresenter {
         remember { AccountsPresenter() }.invoke()
     }
@@ -116,7 +123,7 @@ internal fun SmartReplyBottomSheet(
     val currentOption = replyResult.options.firstOrNull { it.angle == selectedAngle }
         ?: replyResult.options.first()
 
-    var draftReply by remember(selectedAngle) {
+    var draftReply by remember(selectedAngle, replyResult) {
         mutableStateOf(currentOption.replyText)
     }
 
@@ -330,18 +337,75 @@ internal fun SmartReplyBottomSheet(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
                     text = "${draftReply.length} chars",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                Text(
-                    text = "Gemma distilled in ${replyResult.latencyMs}ms",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                    fontSize = 10.sp,
-                )
+
+                if (onDeviceAI != null) {
+                    TextButton(
+                        onClick = {
+                            if (!isRefining) {
+                                scope.launch {
+                                    isRefining = true
+                                    haptic.perform(FlareHapticEvent.SelectionChange)
+                                    val prompt = SmartReplyEngine.buildGemmaPrompt(
+                                        postText = initialText,
+                                        authorName = authorName,
+                                        authorHandle = authorHandle,
+                                    )
+                                    val rawAiOutput: String? = runCatching {
+                                        onDeviceAI.translate(
+                                            source = initialText,
+                                            targetLanguage = "en",
+                                            prompt = prompt,
+                                        )
+                                    }.getOrNull()
+
+                                    if (!rawAiOutput.isNullOrBlank()) {
+                                        val gemmaOptions = SmartReplyEngine.parseGemmaReplies(rawAiOutput)
+                                        if (gemmaOptions != null) {
+                                            replyResult = replyResult.copy(
+                                                options = gemmaOptions,
+                                            )
+                                            val currentOpt = gemmaOptions.firstOrNull { it.angle == selectedAngle }
+                                            if (currentOpt != null) {
+                                                draftReply = currentOpt.replyText
+                                            }
+                                            android.widget.Toast.makeText(context, "Refined with on-device Gemma", android.widget.Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                    isRefining = false
+                                }
+                            }
+                        },
+                        enabled = !isRefining,
+                    ) {
+                        if (isRefining) {
+                            CircularProgressIndicator(modifier = Modifier.size(12.dp), strokeWidth = 2.dp)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Refining...", fontSize = 11.sp)
+                        } else {
+                            FAIcon(
+                                imageVector = FontAwesomeIcons.Solid.WandMagicSparkles,
+                                contentDescription = null,
+                                modifier = Modifier.size(11.dp),
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Refine with Gemma", fontSize = 11.sp)
+                        }
+                    }
+                } else {
+                    Text(
+                        text = "Gemma distilled in ${replyResult.latencyMs}ms",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        fontSize = 10.sp,
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(18.dp))
