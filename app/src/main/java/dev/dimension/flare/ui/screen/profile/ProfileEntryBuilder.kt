@@ -162,7 +162,11 @@ internal fun EntryProviderScope<NavKey>.profileEntryBuilder(
             },
             accountType = args.accountType,
             toEditAccountList = {
-                // TODO: Add route for edit account list
+                navigate(
+                    Route.Lists.List(
+                        accountType = args.accountType,
+                    )
+                )
             },
             toSearchUserUsingAccount = { handle, accountKey ->
                 navigate(

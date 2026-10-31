@@ -3,10 +3,14 @@ package dev.dimension.flare.ui.screen.home
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,21 +45,24 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LeadingIconTab
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SecondaryScrollableTabRow
-import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -92,6 +99,7 @@ import compose.icons.fontawesomeicons.solid.Sliders
 import dev.dimension.flare.R
 import dev.dimension.flare.common.onSuccess
 import dev.dimension.flare.data.ai.CatchMeUpDigestEngine
+import dev.dimension.flare.data.ai.FeedDigest
 import dev.dimension.flare.data.datastore.model.TimelineAutoRefreshInterval
 import dev.dimension.flare.data.model.BottomBarBehavior
 import dev.dimension.flare.data.model.TimelineDisplayMode
@@ -106,6 +114,7 @@ import dev.dimension.flare.ui.component.FlareScaffold
 import dev.dimension.flare.ui.component.FlareTopAppBar
 import dev.dimension.flare.ui.component.Glassify
 import dev.dimension.flare.ui.component.LocalAppSettings
+import dev.dimension.flare.ui.component.LocalBottomBarAccessory
 import dev.dimension.flare.ui.component.LocalBottomBarShowing
 import dev.dimension.flare.ui.component.LocalGlobalAppearance
 import dev.dimension.flare.ui.component.LocalTimelineAppearance
@@ -120,9 +129,6 @@ import dev.dimension.flare.ui.component.status.CatchMeUpDigestCard
 import dev.dimension.flare.ui.component.status.LazyStatusVerticalStaggeredGrid
 import dev.dimension.flare.ui.component.status.status
 import dev.dimension.flare.ui.model.map
-import dev.dimension.flare.ui.route.DeeplinkRoute
-import dev.dimension.flare.ui.route.toUri
-import kotlin.time.Clock
 import dev.dimension.flare.ui.model.onError
 import dev.dimension.flare.ui.model.onLoading
 import dev.dimension.flare.ui.model.onSuccess
@@ -133,16 +139,24 @@ import dev.dimension.flare.ui.presenter.home.LoggedInPresenter
 import dev.dimension.flare.ui.presenter.home.LoggedInState
 import dev.dimension.flare.ui.presenter.invoke
 import dev.dimension.flare.ui.presenter.rememberTimelineItemPresenterWithLazyListState
+import dev.dimension.flare.ui.route.DeeplinkRoute
 import dev.dimension.flare.ui.route.Route
 import dev.dimension.flare.ui.route.Router
+import dev.dimension.flare.ui.route.toUri
 import dev.dimension.flare.ui.theme.isLightTheme
 import dev.dimension.flare.ui.theme.screenHorizontalPadding
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import moe.tlaster.precompose.molecule.producePresenter
+import kotlin.time.Clock
 import dev.dimension.flare.ui.component.Text as FlareText
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
+@OptIn(
+    ExperimentalMaterial3Api::class,
+    ExperimentalMaterial3ExpressiveApi::class,
+    ExperimentalSharedTransitionApi::class,
+    ExperimentalFoundationApi::class,
+)
 @Composable
 internal fun HomeTimelineScreen(
     toQuickMenu: () -> Unit,
@@ -253,8 +267,63 @@ internal fun HomeTimelineScreen(
             } else {
                 TopAppBarDefaults.enterAlwaysScrollBehavior()
             }
+        // Phones (bottom dock visible): the Home dock item expands into the feed tabs and the top
+        // bar goes away. Tablets/rail layouts keep the top tab strip.
+        val bottomBarAccessory = LocalBottomBarAccessory.current
+        val useBottomTabs = LocalBottomBarShowing.current && bottomBarAccessory != null
+        val drawerButton: @Composable () -> Unit = {
+            Box(
+                modifier =
+                    Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .combinedClickable(
+                            onClick = {
+                                toQuickMenu.invoke()
+                            },
+                            onLongClick = bottomBarAccessory?.onLongClick,
+                        ),
+                contentAlignment = Alignment.Center,
+            ) {
+                BadgedBox(
+                    badge = {
+                        // Unread notifications live in the side panel on phones; dot the avatar that opens it.
+                        if (useBottomTabs && (bottomBarAccessory?.badgeCount ?: 0) > 0) {
+                            Badge()
+                        }
+                    },
+                ) {
+                    state.user
+                        .onSuccess {
+                            ExpressiveAvatarFrame(size = 38.dp) {
+                                AvatarComponent(
+                                    data = it.avatar,
+                                    platformId = it.platformId,
+                                    host = it.key.host,
+                                    platformIcon = it.platformIcon,
+                                    size = 30.dp,
+                                    contentDescription = stringResource(R.string.open_navigation_menu),
+                                )
+                            }
+                        }.onError {
+                            FAIcon(
+                                imageVector = FontAwesomeIcons.Solid.Bars,
+                                contentDescription = stringResource(R.string.open_navigation_menu),
+                                modifier = Modifier.size(22.dp),
+                            )
+                        }.onLoading {
+                            FAIcon(
+                                imageVector = FontAwesomeIcons.Solid.Bars,
+                                contentDescription = stringResource(R.string.open_navigation_menu),
+                                modifier = Modifier.size(22.dp),
+                            )
+                        }
+                }
+            }
+        }
         FlareScaffold(
-            topBar = {
+            topBar = topBar@{
+                if (useBottomTabs) return@topBar
                 val appearance = LocalTimelineAppearance.current
                 val backgroundColor = MaterialTheme.colorScheme.background
                 val plainColor =
@@ -320,124 +389,36 @@ internal fun HomeTimelineScreen(
                                             },
                                         )
                                     } else {
-                                        SecondaryScrollableTabRow(
-                                            containerColor = Color.Transparent,
-                                            modifier =
-                                                Modifier
-                                                    .fillMaxWidth(),
+                                        ExpressiveHomeTabStrip(
+                                            tabs = tabs,
                                             selectedTabIndex =
                                                 minOf(
                                                     pagerState.currentPage,
                                                     tabs.lastIndex,
                                                 ),
-                                            edgePadding = 4.dp,
-                                            divider = { },
-                                            indicator = {
-                                                Box(
-                                                    Modifier
-                                                        .tabIndicatorOffset(
-                                                            minOf(
-                                                                pagerState.currentPage,
-                                                                tabs.lastIndex,
-                                                            ),
-                                                            matchContentSize = true,
-                                                        )
-                                                        .height(3.5.dp)
-                                                        .clip(CircleShape)
-                                                        .background(MaterialTheme.colorScheme.primary),
-                                                )
+                                            onTabSelected = { index ->
+                                                scope.launch {
+                                                    pagerState.animateScrollToPage(index)
+                                                }
                                             },
-                                            minTabWidth = 48.dp,
-                                        ) {
-                                            tabs.forEachIndexed { index, tab ->
-                                                val isSelected = index == pagerState.currentPage
-                                                LeadingIconTab(
-                                                    modifier = Modifier,
-                                                    selectedContentColor = MaterialTheme.colorScheme.primary,
-                                                    unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
-                                                    selected = isSelected,
-                                                    onClick = {
-                                                        scope.launch {
-                                                            pagerState.scrollToPage(index)
-                                                        }
-                                                    },
-                                                    text = {
-                                                        FlareText(
-                                                            text = tab.title,
-                                                            style =
-                                                                if (isSelected) {
-                                                                    MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
-                                                                } else {
-                                                                    MaterialTheme.typography.titleSmall
-                                                                },
-                                                        )
-                                                    },
-                                                    icon = {
-                                                        TabIcon(tab)
-                                                    },
-                                                )
-                                            }
-                                        }
+                                        )
                                     }
                                 }
                             }
                         }
                     },
                     scrollBehavior = topAppBarScrollBehavior,
-                    navigationIcon = {
-                        if (LocalBottomBarShowing.current) {
-                            state.user
-                                .onSuccess {
-                                    IconButton(
-                                        onClick = {
-                                            toQuickMenu.invoke()
-                                        },
-                                    ) {
-                                        AvatarComponent(
-                                            data = it.avatar,
-                                            platformId = it.platformId,
-                                            host = it.key.host,
-                                            platformIcon = it.platformIcon,
-                                            size = 28.dp,
-                                            contentDescription = stringResource(R.string.open_navigation_menu),
-                                        )
-                                    }
-                                }.onError {
-                                    IconButton(
-                                        onClick = {
-                                            toQuickMenu.invoke()
-                                        },
-                                    ) {
-                                        FAIcon(
-                                            imageVector = FontAwesomeIcons.Solid.Bars,
-                                            contentDescription = stringResource(R.string.open_navigation_menu),
-                                            modifier = Modifier.size(24.dp),
-                                        )
-                                    }
-                                }.onLoading {
-                                    IconButton(
-                                        onClick = {
-                                            toQuickMenu.invoke()
-                                        },
-                                    ) {
-                                        FAIcon(
-                                            imageVector = FontAwesomeIcons.Solid.Bars,
-                                            contentDescription = stringResource(R.string.open_navigation_menu),
-                                            modifier = Modifier.size(24.dp),
-                                        )
-                                    }
-                                }
-                        }
-                    },
                     actions = {
-                        IconButton(
+                        FilledTonalIconButton(
                             onClick = {
                                 toTabSettings.invoke()
                             },
+                            shapes = IconButtonDefaults.shapes(),
                         ) {
                             FAIcon(
                                 imageVector = FontAwesomeIcons.Solid.Sliders,
                                 contentDescription = stringResource(R.string.edit_tab_title),
+                                modifier = Modifier.size(18.dp),
                             )
                         }
                         if (state.isLoggedIn.takeSuccess() == false) {
@@ -450,44 +431,92 @@ internal fun HomeTimelineScreen(
             },
             modifier = Modifier.nestedScroll(topAppBarScrollBehavior.nestedScrollConnection),
         ) { contentPadding ->
-            state.pagerState.onSuccess { pagerState ->
-                state.tabState.onSuccess { tabState ->
-                    LaunchedEffect(pagerState.currentPage >= tabState.size) {
-                        if (pagerState.currentPage >= tabState.size) {
-                            scope.launch {
-                                pagerState.scrollToPage(0)
+            Box(modifier = Modifier.fillMaxSize()) {
+                state.pagerState.onSuccess { pagerState ->
+                    state.tabState.onSuccess { tabState ->
+                        LaunchedEffect(pagerState.currentPage >= tabState.size) {
+                            if (pagerState.currentPage >= tabState.size) {
+                                scope.launch {
+                                    pagerState.scrollToPage(0)
+                                }
                             }
                         }
-                    }
 
-                    HorizontalPager(
-                        state = pagerState,
-                        key = { index ->
-                            tabState.getOrNull(index)?.id ?: "timeline_$index"
-                        },
-                    ) { index ->
-                        val item = tabState.getOrNull(index)
-                        if (item != null) {
-                            val timelineAppearance = LocalTimelineAppearance.current
-                            CompositionLocalProvider(
-                                LocalTimelineAppearance provides
-                                    remember(
-                                        item.appearancePatch,
-                                        timelineAppearance,
-                                    ) {
-                                        item.resolveTimelineAppearance(timelineAppearance)
-                                    },
-                            ) {
-                                TimelineItemContent(
-                                    item = item,
-                                    contentPadding = contentPadding,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    changeLogState = state,
-                                    isHomeTimeline = true,
+                        HorizontalPager(
+                            state = pagerState,
+                            // Live sites have their own horizontal gestures; switch with the pills there.
+                            userScrollEnabled = tabState.getOrNull(pagerState.currentPage)?.liveWebSite() == null,
+                            key = { index ->
+                                tabState.getOrNull(index)?.id ?: "timeline_$index"
+                            },
+                        ) { index ->
+                            val item = tabState.getOrNull(index)
+                            val liveWebSite = item?.liveWebSite()
+                            if (liveWebSite != null) {
+                                LiveWebTab(
+                                    site = liveWebSite,
                                     isCurrentlyVisible = pagerState.currentPage == index,
-                                    autoRefreshInterval =
-                                        LocalAppSettings.current.homeTimelineAutoRefreshInterval,
+                                    contentPadding = contentPadding,
                                 )
+                            } else if (item != null) {
+                                val timelineAppearance = LocalTimelineAppearance.current
+                                CompositionLocalProvider(
+                                    LocalTimelineAppearance provides
+                                        remember(
+                                            item.appearancePatch,
+                                            timelineAppearance,
+                                        ) {
+                                            item.resolveTimelineAppearance(timelineAppearance)
+                                        },
+                                ) {
+                                    TimelineItemContent(
+                                        item = item,
+                                        contentPadding = contentPadding,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        changeLogState = state,
+                                        isHomeTimeline = true,
+                                        isCurrentlyVisible = pagerState.currentPage == index,
+                                        autoRefreshInterval =
+                                            LocalAppSettings.current.homeTimelineAutoRefreshInterval,
+                                    )
+                                }
+                            }
+                        }
+
+                        if (useBottomTabs && bottomBarAccessory != null && tabState.any()) {
+                            val dockTabs: @Composable (() -> Unit) -> Unit = { onReselect ->
+                                ExpressiveHomeDockTabs(
+                                    tabs = tabState,
+                                    selectedTabIndex = minOf(pagerState.currentPage, tabState.lastIndex),
+                                    onTabSelected = { index ->
+                                        scope.launch {
+                                            pagerState.animateScrollToPage(index)
+                                        }
+                                    },
+                                    onReselect = onReselect,
+                                    onEditTabs = toTabSettings,
+                                    drawerButton = drawerButton,
+                                    loginButton =
+                                        if (state.isLoggedIn.takeSuccess() == false) {
+                                            {
+                                                TextButton(onClick = toLogin) {
+                                                    Text(text = stringResource(id = R.string.login_button))
+                                                }
+                                            }
+                                        } else {
+                                            null
+                                        },
+                                )
+                            }
+                            val latestDockTabs by rememberUpdatedState(dockTabs)
+                            DisposableEffect(bottomBarAccessory) {
+                                val content: @Composable (() -> Unit) -> Unit = { latestDockTabs(it) }
+                                bottomBarAccessory.content = content
+                                onDispose {
+                                    if (bottomBarAccessory.content === content) {
+                                        bottomBarAccessory.content = null
+                                    }
+                                }
                             }
                         }
                     }
@@ -562,6 +591,7 @@ private fun HomeTabDropdown(
 
 private const val MAX_SCROLLABLE_HOME_TABS = 10
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun TimelineItemContent(
     item: UiTimelineTabItem,
@@ -596,6 +626,33 @@ internal fun TimelineItemContent(
     val lifecycleOwner = LocalLifecycleOwner.current
     val uriHandler = LocalUriHandler.current
     var isDigestDismissed by rememberSaveable(item.id) { mutableStateOf(false) }
+    var showFullscreenBriefing by rememberSaveable(item.id) { mutableStateOf(false) }
+    val onSynthesizeCarouselAction: (FeedDigest) -> Unit =
+        remember(uriHandler) {
+            { digest ->
+                val highlightsSummary =
+                    buildString {
+                        appendLine("Executive Feed Digest:")
+                        digest.highlights.forEach { h ->
+                            val authorPart = if (!h.authorName.isNullOrBlank()) " (${h.authorName})" else ""
+                            appendLine("• ${h.topic}$authorPart: ${h.summary}")
+                        }
+                    }
+                val initialText = if (highlightsSummary.isNotBlank()) highlightsSummary else digest.title
+                val digestUri =
+                    DeeplinkRoute.Status
+                        .OmniScribe(
+                            statusKey = MicroBlogKey(digest.title.hashCode().toString(), "pulse"),
+                            accountType = AccountType.Guest,
+                            initialText = initialText.trim(),
+                            authorName = "Executive Pulse",
+                            authorHandle = "flare",
+                            articleTitle = "${digest.title} • Executive Brief",
+                            sourceUrl = "",
+                        ).toUri()
+                uriHandler.openUri(digestUri)
+            }
+        }
     val feedDigest =
         remember(state.listState) {
             val success = state.listState as? dev.dimension.flare.common.PagingState.Success<dev.dimension.flare.ui.model.UiTimelineV2>
@@ -704,26 +761,8 @@ internal fun TimelineItemContent(
                             onRefresh = {
                                 state.refreshSync()
                             },
-                            onSynthesizeCarousel = { digest ->
-                                val highlightsSummary = buildString {
-                                    appendLine("Executive Feed Digest:")
-                                    digest.highlights.forEach { h ->
-                                        val authorPart = if (!h.authorName.isNullOrBlank()) " (${h.authorName})" else ""
-                                        appendLine("• ${h.topic}$authorPart: ${h.summary}")
-                                    }
-                                }
-                                val initialText = if (highlightsSummary.isNotBlank()) highlightsSummary else digest.title
-                                val digestUri = DeeplinkRoute.Status.OmniScribe(
-                                    statusKey = MicroBlogKey(digest.title.hashCode().toString(), "pulse"),
-                                    accountType = AccountType.Guest,
-                                    initialText = initialText.trim(),
-                                    authorName = "Executive Pulse",
-                                    authorHandle = "flare",
-                                    articleTitle = "${digest.title} • Executive Brief",
-                                    sourceUrl = "",
-                                ).toUri()
-                                uriHandler.openUri(digestUri)
-                            },
+                            onSynthesizeCarousel = onSynthesizeCarouselAction,
+                            onOpenFullscreen = { showFullscreenBriefing = true },
                         )
                     }
                 }
@@ -733,8 +772,12 @@ internal fun TimelineItemContent(
             state.listState.onSuccess {
                 AnimatedVisibility(
                     state.showNewToots,
-                    enter = slideInVertically { -it },
-                    exit = slideOutVertically { -it },
+                    enter =
+                        slideInVertically(MaterialTheme.motionScheme.fastSpatialSpec()) { -it } +
+                            scaleIn(MaterialTheme.motionScheme.fastSpatialSpec(), initialScale = 0.6f),
+                    exit =
+                        slideOutVertically(MaterialTheme.motionScheme.fastSpatialSpec()) { -it } +
+                            scaleOut(MaterialTheme.motionScheme.fastSpatialSpec(), targetScale = 0.6f),
                     modifier =
                         Modifier
                             .padding(paddingWithStatusBar)
@@ -748,7 +791,7 @@ internal fun TimelineItemContent(
                             }
                         },
                         shape = RoundedCornerShape(50),
-                        color = MaterialTheme.colorScheme.primaryContainer,
+                        color = MaterialTheme.colorScheme.tertiaryContainer,
                     ) {
                         Row(
                             modifier =
@@ -776,6 +819,14 @@ internal fun TimelineItemContent(
             }
         },
     )
+
+    if (showFullscreenBriefing && feedDigest != null) {
+        ExecutiveBriefingBottomSheet(
+            digest = feedDigest,
+            onDismissRequest = { showFullscreenBriefing = false },
+            onSynthesizeCarousel = onSynthesizeCarouselAction,
+        )
+    }
 }
 
 @Composable

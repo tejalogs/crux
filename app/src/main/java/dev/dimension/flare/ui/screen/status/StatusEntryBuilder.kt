@@ -161,6 +161,8 @@ internal fun EntryProviderScope<NavKey>.statusEntryBuilder(
             initialText = args.initialText,
             authorName = args.authorName,
             authorHandle = args.authorHandle,
+            mediaDescription = args.mediaDescription,
+            parentContext = args.parentContext,
             navigate = navigate,
             onBack = onBack,
         )

@@ -316,7 +316,7 @@ private fun presenter() =
                     .filterIsInstance<UiGroupTimelineTabItem>()
                     .firstOrNull { it.isSystemHomeMixedTimeline }
                     ?.mergePolicy
-                    ?: TimelineMergePolicy.TimePerPage
+                    ?: TimelineMergePolicy.Time
 
             fun setEnableMixedTimeline(enable: Boolean) {
                 replaceTabs(cacheTabs.toList().withSystemHomeMixedTimelineEnabled(enable))

@@ -130,8 +130,6 @@ import dev.dimension.flare.model.MicroBlogKey
 import dev.dimension.flare.ui.component.FAIcon
 import dev.dimension.flare.ui.component.LocalGlobalAppearance
 import dev.dimension.flare.ui.component.LocalTimelineAppearance
-import dev.dimension.flare.ui.haptic.FlareHapticEvent
-import dev.dimension.flare.ui.haptic.rememberFlareHapticFeedback
 import dev.dimension.flare.ui.component.MediaViewerPlayback
 import dev.dimension.flare.ui.component.MediaViewerSelection
 import dev.dimension.flare.ui.component.SurfaceBindingManager
@@ -140,6 +138,8 @@ import dev.dimension.flare.ui.component.VideoPlayer
 import dev.dimension.flare.ui.component.accessibleDescription
 import dev.dimension.flare.ui.component.placeholder
 import dev.dimension.flare.ui.component.status.CommonStatusComponent
+import dev.dimension.flare.ui.haptic.FlareHapticEvent
+import dev.dimension.flare.ui.haptic.rememberFlareHapticFeedback
 import dev.dimension.flare.ui.humanizer.humanize
 import dev.dimension.flare.ui.model.UiMedia
 import dev.dimension.flare.ui.model.UiState
@@ -476,7 +476,9 @@ internal fun MediaViewerScreen(
                                                     previewUrl = preview,
                                                     customHeaders = null,
                                                     description = null,
-                                                    onClick = { /*TODO*/ },
+                                                    onClick = {
+                                                        state.setShowUi(!state.showUi)
+                                                    },
                                                     setLockPager = {
                                                         if (!isBigScreen) {
                                                             state.setShowUi(!it)

@@ -22,7 +22,11 @@ class AddRssSourceActivity : ComponentActivity() {
         @Suppress("DEPRECATION")
         val streamUri: Uri? =
             intent?.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)
-                ?: intent?.clipData?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.uri
+                ?: intent
+                    ?.clipData
+                    ?.takeIf { it.itemCount > 0 }
+                    ?.getItemAt(0)
+                    ?.uri
                 ?: intent?.data
 
         val mimeType = intent?.type.orEmpty()
@@ -36,7 +40,10 @@ class AddRssSourceActivity : ComponentActivity() {
 
         val initialText =
             when {
-                initialOpmlUri != null -> null
+                initialOpmlUri != null -> {
+                    null
+                }
+
                 intent?.action == Intent.ACTION_SEND -> {
                     intent.getStringExtra(Intent.EXTRA_TEXT) ?: ""
                 }

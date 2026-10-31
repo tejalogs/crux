@@ -91,7 +91,10 @@ public sealed interface UiTimelineTabItem {
         get() =
             when (this) {
                 is UiSourceTimelineTabItem -> {
-                    source?.let { kotlinx.serialization.json.Json.encodeToString(listOf(it.specId, it.data)) } ?: loaderKey
+                    source?.let {
+                        kotlinx.serialization.json.Json
+                            .encodeToString(listOf(it.specId, it.data))
+                    } ?: loaderKey
                 }
 
                 is UiGroupTimelineTabItem -> {
@@ -249,7 +252,7 @@ public fun List<UiTimelineTabItem>.withSystemHomeMixedTimelineEnabled(
         UiGroupTimelineTabItem(
             id = SYSTEM_HOME_MIXED_TIMELINE_ID,
             children = tabsWithoutSystemGroup,
-            mergePolicy = mergePolicy ?: existingGroup?.mergePolicy ?: TimelineMergePolicy.TimePerPage,
+            mergePolicy = mergePolicy ?: existingGroup?.mergePolicy ?: TimelineMergePolicy.Time,
             source = GroupSource.SystemHome,
             presentation =
                 (existingGroup?.presentation ?: TimelinePresentation()).copy(
@@ -690,7 +693,15 @@ internal class TimelineResolver(
             is TimelineSlotContent.Group -> null
         }
 
-    private fun resolveLoader(source: TimelineSourceRef): Flow<RemoteLoader<UiTimelineV2>> = resolveSpec(source).createLoader(source.data)
+    /** False for tabs saved by a platform that no longer exists in the app. */
+    fun hasSpec(slot: TimelineSlot): Boolean =
+        when (val content = slot.content) {
+            is TimelineSlotContent.Source -> content.source.specId in specs
+            is TimelineSlotContent.Group -> true
+        }
+
+    private fun resolveLoader(source: TimelineSourceRef): Flow<RemoteLoader<UiTimelineV2>> =
+        if (source.specId in specs) resolveSpec(source).createLoader(source.data) else flowOf(notSupported())
 
     @OptIn(ExperimentalCoroutinesApi::class)
     private fun resolveGroupLoader(item: UiGroupTimelineTabItem): Flow<RemoteLoader<UiTimelineV2>> =
@@ -729,7 +740,7 @@ internal class TimelineResolver(
 
     @OptIn(ExperimentalSerializationApi::class)
     private fun resolveAccountKey(source: TimelineSourceRef): MicroBlogKey? {
-        val spec = resolveSpec(source)
+        val spec = specs[source.specId] ?: return null
         val data = spec.decode(source.data)
         return (data as? TimelineSpec.AccountData)?.accountKey
     }

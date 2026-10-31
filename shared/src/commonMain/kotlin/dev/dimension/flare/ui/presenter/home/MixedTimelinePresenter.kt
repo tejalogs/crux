@@ -24,13 +24,13 @@ import kotlinx.coroutines.flow.map
 public class MixedTimelinePresenter(
     id: String,
     private val fallbackSubTimelinePresenter: List<TimelinePresenter> = emptyList(),
-    private val fallbackMergePolicy: TimelineMergePolicy = TimelineMergePolicy.TimePerPage,
+    private val fallbackMergePolicy: TimelineMergePolicy = TimelineMergePolicy.Time,
 ) : TimelinePresenter(tabId = id) {
     private val groupId = id
 
     public constructor(
         subTimelinePresenter: List<TimelinePresenter>,
-        mergePolicy: TimelineMergePolicy = TimelineMergePolicy.TimePerPage,
+        mergePolicy: TimelineMergePolicy = TimelineMergePolicy.Time,
     ) : this(
         id = "legacy_mixed_timeline",
         fallbackSubTimelinePresenter = subTimelinePresenter,
@@ -110,7 +110,7 @@ public class SystemHomeMixedTimelinePresenter(
 
     private val mergePolicyFlow: Flow<TimelineMergePolicy> by lazy {
         groupTabFlow
-            .map { it?.mergePolicy ?: TimelineMergePolicy.TimePerPage }
+            .map { it?.mergePolicy ?: TimelineMergePolicy.Time }
             .distinctUntilChanged()
     }
 

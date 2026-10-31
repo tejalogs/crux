@@ -29,7 +29,6 @@ kotlin {
             projects.social.misskey,
             projects.social.pixiv,
             projects.social.vvo,
-            projects.social.xqt,
             projects.feature.loginApi,
             projects.feature.login,
             projects.feature.subscription,
@@ -68,7 +67,6 @@ kotlin {
                 api(projects.social.misskey)
                 api(projects.social.pixiv)
                 api(projects.social.vvo)
-                api(projects.social.xqt)
                 api(projects.feature.loginApi)
                 api(projects.feature.login)
                 api(projects.feature.subscription)

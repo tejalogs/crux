@@ -63,19 +63,40 @@ internal fun AdaptiveGrid(
                 return@Layout layout(0, 0) {}
             }
 
+            val width =
+                if (constraints.hasBoundedWidth) {
+                    constraints.maxWidth
+                } else if (constraints.minWidth in 1..99_999) {
+                    constraints.minWidth
+                } else {
+                    0
+                }
+
+            if (width <= 0) {
+                return@Layout layout(0, 0) {}
+            }
+
             if (visibleMeasurables.size == 1) {
-                val placeable =
+                val targetHeight =
                     if (expandedSize) {
-                        visibleMeasurables[0].measure(
-                            constraints.copy(
-                                maxHeight = constraints.maxWidth * 21 / 9,
-                            ),
-                        )
+                        ((width.toLong() * 21) / 9).toInt()
                     } else {
-                        visibleMeasurables[0].measure(
-                            constraints.copy(maxHeight = constraints.maxWidth * 9 / 16),
-                        )
+                        ((width.toLong() * 9) / 16).toInt()
                     }
+                val safeMaxHeight =
+                    if (constraints.hasBoundedHeight) {
+                        targetHeight.coerceIn(constraints.minHeight, constraints.maxHeight)
+                    } else {
+                        targetHeight.coerceAtLeast(constraints.minHeight)
+                    }
+                val childConstraints =
+                    Constraints(
+                        minWidth = 0,
+                        maxWidth = width,
+                        minHeight = 0,
+                        maxHeight = safeMaxHeight,
+                    )
+                val placeable = visibleMeasurables[0].measure(childConstraints)
                 overflowWidth = placeable.width
                 overflowHeight = placeable.height
                 val overflowPlaceables =
@@ -96,10 +117,9 @@ internal fun AdaptiveGrid(
 
             val gapPx = spacing.roundToPx()
             if (visibleMeasurables.size in 2..4) {
-                val width = constraints.maxWidth
-                val height = (width * 9) / 16
+                val height = ((width.toLong() * 9) / 16).toInt()
                 val containerHeight =
-                    if (expandedSize) {
+                    if (expandedSize && constraints.hasBoundedHeight) {
                         height.coerceIn(constraints.minHeight, constraints.maxHeight)
                     } else {
                         height
@@ -108,39 +128,30 @@ internal fun AdaptiveGrid(
                 val placeables =
                     when (visibleMeasurables.size) {
                         2 -> {
-                            val childWidth = (width - gapPx) / 2
+                            val childWidth = ((width - gapPx) / 2).coerceAtLeast(0)
                             visibleMeasurables.map { child ->
                                 child.measure(
-                                    constraints.copy(
-                                        maxWidth = childWidth,
-                                        maxHeight = containerHeight,
-                                    ),
+                                    Constraints.fixed(childWidth, containerHeight),
                                 )
                             }
                         }
 
                         3 -> {
-                            val leftWidth = (width - gapPx) / 2
-                            val rightWidth = width - leftWidth - gapPx
-                            val rightHeight = (containerHeight - gapPx) / 2
+                            val leftWidth = ((width - gapPx) / 2).coerceAtLeast(0)
+                            val rightWidth = (width - leftWidth - gapPx).coerceAtLeast(0)
+                            val rightHeight = ((containerHeight - gapPx) / 2).coerceAtLeast(0)
 
                             visibleMeasurables.mapIndexed { index, measurable ->
                                 when (index) {
                                     0 -> {
                                         measurable.measure(
-                                            constraints.copy(
-                                                maxWidth = leftWidth,
-                                                maxHeight = containerHeight,
-                                            ),
+                                            Constraints.fixed(leftWidth, containerHeight),
                                         )
                                     }
 
                                     else -> {
                                         measurable.measure(
-                                            constraints.copy(
-                                                maxWidth = rightWidth,
-                                                maxHeight = rightHeight,
-                                            ),
+                                            Constraints.fixed(rightWidth, rightHeight),
                                         )
                                     }
                                 }
@@ -148,14 +159,11 @@ internal fun AdaptiveGrid(
                         }
 
                         else -> {
-                            val cellW = (width - gapPx) / 2
-                            val cellH = (containerHeight - gapPx) / 2
+                            val cellW = ((width - gapPx) / 2).coerceAtLeast(0)
+                            val cellH = ((containerHeight - gapPx) / 2).coerceAtLeast(0)
                             visibleMeasurables.map { child ->
                                 child.measure(
-                                    constraints.copy(
-                                        maxWidth = cellW,
-                                        maxHeight = cellH,
-                                    ),
+                                    Constraints.fixed(cellW, cellH),
                                 )
                             }
                         }
@@ -229,7 +237,7 @@ internal fun AdaptiveGrid(
 
             val maxColumns = 3
             val columns = maxColumns
-            val itemSize = (constraints.maxWidth - gapPx * (columns - 1)) / columns
+            val itemSize = ((width - gapPx * (columns - 1)) / columns).coerceAtLeast(0)
             val rows = (visibleMeasurables.size + columns - 1) / columns
 
             val lastRowCount = visibleMeasurables.size - (rows - 1) * columns
@@ -241,16 +249,13 @@ internal fun AdaptiveGrid(
                     val isFlexible = lastRowFlexible && isInLastRow
                     val childWidth =
                         if (isFlexible) {
-                            (constraints.maxWidth - gapPx * (lastRowCount - 1)) / lastRowCount
+                            ((width - gapPx * (lastRowCount - 1)) / lastRowCount).coerceAtLeast(0)
                         } else {
                             itemSize
                         }
 
                     measurable.measure(
-                        constraints.copy(
-                            maxWidth = childWidth,
-                            maxHeight = itemSize,
-                        ),
+                        Constraints.fixed(childWidth, itemSize),
                     )
                 }
 
@@ -262,7 +267,7 @@ internal fun AdaptiveGrid(
             val lastRowColumns = if (lastRowIsFlexible) lastRowCount else columns
             val lastCellWidth =
                 if (lastRowIsFlexible) {
-                    (constraints.maxWidth - gapPx * (lastRowColumns - 1)) / lastRowColumns
+                    ((width - gapPx * (lastRowColumns - 1)) / lastRowColumns).coerceAtLeast(0)
                 } else {
                     itemSize
                 }
@@ -279,7 +284,7 @@ internal fun AdaptiveGrid(
                     emptyList()
                 }
 
-            layout(constraints.maxWidth, totalHeight) {
+            layout(width, totalHeight) {
                 placeables.fastForEachIndexed { index, p ->
                     val row = index / columns
                     val col = index % columns
@@ -287,7 +292,7 @@ internal fun AdaptiveGrid(
                     val effectiveColumns = if (isLastRow) lastRowCount else columns
                     val cellW =
                         if (isLastRow) {
-                            (constraints.maxWidth - gapPx * (effectiveColumns - 1)) / effectiveColumns
+                            ((width - gapPx * (effectiveColumns - 1)) / effectiveColumns).coerceAtLeast(0)
                         } else {
                             itemSize
                         }

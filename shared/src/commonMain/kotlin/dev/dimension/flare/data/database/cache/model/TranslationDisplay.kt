@@ -168,15 +168,16 @@ internal fun UiTimelineV2.applyTranslation(
                                 contentWarning?.copy(translation = payload.contentWarning)
                             }
                         } ?: contentWarning
-                val translatedActions = actions
-                    .withTranslationMenuAction(menuAction, accountType, statusKey)
-                    .withSmartReplyMenuAction(
-                        accountType = accountType,
-                        statusKey = statusKey,
-                        authorName = user?.name?.raw.orEmpty(),
-                        authorHandle = user?.handle?.raw.orEmpty(),
-                        postText = content.original.raw.ifBlank { content.translation?.raw.orEmpty() },
-                    )
+                val translatedActions =
+                    actions
+                        .withTranslationMenuAction(menuAction, accountType, statusKey)
+                        .withSmartReplyMenuAction(
+                            accountType = accountType,
+                            statusKey = statusKey,
+                            authorName = user?.name?.raw.orEmpty(),
+                            authorHandle = user?.handle?.raw.orEmpty(),
+                            postText = content.original.raw.ifBlank { content.translation?.raw.orEmpty() },
+                        )
                 if (
                     translatedContent === content &&
                     translatedWarning === contentWarning &&
@@ -598,7 +599,10 @@ private fun ActionMenu.prependSmartReplyAction(
                 this
             }
         }
-        else -> this
+
+        else -> {
+            this
+        }
     }
 
 private fun ActionMenu.Item.Text?.isMoreMenuText(): Boolean =

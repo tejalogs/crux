@@ -7,22 +7,28 @@ import androidx.compose.runtime.rememberCoroutineScope
 import dev.dimension.flare.common.combineLatestFlowLists
 import dev.dimension.flare.data.datasource.microblog.AuthenticatedMicroblogDataSource
 import dev.dimension.flare.data.datasource.microblog.datasource.UserDataSource
+import dev.dimension.flare.data.platform.INSTAGRAM_PLATFORM_ID
+import dev.dimension.flare.data.platform.LINKEDIN_PLATFORM_ID
 import dev.dimension.flare.data.repository.AccountRepository
 import dev.dimension.flare.data.repository.accountServiceFlow
 import dev.dimension.flare.di.koinInject
 import dev.dimension.flare.model.AccountType
 import dev.dimension.flare.model.MicroBlogKey
 import dev.dimension.flare.model.UnsupportedPlatformException
+import dev.dimension.flare.ui.model.ClickEvent
 import dev.dimension.flare.ui.model.UiAccount
+import dev.dimension.flare.ui.model.UiHandle
 import dev.dimension.flare.ui.model.UiProfile
 import dev.dimension.flare.ui.model.UiState
 import dev.dimension.flare.ui.model.collectAsUiState
 import dev.dimension.flare.ui.model.flattenUiState
 import dev.dimension.flare.ui.model.toUi
 import dev.dimension.flare.ui.presenter.PresenterBase
+import dev.dimension.flare.ui.render.toUiPlainText
 import dev.dimension.flare.web.shared.WebIgnore
 import dev.dimension.flare.web.shared.WebPresenter
 import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flatMapLatest
@@ -58,9 +64,21 @@ public class AccountsPresenter : PresenterBase<AccountsState>() {
                             service.userHandler.userById(account.accountKey.id).toUi().map { user ->
                                 AccountsState.AccountItem(
                                     account = account,
-                                    profile = user,
+                                    profile =
+                                        if (user is UiState.Error && account.isWebSessionAccount()) {
+                                            UiState.Success(account.webSessionProfile())
+                                        } else {
+                                            user
+                                        },
                                 )
                             }
+                        } else if (account.isWebSessionAccount()) {
+                            flowOf(
+                                AccountsState.AccountItem(
+                                    account = account,
+                                    profile = UiState.Success(account.webSessionProfile()),
+                                ),
+                            )
                         } else {
                             flowOf(
                                 AccountsState.AccountItem(
@@ -121,3 +139,23 @@ public interface AccountsState {
         val profile: UiState<UiProfile>,
     )
 }
+
+// Instagram and LinkedIn accounts are browser sessions: Crux never calls their APIs, so the user's
+// own profile is usually unknown. Show the platform instead of a "Failed to load account" row.
+private fun UiAccount.isWebSessionAccount(): Boolean = platformId == INSTAGRAM_PLATFORM_ID || platformId == LINKEDIN_PLATFORM_ID
+
+private fun UiAccount.webSessionProfile(): UiProfile =
+    UiProfile(
+        key = accountKey,
+        handle = UiHandle(raw = accountKey.id, host = accountKey.host),
+        avatar = null,
+        nameInternal = platformDisplayName.toUiPlainText(),
+        platformId = platformId,
+        platformIcon = platformIcon,
+        clickEvent = ClickEvent.Noop,
+        banner = null,
+        description = null,
+        matrices = UiProfile.Matrices(fansCount = 0, followsCount = 0, statusesCount = 0),
+        mark = persistentListOf(),
+        bottomContent = null,
+    )

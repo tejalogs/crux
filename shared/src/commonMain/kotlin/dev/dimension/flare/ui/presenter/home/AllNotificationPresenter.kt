@@ -155,9 +155,10 @@ public class AllNotificationPresenter : PresenterBase<AllNotificationPresenter.S
                     allAccountServicesFlow(accountRepository)
                         .map { services ->
                             val notificationServices = services.filterIsInstance<NotificationTimelineDataSource>()
-                            val allFilters = notificationServices
-                                .flatMap { it.supportedNotificationFilter }
-                                .distinct()
+                            val allFilters =
+                                notificationServices
+                                    .flatMap { it.supportedNotificationFilter }
+                                    .distinct()
                             (if (allFilters.isEmpty()) listOf(NotificationFilter.All) else allFilters).toImmutableList()
                         }
                 }
@@ -183,17 +184,19 @@ public class AllNotificationPresenter : PresenterBase<AllNotificationPresenter.S
                         } else {
                             allAccountServicesFlow(accountRepository)
                                 .map { services ->
-                                    val notificationServices = services
-                                        .filterIsInstance<NotificationTimelineDataSource>()
-                                        .filter { it.supportedNotificationFilter.contains(filter) }
+                                    val notificationServices =
+                                        services
+                                            .filterIsInstance<NotificationTimelineDataSource>()
+                                            .filter { it.supportedNotificationFilter.contains(filter) }
                                     if (notificationServices.isEmpty()) {
                                         notSupported()
                                     } else if (notificationServices.size == 1) {
                                         notificationServices.first().notification(filter)
                                     } else {
-                                        val loaders = notificationServices.mapNotNull { service ->
-                                            service.notification(filter) as? CacheableRemoteLoader<UiTimelineV2>
-                                        }
+                                        val loaders =
+                                            notificationServices.mapNotNull { service ->
+                                                service.notification(filter) as? CacheableRemoteLoader<UiTimelineV2>
+                                            }
                                         if (loaders.isEmpty()) {
                                             notSupported()
                                         } else {

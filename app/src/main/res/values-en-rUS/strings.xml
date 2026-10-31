@@ -295,8 +295,8 @@
     <string name="settings_appearance_compat_link_previews_description">Use a simplified layout for link previews</string>
     <string name="settings_appearance_theme_color">Theme color</string>
     <string name="settings_appearance_theme_color_description">Choose the app accent color</string>
-    <string name="settings_appearance_theme_pure_color">High contrast mode</string>
-    <string name="settings_appearance_theme_pure_color_description">Increase contrast between background and text</string>
+    <string name="settings_appearance_theme_pure_color">Pure Black (AMOLED)</string>
+    <string name="settings_appearance_theme_pure_color_description">Deep #000000 true black surfaces for OLED screens and battery savings</string>
     <string name="settings_appearance_font_size_diff">Font size</string>
     <string name="settings_appearance_font_size_diff_description">Adjust the app font size</string>
     <string name="settings_appearance_font_size_diff_decrease">Decrease</string>
@@ -824,4 +824,119 @@
     <string name="status_share_crosspost">Cross-post</string>
     <string name="status_share_crosspost_failed">Unable to prepare cross-post</string>
     <string name="status_share_sheet_preview_content">Content</string>
+
+    <!-- Drawer Navigation & Sovereign Client -->
+    <string name="drawer_section_feeds_and_social">Feeds and social</string>
+    <string name="drawer_section_personal_library">Personal library</string>
+    <string name="drawer_section_connected_accounts">Connected accounts</string>
+    <string name="drawer_section_sovereignty_and_system">Settings and system</string>
+    <string name="drawer_instagram">Instagram</string>
+    <string name="drawer_linkedin">LinkedIn</string>
+    <string name="drawer_reading_list">Reading List</string>
+    <string name="drawer_accounts_single">Accounts</string>
+    <plurals name="drawer_account_count">
+        <item quantity="one">%1$d Account</item>
+        <item quantity="other">%1$d Accounts</item>
+    </plurals>
+    <string name="drawer_flare_client_title">Flare</string>
+    <string name="drawer_flare_client_subtitle">Decentralized and multi-protocol</string>
+
+    <!-- Smart Reply Studio -->
+    <string name="smart_reply_refined_tone_toast">Refined in %1$s tone</string>
+    <string name="smart_reply_copied_toast">Reply copied to clipboard</string>
+    <string name="smart_reply_model_on_device_ai">On-device AI</string>
+    <string name="smart_reply_model_openai">OpenAI</string>
+    <string name="smart_reply_studio_title">Smart reply</string>
+    <string name="smart_reply_studio_subtitle">Suggest responses to this post</string>
+    <string name="smart_reply_neural_synthesis">Generating…</string>
+    <string name="smart_reply_persona_and_tone">Tone</string>
+    <string name="smart_reply_select_angle">Angle</string>
+    <string name="smart_reply_synthesizing">Generating…</string>
+    <string name="smart_reply_refine_with_ai">Regenerate</string>
+    <string name="smart_reply_reset">Reset</string>
+    <string name="smart_reply_copy">Copy</string>
+    <string name="smart_reply_reply_in_thread">Reply in thread</string>
+    <string name="smart_reply_chars_count">%1$d chars</string>
+    <string name="smart_reply_edited_badge">• Edited</string>
+    <string name="smart_reply_synthesizing_status">Generating reply options on device…</string>
+    <string name="smart_reply_tone_casual">Casual</string>
+    <string name="smart_reply_tone_professional">Professional</string>
+    <string name="smart_reply_tone_direct">Direct</string>
+    <string name="smart_reply_tone_skeptical">Skeptical</string>
+    <string name="smart_reply_humanized_badge">Humanized</string>
+
+    <!-- Web Screen Toasts & Labels -->
+    <string name="instagram_feed_synced">Instagram feed synced with Home Timeline!</string>
+    <string name="instagram_sync_unable">Unable to sync Instagram session</string>
+    <string name="instagram_login_to_sync">Log in to Instagram to sync your feed</string>
+    <string name="linkedin_feed_synced">LinkedIn feed synced with Flare!</string>
+    <string name="linkedin_reading_list_removed">Removed from Reading List</string>
+    <string name="linkedin_reading_list_saved">Saved to Reading List</string>
+    <string name="linkedin_session_cleared">LinkedIn session cleared</string>
+    <string name="linkedin_native_feed">Native Feed</string>
+    <string name="linkedin_logout_title">Log out of LinkedIn?</string>
+    <string name="linkedin_logout_description">This will clear all cookies, local cache, and saved session tokens for LinkedIn.</string>
+    <string name="linkedin_logout_confirm">Log Out</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="web_privacy_dialog_title">Feed connection</string>
+    <string name="web_privacy_dialog_description">Flare loads your feed inside this view and reads your home timeline to show posts in your unified feed. Your password is never stored by Flare.</string>
+    <string name="web_open_in_browser">Open in browser</string>
+    <string name="web_status_synced">Feed synced</string>
+    <string name="web_status_syncing">Syncing feed…</string>
+    <string name="web_clear_session">Clear session</string>
+    <string name="web_privacy_info">Privacy info</string>
+    <string name="web_overflow_menu">More options</string>
+
+    <!-- Settings Sections -->
+    <string name="settings_storage_section_data_cache">Data and cache management</string>
+    <string name="settings_storage_section_offline">Offline reading and media cache</string>
+    <string name="settings_storage_section_database">Database health and retention</string>
+    <string name="settings_ai_section_provider">Model provider</string>
+    <string name="settings_ai_section_features">AI features</string>
+    <string name="privacy_hub_title">Privacy and network monitor</string>
+    <string name="privacy_hub_subtitle">Local on-device processing</string>
+    <string name="privacy_active_bridges">Active web bridges</string>
+    <string name="privacy_cloud_requests">Cloud requests</string>
+
+    <!-- OmniScribe / Carousel -->
+    <string name="omni_scribe_format_post">Format post and carousel</string>
+    <string name="omni_scribe_source_post">Source post</string>
+    <string name="omni_scribe_voice_style">Voice and style</string>
+    <string name="omni_scribe_export_pdf">LinkedIn PDF</string>
+    <string name="omni_scribe_save_pngs">Save PNGs</string>
+    <string name="omni_scribe_share">Share</string>
+    <string name="omni_scribe_composer">Composer</string>
+    <string name="omni_scribe_previous_slide">Previous slide</string>
+    <string name="omni_scribe_next_slide">Next slide</string>
+
+    <!-- Storage & OmniScribe Toasts -->
+    <string name="storage_purge_success">Purged %1$d timeline entries &amp; %2$d statuses in %3$dms</string>
+    <string name="storage_purge_failed">Cache prune failed: %1$s</string>
+    <string name="omni_scribe_slides_saved">Saved %1$d high-res slides to Pictures/Flare Carousels</string>
+    <string name="omni_scribe_broadcast_success">Broadcast post with %1$d carousel slides across %2$d accounts!</string>
+
+    <!-- Daily Brief / Catch up strings -->
+    <string name="catch_up_title">Catch up</string>
+    <string name="catch_up_sheet_title">Your catch-up</string>
+    <string name="catch_up_open_brief">Open brief</string>
+    <string name="catch_up_listen">Listen</string>
+    <string name="catch_up_dismiss_description">Dismiss catch up</string>
+    <string name="catch_up_listen_description">Listen to catch up</string>
+    <string name="catch_up_pause_description">Pause catch up</string>
+    <string name="catch_up_read_post">Read post</string>
+    <string name="catch_up_audio_title">Catch-up audio</string>
+    <string name="catch_up_audio_playing">Speaking</string>
+    <string name="catch_up_audio_paused">Paused</string>
+    <string name="catch_up_audio_stopped">Listen to this brief</string>
+    <string name="catch_up_audio_unavailable">Audio playback is not available on this device</string>
+    <string name="catch_up_empty">No highlights in this catch-up</string>
+    <string name="catch_up_all_topics">All</string>
+    <string name="catch_up_overflow_menu">More options</string>
+    <string name="catch_up_make_carousel">Make a carousel</string>
+    <string name="catch_up_close">Close</string>
+    <string name="catch_up_author_fallback">author</string>
+    <plurals name="catch_up_post_count">
+        <item quantity="one">%1$d post since %2$s</item>
+        <item quantity="other">%1$d posts since %2$s</item>
+    </plurals>
 </resources>

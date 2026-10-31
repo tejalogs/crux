@@ -3,7 +3,6 @@ package dev.dimension.flare.ui.screen.instagram
 import android.content.Intent
 import android.net.Uri
 import android.view.ViewGroup.LayoutParams
-import android.webkit.CookieManager
 import android.webkit.GeolocationPermissions
 import android.webkit.PermissionRequest
 import android.webkit.ValueCallback
@@ -11,10 +10,10 @@ import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
-import android.webkit.WebStorage
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.FrameLayout
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -25,6 +24,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -35,6 +35,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
@@ -60,6 +61,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -74,11 +76,13 @@ import compose.icons.fontawesomeicons.solid.ArrowLeft
 import compose.icons.fontawesomeicons.solid.ArrowRight
 import compose.icons.fontawesomeicons.solid.ArrowUpRightFromSquare
 import compose.icons.fontawesomeicons.solid.Bookmark
+import compose.icons.fontawesomeicons.solid.EllipsisVertical
 import compose.icons.fontawesomeicons.solid.RotateRight
 import compose.icons.fontawesomeicons.solid.Rss
 import compose.icons.fontawesomeicons.solid.ShieldHalved
 import compose.icons.fontawesomeicons.solid.TrashCan
 import compose.icons.fontawesomeicons.solid.Xmark
+import dev.dimension.flare.R
 import dev.dimension.flare.data.datasource.instagram.InstagramFeedService
 import dev.dimension.flare.data.datasource.instagram.InstagramSyncService
 import dev.dimension.flare.data.readinglist.ReadingListItem
@@ -86,180 +90,21 @@ import dev.dimension.flare.data.readinglist.ReadingListRepository
 import dev.dimension.flare.di.koinInject
 import dev.dimension.flare.ui.component.BackButton
 import dev.dimension.flare.ui.component.FAIcon
+import dev.dimension.flare.ui.component.FlareDropdownMenu
 import dev.dimension.flare.ui.component.FlareScaffold
 import dev.dimension.flare.ui.component.FlareTopAppBar
-import android.widget.Toast
-import kotlinx.coroutines.delay
+import dev.dimension.flare.ui.screen.home.LiveWebSite
+import dev.dimension.flare.ui.screen.home.cookieManager
+import dev.dimension.flare.ui.screen.home.useProfileOf
+import dev.dimension.flare.ui.screen.home.webStorage
 import kotlinx.coroutines.launch
 import java.io.ByteArrayInputStream
-import kotlin.time.Duration.Companion.seconds
 
 private const val INSTAGRAM_HOME_URL = "https://www.instagram.com"
 
-private const val INSTAGRAM_MOBILE_USER_AGENT =
-    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1"
-
-private const val PRISM_SHIELD_JS = """
-(function() {
-    var styleId = 'prism-instagram-shield';
-    if (!document.getElementById(styleId)) {
-        var style = document.createElement('style');
-        style.id = styleId;
-        style.textContent = `
-            div[data-testid="mobile-app-banner"],
-            a[href*="instagram://"],
-            a[href*="play.google.com/store/apps/details?id=com.instagram.android"],
-            a[href*="itunes.apple.com"],
-            a[href*="instagram.com/download"],
-            div[class*="AppBanner"],
-            div._acc8,
-            div._abpk,
-            div[data-testid="app-upsell-banner"],
-            div[data-testid="upsell-banner"],
-            html, body { -webkit-tap-highlight-color: transparent; }
-        `;
-        (document.head || document.documentElement).appendChild(style);
-    }
-
-    if (!window.__prismTelemetryBlocked) {
-        window.__prismTelemetryBlocked = true;
-        try {
-            var origBeacon = navigator.sendBeacon;
-            navigator.sendBeacon = function(url) {
-                if (typeof url === 'string' && (
-                    url.indexOf('/ajax/bz') !== -1 ||
-                    url.indexOf('/logging/') !== -1 ||
-                    url.indexOf('facebook.com') !== -1 ||
-                    url.indexOf('graph.instagram.com') !== -1 ||
-                    url.indexOf('/api/v1/ads/') !== -1
-                )) {
-                    return true;
-                }
-                return origBeacon ? origBeacon.apply(this, arguments) : true;
-            };
-        } catch (_) {}
-
-        try {
-            var origFetch = window.fetch;
-            if (origFetch) {
-                window.fetch = function(input, init) {
-                    var u = typeof input === 'string' ? input : (input && input.url ? input.url : '');
-                    if (u.indexOf('/ajax/bz') !== -1 || u.indexOf('/logging/') !== -1 || u.indexOf('/api/v1/ads/') !== -1) {
-                        return Promise.resolve(new Response('{}', { status: 200, statusText: 'OK' }));
-                    }
-                    return origFetch.apply(this, arguments);
-                };
-            }
-        } catch (_) {}
-
-        try {
-            var origOpen = XMLHttpRequest.prototype.open;
-            XMLHttpRequest.prototype.open = function(method, url) {
-                if (typeof url === 'string' && (
-                    url.indexOf('/ajax/bz') !== -1 ||
-                    url.indexOf('/logging/') !== -1 ||
-                    url.indexOf('/api/v1/ads/') !== -1
-                )) {
-                    this.__isBlockedPrism = true;
-                }
-                return origOpen.apply(this, arguments);
-            };
-            var origSend = XMLHttpRequest.prototype.send;
-            XMLHttpRequest.prototype.send = function() {
-                if (this.__isBlockedPrism) {
-                    try {
-                        Object.defineProperty(this, 'readyState', { value: 4, writable: false });
-                        Object.defineProperty(this, 'status', { value: 200, writable: false });
-                        Object.defineProperty(this, 'responseText', { value: '{}', writable: false });
-                        if (typeof this.onreadystatechange === 'function') this.onreadystatechange();
-                        if (typeof this.onload === 'function') this.onload();
-                    } catch (_) {}
-                    return;
-                }
-                return origSend.apply(this, arguments);
-            };
-        } catch (_) {}
-    }
-
-    function cleanDOM() {
-        var dialogs = document.querySelectorAll('div[role="dialog"]');
-        for (var i = 0; i < dialogs.length; i++) {
-            var text = dialogs[i].innerText || '';
-            if (text.indexOf('Open in Instagram') !== -1 || text.indexOf('Use the App') !== -1 || text.indexOf('Get the app') !== -1) {
-                dialogs[i].remove();
-            }
-        }
-
-        var banners = document.querySelectorAll('._acc8, ._abpk, div[class*="AppBanner"]');
-        for (var b = 0; b < banners.length; b++) {
-            banners[b].remove();
-        }
-
-        var buttons = document.querySelectorAll('button, div, span');
-        for (var e = 0; e < buttons.length; e++) {
-            if (buttons[e].children.length === 0) {
-                var val = buttons[e].textContent.trim().toLowerCase();
-                if (val === 'use the app' || val === 'open in app' || val === 'get instagram') {
-                    var parent = buttons[e].closest('._acc8') || buttons[e].closest('._abpk') || buttons[e].parentElement;
-                    if (parent) parent.remove();
-                }
-            }
-        }
-
-        var articles = document.querySelectorAll('article');
-        for (var j = 0; j < articles.length; j++) {
-            var art = articles[j];
-            var isAd = false;
-            if (art.querySelector('img[src*="/v/t45."], img[src*="ads_image"], video[src*="ads_video"]')) {
-                isAd = true;
-            }
-            if (!isAd) {
-                var textNodes = art.querySelectorAll('span, div');
-                for (var k = 0; k < textNodes.length; k++) {
-                    if (textNodes[k].children.length === 0) {
-                        var t = textNodes[k].textContent.trim();
-                        if (t === 'Ad' || t === 'Sponsored' || t === 'Promoted' || t.toLowerCase() === 'paid partnership') {
-                            isAd = true;
-                            break;
-                        }
-                    }
-                }
-            }
-            if (isAd) {
-                art.remove();
-            }
-        }
-    }
-
-    if (!window.__prismObserverActive && document.body) {
-        window.__prismObserverActive = true;
-        try {
-            var obs = new MutationObserver(function() {
-                cleanDOM();
-            });
-            obs.observe(document.body, { childList: true, subtree: true });
-        } catch (_) {}
-    }
-    cleanDOM();
-})();
-"""
-
 internal fun isAdOrTrackingUrl(url: String): Boolean {
     val lower = url.lowercase()
-    return lower.contains("/ajax/bz") ||
-        lower.contains("/logging/") ||
-        lower.contains("/api/v1/logging/") ||
-        lower.contains("/api/v1/ads/") ||
-        lower.contains("graph.facebook.com") ||
-        lower.contains("b-graph.facebook.com") ||
-        lower.contains("graph.instagram.com/logging") ||
-        lower.contains("connect.facebook.net") ||
-        lower.contains("facebook.com/tr") ||
-        lower.contains("pixel.facebook.com") ||
-        lower.contains("/v/t45.") ||
-        lower.contains("ads_image") ||
-        lower.contains("ads_video") ||
-        lower.contains("doubleclick.net") ||
+    return lower.contains("doubleclick.net") ||
         lower.contains("google-analytics.com") ||
         lower.contains("googletagmanager.com") ||
         lower.contains("adservice.google.com") ||
@@ -277,8 +122,22 @@ internal fun extractInstagramProfile(url: String): String? {
     val first = segments[0].lowercase()
     val nonProfiles =
         setOf(
-            "explore", "direct", "accounts", "stories", "reels", "reel", "p", "tv",
-            "developer", "about", "legal", "privacy", "terms", "api", "static", "challenge",
+            "explore",
+            "direct",
+            "accounts",
+            "stories",
+            "reels",
+            "reel",
+            "p",
+            "tv",
+            "developer",
+            "about",
+            "legal",
+            "privacy",
+            "terms",
+            "api",
+            "static",
+            "challenge",
         )
     if (first in nonProfiles) return null
     if (!first.matches(Regex("^[a-zA-Z0-9._]+$"))) return null
@@ -295,6 +154,9 @@ internal fun InstagramWebScreen(
 ) {
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
+    val feedSyncedMsg = stringResource(R.string.instagram_feed_synced)
+    val syncUnableMsg = stringResource(R.string.instagram_sync_unable)
+    val loginToSyncMsg = stringResource(R.string.instagram_login_to_sync)
     val webViewRef = remember { mutableStateOf<WebView?>(null) }
     val readingListRepo by koinInject<ReadingListRepository>()
     val instagramSyncService by koinInject<InstagramSyncService>()
@@ -311,6 +173,13 @@ internal fun InstagramWebScreen(
     val webViewState = rememberWebViewState(targetUrl)
 
     var currentUrl by remember { mutableStateOf(targetUrl) }
+    val committedUrlHolder =
+        remember {
+            object {
+                @Volatile
+                var url: String? = targetUrl
+            }
+        }
     val isSavedState by remember(currentUrl) { readingListRepo.isSaved(currentUrl) }.collectAsState(false)
     var canGoBack by remember { mutableStateOf(false) }
     var canGoForward by remember { mutableStateOf(false) }
@@ -318,22 +187,24 @@ internal fun InstagramWebScreen(
     var isPageLoading by remember { mutableStateOf(true) }
     var showPrivacyDialog by remember { mutableStateOf(false) }
     var showClearConfirmDialog by remember { mutableStateOf(false) }
+    var showOverflowMenu by remember { mutableStateOf(false) }
     var isDockExpanded by remember { mutableStateOf(false) }
     var isFeedSynced by remember { mutableStateOf(false) }
 
-    val checkAndSyncSession = remember(instagramSyncService) {
-        {
-            val cookies = CookieManager.getInstance().getCookie(INSTAGRAM_HOME_URL)
-            if (!cookies.isNullOrBlank() && InstagramFeedService.hasActiveSession(cookies)) {
-                scope.launch {
-                    val ok = instagramSyncService.syncSession(cookies)
-                    if (ok) {
-                        isFeedSynced = true
+    val checkAndSyncSession =
+        remember(instagramSyncService) {
+            {
+                val cookies = LiveWebSite.Instagram.cookieManager().getCookie(INSTAGRAM_HOME_URL)
+                if (!cookies.isNullOrBlank() && InstagramFeedService.hasActiveSession(cookies)) {
+                    scope.launch {
+                        val ok = instagramSyncService.syncSession(cookies)
+                        if (ok) {
+                            isFeedSynced = true
+                        }
                     }
                 }
             }
         }
-    }
 
     var fileUploadCallback by remember { mutableStateOf<ValueCallback<Array<Uri>>?>(null) }
     val fileChooserLauncher =
@@ -358,78 +229,25 @@ internal fun InstagramWebScreen(
         }
     }
 
-    // Periodic shield refresher and session sync checker
     LaunchedEffect(Unit) {
         isFeedSynced = instagramSyncService.isInstagramAccountRegistered()
-        while (true) {
-            delay(2.seconds)
-            webViewRef.value?.evaluateJavascript(PRISM_SHIELD_JS, null)
-            canGoBack = webViewRef.value?.canGoBack() == true
-            canGoForward = webViewRef.value?.canGoForward() == true
-            if (!isFeedSynced) {
-                checkAndSyncSession()
-            }
-        }
     }
 
     if (showPrivacyDialog) {
         AlertDialog(
             onDismissRequest = { showPrivacyDialog = false },
-            icon = {
-                FAIcon(
-                    imageVector = FontAwesomeIcons.Solid.ShieldHalved,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(28.dp),
-                )
-            },
             title = {
-                Text(text = "Instagram Web Sandbox")
+                Text(text = stringResource(R.string.web_privacy_dialog_title))
             },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = "You are running Instagram inside Prism's isolated mobile web sandbox.",
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    Text(
-                        text = if (isFeedSynced) {
-                            "• Native Home Feed: Synced to Instagram & Mixed Tab\n" +
-                                "• Storage: Isolated prismbrowser sandbox\n" +
-                                "• Third-Party Tracking & Meta Pixels: Blocked\n" +
-                                "• Telemetry & Banzai Beacons (/ajax/bz): Blocked\n" +
-                                "• Sponsored Ads & Promo Injections: Stripped\n" +
-                                "• App Install Nags & Sticky Banners: Stripped\n" +
-                                "• Geolocation & Device Sensors: Denied\n" +
-                                "• Zero Checkpoint Ban Risk"
-                        } else {
-                            "• Native Home Feed: Log in to auto-sync timeline\n" +
-                                "• Storage: Isolated prismbrowser sandbox\n" +
-                                "• Third-Party Tracking & Meta Pixels: Blocked\n" +
-                                "• Telemetry & Banzai Beacons (/ajax/bz): Blocked\n" +
-                                "• Sponsored Ads & Promo Injections: Stripped\n" +
-                                "• App Install Nags & Sticky Banners: Stripped\n" +
-                                "• Geolocation & Device Sensors: Denied\n" +
-                                "• Zero Checkpoint Ban Risk"
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+                Text(
+                    text = stringResource(R.string.web_privacy_dialog_description),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
             },
             confirmButton = {
                 TextButton(onClick = { showPrivacyDialog = false }) {
-                    Text(text = "Close")
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = {
-                        showPrivacyDialog = false
-                        showClearConfirmDialog = true
-                    },
-                ) {
-                    Text(text = "Clear Session", color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(android.R.string.ok))
                 }
             },
         )
@@ -459,8 +277,8 @@ internal fun InstagramWebScreen(
                 TextButton(
                     onClick = {
                         showClearConfirmDialog = false
-                        CookieManager.getInstance().removeAllCookies(null)
-                        WebStorage.getInstance().deleteAllData()
+                        LiveWebSite.Instagram.cookieManager().removeAllCookies(null)
+                        LiveWebSite.Instagram.webStorage().deleteAllData()
                         webViewRef.value?.clearCache(true)
                         webViewRef.value?.loadUrl(INSTAGRAM_HOME_URL)
                         isFeedSynced = false
@@ -492,23 +310,14 @@ internal fun InstagramWebScreen(
                                     Modifier
                                         .size(28.dp)
                                         .clip(CircleShape)
-                                        .background(
-                                            Brush.linearGradient(
-                                                colors =
-                                                    listOf(
-                                                        Color(0xFF833AB4),
-                                                        Color(0xFFFD1D1D),
-                                                        Color(0xFFFCB045),
-                                                    ),
-                                            ),
-                                        ),
+                                        .background(MaterialTheme.colorScheme.primaryContainer),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 FAIcon(
                                     imageVector = FontAwesomeIcons.Brands.Instagram,
                                     contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(16.dp),
+                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    modifier = Modifier.size(15.dp),
                                 )
                             }
                             Column(modifier = Modifier.weight(1f, fill = false)) {
@@ -519,9 +328,9 @@ internal fun InstagramWebScreen(
                                     maxLines = 1,
                                 )
                                 Text(
-                                    text = if (isFeedSynced) "Privacy Sandbox • Feed Synced" else "Privacy Sandbox Active",
-                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                                    color = if (isFeedSynced) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
+                                    text = stringResource(if (isFeedSynced) R.string.web_status_synced else R.string.web_status_syncing),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     maxLines = 1,
                                 )
                             }
@@ -531,18 +340,12 @@ internal fun InstagramWebScreen(
                         BackButton(onBack = onBack)
                     },
                     actions = {
-                        if (isFeedSynced) {
-                            TextButton(onClick = onBack) {
-                                Text(
-                                    text = "Native Feed",
-                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                    color = MaterialTheme.colorScheme.primary,
-                                )
-                            }
-                        }
                         val detectedProfile = remember(currentUrl) { extractInstagramProfile(currentUrl) }
                         if (detectedProfile != null && onNavigateToRss != null) {
-                            IconButton(onClick = { onNavigateToRss.invoke("https://instagram.com/$detectedProfile") }) {
+                            IconButton(
+                                onClick = { onNavigateToRss.invoke("https://instagram.com/$detectedProfile") },
+                                modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp),
+                            ) {
                                 FAIcon(
                                     imageVector = FontAwesomeIcons.Solid.Rss,
                                     contentDescription = "Subscribe via RSS",
@@ -550,44 +353,6 @@ internal fun InstagramWebScreen(
                                     modifier = Modifier.size(18.dp),
                                 )
                             }
-                        }
-                        IconButton(
-                            onClick = {
-                                scope.launch {
-                                    if (isSavedState) {
-                                        readingListRepo.remove(currentUrl)
-                                    } else {
-                                        val profile = extractInstagramProfile(currentUrl)
-                                        val itemTitle = if (profile != null) "@$profile on Instagram" else "Instagram Web Post"
-                                        val item =
-                                            ReadingListItem(
-                                                id = currentUrl,
-                                                title = itemTitle,
-                                                authorName = profile ?: "Instagram",
-                                                authorHandle = profile ?: "",
-                                                contentText = "Saved Instagram link: $currentUrl",
-                                                sourceUrl = currentUrl,
-                                                platformId = "instagram",
-                                                savedAtTimestamp = System.currentTimeMillis(),
-                                            )
-                                        readingListRepo.save(item)
-                                    }
-                                }
-                            },
-                        ) {
-                            FAIcon(
-                                imageVector = FontAwesomeIcons.Solid.Bookmark,
-                                contentDescription = if (isSavedState) "Remove from Reading List" else "Save to Reading List",
-                                tint = if (isSavedState) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.size(18.dp),
-                            )
-                        }
-                        IconButton(onClick = { webViewRef.value?.reload() }) {
-                            FAIcon(
-                                imageVector = FontAwesomeIcons.Solid.RotateRight,
-                                contentDescription = "Reload",
-                                modifier = Modifier.size(18.dp),
-                            )
                         }
                         IconButton(
                             onClick = {
@@ -600,12 +365,56 @@ internal fun InstagramWebScreen(
                                     }
                                 }
                             },
+                            modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp),
                         ) {
                             FAIcon(
                                 imageVector = FontAwesomeIcons.Solid.ArrowUpRightFromSquare,
-                                contentDescription = "Open in External Browser",
-                                modifier = Modifier.size(17.dp),
+                                contentDescription = stringResource(R.string.web_open_in_browser),
+                                modifier = Modifier.size(18.dp),
                             )
+                        }
+                        Box {
+                            IconButton(
+                                onClick = { showOverflowMenu = true },
+                                modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp),
+                            ) {
+                                FAIcon(
+                                    imageVector = FontAwesomeIcons.Solid.EllipsisVertical,
+                                    contentDescription = stringResource(R.string.web_overflow_menu),
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            }
+                            FlareDropdownMenu(
+                                expanded = showOverflowMenu,
+                                onDismissRequest = { showOverflowMenu = false },
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.web_privacy_info)) },
+                                    onClick = {
+                                        showOverflowMenu = false
+                                        showPrivacyDialog = true
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Reload") },
+                                    onClick = {
+                                        showOverflowMenu = false
+                                        webViewRef.value?.reload()
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            text = stringResource(R.string.web_clear_session),
+                                            color = MaterialTheme.colorScheme.error,
+                                        )
+                                    },
+                                    onClick = {
+                                        showOverflowMenu = false
+                                        showClearConfirmDialog = true
+                                    },
+                                )
+                            }
                         }
                     },
                     scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(),
@@ -634,9 +443,9 @@ internal fun InstagramWebScreen(
                     ),
                 modifier = Modifier.fillMaxSize(),
                 onCreated = { view: WebView ->
+                    view.useProfileOf(LiveWebSite.Instagram)
                     webViewRef.value = view
                     with(view.settings) {
-                        userAgentString = INSTAGRAM_MOBILE_USER_AGENT
                         javaScriptEnabled = true
                         domStorageEnabled = true
                         mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
@@ -654,39 +463,69 @@ internal fun InstagramWebScreen(
                         setSafeBrowsingEnabled(true)
                         cacheMode = WebSettings.LOAD_DEFAULT
                     }
-                    CookieManager.getInstance().setAcceptThirdPartyCookies(view, false)
+                    LiveWebSite.Instagram.cookieManager().setAcceptThirdPartyCookies(view, false)
 
                     view.webViewClient =
                         object : WebViewClient() {
                             override fun shouldInterceptRequest(
                                 view: WebView,
                                 request: WebResourceRequest,
-                            ): WebResourceResponse? {
-                                val url = request.url.toString()
-                                if (isAdOrTrackingUrl(url)) {
-                                    return WebResourceResponse(
-                                        "text/plain",
-                                        "UTF-8",
-                                        200,
-                                        "OK",
-                                        emptyMap(),
-                                        ByteArrayInputStream(ByteArray(0)),
-                                    )
-                                }
-                                return super.shouldInterceptRequest(view, request)
-                            }
+                            ): WebResourceResponse? = super.shouldInterceptRequest(view, request)
 
                             override fun shouldOverrideUrlLoading(
                                 view: WebView,
                                 request: WebResourceRequest,
                             ): Boolean {
                                 val url = request.url.toString()
+                                val host = request.url.host
+                                if (InstagramFeedService.isValidInstagramHost(host)) {
+                                    return false
+                                }
                                 return if (url.startsWith("http://") || url.startsWith("https://")) {
-                                    false
+                                    runCatching {
+                                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, request.url)
+                                        view.context.startActivity(intent)
+                                    }
+                                    true
                                 } else {
                                     // Deep links like instagram://, market://
                                     uriHandler.openUri(url)
                                     true
+                                }
+                            }
+
+                            override fun onPageStarted(
+                                view: WebView,
+                                url: String?,
+                                favicon: android.graphics.Bitmap?,
+                            ) {
+                                super.onPageStarted(view, url, favicon)
+                                val committed = url ?: view.url
+                                committedUrlHolder.url = committed
+                                committed?.let {
+                                    currentUrl = it
+                                    canGoBack = view.canGoBack()
+                                    canGoForward = view.canGoForward()
+                                }
+                                isPageLoading = true
+                            }
+
+                            override fun doUpdateVisitedHistory(
+                                view: WebView,
+                                url: String?,
+                                isReload: Boolean,
+                            ) {
+                                super.doUpdateVisitedHistory(view, url, isReload)
+                                val committed = url ?: view.url
+                                committedUrlHolder.url = committed
+                                committed?.let {
+                                    currentUrl = it
+                                    canGoBack = view.canGoBack()
+                                    canGoForward = view.canGoForward()
+                                }
+                                val host = committed?.let { runCatching { Uri.parse(it).host }.getOrNull() }
+                                if (InstagramFeedService.isValidInstagramHost(host)) {
+                                    checkAndSyncSession()
                                 }
                             }
 
@@ -695,20 +534,18 @@ internal fun InstagramWebScreen(
                                 url: String?,
                             ) {
                                 super.onPageFinished(view, url)
-                                currentUrl = url ?: INSTAGRAM_HOME_URL
-                                canGoBack = view.canGoBack()
-                                canGoForward = view.canGoForward()
+                                val committed = url ?: view.url
+                                committedUrlHolder.url = committed
+                                committed?.let {
+                                    currentUrl = it
+                                    canGoBack = view.canGoBack()
+                                    canGoForward = view.canGoForward()
+                                }
                                 isPageLoading = false
-                                view.evaluateJavascript(PRISM_SHIELD_JS, null)
-                                checkAndSyncSession()
-                            }
-
-                            override fun onPageCommitVisible(
-                                view: WebView,
-                                url: String?,
-                            ) {
-                                super.onPageCommitVisible(view, url)
-                                view.evaluateJavascript(PRISM_SHIELD_JS, null)
+                                val host = committed?.let { runCatching { Uri.parse(it).host }.getOrNull() }
+                                if (InstagramFeedService.isValidInstagramHost(host)) {
+                                    checkAndSyncSession()
+                                }
                             }
                         }
 
@@ -731,9 +568,6 @@ internal fun InstagramWebScreen(
                             ) {
                                 pageProgress = newProgress / 100f
                                 isPageLoading = newProgress < 100
-                                if (newProgress > 40) {
-                                    view.evaluateJavascript(PRISM_SHIELD_JS, null)
-                                }
                             }
 
                             override fun onShowFileChooser(
@@ -771,7 +605,7 @@ internal fun InstagramWebScreen(
                 if (!isDockExpanded) {
                     IconButton(
                         onClick = { isDockExpanded = true },
-                        modifier = Modifier.size(44.dp),
+                        modifier = Modifier.size(48.dp),
                     ) {
                         FAIcon(
                             imageVector = FontAwesomeIcons.Solid.ShieldHalved,
@@ -789,6 +623,7 @@ internal fun InstagramWebScreen(
                         IconButton(
                             onClick = { webViewRef.value?.goBack() },
                             enabled = canGoBack,
+                            modifier = Modifier.size(48.dp),
                         ) {
                             FAIcon(
                                 imageVector = FontAwesomeIcons.Solid.ArrowLeft,
@@ -806,6 +641,7 @@ internal fun InstagramWebScreen(
                         IconButton(
                             onClick = { webViewRef.value?.goForward() },
                             enabled = canGoForward,
+                            modifier = Modifier.size(48.dp),
                         ) {
                             FAIcon(
                                 imageVector = FontAwesomeIcons.Solid.ArrowRight,
@@ -822,6 +658,7 @@ internal fun InstagramWebScreen(
 
                         IconButton(
                             onClick = { webViewRef.value?.reload() },
+                            modifier = Modifier.size(48.dp),
                         ) {
                             FAIcon(
                                 imageVector = FontAwesomeIcons.Solid.RotateRight,
@@ -832,6 +669,7 @@ internal fun InstagramWebScreen(
 
                         IconButton(
                             onClick = { showPrivacyDialog = true },
+                            modifier = Modifier.size(48.dp),
                         ) {
                             FAIcon(
                                 imageVector = FontAwesomeIcons.Solid.ShieldHalved,
@@ -843,18 +681,24 @@ internal fun InstagramWebScreen(
 
                         IconButton(
                             onClick = {
-                                val cookies = CookieManager.getInstance().getCookie(INSTAGRAM_HOME_URL)
+                                val cookies = LiveWebSite.Instagram.cookieManager().getCookie(INSTAGRAM_HOME_URL)
                                 if (!cookies.isNullOrBlank() && InstagramFeedService.hasActiveSession(cookies)) {
                                     scope.launch {
                                         val ok = instagramSyncService.syncSession(cookies)
                                         isFeedSynced = ok
-                                        val msg = if (ok) "Instagram feed synced with Home Timeline!" else "Unable to sync Instagram session"
+                                        val msg = if (ok) feedSyncedMsg else syncUnableMsg
                                         Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                                     }
                                 } else {
-                                    Toast.makeText(context, "Log in to Instagram to sync your feed", Toast.LENGTH_SHORT).show()
+                                    Toast
+                                        .makeText(
+                                            context,
+                                            loginToSyncMsg,
+                                            Toast.LENGTH_SHORT,
+                                        ).show()
                                 }
                             },
+                            modifier = Modifier.size(48.dp),
                         ) {
                             FAIcon(
                                 imageVector = FontAwesomeIcons.Brands.Instagram,
@@ -875,6 +719,7 @@ internal fun InstagramWebScreen(
                                     }
                                 }
                             },
+                            modifier = Modifier.size(48.dp),
                         ) {
                             FAIcon(
                                 imageVector = FontAwesomeIcons.Solid.ArrowUpRightFromSquare,
@@ -885,6 +730,7 @@ internal fun InstagramWebScreen(
 
                         IconButton(
                             onClick = { isDockExpanded = false },
+                            modifier = Modifier.size(48.dp),
                         ) {
                             FAIcon(
                                 imageVector = FontAwesomeIcons.Solid.Xmark,

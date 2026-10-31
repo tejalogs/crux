@@ -3,7 +3,6 @@ package dev.dimension.flare.ui.route
 import androidx.navigation3.runtime.NavKey
 import dev.dimension.flare.data.model.tab.UiSourceTimelineTabItem
 import dev.dimension.flare.data.model.tab.UiTimelineTabItem
-import dev.dimension.flare.data.model.tab.xqtDeviceFollow
 import dev.dimension.flare.feature.agent.localhistory.LocalHistoryAgentTarget
 import dev.dimension.flare.model.AccountType
 import dev.dimension.flare.model.MicroBlogKey
@@ -350,10 +349,7 @@ internal sealed interface Route : NavKey {
         public fun from(deeplinkRoute: DeeplinkRoute): Route? {
             return when (deeplinkRoute) {
                 is DeeplinkRoute.Timeline.XQTDeviceFollow -> {
-                    val accountKey = (deeplinkRoute.accountType as? AccountType.Specific)?.accountKey ?: return null
-                    Route.Timeline(
-                        tabItem = UiSourceTimelineTabItem.xqtDeviceFollow(accountKey),
-                    )
+                    null
                 }
 
                 is DeeplinkRoute.OpenLinkDirectly -> {
@@ -557,6 +553,10 @@ internal sealed interface Route : NavKey {
                     null
                 }
 
+                is DeeplinkRoute.Status.SmartReply -> {
+                    null
+                }
+
                 is DeeplinkRoute.DirectMessage -> {
                     DmUserConversation(
                         accountType = AccountType.Specific(deeplinkRoute.accountKey),
@@ -580,6 +580,10 @@ internal sealed interface Route : NavKey {
                     BlueskyFeeds(
                         accountType = AccountType.Specific(deeplinkRoute.accountKey),
                     )
+                }
+
+                is DeeplinkRoute.EditLocalFollow -> {
+                    null
                 }
 
                 is DeeplinkRoute.EditUserList -> {

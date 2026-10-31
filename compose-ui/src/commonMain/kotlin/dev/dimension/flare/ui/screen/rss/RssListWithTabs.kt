@@ -38,6 +38,7 @@ import dev.dimension.flare.ui.component.FAIcon
 import dev.dimension.flare.ui.component.NetworkImage
 import dev.dimension.flare.ui.component.platform.PlatformDropdownMenu
 import dev.dimension.flare.ui.component.platform.PlatformDropdownMenuItem
+import dev.dimension.flare.ui.component.platform.PlatformFilledTonalButton
 import dev.dimension.flare.ui.component.platform.PlatformIconButton
 import dev.dimension.flare.ui.component.platform.PlatformSegmentedListItem
 import dev.dimension.flare.ui.component.platform.PlatformText
@@ -59,7 +60,7 @@ public fun LazyListScope.rssListWithTabs(
                         .fillParentMaxSize(),
                 verticalArrangement =
                     Arrangement.spacedBy(
-                        8.dp,
+                        12.dp,
                         Alignment.CenterVertically,
                     ),
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -72,6 +73,17 @@ public fun LazyListScope.rssListWithTabs(
                 PlatformText(
                     text = stringResource(Res.string.empty_rss_sources),
                     style = PlatformTheme.typography.headline,
+                )
+                PlatformFilledTonalButton(
+                    onClick = {
+                        state.seedDefaults()
+                    },
+                ) {
+                    PlatformText("Add Curated Starter Feeds")
+                }
+                PlatformText(
+                    text = "Tech • Privacy • Censorship & Rights • Creativity • Marketing",
+                    style = PlatformTheme.typography.caption,
                 )
             }
         }

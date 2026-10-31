@@ -38,7 +38,6 @@ kotlin {
                 implementation(projects.social.misskey)
                 implementation(projects.social.nostr)
                 implementation(projects.social.vvo)
-                implementation(projects.social.xqt)
                 implementation(projects.feature.subscription)
                 implementation(compose("org.jetbrains.compose.ui:ui"))
                 implementation(compose("org.jetbrains.compose.runtime:runtime"))

@@ -57,15 +57,11 @@ internal fun MatricesDisplay(
                     modifier =
                         Modifier
                             .weight(1f)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(PlatformTheme.colorScheme.cardAlt.copy(alpha = 0.5f))
-                            .border(
-                                0.6.dp,
-                                PlatformTheme.colorScheme.outline.copy(alpha = 0.35f),
-                                RoundedCornerShape(12.dp),
-                            ).clickable {
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(PlatformTheme.colorScheme.cardAlt)
+                            .clickable {
                                 onClicked.invoke(index)
-                            }.padding(horizontal = 8.dp, vertical = 8.dp),
+                            }.padding(horizontal = 10.dp, vertical = 10.dp),
                 ) {
                     Column(
                         modifier = Modifier.fillMaxWidth(),
@@ -75,6 +71,7 @@ internal fun MatricesDisplay(
                         PlatformText(
                             text = text,
                             style = PlatformTheme.typography.title,
+                            fontWeight = FontWeight.Bold,
                         )
                         PlatformText(
                             text = label,
@@ -96,23 +93,20 @@ internal fun MatricesDisplay(
                 Box(
                     modifier =
                         Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(PlatformTheme.colorScheme.cardAlt.copy(alpha = 0.5f))
-                            .border(
-                                0.6.dp,
-                                PlatformTheme.colorScheme.outline.copy(alpha = 0.35f),
-                                RoundedCornerShape(12.dp),
-                            ).clickable {
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(PlatformTheme.colorScheme.cardAlt)
+                            .clickable {
                                 onClicked.invoke(index)
-                            }.padding(horizontal = 10.dp, vertical = 6.dp),
+                            }.padding(horizontal = 14.dp, vertical = 8.dp),
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(5.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
                         PlatformText(
                             text = text,
                             style = PlatformTheme.typography.body,
+                            fontWeight = FontWeight.Bold,
                         )
                         PlatformText(
                             text = label,

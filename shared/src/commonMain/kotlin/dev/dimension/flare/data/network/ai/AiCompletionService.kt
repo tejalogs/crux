@@ -6,11 +6,19 @@ import org.koin.core.annotation.Provided
 import org.koin.core.annotation.Single
 
 @Single
-internal class AiCompletionService(
+public class AiCompletionService internal constructor(
     private val openAIService: OpenAIService,
     @Provided private val onDeviceAI: OnDeviceAI,
 ) {
-    suspend fun translate(
+    public suspend fun completePrompt(
+        config: AppSettings.AiConfig,
+        prompt: String,
+    ): String? =
+        complete(config.type, prompt) {
+            onDeviceAI.generate(prompt)
+        }
+
+    public suspend fun translate(
         config: AppSettings.AiConfig,
         source: String,
         targetLanguage: String,
@@ -20,7 +28,7 @@ internal class AiCompletionService(
             onDeviceAI.translate(source, targetLanguage, prompt)
         }
 
-    suspend fun tldr(
+    public suspend fun tldr(
         config: AppSettings.AiConfig,
         source: String,
         targetLanguage: String,
@@ -37,18 +45,28 @@ internal class AiCompletionService(
     ): String? =
         when (type) {
             is AppSettings.AiConfig.Type.OnDevice -> {
-                if (onDeviceAI.isAvailable()) {
-                    onDeviceCall()
+                val onDeviceResult = if (onDeviceAI.isAvailable()) onDeviceCall() else null
+                if (!onDeviceResult.isNullOrBlank()) {
+                    onDeviceResult
                 } else {
                     null
                 }
             }
 
             is AppSettings.AiConfig.Type.OpenAI -> {
-                openAIService.chatCompletionOrNull(
-                    config = type,
-                    prompt = prompt,
-                )
+                val cloudResult =
+                    openAIService.chatCompletionOrNull(
+                        config = type,
+                        prompt = prompt,
+                    )
+                if (!cloudResult.isNullOrBlank()) {
+                    cloudResult
+                } else if (onDeviceAI.isAvailable()) {
+                    // Gracefully fallback to on-device hardware AI if cloud provider is unconfigured or unavailable
+                    onDeviceCall()
+                } else {
+                    null
+                }
             }
         }
 }

@@ -55,6 +55,8 @@ internal class FakeSubscriptionRepository(
         sources.update { items -> items.filterNot { it.id == id } }
         return deleted
     }
+
+    override suspend fun ensureDefaultFeedsSeeded(): List<UiRssSource> = sources.value
 }
 
 private fun SubscriptionSourceInput.toUiRssSource(id: Int): UiRssSource =

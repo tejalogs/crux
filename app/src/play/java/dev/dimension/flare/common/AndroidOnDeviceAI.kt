@@ -23,6 +23,29 @@ internal class AndroidOnDeviceAI(
 ) : OnDeviceAI {
     override suspend fun isAvailable(): Boolean = true
 
+    override suspend fun generate(prompt: String): String? {
+        val mlKitResult =
+            runCatching {
+                val model = Generation.getClient()
+                try {
+                    if (!ensureModelReady(model)) {
+                        return@runCatching null
+                    }
+                    model
+                        .generateContent(prompt)
+                        .candidates
+                        .firstOrNull()
+                        ?.text
+                        ?.trim()
+                        .takeUnless { it.isNullOrBlank() }
+                } finally {
+                    model.close()
+                }
+            }.getOrNull()
+
+        return mlKitResult
+    }
+
     override suspend fun translate(
         source: String,
         targetLanguage: String,

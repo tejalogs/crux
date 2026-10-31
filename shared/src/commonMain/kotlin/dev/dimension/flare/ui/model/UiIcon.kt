@@ -70,6 +70,7 @@ public enum class UiIcon {
     Instagram,
     Threads,
     LinkedIn,
+    Reddit,
 }
 
 /**
@@ -93,6 +94,7 @@ public val TabPickerUiIcons: List<UiIcon> =
         UiIcon.Instagram,
         UiIcon.Threads,
         UiIcon.LinkedIn,
+        UiIcon.Reddit,
         UiIcon.Home,
         UiIcon.Notification,
         UiIcon.Search,

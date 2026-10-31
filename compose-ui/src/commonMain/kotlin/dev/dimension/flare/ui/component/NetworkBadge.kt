@@ -1,10 +1,14 @@
 package dev.dimension.flare.ui.component
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -12,8 +16,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import compose.icons.FontAwesomeIcons
 import compose.icons.fontawesomeicons.Brands
 import compose.icons.fontawesomeicons.Solid
@@ -28,13 +34,18 @@ import compose.icons.fontawesomeicons.brands.Weibo
 import compose.icons.fontawesomeicons.solid.Camera
 import compose.icons.fontawesomeicons.solid.Globe
 import compose.icons.fontawesomeicons.solid.SquareRss
+import dev.dimension.flare.ui.component.platform.PlatformText
 import dev.dimension.flare.ui.icons.Misskey
 import dev.dimension.flare.ui.icons.Nostr
 import dev.dimension.flare.ui.model.UiIcon
 import dev.dimension.flare.ui.theme.PlatformTheme
+import dev.dimension.flare.ui.theme.isLightTheme
 
 public object NetworkBadgeDefaults {
-    public fun getBadgeColor(platformId: String?, host: String? = null): Color {
+    public fun getBadgeColor(
+        platformId: String?,
+        host: String? = null,
+    ): Color {
         val platform = platformId?.lowercase() ?: ""
         val h = host?.lowercase() ?: ""
         return when {
@@ -54,7 +65,10 @@ public object NetworkBadgeDefaults {
         }
     }
 
-    public fun isInstagram(platformId: String?, host: String? = null): Boolean {
+    public fun isInstagram(
+        platformId: String?,
+        host: String? = null,
+    ): Boolean {
         val platform = platformId?.lowercase() ?: ""
         val h = host?.lowercase() ?: ""
         return platform.contains("instagram") || h.contains("instagram.com")
@@ -92,6 +106,30 @@ public object NetworkBadgeDefaults {
             platform.contains("pixiv") || platform.contains("fanbox") -> FontAwesomeIcons.Brands.Pixiv
             fallbackIcon != null -> fallbackIcon.toImageVector()
             else -> FontAwesomeIcons.Solid.Globe
+        }
+    }
+
+    public fun getPlatformDisplayName(
+        platformId: String?,
+        host: String? = null,
+    ): String {
+        val platform = platformId?.lowercase() ?: ""
+        val h = host?.lowercase() ?: ""
+        return when {
+            platform.contains("bluesky") || h.contains("bsky") -> "Bluesky"
+            platform.contains("instagram") || h.contains("instagram.com") -> "Instagram"
+            platform.contains("linkedin") || h.contains("linkedin.com") -> "LinkedIn"
+            platform.contains("threads") || h.contains("threads.net") -> "Threads"
+            platform.contains("pixelfed") || h.contains("pixelfed") -> "Pixelfed"
+            platform.contains("mastodon") || h.contains("mastodon") -> "Mastodon"
+            platform.contains("misskey") -> "Misskey"
+            platform.contains("nostr") -> "Nostr"
+            platform.contains("rss") || platform.contains("atom") -> "RSS"
+            platform.contains("weibo") || platform.contains("vvo") -> "Weibo"
+            platform.contains("twitter") || platform.contains("xqt") -> "X"
+            platform.contains("pixiv") || platform.contains("fanbox") -> "Pixiv"
+            platformId.isNullOrBlank() -> h.ifBlank { "Federated" }
+            else -> platformId.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
         }
     }
 }
@@ -132,5 +170,74 @@ public fun NetworkBadge(
             tint = Color.White,
             modifier = Modifier.size(iconSize),
         )
+    }
+}
+
+@Composable
+public fun PlatformProvenancePill(
+    platformId: String?,
+    host: String? = null,
+    fallbackIcon: UiIcon? = null,
+    modifier: Modifier = Modifier,
+) {
+    val brandColor = NetworkBadgeDefaults.getBadgeColor(platformId, host)
+    val isIg = NetworkBadgeDefaults.isInstagram(platformId, host)
+    val platformName = NetworkBadgeDefaults.getPlatformDisplayName(platformId, host)
+    val icon = NetworkBadgeDefaults.getBadgeIcon(platformId, host, fallbackIcon)
+    val isDark = !isLightTheme()
+
+    val tintColor =
+        when {
+            isIg -> {
+                Color(0xFFE1306C)
+            }
+
+            platformId?.lowercase()?.contains("threads") == true || host?.lowercase()?.contains("threads.net") == true -> {
+                PlatformTheme.colorScheme.text
+            }
+
+            else -> {
+                brandColor
+            }
+        }
+
+    Box(
+        modifier =
+            modifier
+                .clip(RoundedCornerShape(6.dp))
+                .background(
+                    if (isIg) {
+                        Color(0xFFE1306C).copy(alpha = if (isDark) 0.16f else 0.09f)
+                    } else {
+                        tintColor.copy(alpha = if (isDark) 0.16f else 0.09f)
+                    },
+                ).border(
+                    width = 0.5.dp,
+                    color = tintColor.copy(alpha = if (isDark) 0.32f else 0.20f),
+                    shape = RoundedCornerShape(6.dp),
+                ).padding(horizontal = 5.dp, vertical = 1.5.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(3.5.dp),
+        ) {
+            FAIcon(
+                imageVector = icon,
+                contentDescription = platformName,
+                tint = tintColor,
+                modifier = Modifier.size(9.5.dp),
+            )
+            PlatformText(
+                text = platformName,
+                style =
+                    PlatformTheme.typography.caption.copy(
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    ),
+                color = tintColor,
+                maxLines = 1,
+            )
+        }
     }
 }

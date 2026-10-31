@@ -34,21 +34,19 @@ internal class TopLevelBackStack<T : NavKey>(
         }
 
     fun addTopLevel(key: T) {
-        // If the top level doesn't exist, add it
-        if (topLevelStacks[key] == null) {
-            topLevelStacks[key] = mutableStateListOf(key)
-        } else if (key == startKey) {
+        if (key == startKey) {
             // If it's the start key, reset the back stack
             val stack = topLevelStacks[key]
             topLevelStacks.clear()
             topLevelStacks[key] = stack ?: mutableStateListOf(key)
         } else {
-            // Otherwise just move it to the end of the stacks
-            topLevelStacks.apply {
-                remove(key)?.let {
-                    put(key, it)
-                }
-            }
+            // Keep only the start stack underneath, so back from any top-level destination (side panel
+            // or dock) returns to the start destination instead of walking through every one opened before.
+            val stack = topLevelStacks[key] ?: mutableStateListOf(key)
+            val startStack = topLevelStacks[startKey]
+            topLevelStacks.clear()
+            startStack?.let { topLevelStacks[startKey] = it }
+            topLevelStacks[key] = stack
         }
         topLevelKey = key
         updateBackStack()

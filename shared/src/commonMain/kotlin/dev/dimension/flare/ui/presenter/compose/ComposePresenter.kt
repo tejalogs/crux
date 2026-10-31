@@ -441,41 +441,37 @@ public class ComposePresenter(
             }
         } else if (accountType != null && accountType is AccountType.Specific) {
             LaunchedEffect(accountType) {
-                val composeAccounts = allAccountsFlow.firstOrNull().orEmpty()
-                selectedAccountsKeyFlow.value =
-                    if (composeAccounts.containsKey(accountType.accountKey)) {
-                        listOf(accountType.accountKey).toImmutableList()
-                    } else {
-                        if (status == null) {
-                            composeAccounts
-                                .keys
-                                .firstOrNull()
-                                ?.let { persistentListOf(it) }
-                                ?: persistentListOf()
-                        } else {
-                            persistentListOf()
-                        }
-                    }
+                allAccountsFlow.collect { composeAccounts ->
+                    if (composeAccounts.isEmpty()) return@collect
+                    if (selectedAccountsKeyFlow.value.isNotEmpty()) return@collect
+                    selectedAccountsKeyFlow.value =
+                        resolveInitialSelectedAccounts(
+                            composeAccounts = composeAccounts,
+                            lastAccounts = emptyList(),
+                            specificAccountKey = accountType.accountKey,
+                            isReplyOrQuote = status != null,
+                        )
+                }
             }
         } else {
             // load last used accounts or active account
             LaunchedEffect(Unit) {
-                val composeAccounts = allAccountsFlow.firstOrNull().orEmpty()
-                val lastAccounts =
-                    appDataStore
-                        .composeConfigData
-                        .data
-                        .firstOrNull()
-                        ?.lastAccounts
-                        .orEmpty()
-                        .filter { accountKey -> composeAccounts.containsKey(accountKey) }
-                selectedAccountsKeyFlow.value = lastAccounts
-                    .takeIf { it.isNotEmpty() }
-                    ?.toImmutableList() ?: composeAccounts
-                    .keys
-                    .firstOrNull()
-                    ?.let { persistentListOf(it) }
-                    ?: persistentListOf()
+                allAccountsFlow.collect { composeAccounts ->
+                    if (composeAccounts.isEmpty()) return@collect
+                    if (selectedAccountsKeyFlow.value.isNotEmpty()) return@collect
+                    val lastAccounts =
+                        appDataStore
+                            .composeConfigData
+                            .data
+                            .firstOrNull()
+                            ?.lastAccounts
+                            .orEmpty()
+                    selectedAccountsKeyFlow.value =
+                        resolveInitialSelectedAccounts(
+                            composeAccounts = composeAccounts,
+                            lastAccounts = lastAccounts,
+                        )
+                }
             }
         }
         LaunchedEffect(draftGroupId) {
@@ -919,6 +915,30 @@ internal fun observeSelectedComposeAccountKeys(
             .filter { key -> allAccounts.containsKey(key) }
             .toImmutableList()
     }.distinctUntilChanged()
+
+internal fun resolveInitialSelectedAccounts(
+    composeAccounts: Map<MicroBlogKey, *>,
+    lastAccounts: List<MicroBlogKey>,
+    specificAccountKey: MicroBlogKey? = null,
+    isReplyOrQuote: Boolean = false,
+): ImmutableList<MicroBlogKey> {
+    if (composeAccounts.isEmpty()) return persistentListOf()
+    if (specificAccountKey != null) {
+        return if (composeAccounts.containsKey(specificAccountKey)) {
+            persistentListOf(specificAccountKey)
+        } else if (!isReplyOrQuote) {
+            composeAccounts.keys.firstOrNull()?.let { persistentListOf(it) } ?: persistentListOf()
+        } else {
+            persistentListOf()
+        }
+    }
+    val matchedLastAccounts = lastAccounts.filter { composeAccounts.containsKey(it) }
+    return if (matchedLastAccounts.isNotEmpty()) {
+        matchedLastAccounts.toImmutableList()
+    } else {
+        composeAccounts.keys.firstOrNull()?.let { persistentListOf(it) } ?: persistentListOf()
+    }
+}
 
 internal fun CoroutineScope.launchComposeWithAccounts(
     accounts: Flow<List<UiAccount>>,

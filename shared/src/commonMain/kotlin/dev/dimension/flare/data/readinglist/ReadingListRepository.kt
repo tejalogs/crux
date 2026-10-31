@@ -71,7 +71,10 @@ public class ReadingListRepository internal constructor(
         }
     }
 
-    public suspend fun markAsRead(id: String, isRead: Boolean) {
+    public suspend fun markAsRead(
+        id: String,
+        isRead: Boolean,
+    ) {
         mutex.withLock {
             val current = _items.value.toMutableList()
             val index = current.indexOfFirst { it.id == id }
@@ -90,9 +93,7 @@ public class ReadingListRepository internal constructor(
         }
     }
 
-    public fun isSaved(id: String): Flow<Boolean> =
-        items.map { list -> list.any { it.id == id } }
+    public fun isSaved(id: String): Flow<Boolean> = items.map { list -> list.any { it.id == id } }
 
-    public fun getItem(id: String): ReadingListItem? =
-        _items.value.firstOrNull { it.id == id }
+    public fun getItem(id: String): ReadingListItem? = _items.value.firstOrNull { it.id == id }
 }

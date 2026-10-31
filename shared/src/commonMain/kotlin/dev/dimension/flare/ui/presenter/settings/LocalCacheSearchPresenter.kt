@@ -47,6 +47,7 @@ public class LocalCacheSearchPresenter : PresenterBase<LocalCacheSearchPresenter
         public val semanticScores: Map<String, Float>
 
         public fun setQuery(value: String)
+
         public fun setSemanticMode(value: Boolean)
     }
 
@@ -62,24 +63,26 @@ public class LocalCacheSearchPresenter : PresenterBase<LocalCacheSearchPresenter
             if (isSemanticMode && query.isNotBlank()) {
                 isSemanticLoading = true
                 val cached = database.pagingTimelineDao().getRecentCachedStatuses(limit = 200)
-                val posts = cached.mapNotNull { dbItem ->
-                    try {
-                        TimelinePagingMapper.toUi(
-                            item = dbItem,
-                            pagingKey = LOCAL_CACHE_SEARCH_PAGING_KEY,
-                            translationDisplayOptions = localCacheTranslationDisplayOptions,
-                        )
-                    } catch (e: Exception) {
-                        null
+                val posts =
+                    cached.mapNotNull { dbItem ->
+                        try {
+                            TimelinePagingMapper.toUi(
+                                item = dbItem,
+                                pagingKey = LOCAL_CACHE_SEARCH_PAGING_KEY,
+                                translationDisplayOptions = localCacheTranslationDisplayOptions,
+                            )
+                        } catch (e: Exception) {
+                            null
+                        }
                     }
-                }
-                val ranked = SemanticEmbeddingEngine.search(
-                    query = query,
-                    items = posts,
-                    textSelector = { it.searchText ?: "" },
-                    topK = 50,
-                    threshold = 0.15f,
-                )
+                val ranked =
+                    SemanticEmbeddingEngine.search(
+                        query = query,
+                        items = posts,
+                        textSelector = { it.searchText ?: "" },
+                        topK = 50,
+                        threshold = 0.15f,
+                    )
                 semanticResults = ranked.map { it.item }
                 semanticScores = ranked.associate { it.item.statusKey.toString() to it.score }
                 isSemanticLoading = false

@@ -13,7 +13,6 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], manifest = Config.NONE)
 class OfflineMediaPrefetcherTest {
-
     @Test
     fun prefetchProgressCalculatesProgressCorrectly() {
         val initial = PrefetchProgress(isPrefetching = false, completedCount = 0, totalCount = 0)

@@ -12,11 +12,17 @@ public interface AudioBriefingState {
     public val isSpeaking: Boolean
     public val isPaused: Boolean
     public val isSupported: Boolean
+    public val speechRate: Float get() = 1.0f
 
     public fun speak(text: String)
+
     public fun pause()
+
     public fun resume()
+
     public fun stop()
+
+    public fun updateSpeechRate(rate: Float) {}
 }
 
 /**

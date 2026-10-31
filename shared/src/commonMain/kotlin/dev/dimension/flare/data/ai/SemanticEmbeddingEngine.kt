@@ -87,7 +87,10 @@ public object SemanticEmbeddingEngine {
      * Computes the cosine similarity between two dense embedding vectors.
      * Returns a score between -1.0 and 1.0 (typically 0.0 to 1.0 for semantic text).
      */
-    public fun cosineSimilarity(a: FloatArray, b: FloatArray): Float {
+    public fun cosineSimilarity(
+        a: FloatArray,
+        b: FloatArray,
+    ): Float {
         if (a.isEmpty() || b.isEmpty() || a.size != b.size) {
             return 0.0f
         }
@@ -132,8 +135,7 @@ public object SemanticEmbeddingEngine {
                 val itemVector = embed(itemText)
                 val score = cosineSimilarity(queryVector, itemVector)
                 SemanticSearchResult(item = item, score = score)
-            }
-            .filter { it.score >= threshold }
+            }.filter { it.score >= threshold }
             .sortedByDescending { it.score }
             .take(topK)
             .toList()

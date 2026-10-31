@@ -4,13 +4,13 @@ import android.net.Uri
 import android.view.ViewGroup.LayoutParams
 import android.webkit.CookieManager
 import android.webkit.PermissionRequest
+import android.webkit.ValueCallback
+import android.webkit.WebChromeClient
+import android.webkit.WebChromeClient.FileChooserParams
 import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import android.webkit.WebChromeClient
-import android.webkit.ValueCallback
-import android.webkit.WebChromeClient.FileChooserParams
 import android.widget.FrameLayout
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -25,8 +25,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -34,8 +34,8 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.kevinnzou.web.WebView
-import com.kevinnzou.web.rememberWebViewState
 import com.kevinnzou.web.WebViewState
+import com.kevinnzou.web.rememberWebViewState
 import dev.dimension.flare.R
 import dev.dimension.flare.ui.component.BackButton
 import dev.dimension.flare.ui.component.FlareLargeFlexibleTopAppBar
@@ -155,7 +155,10 @@ internal fun HardenedBrowserScreen(onBack: () -> Unit) {
                             ): Boolean {
                                 val target = request.url.toString()
                                 return when {
-                                    target.startsWith("http://") || target.startsWith("https://") -> false
+                                    target.startsWith("http://") || target.startsWith("https://") -> {
+                                        false
+                                    }
+
                                     else -> {
                                         uriHandler.openUri(target)
                                         true
@@ -163,7 +166,10 @@ internal fun HardenedBrowserScreen(onBack: () -> Unit) {
                                 }
                             }
 
-                            override fun onPageFinished(view: WebView, url: String?) {
+                            override fun onPageFinished(
+                                view: WebView,
+                                url: String?,
+                            ) {
                                 super.onPageFinished(view, url)
                                 currentUrlState.value = url ?: ""
                             }
@@ -179,9 +185,7 @@ internal fun HardenedBrowserScreen(onBack: () -> Unit) {
                                 view: WebView,
                                 filePathCallback: ValueCallback<Array<Uri>>,
                                 fileChooserParams: FileChooserParams,
-                            ): Boolean {
-                                return false
-                            }
+                            ): Boolean = false
                         },
                     )
                 },

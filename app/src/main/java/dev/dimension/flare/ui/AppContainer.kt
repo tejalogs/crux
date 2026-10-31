@@ -66,7 +66,10 @@ fun FlareApp(content: @Composable () -> Unit) {
                             tldr = appSettings.aiConfig.tldr,
                             agent =
                                 appSettings.aiConfig.agent &&
-                                    (appSettings.aiConfig.type is AppSettings.AiConfig.Type.OnDevice || !openAIConfig?.model.isNullOrBlank()),
+                                    (
+                                        appSettings.aiConfig.type is AppSettings.AiConfig.Type.OnDevice ||
+                                            !openAIConfig?.model.isNullOrBlank()
+                                    ),
                             showOriginalWithTranslation =
                                 appSettings.translateConfig.showOriginalWithTranslation,
                         ),

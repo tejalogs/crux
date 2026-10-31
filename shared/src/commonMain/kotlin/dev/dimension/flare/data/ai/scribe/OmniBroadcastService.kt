@@ -35,12 +35,11 @@ public data class NetworkBroadcastResult(
  * Coordinates multi-network broadcasting across connected accounts.
  */
 public object OmniBroadcastService {
-
     /**
      * Resolves the maximum character limit for a social platform.
      */
-    public fun getPlatformCharacterLimit(platformId: String): Int {
-        return when (platformId.lowercase()) {
+    public fun getPlatformCharacterLimit(platformId: String): Int =
+        when (platformId.lowercase()) {
             "x", "twitter", "xqt" -> 280
             "bluesky", "bsky" -> 300
             "mastodon" -> 500
@@ -49,13 +48,12 @@ public object OmniBroadcastService {
             "nostr" -> 10000
             else -> 280
         }
-    }
 
     /**
      * Maps available UI accounts to broadcast targets with character limits and platform metadata.
      */
-    public fun mapToBroadcastTargets(accounts: List<UiAccount>): List<BroadcastTargetAccount> {
-        return accounts.map { account ->
+    public fun mapToBroadcastTargets(accounts: List<UiAccount>): List<BroadcastTargetAccount> =
+        accounts.map { account ->
             BroadcastTargetAccount(
                 accountKey = account.accountKey,
                 platformId = account.platformId,
@@ -65,13 +63,12 @@ public object OmniBroadcastService {
                 maxCharacterLimit = getPlatformCharacterLimit(account.platformId),
             )
         }
-    }
 
     /**
      * Maps rich AccountItem models to broadcast targets with full profile metadata.
      */
-    public fun mapAccountItems(items: List<AccountsState.AccountItem>): List<BroadcastTargetAccount> {
-        return items.map { item ->
+    public fun mapAccountItems(items: List<AccountsState.AccountItem>): List<BroadcastTargetAccount> =
+        items.map { item ->
             val profile = (item.profile as? UiState.Success<UiProfile>)?.data
             BroadcastTargetAccount(
                 accountKey = item.account.accountKey,
@@ -82,12 +79,14 @@ public object OmniBroadcastService {
                 maxCharacterLimit = getPlatformCharacterLimit(item.account.platformId),
             )
         }
-    }
 
     /**
      * Validates whether a text payload satisfies a platform's character limits.
      */
-    public fun isLengthValid(text: String, platformId: String): Boolean {
+    public fun isLengthValid(
+        text: String,
+        platformId: String,
+    ): Boolean {
         val limit = getPlatformCharacterLimit(platformId)
         return text.length <= limit
     }
@@ -98,10 +97,9 @@ public object OmniBroadcastService {
     public fun selectOptimalText(
         result: OmniScribeResult,
         platformId: String,
-    ): String {
-        return when (platformId.lowercase()) {
+    ): String =
+        when (platformId.lowercase()) {
             "linkedin" -> result.storyPost
             else -> result.microPost
         }
-    }
 }

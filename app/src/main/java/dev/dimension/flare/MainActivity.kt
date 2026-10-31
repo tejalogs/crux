@@ -45,10 +45,10 @@ import dev.dimension.flare.common.AndroidDownloadManager
 import dev.dimension.flare.common.ProvideAndroidMediaSavePicker
 import dev.dimension.flare.data.privacy.PrivacySettingsRepository
 import dev.dimension.flare.ui.AppContainer
-import dev.dimension.flare.ui.theme.FlareTheme
 import dev.dimension.flare.ui.component.FAIcon
 import dev.dimension.flare.ui.component.platform.LocalWifiState
 import dev.dimension.flare.ui.component.status.ProvideAndroidTimelineMediaActions
+import dev.dimension.flare.ui.theme.FlareTheme
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.callbackFlow
 import org.koin.android.ext.android.inject

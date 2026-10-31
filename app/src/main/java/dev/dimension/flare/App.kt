@@ -31,10 +31,13 @@ class App :
     SingletonImageLoader.Factory {
     override fun onCreate() {
         super.onCreate()
-        WebView.setDataDirectorySuffix("prismbrowser")
-        val koinApplication = startKoin<AndroidKoinApplication> {
-            androidContext(this@App)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            WebView.setDataDirectorySuffix("prismbrowser")
         }
+        val koinApplication =
+            startKoin<AndroidKoinApplication> {
+                androidContext(this@App)
+            }
         // Prime the privacy policy before any network client can issue a request. The HTTP
         // pipeline reads this synchronously, so leaving it at defaults would let a blocked host
         // through during the first moments after launch.
@@ -44,11 +47,23 @@ class App :
                 repository.observe()
             }
         }
+        koinApplication.koin.getOrNull<dev.dimension.flare.data.cache.CacheEvictionManager>()?.let { evictionManager ->
+            CoroutineScope(Dispatchers.IO).launch {
+                runCatching {
+                    evictionManager.triggerBackgroundEvictionIfDue()
+                }
+            }
+        }
     }
 
     @OptIn(ExperimentalCoilApi::class)
     override fun newImageLoader(context: PlatformContext): ImageLoader {
-        val offlineRepo = runCatching { org.koin.core.context.GlobalContext.getOrNull()?.get<dev.dimension.flare.data.cache.OfflineCacheRepository>() }.getOrNull()
+        val offlineRepo =
+            runCatching {
+                org.koin.core.context.GlobalContext
+                    .getOrNull()
+                    ?.get<dev.dimension.flare.data.cache.OfflineCacheRepository>()
+            }.getOrNull()
         val maxMb = offlineRepo?.settings?.value?.maxMediaCacheSizeMb ?: 512
         return ImageLoader
             .Builder(this)
@@ -70,19 +85,18 @@ class App :
                             },
                     ),
                 )
-            }
-            .diskCache {
-                coil3.disk.DiskCache.Builder()
+            }.diskCache {
+                coil3.disk.DiskCache
+                    .Builder()
                     .directory(cacheDir.resolve("prism_media_cache").toOkioPath())
                     .maxSizeBytes(maxMb.toLong() * 1024L * 1024L)
                     .build()
-            }
-            .memoryCache {
-                coil3.memory.MemoryCache.Builder()
+            }.memoryCache {
+                coil3.memory.MemoryCache
+                    .Builder()
                     .maxSizePercent(context, 0.25)
                     .build()
-            }
-            .crossfade(true)
+            }.crossfade(true)
             .build()
     }
 }

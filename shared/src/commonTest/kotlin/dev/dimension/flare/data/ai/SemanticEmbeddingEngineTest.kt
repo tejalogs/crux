@@ -47,7 +47,10 @@ class SemanticEmbeddingEngineTest {
 
     @Test
     fun semanticSearchRanksMostRelevantItemsFirst() {
-        data class Post(val id: Int, val content: String)
+        data class Post(
+            val id: Int,
+            val content: String,
+        )
 
         val posts =
             listOf(

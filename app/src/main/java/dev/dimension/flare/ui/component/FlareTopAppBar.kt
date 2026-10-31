@@ -37,10 +37,9 @@ fun FlareTopAppBar(
         navigationIcon = navigationIcon,
         actions = actions,
         expandedHeight = expandedHeight,
-        windowInsets = WindowInsets(),
+        windowInsets = windowInsets,
         colors = colors,
         scrollBehavior = scrollBehavior,
-        contentPadding = windowInsets.asPaddingValues(),
     )
 }
 

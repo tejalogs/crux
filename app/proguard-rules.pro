@@ -38,7 +38,11 @@
 -keepclassmembers class * {
     @android.webkit.JavascriptInterface <methods>;
 }
--keep class dev.dimension.flare.ui.screen.linkedin.LinkedInWebScreen$* { *; }
+-keep class * {
+    @android.webkit.JavascriptInterface <methods>;
+}
+-keep class dev.dimension.flare.ui.screen.linkedin.** { *; }
+-keep class dev.dimension.flare.ui.screen.instagram.** { *; }
 
 # ------------------------------------------------------------------------------
 # Ktor & Ktorfit
@@ -109,4 +113,8 @@
 -keep class io.github.kdroidfilter.** { *; }
 
 # Suppress harmless build-time warnings
+-dontwarn com.google.auto.value.**
+-dontwarn io.opentelemetry.**
+-dontwarn java.beans.**
+-dontwarn org.osgi.annotation.**
 -dontnote **

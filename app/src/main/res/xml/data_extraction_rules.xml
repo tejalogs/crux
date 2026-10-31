@@ -1,19 +1,36 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample data extraction rules file; uncomment and customize as necessary.
-   See https://developer.android.com/about/versions/12/backup-restore#xml-changes
-   for details.
--->
+<?xml version="1.0" encoding="utf-8"?>
 <data-extraction-rules>
     <cloud-backup>
-        <!-- TODO: Use <include> and <exclude> to control what is backed up.
-        <include .../>
-        <exclude .../>
+        <!--
+          app.db holds accounts (DbAccount credentials & session cookies) AND RSS sources, drafts,
+          and keyword filters. Because separating them would require moving accounts to their own
+          database, app.db is fully excluded from cloud backup to protect credentials and session
+          cookies. Consequently, RSS sources, drafts, and keyword filters are also excluded from backup.
         -->
+        <exclude domain="database" path="app.db" />
+        <exclude domain="database" path="app.db-wal" />
+        <exclude domain="database" path="app.db-shm" />
+        <exclude domain="database" path="app.db-journal" />
+
+        <!-- Ephemeral cache database and feed caches must not waste cloud backup quota -->
+        <exclude domain="database" path="cache.db" />
+        <exclude domain="database" path="cache.db-wal" />
+        <exclude domain="database" path="cache.db-shm" />
+        <exclude domain="database" path="cache.db-journal" />
+        <exclude domain="file" path="linkedin_feed_cache.json" />
+        <exclude domain="file" path="instagram_feed_cache.json" />
+
+        <!-- Exclude master vault encryption key from cloud backup -->
+        <exclude domain="file" path=".master_vault.key" />
     </cloud-backup>
-    <!--
     <device-transfer>
-        <include .../>
-        <exclude .../>
+        <!-- Ephemeral cache database and feed caches should not be transferred over device migration -->
+        <exclude domain="database" path="cache.db" />
+        <exclude domain="database" path="cache.db-wal" />
+        <exclude domain="database" path="cache.db-shm" />
+        <exclude domain="database" path="cache.db-journal" />
+        <exclude domain="file" path="linkedin_feed_cache.json" />
+        <exclude domain="file" path="instagram_feed_cache.json" />
+        <!-- Note: app.db and .master_vault.key are permitted for direct device-to-device transfer so accounts and feeds persist across device upgrades -->
     </device-transfer>
-    -->
 </data-extraction-rules>

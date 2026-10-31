@@ -17,14 +17,11 @@ import com.kevinnzou.web.WebView
 import com.kevinnzou.web.rememberWebViewState
 import dev.dimension.flare.ui.component.FlareScaffold
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlin.time.Duration.Companion.seconds
 
-private val userAgent =
-    mapOf(
-        "user-agent" to "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Mobile Safari/537.3",
-        "Pragma" to "no-cache",
-        "Cache-Control" to "no-cache",
-    )
+private const val USER_AGENT =
+    "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Mobile Safari/537.36"
 
 @Composable
 internal fun WebCookieLoginScreen(
@@ -34,17 +31,20 @@ internal fun WebCookieLoginScreen(
 ) {
     val webViewState = rememberWebViewState(url)
     LaunchedEffect(url) {
-        while (true) {
+        var attempts = 0
+        val maxAttempts = 90 // 3 minutes timeout (90 * 2s)
+        while (isActive && attempts < maxAttempts) {
             webViewState.lastLoadedUrl?.let { loadedUrl ->
                 val cookies =
                     CookieManager
                         .getInstance()
                         .getCookie(loadedUrl)
-                if (callback(cookies)) {
+                if (!cookies.isNullOrBlank() && callback(cookies)) {
                     onBack()
-                    break
+                    return@LaunchedEffect
                 }
             }
+            attempts++
             delay(2.seconds)
         }
     }
@@ -66,11 +66,11 @@ internal fun WebCookieLoginScreen(
                 WebStorage.getInstance().deleteAllData()
                 CookieManager.getInstance().removeAllCookies(null)
                 with(it.settings) {
-                    userAgentString = userAgent.toString()
+                    userAgentString = USER_AGENT
                     javaScriptEnabled = true
                     domStorageEnabled = true
                     javaScriptCanOpenWindowsAutomatically = false
-                    cacheMode = WebSettings.LOAD_CACHE_ELSE_NETWORK
+                    cacheMode = WebSettings.LOAD_DEFAULT
                 }
             },
         )

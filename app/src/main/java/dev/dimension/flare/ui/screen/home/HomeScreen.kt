@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -46,6 +47,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.UriHandler
@@ -70,14 +72,19 @@ import compose.icons.fontawesomeicons.solid.Pen
 import compose.icons.fontawesomeicons.solid.PenToSquare
 import compose.icons.fontawesomeicons.solid.Robot
 import compose.icons.fontawesomeicons.solid.SquareRss
+import compose.icons.fontawesomeicons.solid.UserGroup
 import compose.icons.fontawesomeicons.solid.Users
 import dev.dimension.flare.R
+import dev.dimension.flare.data.repository.NativeXRemoval
+import dev.dimension.flare.data.repository.SettingsRepository
 import dev.dimension.flare.model.AccountType
 import dev.dimension.flare.ui.common.OnNewIntent
 import dev.dimension.flare.ui.common.isLoginCallbackDeepLink
 import dev.dimension.flare.ui.component.AvatarComponent
+import dev.dimension.flare.ui.component.BottomBarAccessory
 import dev.dimension.flare.ui.component.FAIcon
 import dev.dimension.flare.ui.component.InAppNotificationComponent
+import dev.dimension.flare.ui.component.LocalBottomBarAccessory
 import dev.dimension.flare.ui.component.NavigationSuiteScaffold2
 import dev.dimension.flare.ui.component.RichText
 import dev.dimension.flare.ui.component.TabIcon
@@ -105,6 +112,7 @@ import dev.dimension.flare.ui.route.Router
 import dev.dimension.flare.ui.screen.splash.SplashScreen
 import kotlinx.coroutines.launch
 import moe.tlaster.precompose.molecule.producePresenter
+import org.koin.compose.koinInject
 
 @OptIn(
     ExperimentalMaterial3AdaptiveNavigationSuiteApi::class,
@@ -123,6 +131,28 @@ internal fun HomeScreen(afterInit: () -> Unit) {
     val hapticFeedback = LocalHapticFeedback.current
     val activeAccountState = remember { ActiveAccountPresenter() }.invoke()
     val accountsPresenter = remember { AccountsPresenter() }.invoke()
+    // The home timeline fills this with its feed tabs so the Home dock item expands into them.
+    val homeBottomBarAccessory = remember { BottomBarAccessory() }
+    val settingsRepository = koinInject<SettingsRepository>()
+    val nativeXRemoval = koinInject<NativeXRemoval>()
+    LaunchedEffect(settingsRepository) {
+        settingsRepository.ensureRedditTabAdded()
+        nativeXRemoval.run()
+    }
+    val liveWebPages = remember { LiveWebPages() }
+    DisposableEffect(liveWebPages) {
+        onDispose { liveWebPages.destroy() }
+    }
+    val onHomeLongClick =
+        remember(hapticFeedback, state) {
+            {
+                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                state.navigate(Route.AccountSelection)
+            }
+        }
+    LaunchedEffect(onHomeLongClick) {
+        homeBottomBarAccessory.onLongClick = onHomeLongClick
+    }
     state.tabs
         .onSuccess { tabs ->
             val currentRoute =
@@ -146,6 +176,30 @@ internal fun HomeScreen(afterInit: () -> Unit) {
                 NavigationSuiteScaffoldDefaults.calculateFromAdaptiveInfo(
                     currentWindowAdaptiveInfoV2(),
                 )
+            // Phones: the dock is only Home (its feed pills); Notifications and Discover move to the
+            // side panel, and the dock stays visible on them as a way back to the feeds.
+            val isPhoneLayout = layoutType == NavigationSuiteType.NavigationBar
+            val currentTopKey = state.topLevelBackStack.takeSuccess()?.currentKey
+            val dockTabs =
+                if (isPhoneLayout) {
+                    tabs.filter { it == HomeTabsPresenter.State.HomeTabs.Home }
+                } else {
+                    tabs
+                }
+            val notificationBadge: @Composable () -> Unit = {
+                if (state.notificationState.count > 0) {
+                    Badge {
+                        Text(text = state.notificationState.count.toString())
+                    }
+                }
+            }
+            LaunchedEffect(isPhoneLayout, state.notificationState.count) {
+                homeBottomBarAccessory.badgeCount = if (isPhoneLayout) state.notificationState.count else 0
+            }
+            val feedsAndSocialHeader = stringResource(id = R.string.drawer_section_feeds_and_social)
+            val personalLibraryHeader = stringResource(id = R.string.drawer_section_personal_library)
+            val connectedAccountsHeader = stringResource(id = R.string.drawer_section_connected_accounts)
+            val sovereigntyAndSystemHeader = stringResource(id = R.string.drawer_section_sovereignty_and_system)
             Box {
                 NavigationSuiteScaffold2(
                     wideNavigationRailState = state.wideNavigationRailState,
@@ -154,6 +208,8 @@ internal fun HomeScreen(afterInit: () -> Unit) {
                     showFab =
                         state.canComposeState.takeSuccess() == true &&
                             state.topLevelBackStack.takeSuccess()?.currentKey is Route.Home,
+                    bottomBarVisible = tabs.any { it.route == currentTopKey },
+                    keepBottomBarVisible = homeBottomBarAccessory.keepVisible,
                     onFabClicked = {
                         state.navigate(Route.Compose.New)
                     },
@@ -248,10 +304,12 @@ internal fun HomeScreen(afterInit: () -> Unit) {
                         } else if (layoutType == NavigationSuiteType.NavigationBar) {
                             val heroProfile =
                                 activeAccountState.user.takeSuccess()
-                                    ?: accountsPresenter.accounts.takeSuccess()
+                                    ?: accountsPresenter.accounts
+                                        .takeSuccess()
                                         ?.firstOrNull { it.profile.takeSuccess() != null }
-                                        ?.profile?.takeSuccess()
-                            PrismDrawerHeader(
+                                        ?.profile
+                                        ?.takeSuccess()
+                            FlareDrawerHeader(
                                 primaryProfile = heroProfile,
                                 accountCount = accountsPresenter.accounts.takeSuccess()?.size ?: 1,
                                 onManageAccounts = {
@@ -261,11 +319,13 @@ internal fun HomeScreen(afterInit: () -> Unit) {
                         }
                     },
                     navigationSuiteItems = {
-                        tabs.forEach { tab ->
+                        val currentKey = state.topLevelBackStack.takeSuccess()?.currentKey
+                        val isTopLevel = tabs.any { it.route == currentKey }
+                        dockTabs.forEach { tab ->
                             item(
-                                selected = currentRoute == tab.route,
+                                selected = isTopLevel && (currentKey == tab.route),
                                 onClick = {
-                                    if (currentRoute == tab.route) {
+                                    if (currentRoute == tab.route && isTopLevel) {
                                         hapticFeedback.performHapticFeedback(
                                             HapticFeedbackType.GestureThresholdActivate,
                                         )
@@ -290,24 +350,19 @@ internal fun HomeScreen(afterInit: () -> Unit) {
                                 },
                                 badge =
                                     if (tab == HomeTabsPresenter.State.HomeTabs.Notifications) {
-                                        {
-                                            if (state.notificationState.count > 0) {
-                                                Badge {
-                                                    Text(text = state.notificationState.count.toString())
-                                                }
-                                            }
-                                        }
+                                        notificationBadge
                                     } else {
                                         null
                                     },
                                 onLongClick =
                                     if (tab == HomeTabsPresenter.State.HomeTabs.Home) {
-                                        {
-                                            hapticFeedback.performHapticFeedback(
-                                                HapticFeedbackType.LongPress,
-                                            )
-                                            state.navigate(Route.AccountSelection)
-                                        }
+                                        onHomeLongClick
+                                    } else {
+                                        null
+                                    },
+                                expandedContent =
+                                    if (tab == HomeTabsPresenter.State.HomeTabs.Home) {
+                                        homeBottomBarAccessory.content
                                     } else {
                                         null
                                     },
@@ -315,7 +370,34 @@ internal fun HomeScreen(afterInit: () -> Unit) {
                         }
                     },
                     secondaryItems = {
-                        header("FEEDS & SOCIAL")
+                        if (isPhoneLayout) {
+                            tabs
+                                .filter { it != HomeTabsPresenter.State.HomeTabs.Home }
+                                .forEach { tab ->
+                                    item(
+                                        selected = currentRoute == tab.route,
+                                        onClick = {
+                                            state.navigate(tab.route)
+                                        },
+                                        icon = {
+                                            FAIcon(
+                                                imageVector = tab.icon,
+                                                contentDescription = stringResource(id = tab.title),
+                                            )
+                                        },
+                                        label = {
+                                            Text(text = stringResource(id = tab.title))
+                                        },
+                                        badge =
+                                            if (tab == HomeTabsPresenter.State.HomeTabs.Notifications) {
+                                                notificationBadge
+                                            } else {
+                                                null
+                                            },
+                                    )
+                                }
+                        }
+                        header(feedsAndSocialHeader)
                         item(
                             selected = currentRoute is Route.InstagramWeb,
                             onClick = {
@@ -324,11 +406,11 @@ internal fun HomeScreen(afterInit: () -> Unit) {
                             icon = {
                                 FAIcon(
                                     imageVector = FontAwesomeIcons.Brands.Instagram,
-                                    contentDescription = "Instagram",
+                                    contentDescription = stringResource(id = R.string.drawer_instagram),
                                 )
                             },
                             label = {
-                                Text(text = "Instagram")
+                                Text(text = stringResource(id = R.string.drawer_instagram))
                             },
                         )
                         item(
@@ -339,11 +421,11 @@ internal fun HomeScreen(afterInit: () -> Unit) {
                             icon = {
                                 FAIcon(
                                     imageVector = FontAwesomeIcons.Brands.LinkedinIn,
-                                    contentDescription = "LinkedIn",
+                                    contentDescription = stringResource(id = R.string.drawer_linkedin),
                                 )
                             },
                             label = {
-                                Text(text = "LinkedIn")
+                                Text(text = stringResource(id = R.string.drawer_linkedin))
                             },
                         )
                         item(
@@ -362,7 +444,23 @@ internal fun HomeScreen(afterInit: () -> Unit) {
                             },
                         )
 
-                        header("PERSONAL LIBRARY")
+                        item(
+                            selected = currentRoute is Route.LocalFollows,
+                            onClick = {
+                                state.navigate(Route.LocalFollows.Manage)
+                            },
+                            icon = {
+                                FAIcon(
+                                    imageVector = FontAwesomeIcons.Solid.UserGroup,
+                                    contentDescription = stringResource(id = R.string.local_follows_title),
+                                )
+                            },
+                            label = {
+                                Text(text = stringResource(id = R.string.local_follows_title))
+                            },
+                        )
+
+                        header(personalLibraryHeader)
                         item(
                             selected = currentRoute is Route.ReadingList,
                             onClick = {
@@ -371,11 +469,11 @@ internal fun HomeScreen(afterInit: () -> Unit) {
                             icon = {
                                 FAIcon(
                                     imageVector = FontAwesomeIcons.Solid.Bookmark,
-                                    contentDescription = "Reading List",
+                                    contentDescription = stringResource(id = R.string.drawer_reading_list),
                                 )
                             },
                             label = {
-                                Text(text = "Reading List")
+                                Text(text = stringResource(id = R.string.drawer_reading_list))
                             },
                         )
                         item(
@@ -411,7 +509,7 @@ internal fun HomeScreen(afterInit: () -> Unit) {
 
                         state.secondaryTabsState.onSuccess { secondaryTabs ->
                             if (secondaryTabs.isNotEmpty()) {
-                                header("CONNECTED ACCOUNTS")
+                                header(connectedAccountsHeader)
                                 secondaryTabs.forEach { item ->
                                     expandableItem(
                                         icon = {
@@ -471,7 +569,7 @@ internal fun HomeScreen(afterInit: () -> Unit) {
                         }
                     },
                     footerItems = {
-                        header("SOVEREIGNTY & SYSTEM")
+                        header(sovereigntyAndSystemHeader)
                         if (state.aiAgentEnabled) {
                             item(
                                 selected = currentRoute is Route.Settings.AgentHistory,
@@ -516,6 +614,8 @@ internal fun HomeScreen(afterInit: () -> Unit) {
                                 }
                             },
                         LocalScrollToTopRegistry provides state.scrollToTopRegistry,
+                        LocalBottomBarAccessory provides homeBottomBarAccessory,
+                        LocalLiveWebPages provides liveWebPages,
                     ) {
                         Router(
                             backStack =
@@ -627,6 +727,10 @@ private fun presenter(uriHandler: UriHandler) =
                                     Route.Rss.Sources,
                                     Route.Settings.LocalHistory,
                                     Route.ReadingList,
+                                    Route.LocalFollows.Manage,
+                                    // Opened from the side panel without a URL; links with a URL still push.
+                                    Route.InstagramWeb(),
+                                    Route.LinkedInWeb(),
                                 ),
                             )
                             if (aiAgentEnabledState.enabled) {
@@ -737,15 +841,15 @@ private fun userPresenter(accountType: AccountType) =
     }
 
 @Composable
-private fun PrismDrawerHeader(
+private fun FlareDrawerHeader(
     primaryProfile: UiProfile?,
     accountCount: Int,
     onManageAccounts: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Surface(
-        shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.75f),
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
         border = BorderStroke(0.8.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)),
         modifier =
             modifier
@@ -765,23 +869,25 @@ private fun PrismDrawerHeader(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                AvatarComponent(
-                    data = primaryProfile?.avatar,
-                    size = 46.dp,
-                    platformId = primaryProfile?.platformId,
-                    host = primaryProfile?.handle?.host,
-                    platformIcon = primaryProfile?.platformIcon,
-                    showNetworkBadge = true,
-                )
+                ExpressiveAvatarFrame(size = 52.dp) {
+                    AvatarComponent(
+                        data = primaryProfile?.avatar,
+                        size = 44.dp,
+                        platformId = primaryProfile?.platformId,
+                        host = primaryProfile?.handle?.host,
+                        platformIcon = primaryProfile?.platformIcon,
+                        showNetworkBadge = true,
+                    )
+                }
 
                 Surface(
                     onClick = onManageAccounts,
-                    shape = RoundedCornerShape(50),
-                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
-                    border = BorderStroke(0.8.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)),
+                    shape = RoundedCornerShape(20.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    modifier = Modifier.defaultMinSize(minHeight = 48.dp),
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
@@ -789,18 +895,28 @@ private fun PrismDrawerHeader(
                             imageVector = FontAwesomeIcons.Solid.Users,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.size(11.dp),
+                            modifier = Modifier.size(12.dp),
                         )
+                        val accountsText =
+                            if (accountCount > 1) {
+                                LocalContext.current.resources.getQuantityString(
+                                    R.plurals.drawer_account_count,
+                                    accountCount,
+                                    accountCount,
+                                )
+                            } else {
+                                stringResource(id = R.string.drawer_accounts_single)
+                            }
                         Text(
-                            text = if (accountCount > 1) "$accountCount Accounts" else "Accounts",
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                            text = accountsText,
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
                         )
                         FAIcon(
                             imageVector = FontAwesomeIcons.Solid.CaretDown,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.size(9.dp),
+                            modifier = Modifier.size(10.dp),
                         )
                     }
                 }
@@ -827,11 +943,11 @@ private fun PrismDrawerHeader(
                     )
                 } else {
                     Text(
-                        text = "Flare Sovereign Client",
+                        text = stringResource(id = R.string.drawer_flare_client_title),
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                     )
                     Text(
-                        text = "Decentralized & Multi-protocol",
+                        text = stringResource(id = R.string.drawer_flare_client_subtitle),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -841,7 +957,7 @@ private fun PrismDrawerHeader(
     }
 }
 
-private class ScrollToTopRegistry {
+internal class ScrollToTopRegistry {
     private val callbacks = mutableSetOf<() -> Unit>()
 
     fun registerCallback(callback: () -> Unit) {
@@ -857,7 +973,7 @@ private class ScrollToTopRegistry {
     }
 }
 
-private val LocalScrollToTopRegistry =
+internal val LocalScrollToTopRegistry =
     androidx.compose.runtime.staticCompositionLocalOf<ScrollToTopRegistry?> {
         null
     }

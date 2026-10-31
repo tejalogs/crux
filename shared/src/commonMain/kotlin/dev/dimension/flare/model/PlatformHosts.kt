@@ -57,4 +57,5 @@ public val ilink: String =
     }
 
 @HiddenFromObjC
+@Suppress("ktlint:standard:property-naming")
 public const val instagramHost: String = "instagram.com"

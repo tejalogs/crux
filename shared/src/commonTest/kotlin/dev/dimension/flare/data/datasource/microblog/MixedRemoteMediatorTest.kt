@@ -2563,6 +2563,49 @@ class MixedRemoteMediatorTest : RobolectricTest() {
             )
         }
 
+    @Test
+    fun timeMergePolicyDeduplicatesCrossPlatformPostsWithin48Hours() =
+        runTest {
+            val announcementText = "Excited to launch Flare 2.0 with unified cross-network feeds, smart on-device replies, and stack pager!"
+            val blueskyAccount = AccountType.Specific(MicroBlogKey("viewer", "bsky.social"))
+            val linkedinAccount = AccountType.Specific(MicroBlogKey("viewer", "linkedin.com"))
+            val blueskyAuthor = profile(MicroBlogKey("author", "bsky.social"), "Creator")
+            val linkedinAuthor = profile(MicroBlogKey("author", "linkedin.com"), "Creator")
+
+            val blueskyPost =
+                createPost(
+                    accountType = blueskyAccount,
+                    user = blueskyAuthor,
+                    statusKey = MicroBlogKey("bsky_announcement", "bsky.social"),
+                    text = announcementText,
+                ).copy(
+                    createdAt = Instant.fromEpochMilliseconds(100_000L).toUi(),
+                )
+
+            // Cross-posted to LinkedIn 2 hours later
+            val linkedinPost =
+                createPost(
+                    accountType = linkedinAccount,
+                    user = linkedinAuthor,
+                    statusKey = MicroBlogKey("li_announcement", "linkedin.com"),
+                    text = announcementText,
+                ).copy(
+                    createdAt = Instant.fromEpochMilliseconds(100_000L + 2 * 3600 * 1000L).toUi(),
+                )
+
+            val blueskyItem = UiTimelineV2.TimelinePostItem(post = blueskyPost)
+            val linkedinItem = UiTimelineV2.TimelinePostItem(post = linkedinPost)
+
+            val blueskyLoader = FakeLoader("bluesky") { PagingResult(data = listOf(blueskyItem)) }
+            val linkedinLoader = FakeLoader("linkedin") { PagingResult(data = listOf(linkedinItem)) }
+
+            val mediator = MixedRemoteMediator(db, listOf(blueskyLoader, linkedinLoader), TimelineMergePolicy.Time)
+            val result = mediator.load(pageSize = 20, request = PagingRequest.Refresh)
+
+            // Deduplication should retain only 1 of the cross-posted announcements in the unified feed
+            assertEquals(1, result.data.size)
+        }
+
     private class FakeLoader(
         override val pagingKey: String,
         override val supportPrepend: Boolean = false,

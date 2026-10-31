@@ -12,7 +12,6 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], manifest = Config.NONE)
 class InstagramProfileExtractionTest {
-
     @Test
     fun extractsValidUsernamesFromInstagramUrls() {
         assertEquals("natgeo", extractInstagramProfile("https://www.instagram.com/natgeo"))

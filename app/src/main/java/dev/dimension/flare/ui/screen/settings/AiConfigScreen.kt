@@ -41,6 +41,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import dev.dimension.flare.R
 import dev.dimension.flare.data.ai.OnDeviceHardwareBackend
@@ -123,6 +124,15 @@ internal fun AiConfigScreen(onBack: () -> Unit) {
             val shouldShowAiAgentSwitch =
                 (state.aiType == AiTypeOption.OpenAI && state.openAIModel.isNotBlank()) ||
                     (state.aiType == AiTypeOption.OnDevice)
+
+            Text(
+                text = stringResource(id = R.string.settings_ai_section_provider),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            )
+
             SegmentedListItem(
                 checked = state.showTypeDropdown,
                 onCheckedChange = {
@@ -473,7 +483,9 @@ internal fun AiConfigScreen(onBack: () -> Unit) {
                     },
                     supportingContent = {
                         Text(
-                            text = "${currentSpec.displayName} • LiteRT-LM (${currentSpec.parameterCount}, ~${currentSpec.memoryFootprintMb}MB RAM)",
+                            text =
+                                "${currentSpec.displayName} • LiteRT-LM " +
+                                    "(${currentSpec.parameterCount}, ~${currentSpec.memoryFootprintMb}MB RAM)",
                             style = MaterialTheme.typography.bodySmall,
                         )
                     },
@@ -617,6 +629,14 @@ internal fun AiConfigScreen(onBack: () -> Unit) {
                     },
                 )
             }
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = stringResource(id = R.string.settings_ai_section_features),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            )
             if (shouldShowAiAgentSwitch) {
                 Spacer(modifier = Modifier.height(12.dp))
                 SegmentedListItem(

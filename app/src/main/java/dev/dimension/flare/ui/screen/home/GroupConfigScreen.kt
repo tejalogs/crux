@@ -262,7 +262,7 @@ private fun presenter(
         mutableStateOf<IconType>(IconType.Material(UiIcon.Rss))
     }
     var enabled by remember(groupId) { mutableStateOf(true) }
-    var mergePolicy by remember(groupId) { mutableStateOf(TimelineMergePolicy.TimePerPage) }
+    var mergePolicy by remember(groupId) { mutableStateOf(TimelineMergePolicy.Time) }
     var filterConfig by remember(groupId) { mutableStateOf(TimelineFilterConfig()) }
     var appearancePatch by remember(groupId) { mutableStateOf(AppearancePatch.EMPTY) }
     val timelineAppearance by remember {

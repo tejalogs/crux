@@ -580,4 +580,26 @@
     <string name="ugoira_loading">Loading animation</string>
     <string name="status_smart_reply_gemma">✨ Smart Reply with Gemma</string>
     <string name="rss_detail_synthesize_post_carousel">✨ Synthesize into Post &amp; Carousel</string>
+
+    <!-- Catch up / Daily Brief -->
+    <string name="catch_up_title">Catch up</string>
+    <string name="catch_up_post_single">1 post since %1$s</string>
+    <string name="catch_up_posts_count">%1$d posts since %2$s</string>
+    <string name="catch_up_open_brief">Open brief</string>
+    <string name="catch_up_listen">Listen</string>
+    <string name="catch_up_dismiss_description">Dismiss catch up</string>
+    <string name="catch_up_listen_description">Listen to catch up</string>
+    <string name="catch_up_pause_description">Pause catch up</string>
+    <string name="catch_up_read_post">Read post</string>
+    <string name="catch_up_audio_title">Catch-up audio</string>
+    <string name="catch_up_audio_playing">Speaking</string>
+    <string name="catch_up_audio_paused">Paused</string>
+    <string name="catch_up_audio_stopped">Listen to this brief</string>
+    <string name="catch_up_audio_unavailable">Audio playback is not available on this device</string>
+    <string name="catch_up_empty">No highlights in this catch-up</string>
+    <string name="catch_up_all_topics">All</string>
+    <string name="catch_up_overflow_menu">More options</string>
+    <string name="catch_up_make_carousel">Make a carousel</string>
+    <string name="catch_up_close">Close</string>
+    <string name="catch_up_author_fallback">author</string>
 </resources>

@@ -19,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import compose.icons.FontAwesomeIcons
 import compose.icons.fontawesomeicons.Solid
@@ -36,6 +37,7 @@ import dev.dimension.flare.data.model.TimelineDisplayMode
 import dev.dimension.flare.model.MicroBlogKey
 import dev.dimension.flare.ui.component.ErrorContent
 import dev.dimension.flare.ui.component.FAIcon
+import dev.dimension.flare.ui.component.HorizontalDivider
 import dev.dimension.flare.ui.component.placeholder
 import dev.dimension.flare.ui.component.platform.PlatformLinearProgressIndicator
 import dev.dimension.flare.ui.component.platform.PlatformText
@@ -66,17 +68,43 @@ public fun LazyStaggeredGridScope.status(
                 if (mode == TimelineDisplayMode.Gallery) {
                     GalleryTimelineItem(item = item)
                 } else {
-                    AdaptiveCard(
-                        modifier = Modifier.animateItem(),
-                        index = index,
-                        totalCount = itemCount,
-                        respectTimelineMode = true,
-                    ) {
-                        SwipeToActPost(item = item) {
-                            StatusItem(
-                                item,
-                                detailStatusKey = detailStatusKey,
-                            )
+                    val isReplyInDetail = detailStatusKey != null && index >= 1
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        if (detailStatusKey != null && index == 1) {
+                            Row(
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = screenHorizontalPadding, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                PlatformText(
+                                    text = "Replies & Discussion",
+                                    style = PlatformTheme.typography.caption.copy(fontWeight = FontWeight.Bold),
+                                    color = PlatformTheme.colorScheme.caption,
+                                )
+                                HorizontalDivider(
+                                    color = PlatformTheme.colorScheme.outline.copy(alpha = 0.20f),
+                                    thickness = 0.6.dp,
+                                    modifier = Modifier.weight(1f),
+                                )
+                            }
+                        }
+                        AdaptiveCard(
+                            modifier = Modifier.animateItem(),
+                            index = index,
+                            totalCount = itemCount,
+                            respectTimelineMode = true,
+                        ) {
+                            SwipeToActPost(item = item) {
+                                StatusItem(
+                                    item,
+                                    detailStatusKey = detailStatusKey,
+                                    hasParentConnector = isReplyInDetail,
+                                    hasChildConnector = isReplyInDetail && index < itemCount - 1,
+                                )
+                            }
                         }
                     }
                 }
@@ -225,6 +253,8 @@ public fun StatusItem(
     item: UiTimelineV2?,
     modifier: Modifier = Modifier,
     detailStatusKey: MicroBlogKey? = null,
+    hasParentConnector: Boolean = false,
+    hasChildConnector: Boolean = false,
 ) {
     if (item == null) {
         Column(
@@ -240,6 +270,8 @@ public fun StatusItem(
         UiTimelineComponent(
             item = item,
             detailStatusKey = detailStatusKey,
+            hasParentConnector = hasParentConnector,
+            hasChildConnector = hasChildConnector,
             modifier = modifier,
         )
     }

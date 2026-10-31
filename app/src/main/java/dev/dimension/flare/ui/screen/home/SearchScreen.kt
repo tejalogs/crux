@@ -2,6 +2,9 @@ package dev.dimension.flare.ui.screen.home
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -9,10 +12,13 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
 import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridState
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ExtendedFloatingActionButton
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -20,7 +26,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import compose.icons.FontAwesomeIcons
 import compose.icons.fontawesomeicons.Solid
@@ -33,6 +41,7 @@ import dev.dimension.flare.ui.component.AvatarComponent
 import dev.dimension.flare.ui.component.FAIcon
 import dev.dimension.flare.ui.component.FlareDropdownMenu
 import dev.dimension.flare.ui.component.FlareScaffold
+import dev.dimension.flare.ui.component.LocalBottomBarShowing
 import dev.dimension.flare.ui.component.LocalTimelineAppearance
 import dev.dimension.flare.ui.component.RefreshContainer
 import dev.dimension.flare.ui.component.SearchBar
@@ -44,8 +53,10 @@ import dev.dimension.flare.ui.component.status.LazyStatusVerticalStaggeredGrid
 import dev.dimension.flare.ui.model.onSuccess
 import dev.dimension.flare.ui.presenter.home.SearchPresenter
 import dev.dimension.flare.ui.presenter.invoke
+import dev.dimension.flare.ui.screen.home.ExpressiveAvatarFrame
 import moe.tlaster.precompose.molecule.producePresenter
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun SearchScreen(
     initialQuery: String,
@@ -94,14 +105,16 @@ internal fun SearchScreen(
                                                 }
                                             },
                                         ) {
-                                            AvatarComponent(
-                                                data = account.avatar,
-                                                contentDescription =
-                                                    stringResource(
-                                                        R.string.select_account_current,
-                                                        account.handle.canonical,
-                                                    ),
-                                            )
+                                            ExpressiveAvatarFrame(size = 32.dp) {
+                                                AvatarComponent(
+                                                    data = account.avatar,
+                                                    contentDescription =
+                                                        stringResource(
+                                                            R.string.select_account_current,
+                                                            account.handle.canonical,
+                                                        ),
+                                                )
+                                            }
                                         }
                                         FlareDropdownMenu(
                                             expanded = showMenu,
@@ -162,6 +175,15 @@ internal fun SearchScreen(
             }
         },
     ) { contentPadding ->
+        val layoutDirection = LocalLayoutDirection.current
+        val extraBottom = if (LocalBottomBarShowing.current) 32.dp else 0.dp
+        val combinedContentPadding =
+            PaddingValues(
+                start = contentPadding.calculateStartPadding(layoutDirection),
+                top = contentPadding.calculateTopPadding(),
+                end = contentPadding.calculateEndPadding(layoutDirection),
+                bottom = contentPadding.calculateBottomPadding() + extraBottom,
+            )
         RefreshContainer(
             modifier =
                 Modifier
@@ -172,7 +194,7 @@ internal fun SearchScreen(
             content = {
                 LazyStatusVerticalStaggeredGrid(
                     state = lazyListState,
-                    contentPadding = contentPadding,
+                    contentPadding = combinedContentPadding,
                 ) {
                     if (isBigScreen) {
                         state.searchState.accounts.onSuccess { accounts ->
@@ -186,21 +208,34 @@ internal fun SearchScreen(
                                     ) {
                                         items(accounts.size) { index ->
                                             val profile = accounts[index]
-                                            FilterChip(
-                                                selected = state.searchState.selectedAccount?.key == profile.key,
-                                                onClick = {
+                                            val isSelected = state.searchState.selectedAccount?.key == profile.key
+                                            ToggleButton(
+                                                checked = isSelected,
+                                                onCheckedChange = {
                                                     state.searchState.setAccount(profile)
                                                 },
-                                                label = {
-                                                    Text(profile.handle.canonical)
-                                                },
-                                                leadingIcon = {
-                                                    AvatarComponent(
-                                                        data = profile.avatar,
-                                                        size = 18.dp,
-                                                    )
-                                                },
-                                            )
+                                                colors =
+                                                    ToggleButtonDefaults.colors(
+                                                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        checkedContainerColor = MaterialTheme.colorScheme.primary,
+                                                        checkedContentColor = MaterialTheme.colorScheme.onPrimary,
+                                                    ),
+                                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                                            ) {
+                                                AvatarComponent(
+                                                    data = profile.avatar,
+                                                    size = 18.dp,
+                                                )
+                                                Text(
+                                                    text = profile.handle.canonical,
+                                                    style =
+                                                        MaterialTheme.typography.labelLarge.copy(
+                                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                                        ),
+                                                    modifier = Modifier.padding(start = 6.dp),
+                                                )
+                                            }
                                         }
                                     }
                                 }

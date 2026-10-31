@@ -9,9 +9,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -22,14 +27,16 @@ import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridS
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ExtendedFloatingActionButton
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -42,6 +49,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -63,13 +71,12 @@ import dev.dimension.flare.ui.component.AvatarComponent
 import dev.dimension.flare.ui.component.FAIcon
 import dev.dimension.flare.ui.component.FlareDropdownMenu
 import dev.dimension.flare.ui.component.FlareScaffold
+import dev.dimension.flare.ui.component.LocalBottomBarShowing
 import dev.dimension.flare.ui.component.LocalGlobalAppearance
 import dev.dimension.flare.ui.component.LocalTimelineAppearance
 import dev.dimension.flare.ui.component.RefreshContainer
 import dev.dimension.flare.ui.component.SearchBar
 import dev.dimension.flare.ui.component.SearchBarState
-import dev.dimension.flare.ui.haptic.FlareHapticEvent
-import dev.dimension.flare.ui.haptic.rememberFlareHapticFeedback
 import dev.dimension.flare.ui.component.placeholder
 import dev.dimension.flare.ui.component.platform.isBigScreen
 import dev.dimension.flare.ui.component.searchBarPresenter
@@ -79,16 +86,19 @@ import dev.dimension.flare.ui.component.status.CommonStatusHeaderComponent
 import dev.dimension.flare.ui.component.status.LazyStatusVerticalStaggeredGrid
 import dev.dimension.flare.ui.component.status.UserPlaceholder
 import dev.dimension.flare.ui.component.status.status
+import dev.dimension.flare.ui.haptic.FlareHapticEvent
+import dev.dimension.flare.ui.haptic.rememberFlareHapticFeedback
 import dev.dimension.flare.ui.model.onSuccess
 import dev.dimension.flare.ui.presenter.home.DiscoverPresenter
 import dev.dimension.flare.ui.presenter.home.DiscoverState
 import dev.dimension.flare.ui.presenter.home.SearchPresenter
 import dev.dimension.flare.ui.presenter.invoke
+import dev.dimension.flare.ui.screen.home.ExpressiveAvatarFrame
 import dev.dimension.flare.ui.theme.screenHorizontalPadding
 import kotlinx.coroutines.launch
 import moe.tlaster.precompose.molecule.producePresenter
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun DiscoverScreen(
     onUserClick: (AccountType, MicroBlogKey) -> Unit,
@@ -136,14 +146,16 @@ internal fun DiscoverScreen(
                                                 }
                                             },
                                         ) {
-                                            AvatarComponent(
-                                                data = account.avatar,
-                                                contentDescription =
-                                                    stringResource(
-                                                        R.string.select_account_current,
-                                                        account.handle.canonical,
-                                                    ),
-                                            )
+                                            ExpressiveAvatarFrame(size = 32.dp) {
+                                                AvatarComponent(
+                                                    data = account.avatar,
+                                                    contentDescription =
+                                                        stringResource(
+                                                            R.string.select_account_current,
+                                                            account.handle.canonical,
+                                                        ),
+                                                )
+                                            }
                                         }
                                         FlareDropdownMenu(
                                             expanded = showMenu,
@@ -212,9 +224,18 @@ internal fun DiscoverScreen(
             isRefreshing = state.refreshing,
             onRefresh = state::refresh,
             content = {
+                val layoutDirection = LocalLayoutDirection.current
+                val extraBottom = if (LocalBottomBarShowing.current) 32.dp else 0.dp
+                val combinedContentPadding =
+                    PaddingValues(
+                        start = contentPadding.calculateStartPadding(layoutDirection),
+                        top = contentPadding.calculateTopPadding(),
+                        end = contentPadding.calculateEndPadding(layoutDirection),
+                        bottom = contentPadding.calculateBottomPadding() + extraBottom,
+                    )
                 LazyStatusVerticalStaggeredGrid(
                     state = lazyListState,
-                    contentPadding = contentPadding,
+                    contentPadding = combinedContentPadding,
                 ) {
                     if (isBigScreen) {
                         state.accounts.onSuccess { accounts ->
@@ -229,21 +250,34 @@ internal fun DiscoverScreen(
                                                 .padding(bottom = 8.dp),
                                     ) {
                                         items(accounts) { profile ->
-                                            FilterChip(
-                                                selected = state.selectedAccount?.key == profile.key,
-                                                onClick = {
+                                            val isSelected = state.selectedAccount?.key == profile.key
+                                            ToggleButton(
+                                                checked = isSelected,
+                                                onCheckedChange = {
                                                     state.setAccount(profile)
                                                 },
-                                                label = {
-                                                    Text(profile.handle.canonical)
-                                                },
-                                                leadingIcon = {
-                                                    AvatarComponent(
-                                                        data = profile.avatar,
-                                                        size = 18.dp,
-                                                    )
-                                                },
-                                            )
+                                                colors =
+                                                    ToggleButtonDefaults.colors(
+                                                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        checkedContainerColor = MaterialTheme.colorScheme.primary,
+                                                        checkedContentColor = MaterialTheme.colorScheme.onPrimary,
+                                                    ),
+                                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                                            ) {
+                                                AvatarComponent(
+                                                    data = profile.avatar,
+                                                    size = 18.dp,
+                                                )
+                                                Text(
+                                                    text = profile.handle.canonical,
+                                                    style =
+                                                        MaterialTheme.typography.labelLarge.copy(
+                                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                                        ),
+                                                    modifier = Modifier.padding(start = 6.dp),
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -261,17 +295,33 @@ internal fun DiscoverScreen(
                                     .padding(bottom = 8.dp),
                         ) {
                             items(DiscoverCategory.entries.toTypedArray()) { category ->
-                                FilterChip(
-                                    selected = selectedCategory == category,
-                                    onClick = {
+                                val isSelected = selectedCategory == category
+                                ToggleButton(
+                                    checked = isSelected,
+                                    onCheckedChange = {
                                         haptics.perform(FlareHapticEvent.SelectionChange)
                                         selectedCategory = category
                                         if (category == DiscoverCategory.TechAi) {
                                             state.commitSearch("AI")
                                         }
                                     },
-                                    label = { Text(category.label) },
-                                )
+                                    colors =
+                                        ToggleButtonDefaults.colors(
+                                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            checkedContainerColor = MaterialTheme.colorScheme.primary,
+                                            checkedContentColor = MaterialTheme.colorScheme.onPrimary,
+                                        ),
+                                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                                ) {
+                                    Text(
+                                        text = category.label,
+                                        style =
+                                            MaterialTheme.typography.labelLarge.copy(
+                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                            ),
+                                    )
+                                }
                             }
                         }
                     }
@@ -459,6 +509,9 @@ internal fun DiscoverScreen(
                                 status(state.status)
                             }
                     }
+                    item(span = StaggeredGridItemSpan.FullLine) {
+                        Spacer(modifier = Modifier.height(36.dp))
+                    }
                 }
             },
         )
@@ -525,7 +578,9 @@ private fun discoverPresenter() =
         }
     }
 
-private enum class DiscoverCategory(val label: String) {
+private enum class DiscoverCategory(
+    val label: String,
+) {
     All("All"),
     Trending("Trending"),
     TechAi("Tech & AI"),
@@ -562,9 +617,8 @@ private fun TrendingTopicChip(
 ) {
     val haptics = rememberFlareHapticFeedback(LocalGlobalAppearance.current.hapticsEnabled)
     Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
         modifier =
             Modifier.clickable {
                 haptics.perform(FlareHapticEvent.Confirm)

@@ -77,11 +77,11 @@ internal fun AboutScreen(onBack: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Image(
-                painter = painterResource(id = R.drawable.ic_launcher_foreground),
+                painter = painterResource(id = R.drawable.ic_crux_mark),
                 contentDescription = stringResource(id = R.string.app_name),
                 modifier =
                     Modifier
-                        .height(112.dp),
+                        .height(64.dp),
             )
             Spacer(Modifier.height(8.dp))
             Text(

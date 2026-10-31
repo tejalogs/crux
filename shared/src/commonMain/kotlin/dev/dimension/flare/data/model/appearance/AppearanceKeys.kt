@@ -41,7 +41,7 @@ public object AppearanceKeys {
 
     public object BottomBarBehavior : Global<AppearanceBottomBarBehavior>(
         "app.bottom_bar_behavior",
-        AppearanceBottomBarBehavior.MinimizeOnScroll,
+        AppearanceBottomBarBehavior.AlwaysShow,
         AppearanceBottomBarBehavior.serializer(),
     )
 
@@ -58,7 +58,8 @@ public object AppearanceKeys {
     public object LiteMode : Global<dev.dimension.flare.data.model.LiteMode>(
         "app.lite_mode",
         dev.dimension.flare.data.model.LiteMode.OFF,
-        dev.dimension.flare.data.model.LiteMode.serializer(),
+        dev.dimension.flare.data.model.LiteMode
+            .serializer(),
     )
 
     public object DeckMode : Global<Boolean>("app.deck_mode", false, Boolean.serializer())

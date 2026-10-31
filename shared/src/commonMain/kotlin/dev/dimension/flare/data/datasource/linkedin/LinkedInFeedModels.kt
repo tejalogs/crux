@@ -199,3 +199,38 @@ public data class LinkedInReactions(
     val hasLiked: Boolean? = null,
     val reactionType: String? = null,
 )
+
+@Serializable
+public data class LinkedInComment(
+    val id: String = "",
+    val urn: String? = null,
+    val entityUrn: String? = null,
+    val threadUrn: String? = null,
+    val commenter: LinkedInActor? = null,
+    val commentary: LinkedInCommentary? = null,
+    val created: LinkedInTimestamp? = null,
+    val socialDetail: LinkedInSocialDetail? = null,
+    val comments: List<LinkedInComment> = emptyList(),
+)
+
+@Serializable
+public data class LinkedInCommentsResponse(
+    val comments: List<LinkedInComment> = emptyList(),
+    val paginationToken: String? = null,
+    val totalCount: Long? = null,
+)
+
+public data class LinkedInMediaUploadResult(
+    val uploadUrl: String,
+    val assetUrn: String,
+)
+
+@Serializable
+public data class LinkedInDomUpdate(
+    public val urn: String = "",
+    public val authorName: String = "",
+    public val authorHeadline: String = "",
+    public val avatarUrl: String = "",
+    public val text: String = "",
+    public val imageUrl: String = "",
+)

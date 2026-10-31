@@ -16,9 +16,9 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import compose.icons.FontAwesomeIcons
@@ -36,7 +36,6 @@ import dev.dimension.flare.ui.theme.item
 import dev.dimension.flare.ui.theme.last
 import dev.dimension.flare.ui.theme.screenHorizontalPadding
 
-
 /**
  * On-device inspector of every request Flare made.
  *
@@ -46,9 +45,7 @@ import dev.dimension.flare.ui.theme.screenHorizontalPadding
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun PrivacyTrafficLogScreen(
-    onBack: () -> Unit,
-) {
+internal fun PrivacyTrafficLogScreen(onBack: () -> Unit) {
     val topAppBarScrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val entries by PrivacyLog.get().entries.collectAsState()
 
@@ -121,7 +118,14 @@ internal fun PrivacyTrafficLogScreen(
                         style = MaterialTheme.typography.titleSmall,
                     )
                     Text(
-                        text = stringResource(id = R.string.settings_privacy_traffic_log_summary_detail, telemetry, profiling, blocked, stripped),
+                        text =
+                            stringResource(
+                                id = R.string.settings_privacy_traffic_log_summary_detail,
+                                telemetry,
+                                profiling,
+                                blocked,
+                                stripped,
+                            ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -148,11 +152,12 @@ private fun PrivacyLogRow(entry: PrivacyLogEntry) {
         },
         supportingContent = {
             Text(
-                text = buildString {
-                    append(entry.method)
-                    append(' ')
-                    append(entry.path.take(72))
-                },
+                text =
+                    buildString {
+                        append(entry.method)
+                        append(' ')
+                        append(entry.path.take(72))
+                    },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

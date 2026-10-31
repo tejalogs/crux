@@ -21,6 +21,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.isSpecified
 import com.fleeksoft.ksoup.nodes.Element
 import com.fleeksoft.ksoup.nodes.Node
 import com.fleeksoft.ksoup.nodes.TextNode
@@ -59,9 +60,10 @@ fun RssRichText(
     val uriHandler = LocalUriHandler.current
     val isLightTheme = MaterialTheme.colorScheme.background.luminance() > 0.5
     val context =
-        remember(element, isLightTheme) {
+        remember(element, isLightTheme, textStyle) {
             RenderContext(
                 RichTextStyle(
+                    paragraphSpacing = textStyle.fontSize.takeIf { it.isSpecified }?.times(0.8f),
                     stringStyle =
                         RichTextStringStyle(
                             linkStyle =

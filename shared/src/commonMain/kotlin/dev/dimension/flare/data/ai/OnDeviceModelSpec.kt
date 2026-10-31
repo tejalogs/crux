@@ -14,8 +14,7 @@ public enum class OnDeviceHardwareBackend(
     ;
 
     public companion object {
-        public fun fromId(id: String): OnDeviceHardwareBackend =
-            entries.firstOrNull { it.id.equals(id, ignoreCase = true) } ?: Auto
+        public fun fromId(id: String): OnDeviceHardwareBackend = entries.firstOrNull { it.id.equals(id, ignoreCase = true) } ?: Auto
     }
 }
 

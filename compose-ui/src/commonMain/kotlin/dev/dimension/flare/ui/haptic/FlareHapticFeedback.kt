@@ -21,8 +21,7 @@ public interface FlareHapticFeedback {
  * lets the preference be flipped without recomposing every action button.
  */
 @Composable
-public fun rememberFlareHapticFeedback(enabled: Boolean): FlareHapticFeedback =
-    rememberFlareHapticFeedbackInternal(enabled)
+public fun rememberFlareHapticFeedback(enabled: Boolean): FlareHapticFeedback = rememberFlareHapticFeedbackInternal(enabled)
 
 @Composable
 internal expect fun rememberFlareHapticFeedbackInternal(enabled: Boolean): FlareHapticFeedback

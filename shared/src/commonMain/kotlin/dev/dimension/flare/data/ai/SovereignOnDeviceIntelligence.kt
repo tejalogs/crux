@@ -1,5 +1,8 @@
 package dev.dimension.flare.data.ai
 
+import dev.dimension.flare.data.ai.scribe.SmartReplyEngine
+import dev.dimension.flare.data.ai.scribe.SmartReplyTone
+
 /**
  * Sovereign On-Device Text Summarizer.
  *
@@ -7,7 +10,10 @@ package dev.dimension.flare.data.ai
  * conforming to Flare's 200-character TLDR constraint with zero data egress.
  */
 public object SovereignOnDeviceSummarizer {
-    public fun summarize(source: String, targetLanguage: String): String {
+    public fun summarize(
+        source: String,
+        targetLanguage: String,
+    ): String {
         val clean = cleanText(source)
         if (clean.length <= 200) {
             return clean
@@ -27,14 +33,15 @@ public object SovereignOnDeviceSummarizer {
         }
 
         val scored =
-            sentences.mapIndexed { index, sentence ->
-                val words = tokenize(sentence)
-                val freqScore = words.sumOf { wordFreq[it] ?: 0 }.toFloat() / maxOf(1, words.size)
-                // First sentence gets a position boost
-                val positionBoost = if (index == 0) 1.5f else 1.0f
-                val lengthPenalty = if (sentence.length in 30..150) 1.2f else 0.8f
-                sentence to (freqScore * positionBoost * lengthPenalty)
-            }.sortedByDescending { it.second }
+            sentences
+                .mapIndexed { index, sentence ->
+                    val words = tokenize(sentence)
+                    val freqScore = words.sumOf { wordFreq[it] ?: 0 }.toFloat() / maxOf(1, words.size)
+                    // First sentence gets a position boost
+                    val positionBoost = if (index == 0) 1.5f else 1.0f
+                    val lengthPenalty = if (sentence.length in 30..150) 1.2f else 0.8f
+                    sentence to (freqScore * positionBoost * lengthPenalty)
+                }.sortedByDescending { it.second }
 
         val result = StringBuilder()
         for ((sentence, _) in scored) {
@@ -87,6 +94,40 @@ public object SovereignOnDeviceTranslator {
         targetLanguage: String,
         prompt: String,
     ): String {
+        if (prompt.contains("[INSIGHT]:") || prompt.contains("OUTPUT FORMAT:")) {
+            val authorName =
+                Regex("""(?:POST\s+)?AUTHOR:\s*([^\n(@]+)""")
+                    .find(prompt)
+                    ?.groupValues
+                    ?.get(1)
+                    ?.trim()
+                    .orEmpty()
+            val authorHandle =
+                Regex("""@([^\s\n)]+)""")
+                    .find(prompt)
+                    ?.groupValues
+                    ?.get(1)
+                    ?.trim()
+                    .orEmpty()
+            val mediaDesc =
+                Regex(
+                    """(?:ATTACHED MEDIA / VISUAL CONTENT|MEDIA DESCRIPTION)[^\n]*\n([^\n]+)""",
+                ).find(prompt)?.groupValues?.get(1)?.trim().orEmpty()
+            val parentCtx =
+                Regex(
+                    """(?:PARENT THREAD / CONTEXT|PARENT DISCUSSION CONTEXT)[^\n]*\n([^\n]+)""",
+                ).find(prompt)?.groupValues?.get(1)?.trim().orEmpty()
+
+            return SmartReplyEngine.generateGemmaRefinedOutput(
+                postText = source,
+                authorName = authorName,
+                authorHandle = authorHandle,
+                mediaDescription = mediaDesc,
+                parentDiscussionContext = parentCtx,
+                tone = SmartReplyTone.entries.firstOrNull { prompt.contains(it.promptDirective) } ?: SmartReplyTone.Practitioner,
+            )
+        }
+
         val lines = source.lines()
         val isTemplate = lines.any { it.trim().matches(CONTROL_LINE_REGEX) }
 

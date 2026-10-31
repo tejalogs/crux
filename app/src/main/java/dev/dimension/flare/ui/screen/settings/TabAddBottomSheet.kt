@@ -20,14 +20,17 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyItemScope
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LeadingIconTab
@@ -42,6 +45,8 @@ import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
+import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -57,6 +62,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import compose.icons.FontAwesomeIcons
@@ -127,63 +133,72 @@ internal fun TabAddBottomSheet(
                         accountTabGroups.size + 1
                     }
                 val scope = rememberCoroutineScope()
-                SecondaryScrollableTabRow(
-                    selectedTabIndex = pagerState.currentPage,
-                    containerColor = Color.Transparent,
-                    indicator = {
-                        TabRowIndicator(
-                            selectedIndex = pagerState.currentPage,
-                        )
-                    },
-                    divider = {},
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(horizontal = screenHorizontalPadding),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Tab(
-                        selected = pagerState.currentPage == 0,
-                        onClick = {
-                            scope.launch {
-                                pagerState.animateScrollToPage(0)
-                            }
-                        },
-                        text = {
-                            Text(text = stringResource(id = R.string.rss_title))
-                        },
-                        modifier = Modifier.clip(CircleShape),
-                    )
-                    accountTabGroups.forEachIndexed { index, tab ->
-                        LeadingIconTab(
-                            modifier = Modifier.clip(CircleShape),
-                            selected = pagerState.currentPage == index + 1,
-                            onClick = {
+                    item {
+                        val isSelected = pagerState.currentPage == 0
+                        ToggleButton(
+                            checked = isSelected,
+                            onCheckedChange = {
+                                scope.launch {
+                                    pagerState.animateScrollToPage(0)
+                                }
+                            },
+                            colors =
+                                ToggleButtonDefaults.colors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    checkedContainerColor = MaterialTheme.colorScheme.primary,
+                                    checkedContentColor = MaterialTheme.colorScheme.onPrimary,
+                                ),
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                        ) {
+                            Text(
+                                text = stringResource(id = R.string.rss_title),
+                                style =
+                                    MaterialTheme.typography.labelLarge.copy(
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    ),
+                            )
+                        }
+                    }
+                    itemsIndexed(accountTabGroups) { index, tab ->
+                        val isSelected = pagerState.currentPage == index + 1
+                        ToggleButton(
+                            checked = isSelected,
+                            onCheckedChange = {
                                 scope.launch {
                                     pagerState.animateScrollToPage(index + 1)
                                 }
                             },
-                            text = {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                ) {
-                                    RichText(
-                                        text = tab.profile.name,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                    )
-                                    Text(
-                                        text = tab.profile.handle.canonical,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.outline,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                    )
-                                }
-                            },
-                            icon = {
-                                AvatarComponent(
-                                    tab.profile.avatar,
-                                    size = 24.dp,
-                                )
-                            },
-                        )
+                            colors =
+                                ToggleButtonDefaults.colors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    checkedContainerColor = MaterialTheme.colorScheme.primary,
+                                    checkedContentColor = MaterialTheme.colorScheme.onPrimary,
+                                ),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                        ) {
+                            AvatarComponent(
+                                tab.profile.avatar,
+                                size = 20.dp,
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = tab.profile.handle.canonical,
+                                style =
+                                    MaterialTheme.typography.labelLarge.copy(
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    ),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
                     }
                 }
                 HorizontalPager(

@@ -2,8 +2,8 @@ package dev.dimension.flare.data.privacy
 
 import io.ktor.client.HttpClientConfig
 import io.ktor.client.plugins.api.createClientPlugin
-import io.ktor.http.encodedPath
 import io.ktor.client.request.HttpRequestBuilder
+import io.ktor.http.encodedPath
 import io.ktor.util.AttributeKey
 
 /**

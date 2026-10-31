@@ -1,5 +1,7 @@
 package dev.dimension.flare.di
 
+import dev.dimension.flare.data.model.tab.LiveWebTimelineSpecs
+import dev.dimension.flare.data.model.tab.LocalFollowTimelineSpecs
 import dev.dimension.flare.data.platform.AllRssTimelineLoaderFactory
 import dev.dimension.flare.data.platform.RssTimelineSpecs
 import dev.dimension.flare.model.PlatformRuntimeData
@@ -22,6 +24,6 @@ internal class SubscriptionKoinModule {
     ): PlatformRuntimeData =
         PlatformRuntimeData(
             platformSpecs = platformSpecs,
-            extraTimelineSpecs = RssTimelineSpecs.timelineSpecs(allRssTimelineLoaderFactory),
+            extraTimelineSpecs = RssTimelineSpecs.timelineSpecs(allRssTimelineLoaderFactory) + LocalFollowTimelineSpecs.follows + LiveWebTimelineSpecs.reddit + LiveWebTimelineSpecs.x,
         )
 }

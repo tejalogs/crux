@@ -42,6 +42,7 @@ public fun ActionMenu.Companion.linkedInComment(
     statusKey: MicroBlogKey,
     count: Long,
     accountKey: MicroBlogKey,
+    initialText: String = "",
 ): ActionMenu.Item =
     ActionMenu.Item(
         updateKey = "li_comment_$statusKey",
@@ -53,6 +54,7 @@ public fun ActionMenu.Companion.linkedInComment(
                 DeeplinkRoute.Compose.Reply(
                     accountKey = accountKey,
                     statusKey = statusKey,
+                    initialText = initialText,
                 ),
             ),
         actionFamily = PostActionFamily.Reply,

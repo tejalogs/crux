@@ -23,7 +23,6 @@ dependencies {
     implementation(projects.social.nostr)
     implementation(projects.social.pixiv)
     implementation(projects.social.vvo)
-    implementation(projects.social.xqt)
     implementation(projects.feature.login)
     implementation(projects.feature.subscription)
     implementation(projects.feature.tab)

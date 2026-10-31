@@ -7,6 +7,7 @@ import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
@@ -14,6 +15,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.Interaction
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,11 +29,14 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.plus
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.windowInsetsBottomHeight
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -44,6 +49,7 @@ import androidx.compose.material3.FloatingToolbarDefaults.floatingToolbarVertica
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalWideNavigationRail
 import androidx.compose.material3.NavigationBarItem
@@ -52,6 +58,7 @@ import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.ShortNavigationBarItem
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.material3.WideNavigationRailState
 import androidx.compose.material3.WideNavigationRailValue
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfoV2
@@ -64,6 +71,7 @@ import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffo
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScope
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteType
 import androidx.compose.material3.contentColorFor
+import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -78,11 +86,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
-import androidx.compose.material3.Text
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
@@ -107,6 +113,25 @@ import soup.compose.material.motion.animation.materialElevationScaleOut
 val LocalBottomBarHeight = androidx.compose.runtime.staticCompositionLocalOf<Dp> { 0.dp }
 val LocalBottomBarShowing = androidx.compose.runtime.staticCompositionLocalOf<Boolean> { false }
 
+/**
+ * Lets the screen behind a bottom-bar item replace that item with its own expanded content while
+ * it is selected (e.g. Home grows into the home feed tabs). The content receives the item's
+ * onClick so it can keep "tap again to scroll to top".
+ */
+class BottomBarAccessory {
+    var content: (@Composable (onReselect: () -> Unit) -> Unit)? by mutableStateOf(null)
+    var onLongClick: (() -> Unit)? by mutableStateOf(null)
+
+    // Unread count for destinations that live in the side panel on phones (e.g. Notifications),
+    // so the drawer button inside the expanded content can show a dot.
+    var badgeCount: Int by mutableStateOf(0)
+
+    // Live web tabs send no scroll events to Compose, so a hidden dock could never come back there.
+    var keepVisible: Boolean by mutableStateOf(false)
+}
+
+val LocalBottomBarAccessory = androidx.compose.runtime.staticCompositionLocalOf<BottomBarAccessory?> { null }
+
 @OptIn(
     ExperimentalFoundationApi::class,
     ExperimentalMaterial3ExpressiveApi::class,
@@ -122,6 +147,9 @@ fun NavigationSuiteScaffold2(
     modifier: Modifier = Modifier,
     bottomBarAutoHideEnabled: Boolean = true,
     showFab: Boolean = true,
+    keepBottomBarVisible: Boolean = false,
+    // Overrides when the phone bottom bar shows; by default it shows while one of its items is selected.
+    bottomBarVisible: Boolean? = null,
     onFabClicked: () -> Unit = {},
     layoutType: NavigationSuiteType =
         NavigationSuiteScaffoldDefaults.calculateFromAdaptiveInfo(currentWindowAdaptiveInfoV2()),
@@ -134,6 +162,9 @@ fun NavigationSuiteScaffold2(
 ) {
     var isPodcastShowing by remember { mutableStateOf(false) }
     var isBottomBarExpanded by remember { mutableStateOf(true) }
+    androidx.compose.runtime.LaunchedEffect(keepBottomBarVisible) {
+        if (keepBottomBarVisible) isBottomBarExpanded = true
+    }
     val bottomBarStyle = LocalGlobalAppearance.current.bottomBarStyle
     val bottomBarBehavior = LocalGlobalAppearance.current.bottomBarBehavior
     val showBottomBarLabels = LocalGlobalAppearance.current.showBottomBarLabels
@@ -206,7 +237,7 @@ fun NavigationSuiteScaffold2(
         modifier =
             modifier
                 .let {
-                    if (bottomBarAutoHideEnabled) {
+                    if (bottomBarAutoHideEnabled && !keepBottomBarVisible) {
                         it.floatingToolbarVerticalNestedScroll(
                             expanded = isBottomBarExpanded,
                             onExpand = { isBottomBarExpanded = true },
@@ -222,6 +253,12 @@ fun NavigationSuiteScaffold2(
         val scope by rememberStateOfItems(navigationSuiteItems)
         val footerScope by rememberStateOfItems(footerItems)
         val secondaryScope by rememberStateOfItems(secondaryItems)
+        val showBottomBar =
+            layoutType == NavigationSuiteType.NavigationBar &&
+                (
+                    bottomBarVisible
+                        ?: scope.itemList.any { item -> item is NavigationSuiteItem.DefaultItem && item.selected }
+                )
 
         Row {
             ModalWideNavigationRail(
@@ -290,6 +327,8 @@ fun NavigationSuiteScaffold2(
                         layoutType = layoutType,
                         actualLayoutType = actualLayoutType,
                     )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
                 }
             }
             Box {
@@ -300,11 +339,7 @@ fun NavigationSuiteScaffold2(
                         } else {
                             0.dp
                         } +
-                        if (
-                            scope.itemList.any { item ->
-                                item is NavigationSuiteItem.DefaultItem && item.selected
-                            } && layoutType == NavigationSuiteType.NavigationBar
-                        ) {
+                        if (showBottomBar) {
                             when (bottomBarStyle) {
                                 BottomBarStyle.Floating -> bottomBarHeight + 16.dp
                                 BottomBarStyle.Classic -> bottomBarHeight + 8.dp
@@ -388,8 +423,7 @@ fun NavigationSuiteScaffold2(
                 }
 
                 androidx.compose.animation.AnimatedVisibility(
-                    layoutType == NavigationSuiteType.NavigationBar &&
-                        scope.itemList.any { item -> item is NavigationSuiteItem.DefaultItem && item.selected } &&
+                    showBottomBar &&
                         (
                             bottomBarState != BottomBarState.FloatingHidden &&
                                 bottomBarState != BottomBarState.ClassicHidden
@@ -415,6 +449,7 @@ fun NavigationSuiteScaffold2(
                                 BottomBar(
                                     state = bottomBarState,
                                     provider = scope,
+                                    showFab = showFab,
                                     animatedVisibilityScope = this@AnimatedContent,
                                     showBottomBarLabels = showBottomBarLabels,
                                 )
@@ -423,13 +458,7 @@ fun NavigationSuiteScaffold2(
                         androidx.compose.animation.AnimatedVisibility(
                             showFab,
                             modifier =
-                                Modifier.align(
-                                    if (bottomBarStyle == BottomBarStyle.Classic) {
-                                        Alignment.BottomEnd
-                                    } else {
-                                        Alignment.CenterEnd
-                                    },
-                                ),
+                                Modifier.align(Alignment.BottomEnd),
                             enter =
                                 materialElevationScaleIn(
                                     initialAlpha = 0f,
@@ -459,6 +488,12 @@ fun NavigationSuiteScaffold2(
     }
 }
 
+// Floating dock and compose FAB share one height so their edges line up.
+private val DockHeight = 56.dp
+
+// Compose FAB (56dp) plus its 16dp end padding and a 16dp gap, minus the bar's own 16dp end padding.
+private val FabReservedWidth = 72.dp
+
 enum class BottomBarState {
     FloatingNormal,
     FloatingMinimized,
@@ -467,7 +502,7 @@ enum class BottomBarState {
     ClassicHidden,
 }
 
-@OptIn(ExperimentalSharedTransitionApi::class)
+@OptIn(ExperimentalSharedTransitionApi::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun SharedTransitionScope.BottomFab(
     state: BottomBarState,
@@ -490,30 +525,28 @@ private fun SharedTransitionScope.BottomFab(
         remember(state) {
             when (state) {
                 BottomBarState.FloatingNormal -> true
-                BottomBarState.FloatingMinimized -> false
+                BottomBarState.FloatingMinimized -> true
                 BottomBarState.FloatingHidden -> true
                 BottomBarState.ClassicNormal -> true
                 BottomBarState.ClassicHidden -> true
             }
         }
-    val prismGradient =
-        remember {
-            Brush.linearGradient(
-                colors =
-                    listOf(
-                        Color(0xFF8B5CF6), // Vivid Violet
-                        Color(0xFF6366F1), // Electric Indigo
-                        Color(0xFF06B6D4), // Cyan Glow
-                    ),
-            )
-        }
+    // M3 Expressive: cookie-shaped FAB that spins a little while pressed.
+    val fabInteractionSource = remember { MutableInteractionSource() }
+    val isPressed by fabInteractionSource.collectIsPressedAsState()
+    val pressRotation by animateFloatAsState(
+        targetValue = if (isPressed) 30f else 0f,
+        animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
+        label = "fab_press_rotation",
+    )
+    val fabShape = MaterialShapes.Cookie9Sided.toShape()
     Surface(
         onClick = onFabClicked,
-        shape = RoundedCornerShape(18.dp),
-        shadowElevation = 8.dp,
-        tonalElevation = 4.dp,
-        border = BorderStroke(0.8.dp, Color.White.copy(alpha = 0.35f)),
-        color = Color.Transparent,
+        shape = fabShape,
+        shadowElevation = 6.dp,
+        color = MaterialTheme.colorScheme.primaryContainer,
+        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        interactionSource = fabInteractionSource,
         modifier =
             modifier
                 .sharedElement(
@@ -534,26 +567,26 @@ private fun SharedTransitionScope.BottomFab(
                             bottom = bottomBarHeight + 24.dp,
                         )
                     }
-                }.size(
+                }.graphicsLayer { rotationZ = pressRotation }
+                .size(
                     if (isExpanded) {
-                        56.dp
+                        DockHeight
                     } else {
-                        42.dp
+                        44.dp
                     },
                 ),
     ) {
         Box(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .background(prismGradient),
+            modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
                 imageVector = FontAwesomeIcons.Solid.PenToSquare,
                 contentDescription = stringResource(id = R.string.compose_title),
-                modifier = Modifier.size(20.dp),
-                tint = Color.White,
+                modifier =
+                    Modifier
+                        .size(22.dp)
+                        .graphicsLayer { rotationZ = -pressRotation },
             )
         }
     }
@@ -566,14 +599,15 @@ private fun SharedTransitionScope.BottomBar(
     provider: NavigationSuiteItemProvider,
     animatedVisibilityScope: AnimatedVisibilityScope,
     showBottomBarLabels: Boolean,
+    showFab: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val containerShape =
         remember(state) {
             when (state) {
-                BottomBarState.FloatingNormal -> RoundedCornerShape(32.dp)
-                BottomBarState.FloatingMinimized -> RoundedCornerShape(32.dp)
-                BottomBarState.FloatingHidden -> RoundedCornerShape(32.dp)
+                BottomBarState.FloatingNormal -> CircleShape
+                BottomBarState.FloatingMinimized -> CircleShape
+                BottomBarState.FloatingHidden -> CircleShape
                 BottomBarState.ClassicNormal -> RoundedCornerShape(0)
                 BottomBarState.ClassicHidden -> RoundedCornerShape(0)
             }
@@ -598,13 +632,25 @@ private fun SharedTransitionScope.BottomBar(
                 BottomBarState.ClassicHidden -> true
             }
         }
+    // The selected item's screen may expand it in place (Home → feed tabs). The bar then stretches
+    // to fill the row, stopping short of the floating compose button.
+    val accessoryItem =
+        provider.itemList
+            .asMutableList()
+            .firstOrNull { it is NavigationSuiteItem.DefaultItem && it.selected && it.expandedContent != null }
+    val hasAccessory = accessoryItem != null
 
     Glassify(
         shape = containerShape,
         shadowElevation = if (isFloating) 10.dp else 4.dp,
         tonalElevation = 6.dp,
         border = if (isFloating) BorderStroke(0.8.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)) else null,
-        color = MaterialTheme.colorScheme.surface.copy(alpha = if (isFloating) 0.92f else 1f),
+        color =
+            if (isFloating) {
+                MaterialTheme.colorScheme.surfaceContainerHigh
+            } else {
+                MaterialTheme.colorScheme.surfaceContainer
+            },
         modifier =
             modifier
                 .sharedElement(
@@ -624,12 +670,24 @@ private fun SharedTransitionScope.BottomBar(
                     } else {
                         it
                     }
+                }.let {
+                    if (hasAccessory && isFloating) {
+                        it
+                            .fillMaxWidth()
+                            .padding(end = if (showFab) FabReservedWidth else 0.dp)
+                    } else {
+                        it
+                    }
                 },
     ) {
         Row(
             modifier =
                 Modifier
+                    // Inside the surface: outside it, this clips the shadow to a visible rectangle.
+                    .animateContentSize(MaterialTheme.motionScheme.defaultSpatialSpec())
                     .let {
+                        if (hasAccessory) it.fillMaxWidth() else it
+                    }.let {
                         if (isFloating) {
                             it
                         } else {
@@ -639,32 +697,47 @@ private fun SharedTransitionScope.BottomBar(
                                 ),
                             )
                         }
+                    }.let {
+                        // After the insets, so the system bar can't squash the classic dock.
+                        if (hasAccessory) it.height(DockHeight) else it
                     }.padding(
-                        horizontal = 12.dp,
-                        vertical = 4.dp,
+                        horizontal = if (hasAccessory) 6.dp else 12.dp,
+                        vertical = if (hasAccessory) 0.dp else 4.dp,
                     ),
             horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            provider.itemList.forEachIndexed { index, it ->
-                require(it is NavigationSuiteItem.DefaultItem) {
-                    "Only default items are supported in the bottom bar. Found: ${it::class.simpleName}"
-                }
-                if (isExpanded || it.selected) {
+            val defaultItems = provider.itemList.asMutableList().filterIsInstance<NavigationSuiteItem.DefaultItem>()
+            defaultItems.forEachIndexed { index, navItem ->
+                val expandedContent = navItem.expandedContent
+                if (hasAccessory && navItem.selected && expandedContent != null) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .weight(1f)
+                                .sharedElement(
+                                    rememberSharedContentState("item_$index"),
+                                    animatedVisibilityScope = animatedVisibilityScope,
+                                ),
+                    ) {
+                        expandedContent(navItem.onClick)
+                    }
+                } else if (isExpanded || navItem.selected) {
                     ShortNavigationBarItem(
                         modifier =
-                            it.modifier
+                            navItem.modifier
                                 .sharedElement(
                                     rememberSharedContentState("item_$index"),
                                     animatedVisibilityScope = animatedVisibilityScope,
                                 ).let {
-                                    if (isFloating) {
+                                    if (isFloating || hasAccessory) {
                                         it
                                     } else {
                                         it.weight(1f)
                                     }
                                 },
-                        selected = it.selected,
-                        onClick = it.onClick,
+                        selected = navItem.selected,
+                        onClick = navItem.onClick,
                         icon = {
                             Box(
                                 modifier =
@@ -677,14 +750,14 @@ private fun SharedTransitionScope.BottomBar(
                                         ),
                             ) {
                                 NavigationItemIcon(
-                                    badge = it.badge,
-                                    icon = it.icon,
+                                    badge = navItem.badge,
+                                    icon = navItem.icon,
                                 )
                             }
                         },
-                        enabled = it.enabled,
-                        label = if (isExpanded && showBottomBarLabels) it.label else null,
-                        interactionSource = it.interactionSource,
+                        enabled = navItem.enabled,
+                        label = if (isExpanded && showBottomBarLabels) navItem.label else null,
+                        interactionSource = navItem.interactionSource,
                     )
                 }
             }
@@ -878,7 +951,9 @@ private fun ColumnScope.NavigationSuiteSegmentedItem(
             )
         }
 
-        is NavigationSuiteItem.HeaderItem -> Unit
+        is NavigationSuiteItem.HeaderItem -> {
+            Unit
+        }
     }
 }
 
@@ -891,10 +966,11 @@ private fun NavigationSuiteSegmentedDefaultItem(
 ) {
     val scale by androidx.compose.animation.core.animateFloatAsState(
         targetValue = if (item.selected) 1.05f else 1.0f,
-        animationSpec = androidx.compose.animation.core.spring(
-            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
-            stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow,
-        ),
+        animationSpec =
+            androidx.compose.animation.core.spring(
+                dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
+                stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow,
+            ),
         label = "segmented_nav_item_bounce",
     )
     SegmentedListItem(
@@ -915,8 +991,7 @@ private fun NavigationSuiteSegmentedDefaultItem(
                         .graphicsLayer {
                             scaleX = scale
                             scaleY = scale
-                        }
-                        .clip(RoundedCornerShape(10.dp))
+                        }.clip(RoundedCornerShape(10.dp))
                         .background(
                             if (item.selected) {
                                 MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)
@@ -1015,10 +1090,11 @@ private fun NavigationSuiteAdaptiveDefaultItem(
 ) {
     val scale by androidx.compose.animation.core.animateFloatAsState(
         targetValue = if (item.selected) 1.08f else 1.0f,
-        animationSpec = androidx.compose.animation.core.spring(
-            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
-            stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow,
-        ),
+        animationSpec =
+            androidx.compose.animation.core.spring(
+                dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
+                stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow,
+            ),
         label = "nav_item_bounce",
     )
     androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteItem(
@@ -1026,7 +1102,13 @@ private fun NavigationSuiteAdaptiveDefaultItem(
         selected = item.selected,
         onClick = item.onClick,
         icon = {
-            Box(modifier = Modifier.graphicsLayer { scaleX = scale; scaleY = scale }) {
+            Box(
+                modifier =
+                    Modifier.graphicsLayer {
+                        scaleX = scale
+                        scaleY = scale
+                    },
+            ) {
                 item.icon()
             }
         },
@@ -1055,6 +1137,7 @@ private sealed interface NavigationSuiteItem {
         val colors: NavigationSuiteItemColors?,
         val interactionSource: MutableInteractionSource?,
         val onLongClick: (() -> Unit)? = null,
+        val expandedContent: (@Composable (onReselect: () -> Unit) -> Unit)? = null,
     ) : NavigationSuiteItem
 
     data class ExpandableItem(
@@ -1114,6 +1197,7 @@ interface NavigationSuiteScope2 {
         colors: NavigationSuiteItemColors? = null,
         interactionSource: MutableInteractionSource? = null,
         onLongClick: (() -> Unit)? = null,
+        expandedContent: (@Composable (onReselect: () -> Unit) -> Unit)? = null,
     )
 
     fun expandableItem(
@@ -1147,6 +1231,7 @@ private class NavigationSuiteScopeImpl :
         colors: NavigationSuiteItemColors?,
         interactionSource: MutableInteractionSource?,
         onLongClick: (() -> Unit)?,
+        expandedContent: (@Composable (onReselect: () -> Unit) -> Unit)?,
     ) {
         itemList.add(
             NavigationSuiteItem.DefaultItem(
@@ -1161,6 +1246,7 @@ private class NavigationSuiteScopeImpl :
                 colors = colors,
                 interactionSource = interactionSource,
                 onLongClick = onLongClick,
+                expandedContent = expandedContent,
             ),
         )
     }

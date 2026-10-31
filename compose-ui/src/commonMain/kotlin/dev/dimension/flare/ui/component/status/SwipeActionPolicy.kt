@@ -90,9 +90,11 @@ internal fun swipeActionScale(progress: Float): Float = 0.6f + 0.4f * progress.c
 internal val DefaultSwipeThresholdFraction: Float = 0.3f
 
 /** Speed at which a fling commits the gesture regardless of distance travelled. */
+@Suppress("ktlint:standard:property-naming")
 internal const val FlingVelocityThreshold: Float = 1_200f
 
 /** Upper bound on fling distance as a fraction of width, so a violent flick cannot skip the row. */
+@Suppress("ktlint:standard:property-naming")
 internal const val MaxFlingDistanceFraction: Float = 0.5f
 
 /** Converts a width and fraction into a commit threshold in pixels. */
@@ -102,7 +104,10 @@ internal fun swipeThresholdPx(
 ): Int = (widthPx * fraction).roundToInt().coerceAtLeast(1)
 
 /** Convenience wrapper expressing the default threshold in Dp-independent proportions. */
-public fun defaultSwipeThresholdFor(width: Dp, density: Float): Float = width.value * density * DefaultSwipeThresholdFraction
+public fun defaultSwipeThresholdFor(
+    width: Dp,
+    density: Float,
+): Float = width.value * density * DefaultSwipeThresholdFraction
 
 /** Reads a live animated offset as a commit progress fraction. */
 internal fun Float.progressFor(thresholdPx: Float): Float =

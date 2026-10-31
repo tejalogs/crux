@@ -109,4 +109,12 @@ internal interface StatusDao {
 
     @Query("DELETE FROM DbStatus")
     suspend fun clear()
+
+    @Query(
+        "DELETE FROM DbStatus " +
+            "WHERE id NOT IN (SELECT statusId FROM DbPagingTimeline) " +
+            "AND id NOT IN (SELECT referenceStatusId FROM timeline_item_presentation_reference) " +
+            "AND id NOT IN (SELECT referenceStatusId FROM status_reference)",
+    )
+    suspend fun pruneOrphanedStatuses(): Int
 }

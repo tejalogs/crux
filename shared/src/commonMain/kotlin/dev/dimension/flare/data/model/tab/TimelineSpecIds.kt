@@ -12,6 +12,10 @@ public object TimelineSpecIds {
     public const val COMMON_DISCOVER: String = "common.discover"
     public const val COMMON_LIST: String = "common.list"
 
+    public const val LOCAL_FOLLOWS: String = "local.follows"
+    public const val WEB_REDDIT: String = "web.reddit"
+    public const val WEB_X: String = "web.x"
+
     public const val RSS_FEED: String = "rss.feed"
     public const val RSS_ALL: String = "rss.all"
     public const val RSS_SUBSCRIPTION: String = "rss.subscription"

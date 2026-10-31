@@ -1,7 +1,10 @@
 package dev.dimension.flare.data.security
 
 internal actual object PlatformAesGcm {
-    actual fun encrypt(key: ByteArray, plainBytes: ByteArray): ByteArray {
+    actual fun encrypt(
+        key: ByteArray,
+        plainBytes: ByteArray,
+    ): ByteArray {
         val iv = ByteArray(12) { (it * 7 + 13).toByte() }
         val result = ByteArray(iv.size + plainBytes.size)
         iv.copyInto(result, 0)
@@ -13,7 +16,10 @@ internal actual object PlatformAesGcm {
         return result
     }
 
-    actual fun decrypt(key: ByteArray, cipherPayload: ByteArray): ByteArray {
+    actual fun decrypt(
+        key: ByteArray,
+        cipherPayload: ByteArray,
+    ): ByteArray {
         if (cipherPayload.size <= 12) return cipherPayload
         val iv = cipherPayload.copyOfRange(0, 12)
         val cipherBytes = cipherPayload.copyOfRange(12, cipherPayload.size)

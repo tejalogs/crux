@@ -139,30 +139,26 @@ internal fun PrivacySettingsScreen(
                                 Modifier
                                     .size(44.dp)
                                     .clip(CircleShape)
-                                    .background(
-                                        Brush.linearGradient(
-                                            listOf(Color(0xFF00C853), Color(0xFF00B4D8)),
-                                        ),
-                                    ),
+                                    .background(MaterialTheme.colorScheme.primaryContainer),
                             contentAlignment = Alignment.Center,
                         ) {
                             FAIcon(
                                 imageVector = FontAwesomeIcons.Solid.Lock,
                                 contentDescription = null,
-                                tint = Color.White,
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
                                 modifier = Modifier.size(20.dp),
                             )
                         }
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Zero-Trust Egress Monitor",
+                                text = stringResource(id = R.string.privacy_hub_title),
                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                                 color = MaterialTheme.colorScheme.onSurface,
                             )
                             Text(
-                                text = "100% On-Device Sovereign Privacy",
+                                text = stringResource(id = R.string.privacy_hub_subtitle),
                                 style = MaterialTheme.typography.labelSmall,
-                                color = Color(0xFF00C853),
+                                color = MaterialTheme.colorScheme.primary,
                             )
                         }
                     }
@@ -174,8 +170,8 @@ internal fun PrivacySettingsScreen(
                     ) {
                         EgressMetricBadge(
                             value = "0 B",
-                            label = "Cloud AI Leakage",
-                            color = Color(0xFF00C853),
+                            label = stringResource(id = R.string.privacy_cloud_requests),
+                            color = MaterialTheme.colorScheme.primary,
                         )
                         EgressMetricBadge(
                             value = "$blockedTrackers",
@@ -191,10 +187,10 @@ internal fun PrivacySettingsScreen(
 
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
 
-                    // Sovereign Bridges Status
+                    // Web Bridges Status
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(
-                            text = "Active Sovereign Web Bridges",
+                            text = stringResource(id = R.string.privacy_active_bridges),
                             style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -202,9 +198,9 @@ internal fun PrivacySettingsScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            SovereignBridgeChip(name = "LinkedIn Bridge", active = true)
-                            SovereignBridgeChip(name = "Instagram Bridge", active = true)
-                            SovereignBridgeChip(name = "Gemma 4 Local", active = true)
+                            WebBridgeChip(name = "LinkedIn", active = true)
+                            WebBridgeChip(name = "Instagram", active = true)
+                            WebBridgeChip(name = "Local AI", active = true)
                         }
                     }
                 }
@@ -320,8 +316,8 @@ private fun PrivacyToggle(
 private fun SegmentedListItemLike(
     title: String,
     description: String,
-    shapes: ListItemShapes = ListItemDefaults.item(),
     onClick: () -> Unit,
+    shapes: ListItemShapes = ListItemDefaults.item(),
     trailing: (@Composable () -> Unit)? = null,
 ) {
     androidx.compose.material3.SegmentedListItem(
@@ -354,7 +350,7 @@ private fun EgressMetricBadge(
 }
 
 @Composable
-private fun SovereignBridgeChip(
+private fun WebBridgeChip(
     name: String,
     active: Boolean,
 ) {
@@ -373,7 +369,7 @@ private fun SovereignBridgeChip(
                     Modifier
                         .size(6.dp)
                         .clip(CircleShape)
-                        .background(if (active) Color(0xFF00C853) else Color.Gray),
+                        .background(if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline),
             )
             Text(
                 text = name,
@@ -414,28 +410,24 @@ private fun OnDeviceAiBenchmarkCard() {
                         Modifier
                             .size(44.dp)
                             .clip(CircleShape)
-                            .background(
-                                Brush.linearGradient(
-                                    listOf(Color(0xFF8A2BE2), Color(0xFF00B4D8)),
-                                ),
-                            ),
+                            .background(MaterialTheme.colorScheme.secondaryContainer),
                     contentAlignment = Alignment.Center,
                 ) {
                     FAIcon(
                         imageVector = FontAwesomeIcons.Solid.Robot,
                         contentDescription = null,
-                        tint = Color.White,
+                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
                         modifier = Modifier.size(20.dp),
                     )
                 }
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "On-Device Gemma 4 Benchmark",
+                        text = "On-Device AI Benchmark",
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                     Text(
-                        text = "LiteRT-LM Hardware Inference & Throughput",
+                        text = "Hardware acceleration and performance",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.primary,
                     )
@@ -451,12 +443,13 @@ private fun OnDeviceAiBenchmarkCard() {
                 ) {
                     OnDeviceHardwareBackend.entries.forEach { backend ->
                         val isSelected = selectedBackend == backend
-                        val label = when (backend) {
-                            OnDeviceHardwareBackend.Auto -> "Auto"
-                            OnDeviceHardwareBackend.Npu -> "⚡ NPU"
-                            OnDeviceHardwareBackend.Gpu -> "🎮 GPU"
-                            OnDeviceHardwareBackend.Cpu -> "💻 CPU"
-                        }
+                        val label =
+                            when (backend) {
+                                OnDeviceHardwareBackend.Auto -> "Auto"
+                                OnDeviceHardwareBackend.Npu -> "⚡ NPU"
+                                OnDeviceHardwareBackend.Gpu -> "🎮 GPU"
+                                OnDeviceHardwareBackend.Cpu -> "💻 CPU"
+                            }
                         BenchmarkSelectChip(
                             label = label,
                             selected = isSelected,
@@ -492,11 +485,12 @@ private fun OnDeviceAiBenchmarkCard() {
             // Benchmark In-Progress Telemetry
             if (isBenchmarking) {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                        .padding(14.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                            .padding(14.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     val p = progress
@@ -516,7 +510,7 @@ private fun OnDeviceAiBenchmarkCard() {
                             Text(
                                 text = "⚡ $roundedSpeed tok/s",
                                 style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                color = Color(0xFF00C853),
+                                color = MaterialTheme.colorScheme.primary,
                             )
                         }
                     }
@@ -524,7 +518,7 @@ private fun OnDeviceAiBenchmarkCard() {
                     LinearProgressIndicator(
                         progress = { p?.progressPercent ?: 0f },
                         modifier = Modifier.fillMaxWidth().height(6.dp).clip(CircleShape),
-                        color = Color(0xFF00B4D8),
+                        color = MaterialTheme.colorScheme.primary,
                         trackColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
                     )
 
@@ -538,11 +532,12 @@ private fun OnDeviceAiBenchmarkCard() {
                 // Completed Benchmark Results Grid
                 val res = result!!
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                        .padding(14.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                            .padding(14.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     Row(
@@ -554,12 +549,12 @@ private fun OnDeviceAiBenchmarkCard() {
                         EgressMetricBadge(
                             value = "$roundedTokSec",
                             label = "Tokens / Sec",
-                            color = Color(0xFF00C853),
+                            color = MaterialTheme.colorScheme.primary,
                         )
                         EgressMetricBadge(
                             value = "${res.timeToFirstTokenMs} ms",
                             label = "Prefill TTFT",
-                            color = Color(0xFF00B4D8),
+                            color = MaterialTheme.colorScheme.secondary,
                         )
                         EgressMetricBadge(
                             value = "${res.embeddingThroughputVectorsPerSec.toInt()}",
@@ -569,7 +564,7 @@ private fun OnDeviceAiBenchmarkCard() {
                         EgressMetricBadge(
                             value = "$roundedMtp%",
                             label = "MTP Speculative",
-                            color = Color(0xFF8A2BE2),
+                            color = MaterialTheme.colorScheme.primary,
                         )
                     }
 
@@ -582,9 +577,9 @@ private fun OnDeviceAiBenchmarkCard() {
                             color = MaterialTheme.colorScheme.onSurface,
                         )
                         Text(
-                            text = "${res.efficiencyRating} • Zero Cloud Leakage Verified",
+                            text = "${res.efficiencyRating} • On-device processing verified",
                             style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFF00C853),
+                            color = MaterialTheme.colorScheme.primary,
                         )
                     }
                 }
@@ -599,22 +594,24 @@ private fun OnDeviceAiBenchmarkCard() {
                     scope.launch {
                         var lastSpeed = 0f
                         var lastEmbedSpeed = 1150f
-                        OnDeviceHardwareBenchmarkEngine.runBenchmark(
-                            modelSpec = selectedModel,
-                            hardwareBackend = selectedBackend,
-                        ).collect { prog ->
-                            progress = prog
-                            val speed = prog.instantaneousTokensPerSec
-                            if (speed != null) {
-                                lastSpeed = speed
+                        OnDeviceHardwareBenchmarkEngine
+                            .runBenchmark(
+                                modelSpec = selectedModel,
+                                hardwareBackend = selectedBackend,
+                            ).collect { prog ->
+                                progress = prog
+                                val speed = prog.instantaneousTokensPerSec
+                                if (speed != null) {
+                                    lastSpeed = speed
+                                }
                             }
-                        }
-                        result = OnDeviceHardwareBenchmarkEngine.computeResult(
-                            modelSpec = selectedModel,
-                            hardwareBackend = selectedBackend,
-                            measuredTokensPerSec = lastSpeed,
-                            measuredEmbeddingThroughput = lastEmbedSpeed,
-                        )
+                        result =
+                            OnDeviceHardwareBenchmarkEngine.computeResult(
+                                modelSpec = selectedModel,
+                                hardwareBackend = selectedBackend,
+                                measuredTokensPerSec = lastSpeed,
+                                measuredEmbeddingThroughput = lastEmbedSpeed,
+                            )
                         isBenchmarking = false
                         haptic.perform(FlareHapticEvent.Confirm)
                     }
@@ -622,10 +619,11 @@ private fun OnDeviceAiBenchmarkCard() {
                 enabled = !isBenchmarking,
                 modifier = Modifier.fillMaxWidth().height(46.dp),
                 shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                ),
+                colors =
+                    ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                    ),
             ) {
                 Text(
                     text = if (result != null) "Re-run Diagnostic Benchmark" else "⚡ Run Live Hardware Benchmark",
@@ -646,10 +644,11 @@ private fun BenchmarkSelectChip(
     Surface(
         shape = RoundedCornerShape(12.dp),
         color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-        border = BorderStroke(
-            1.dp,
-            if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
-        ),
+        border =
+            BorderStroke(
+                1.dp,
+                if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+            ),
         modifier = Modifier.clickable(enabled = enabled, onClick = onClick),
     ) {
         Text(

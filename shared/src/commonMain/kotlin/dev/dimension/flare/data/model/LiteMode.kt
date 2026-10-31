@@ -79,10 +79,13 @@ public object LiteMediaPolicy {
     ): MediaDecision =
         when {
             liteMode == LiteMode.TEXT_ONLY -> MediaDecision.Hidden
+
             liteMode == LiteMode.OFF -> MediaDecision.Full
+
             // BALANCED: video becomes a static preview; everything else still loads, since
             // blocking it entirely would gut the timeline rather than trim it.
             isVideo -> if (hasPreviewAlternative) MediaDecision.PreviewOnly else MediaDecision.PreviewOnly
+
             else -> MediaDecision.Full
         }
 }

@@ -1,6 +1,7 @@
 package dev.dimension.flare.ui.screen.settings
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -13,6 +14,8 @@ import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridS
 import androidx.compose.foundation.text.input.clearText
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material3.ExpandedFullScreenSearchBar
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.IconButton
@@ -20,6 +23,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.SearchBarValue
 import androidx.compose.material3.Text
+import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.rememberSearchBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -32,6 +37,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import compose.icons.FontAwesomeIcons
 import compose.icons.fontawesomeicons.Solid
@@ -56,6 +62,7 @@ import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.launch
 import moe.tlaster.precompose.molecule.producePresenter
 
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun LocalCacheSearchScreen(
     onBack: () -> Unit,
@@ -197,41 +204,74 @@ internal fun LocalCacheSearchScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     items.forEach { (searchType, title) ->
-                        FilterChip(
-                            selected = state.selectedSearchType == searchType,
-                            onClick = {
+                        val isSelected = state.selectedSearchType == searchType
+                        ToggleButton(
+                            checked = isSelected,
+                            onCheckedChange = {
                                 state.setSearchType(searchType)
                             },
-                            label = {
-                                Text(title)
-                            },
-                        )
+                            colors =
+                                ToggleButtonDefaults.colors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    checkedContainerColor = MaterialTheme.colorScheme.primary,
+                                    checkedContentColor = MaterialTheme.colorScheme.onPrimary,
+                                ),
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                        ) {
+                            Text(
+                                title,
+                                style =
+                                    MaterialTheme.typography.labelLarge.copy(
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    ),
+                            )
+                        }
                     }
                     if (state.selectedSearchType == SearchType.Status) {
-                        FilterChip(
-                            selected = state.isSemanticMode,
-                            onClick = {
+                        val isSemSelected = state.isSemanticMode
+                        ToggleButton(
+                            checked = isSemSelected,
+                            onCheckedChange = {
                                 state.setSemanticMode(!state.isSemanticMode)
                             },
-                            label = {
-                                Text("✦ Semantic (Gemma AI)")
-                            },
-                        )
+                            colors =
+                                ToggleButtonDefaults.colors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    checkedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                    checkedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                ),
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                        ) {
+                            Text(
+                                "✦ Semantic (Gemma AI)",
+                                style =
+                                    MaterialTheme.typography.labelLarge.copy(
+                                        fontWeight = if (isSemSelected) FontWeight.Bold else FontWeight.Medium,
+                                    ),
+                            )
+                        }
                     }
                 }
             }
             if (state.isSemanticMode && textFieldState.text.isNotEmpty()) {
                 item(span = StaggeredGridItemSpan.FullLine) {
                     androidx.compose.material3.Surface(
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+                        shape =
+                            androidx.compose.foundation.shape
+                                .RoundedCornerShape(12.dp),
                         color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = screenHorizontalPadding, vertical = 4.dp),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = screenHorizontalPadding, vertical = 4.dp),
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp),
+                            horizontalArrangement =
+                                androidx.compose.foundation.layout.Arrangement
+                                    .spacedBy(8.dp),
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                         ) {
                             Text(

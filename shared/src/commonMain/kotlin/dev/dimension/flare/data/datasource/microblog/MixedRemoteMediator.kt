@@ -18,6 +18,7 @@ import dev.dimension.flare.ui.model.UiTimelineV2
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlin.math.abs
 
 internal class MixedRemoteMediator(
     private val database: CacheDatabase,
@@ -117,6 +118,7 @@ internal class MixedRemoteMediator(
                 } else {
                     mutableSetOf()
                 }
+            val seenFingerprints = mutableMapOf<String, Long>()
             if (seenStatusIds.isNotEmpty()) {
                 database.connect {
                     timeSources.forEach { source ->
@@ -209,7 +211,12 @@ internal class MixedRemoteMediator(
                                 .sortId
                         } ?: break
                 val item = source.pending.removeFirst()
-                if (seenStatusIds.add(item.timeline.statusId)) {
+                val fp = contentFingerprintFromDb(item)
+                val epoch = -item.timeline.sortId / SORT_ID_TIE_BUCKET
+                val prevEpoch = if (fp != null) seenFingerprints[fp] else null
+                val isDuplicate = fp != null && prevEpoch != null && abs(epoch - prevEpoch) < 48 * 3600 * 1000L
+                if (!isDuplicate && seenStatusIds.add(item.timeline.statusId)) {
+                    if (fp != null) seenFingerprints[fp] = epoch
                     selected += item
                 }
             }
@@ -292,7 +299,88 @@ internal class MixedRemoteMediator(
                     .map { it.result.data }
                     .interleave()
             }
-        }.distinctBy(::itemIdentity)
+        }.deduplicateCrossPlatform()
+
+    private fun List<UiTimelineV2>.deduplicateCrossPlatform(): List<UiTimelineV2> {
+        val seenIds = mutableSetOf<String>()
+        val seenFingerprints = mutableMapOf<String, Long>()
+        return filter { item ->
+            val id = itemIdentity(item)
+            if (!seenIds.add(id)) return@filter false
+
+            val fp = contentFingerprint(item)
+            if (fp != null) {
+                val epoch = item.createdAt.value.toEpochMilliseconds()
+                val prevEpoch = seenFingerprints[fp]
+                if (prevEpoch != null && abs(epoch - prevEpoch) < 48 * 3600 * 1000L) {
+                    return@filter false
+                }
+                seenFingerprints[fp] = epoch
+            }
+            true
+        }
+    }
+
+    private fun contentFingerprint(item: UiTimelineV2): String? {
+        val post =
+            when (item) {
+                is UiTimelineV2.Post -> {
+                    item
+                }
+
+                is UiTimelineV2.TimelinePostItem -> {
+                    item.displayPost
+                }
+
+                is UiTimelineV2.Feed -> {
+                    val cleanUrl =
+                        item.url
+                            .trim()
+                            .lowercase()
+                            .removePrefix("https://")
+                            .removePrefix("http://")
+                            .removePrefix("www.")
+                    val cleanTitle = (item.title ?: "").trim().lowercase().replace(Regex("[^a-z0-9]"), "")
+                    return if (cleanUrl.isNotBlank()) {
+                        "$cleanUrl:${cleanTitle.take(30)}"
+                    } else if (cleanTitle.length >= 20) {
+                        cleanTitle.take(60)
+                    } else {
+                        null
+                    }
+                }
+
+                else -> {
+                    return null
+                }
+            }
+        val text =
+            post.content.original.innerText
+                .trim()
+                .lowercase()
+        val clean =
+            text
+                .replace(Regex("https?://\\S+"), "")
+                .replace(Regex("@[a-zA-Z0-9_.]+"), "")
+                .replace(Regex("[^a-z0-9]"), "")
+        val cardUrl =
+            post.card
+                ?.url
+                ?.trim()
+                ?.lowercase()
+                ?.removePrefix("https://")
+                ?.removePrefix("http://")
+                ?.removePrefix("www.")
+        return if (!cardUrl.isNullOrBlank()) {
+            "$cardUrl:${clean.take(40)}"
+        } else if (clean.length >= 35) {
+            clean.take(60)
+        } else {
+            null
+        }
+    }
+
+    private fun contentFingerprintFromDb(item: DbPagingTimelineWithStatus): String? = contentFingerprint(item.statusData.content)
 
     private fun List<List<UiTimelineV2>>.interleave(): List<UiTimelineV2> {
         val maxSize = maxOfOrNull { it.size } ?: return emptyList()

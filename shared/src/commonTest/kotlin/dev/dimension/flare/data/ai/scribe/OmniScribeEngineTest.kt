@@ -7,28 +7,30 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class OmniScribeEngineTest {
-
-    private val samplePost = """
+    private val samplePost =
+        """
         Building software in public teaches you humility. Most features you think are critical 
         actually don't matter to users, while tiny ergonomics make all the difference. Focus on the core loop.
-    """.trimIndent()
+        """.trimIndent()
 
-    private val multiActStoryPost = """
+    private val multiActStoryPost =
+        """
         JerryRigEverything's wife had a horse riding accident.
         She now required a wheel chair to move about
         All high quality outdoor wheelchairs were expensive
         So he built one and started a company selling them at low cost
-    """.trimIndent()
+        """.trimIndent()
 
     @Test
     fun testMicroPostLengthAndZeroAuthorTagging() {
         OmniScribeStyle.entries.forEach { style ->
-            val input = OmniScribeInput(
-                originalText = samplePost,
-                authorName = "Guillermo Rauch",
-                authorHandle = "rauchg",
-                style = style,
-            )
+            val input =
+                OmniScribeInput(
+                    originalText = samplePost,
+                    authorName = "Guillermo Rauch",
+                    authorHandle = "rauchg",
+                    style = style,
+                )
             val result = OmniScribeEngine.repackage(input)
 
             assertTrue(
@@ -44,12 +46,13 @@ class OmniScribeEngineTest {
 
     @Test
     fun testDeepContextMultiActStoryPreservation() {
-        val input = OmniScribeInput(
-            originalText = multiActStoryPost,
-            authorName = "The Kaipullai",
-            authorHandle = "thekaipullai",
-            style = OmniScribeStyle.Punchy,
-        )
+        val input =
+            OmniScribeInput(
+                originalText = multiActStoryPost,
+                authorName = "The Kaipullai",
+                authorHandle = "thekaipullai",
+                style = OmniScribeStyle.Punchy,
+            )
         val result = OmniScribeEngine.repackage(input)
 
         // Verify all narrative acts are preserved in both micro and story formats
@@ -70,12 +73,13 @@ class OmniScribeEngineTest {
 
     @Test
     fun testStoryPostFormattingForLinkedIn() {
-        val input = OmniScribeInput(
-            originalText = samplePost,
-            authorName = "Guillermo Rauch",
-            authorHandle = "rauchg",
-            style = OmniScribeStyle.Narrative,
-        )
+        val input =
+            OmniScribeInput(
+                originalText = samplePost,
+                authorName = "Guillermo Rauch",
+                authorHandle = "rauchg",
+                style = OmniScribeStyle.Narrative,
+            )
         val result = OmniScribeEngine.repackage(input)
 
         assertTrue(result.storyPost.contains("\n\n"), "Story post should contain paragraph whitespace")
@@ -86,12 +90,13 @@ class OmniScribeEngineTest {
     @Test
     fun testBannedAiTropesAbsence() {
         OmniScribeStyle.entries.forEach { style ->
-            val input = OmniScribeInput(
-                originalText = "In today's fast-paced world, this game-changer will delve into the paradigm shift.",
-                authorName = "Tech Observer",
-                authorHandle = "tech",
-                style = style,
-            )
+            val input =
+                OmniScribeInput(
+                    originalText = "In today's fast-paced world, this game-changer will delve into the paradigm shift.",
+                    authorName = "Tech Observer",
+                    authorHandle = "tech",
+                    style = style,
+                )
             val result = OmniScribeEngine.repackage(input)
 
             OmniScribeEngine.BannedAiTropes.forEach { trope ->
@@ -118,7 +123,8 @@ class OmniScribeEngineTest {
     @Test
     fun testRssLongformArticleDistillationIntoStandalonePostAndCarousels() {
         val articleTitle = "Why Postgres Is Winning The Modern Database War"
-        val articleHtml = """
+        val articleHtml =
+            """
             <article>
                 <p>The developer ecosystem is witnessing a fundamental shift away from specialized niche databases.</p>
                 <p>However, running seven separate distributed engines introduced catastrophic operational complexity and fragility across engineering teams.</p>
@@ -126,16 +132,17 @@ class OmniScribeEngineTest {
                 <p>Ultimately, developers will always trade 5% peak synthetic performance for boring reliability and unified ACID guarantees.</p>
                 <p>Subscribe to our newsletter for more database engineering deep dives. Originally published on TechBlog.</p>
             </article>
-        """.trimIndent()
+            """.trimIndent()
 
         OmniScribeStyle.entries.forEach { style ->
-            val result = OmniScribeEngine.synthesizeArticle(
-                title = articleTitle,
-                content = articleHtml,
-                sourceUrl = "https://techblog.dev/postgres-war",
-                authorName = "Martin Kleppmann",
-                style = style,
-            )
+            val result =
+                OmniScribeEngine.synthesizeArticle(
+                    title = articleTitle,
+                    content = articleHtml,
+                    sourceUrl = "https://techblog.dev/postgres-war",
+                    authorName = "Martin Kleppmann",
+                    style = style,
+                )
 
             assertTrue(result.microPost.length <= 280, "Article micro post for $style exceeded 280: ${result.microPost.length}")
             assertFalse(result.microPost.contains("HT @"), "Article micro post must not contain HT @")
@@ -145,13 +152,14 @@ class OmniScribeEngineTest {
             assertTrue(result.storyPost.contains("Postgres"), "Story post must preserve core subject")
             assertFalse(result.storyPost.contains("HT @"), "Story post must not contain HT @")
 
-            val deck = CarouselDeckGenerator.generateDeck(
-                text = result.storyPost,
-                authorName = "Tech Synthesis",
-                authorHandle = "rss",
-                template = CarouselTemplate.ObsidianGold,
-                contextArc = result.contextArc,
-            )
+            val deck =
+                CarouselDeckGenerator.generateDeck(
+                    text = result.storyPost,
+                    authorName = "Tech Synthesis",
+                    authorHandle = "rss",
+                    template = CarouselTemplate.ObsidianGold,
+                    contextArc = result.contextArc,
+                )
 
             assertEqualsOrGreater(deck.slides.size, 3)
             assertTrue(deck.slides.first().isCover)
@@ -166,13 +174,14 @@ class OmniScribeEngineTest {
 
     @Test
     fun testShortRssArticleWithMinimalDescription() {
-        val result = OmniScribeEngine.synthesizeArticle(
-            title = "A Tiny Microchip That Runs on Ambient Radio Waves",
-            content = "Researchers built an ultra-low power sensor that harvests energy directly from Wi-Fi signals.",
-            sourceUrl = "https://mit.edu/ambient-chip",
-            authorName = "MIT News",
-            style = OmniScribeStyle.Punchy,
-        )
+        val result =
+            OmniScribeEngine.synthesizeArticle(
+                title = "A Tiny Microchip That Runs on Ambient Radio Waves",
+                content = "Researchers built an ultra-low power sensor that harvests energy directly from Wi-Fi signals.",
+                sourceUrl = "https://mit.edu/ambient-chip",
+                authorName = "MIT News",
+                style = OmniScribeStyle.Punchy,
+            )
 
         assertTrue(result.microPost.length <= 280, "Minimal RSS micro post exceeded 280: ${result.microPost.length}")
         assertTrue(result.microPost.isNotBlank())
@@ -180,7 +189,10 @@ class OmniScribeEngineTest {
         assertFalse(result.microPost.contains("HT @"))
     }
 
-    private fun assertEqualsOrGreater(actual: Int, minExpected: Int) {
+    private fun assertEqualsOrGreater(
+        actual: Int,
+        minExpected: Int,
+    ) {
         assertTrue(actual >= minExpected, "Expected at least $minExpected but got $actual")
     }
 }

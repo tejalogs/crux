@@ -41,8 +41,16 @@ public fun String.graphemeCount(): Int {
                 indicConsonant = true
                 indicLinker = false
             }
-            INDIC_LINKER -> indicLinker = indicConsonant
-            INDIC_EXTEND -> Unit
+
+            INDIC_LINKER -> {
+                indicLinker = indicConsonant
+            }
+
+            INDIC_EXTEND -> {
+                @Suppress("UNUSED_EXPRESSION")
+                Unit
+            }
+
             else -> {
                 indicConsonant = false
                 indicLinker = false

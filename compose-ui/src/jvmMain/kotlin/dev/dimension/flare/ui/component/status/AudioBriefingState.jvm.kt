@@ -9,12 +9,13 @@ private object JvmAudioBriefingState : AudioBriefingState {
     override val isSupported: Boolean = false
 
     override fun speak(text: String) {}
+
     override fun pause() {}
+
     override fun resume() {}
+
     override fun stop() {}
 }
 
 @Composable
-public actual fun rememberAudioBriefingState(): AudioBriefingState {
-    return remember { JvmAudioBriefingState }
-}
+public actual fun rememberAudioBriefingState(): AudioBriefingState = remember { JvmAudioBriefingState }

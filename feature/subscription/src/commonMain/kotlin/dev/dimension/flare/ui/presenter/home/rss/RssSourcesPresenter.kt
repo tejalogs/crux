@@ -1,6 +1,7 @@
 package dev.dimension.flare.ui.presenter.home.rss
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -38,11 +39,16 @@ public class RssSourcesPresenter : PresenterBase<RssSourcesPresenter.State>() {
         )
 
         public fun delete(id: Int)
+
+        public fun seedDefaults()
     }
 
     @Composable
     override fun body(): State {
         val scope = rememberCoroutineScope()
+        LaunchedEffect(Unit) {
+            subscriptionRepository.ensureDefaultFeedsSeeded()
+        }
         val sources by remember {
             subscriptionRepository.observeAll().map {
                 it
@@ -75,6 +81,12 @@ public class RssSourcesPresenter : PresenterBase<RssSourcesPresenter.State>() {
                     source?.let {
                         settingsRepository.removeHomeTimelineTabBySourceId(it.timelineSourceId())
                     }
+                }
+            }
+
+            override fun seedDefaults() {
+                scope.launch {
+                    subscriptionRepository.ensureDefaultFeedsSeeded()
                 }
             }
         }

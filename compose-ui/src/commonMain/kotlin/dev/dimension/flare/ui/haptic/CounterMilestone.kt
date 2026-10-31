@@ -7,7 +7,9 @@ package dev.dimension.flare.ui.haptic
  * reads as a much larger one. Laddering the thresholds keeps the number of ticks roughly
  * logarithmic in the visible range so a counter animating from 1 to 5_000 never buzzes.
  */
-public enum class CounterMilestone(internal val threshold: Long) {
+public enum class CounterMilestone(
+    internal val threshold: Long,
+) {
     Ten(10L),
     Hundred(100L),
     Thousand(1_000L),
@@ -22,8 +24,7 @@ public enum class CounterMilestone(internal val threshold: Long) {
         /**
          * Highest ladder entry strictly below [value], or null below the first threshold.
          */
-        internal fun atOrBelow(value: Long): CounterMilestone? =
-            ascending.lastOrNull { it.threshold <= value }
+        internal fun atOrBelow(value: Long): CounterMilestone? = ascending.lastOrNull { it.threshold <= value }
     }
 }
 

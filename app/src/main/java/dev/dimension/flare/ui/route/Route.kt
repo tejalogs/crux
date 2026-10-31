@@ -5,7 +5,6 @@ import androidx.navigation3.runtime.NavKey
 import dev.dimension.flare.common.SerializableImmutableList
 import dev.dimension.flare.data.model.tab.UiSourceTimelineTabItem
 import dev.dimension.flare.data.model.tab.UiTimelineTabItem
-import dev.dimension.flare.data.model.tab.xqtDeviceFollow
 import dev.dimension.flare.feature.agent.localhistory.LocalHistoryAgentTarget
 import dev.dimension.flare.model.AccountType
 import dev.dimension.flare.model.MicroBlogKey
@@ -107,6 +106,8 @@ internal sealed interface Route : NavKey {
             val initialText: String = "",
             val authorName: String = "",
             val authorHandle: String = "",
+            val mediaDescription: String = "",
+            val parentContext: String = "",
         ) : Status
     }
 
@@ -193,6 +194,23 @@ internal sealed interface Route : NavKey {
     }
 
     @Serializable
+    sealed interface LocalFollows : Route {
+        @Serializable
+        data object Manage : LocalFollows
+
+        @Serializable
+        data class Timeline(
+            val groupId: String?,
+            val title: String,
+        ) : LocalFollows
+
+        @Serializable
+        data class Edit(
+            val accountKey: MicroBlogKey,
+            val userKey: MicroBlogKey,
+        ) : LocalFollows
+    }
+
     sealed interface Rss : Route {
         @Serializable
         data object Sources : Rss
@@ -523,12 +541,6 @@ internal sealed interface Route : NavKey {
             val index: Int,
             val preview: String?,
         ) : Media
-
-        @Serializable
-        data class Podcast(
-            val accountType: AccountType,
-            val id: String,
-        ) : Media
     }
 
     @Serializable
@@ -585,12 +597,7 @@ internal sealed interface Route : NavKey {
         public fun from(deeplinkRoute: DeeplinkRoute): Route? {
             return when (deeplinkRoute) {
                 is DeeplinkRoute.Timeline.XQTDeviceFollow -> {
-                    val accountKey =
-                        (deeplinkRoute.accountType as? AccountType.Specific)?.accountKey
-                            ?: return null
-                    Route.Timeline(
-                        tabItem = UiSourceTimelineTabItem.xqtDeviceFollow(accountKey),
-                    )
+                    null
                 }
 
                 is DeeplinkRoute.OpenLinkDirectly -> {
@@ -659,10 +666,7 @@ internal sealed interface Route : NavKey {
                 }
 
                 is DeeplinkRoute.Media.Podcast -> {
-                    Media.Podcast(
-                        accountType = deeplinkRoute.accountType,
-                        id = deeplinkRoute.id,
-                    )
+                    null
                 }
 
                 is DeeplinkRoute.Media.StatusMedia -> {
@@ -779,6 +783,8 @@ internal sealed interface Route : NavKey {
                         initialText = deeplinkRoute.initialText,
                         authorName = deeplinkRoute.authorName,
                         authorHandle = deeplinkRoute.authorHandle,
+                        mediaDescription = deeplinkRoute.mediaDescription,
+                        parentContext = deeplinkRoute.parentContext,
                     )
                 }
 
@@ -839,6 +845,13 @@ internal sealed interface Route : NavKey {
                 is DeeplinkRoute.DirectMessage -> {
                     DM.UserConversation(
                         accountType = AccountType.Specific(deeplinkRoute.accountKey),
+                        userKey = deeplinkRoute.userKey,
+                    )
+                }
+
+                is DeeplinkRoute.EditLocalFollow -> {
+                    LocalFollows.Edit(
+                        accountKey = deeplinkRoute.accountKey,
                         userKey = deeplinkRoute.userKey,
                     )
                 }

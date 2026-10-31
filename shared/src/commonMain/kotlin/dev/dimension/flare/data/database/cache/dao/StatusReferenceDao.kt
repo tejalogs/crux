@@ -40,4 +40,7 @@ internal interface StatusReferenceDao {
 
     @Query("SELECT * FROM status_reference WHERE statusId IN (:statusIds)")
     suspend fun getByStatusIds(statusIds: List<String>): List<DbStatusReference>
+
+    @Query("DELETE FROM status_reference WHERE statusId NOT IN (SELECT statusId FROM DbPagingTimeline)")
+    suspend fun pruneOrphanedStatusReferences(): Int
 }

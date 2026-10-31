@@ -13,7 +13,10 @@ internal actual object PlatformAesGcm {
 
     private val secureRandom = SecureRandom()
 
-    actual fun encrypt(key: ByteArray, plainBytes: ByteArray): ByteArray {
+    actual fun encrypt(
+        key: ByteArray,
+        plainBytes: ByteArray,
+    ): ByteArray {
         val iv = ByteArray(GCM_IV_LENGTH_BYTES)
         secureRandom.nextBytes(iv)
 
@@ -30,7 +33,10 @@ internal actual object PlatformAesGcm {
         return result
     }
 
-    actual fun decrypt(key: ByteArray, cipherPayload: ByteArray): ByteArray {
+    actual fun decrypt(
+        key: ByteArray,
+        cipherPayload: ByteArray,
+    ): ByteArray {
         require(cipherPayload.size > GCM_IV_LENGTH_BYTES) { "Invalid cipher payload length" }
 
         val iv = ByteArray(GCM_IV_LENGTH_BYTES)

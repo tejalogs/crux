@@ -18,9 +18,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
@@ -41,6 +44,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.FilterChip
@@ -59,6 +63,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
@@ -79,6 +85,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -116,6 +123,7 @@ import dev.dimension.flare.data.datasource.microblog.ComposeConfig
 import dev.dimension.flare.data.datasource.microblog.ComposeData
 import dev.dimension.flare.data.model.PostActionStyle
 import dev.dimension.flare.model.AccountType
+import dev.dimension.flare.model.MicroBlogKey
 import dev.dimension.flare.ui.component.AvatarComponent
 import dev.dimension.flare.ui.component.EmojiPicker
 import dev.dimension.flare.ui.component.FAIcon
@@ -141,6 +149,8 @@ import dev.dimension.flare.ui.model.takeSuccess
 import dev.dimension.flare.ui.presenter.compose.ComposePresenter
 import dev.dimension.flare.ui.presenter.compose.ComposeStatus
 import dev.dimension.flare.ui.presenter.invoke
+import dev.dimension.flare.ui.route.DeeplinkRoute
+import dev.dimension.flare.ui.route.toUri
 import dev.dimension.flare.ui.theme.FlareTheme
 import dev.dimension.flare.ui.theme.screenHorizontalPadding
 import kotlinx.collections.immutable.ImmutableList
@@ -149,6 +159,7 @@ import kotlinx.collections.immutable.toImmutableList
 import moe.tlaster.precompose.molecule.producePresenter
 import org.koin.compose.koinInject
 import java.util.Locale
+import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
@@ -178,6 +189,7 @@ fun ShortcutComposeRoute(
 
 @OptIn(
     ExperimentalMaterial3Api::class,
+    ExperimentalMaterial3ExpressiveApi::class,
     ExperimentalFoundationApi::class,
 )
 @Composable
@@ -237,6 +249,9 @@ internal fun ComposeScreen(
     Column(
         modifier =
             modifier
+                .fillMaxSize()
+                .navigationBarsPadding()
+                .imePadding()
                 .background(
                     MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp),
                     shape = MaterialTheme.shapes.large,
@@ -287,13 +302,21 @@ internal fun ComposeScreen(
                         Text(text = stringResource(id = R.string.draft_box_title))
                     }
                 }
-                IconButton(
+                FilledTonalIconButton(
                     onClick = {
                         state.send {
                             onBack.invoke()
                         }
                     },
                     enabled = state.canSend,
+                    shapes = IconButtonDefaults.shapes(),
+                    colors =
+                        IconButtonDefaults.filledTonalIconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary,
+                            disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
+                            disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
+                        ),
                 ) {
                     FAIcon(
                         imageVector = FontAwesomeIcons.Solid.PaperPlane,
@@ -334,7 +357,7 @@ internal fun ComposeScreen(
                             onBack()
                         },
                     ) {
-                        Text(text = stringResource(android.R.string.cancel))
+                        Text(text = stringResource(id = R.string.compose_close_discard))
                     }
                 },
             )
@@ -342,7 +365,7 @@ internal fun ComposeScreen(
         Column(
             modifier =
                 Modifier
-                    .weight(1f, fill = false)
+                    .weight(1f)
                     .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
@@ -783,36 +806,76 @@ internal fun ComposeScreen(
                                 )
                             }
                         }
-
-                        val parentRawText = content.content.original.raw.ifBlank { content.content.translation?.raw.orEmpty() }
-                        if (parentRawText.isNotBlank()) {
-                            SmartReplyComposerChipsBar(
-                                parentText = parentRawText,
-                                authorName = content.user?.name?.raw.orEmpty(),
-                                authorHandle = content.user?.handle?.canonical.orEmpty(),
-                                onSelectReply = { replyDraft ->
-                                    state.textFieldState.edit {
-                                        delete(0, length)
-                                        append(replyDraft)
-                                        selection = TextRange(length)
-                                    }
-                                },
-                            )
-                        }
                     }
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        val replyContent =
+            state.state.replyState
+                ?.takeSuccess()
+                ?.contentPostOrNull()
+        if (replyContent != null) {
+            val parentRawText =
+                replyContent.content.original.innerText.ifBlank {
+                    replyContent.content.original.raw.ifBlank {
+                        replyContent.content.translation?.innerText.orEmpty().ifBlank {
+                            replyContent.content.translation
+                                ?.raw
+                                .orEmpty()
+                        }
+                    }
+                }
+            val mediaDesc = replyContent.images.mapNotNull { it.description?.takeIf { d -> d.isNotBlank() } }.joinToString("\n")
+            if (parentRawText.isNotBlank() || mediaDesc.isNotBlank()) {
+                SmartReplyComposerChipsBar(
+                    parentText = parentRawText,
+                    authorName =
+                        replyContent.user
+                            ?.name
+                            ?.raw
+                            .orEmpty(),
+                    authorHandle =
+                        replyContent.user
+                            ?.handle
+                            ?.canonical
+                            .orEmpty(),
+                    mediaDescription = mediaDesc,
+                    onSelectReply = { replyDraft ->
+                        state.textFieldState.edit {
+                            val currentText = asCharSequence().toString()
+                            val existingPrefix =
+                                if (length > 0 && currentText.startsWith("@")) {
+                                    val firstSpace = currentText.indexOf(' ')
+                                    if (firstSpace != -1) currentText.substring(0, firstSpace + 1) else ""
+                                } else {
+                                    ""
+                                }
+
+                            val newText =
+                                if (existingPrefix.isNotEmpty() && !replyDraft.startsWith("@")) {
+                                    "$existingPrefix$replyDraft"
+                                } else {
+                                    replyDraft
+                                }
+                            delete(0, length)
+                            append(newText)
+                            selection = TextRange(length)
+                        }
+                    },
+                )
+            }
+        }
 
         Surface(
             modifier =
                 Modifier
-                    .heightIn(min = 16.dp)
                     .fillMaxWidth(),
-            tonalElevation = 8.dp,
+            color = MaterialTheme.colorScheme.surfaceContainer,
+            tonalElevation = 2.dp,
+            shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
         ) {
+            val uriHandler = LocalUriHandler.current
             Row {
                 state.mediaState.onSuccess {
                     if (it.enabled) {
@@ -854,6 +917,84 @@ internal fun ComposeScreen(
                                 ),
                         )
                     }
+                }
+                // Visual Carousel Studio: converts written draft into visual poster deck
+                val canGenerateCarousel = state.canMedia
+                IconButton(
+                    onClick = {
+                        val currentText =
+                            state.textFieldState.text
+                                .toString()
+                                .trim()
+                        val selectedProfiles =
+                            state.state.selectedUsers
+                                .takeSuccess()
+                                ?.mapNotNull { it.takeSuccess() }
+                                .orEmpty()
+                        val activeProfile = selectedProfiles.firstOrNull()
+                        val authorName = activeProfile?.name?.raw?.ifBlank { "Author" } ?: "Author"
+                        val authorHandle = activeProfile?.handle?.canonical?.ifBlank { "flare" } ?: "flare"
+                        val accountType = activeProfile?.key?.let { AccountType.Specific(it) } ?: AccountType.Guest
+
+                        val initialDraft =
+                            if (currentText.length < 50 && !currentText.contains('\n')) {
+                                if (currentText.isBlank()) {
+                                    """
+                                    📌 Key Insight:
+                                    The future of social aggregation is sovereign, on-device intelligence.
+                                    
+                                    ⚡ The Core Problem:
+                                    Centralized feeds prioritize algorithms over signal, locking content into walled silos.
+                                    
+                                    🚀 The Solution:
+                                    Unified multi-network timelines with local caching and zero-cloud-egress AI workflows.
+                                    """.trimIndent()
+                                } else {
+                                    """
+                                    📌 $currentText
+                                    
+                                    ⚡ The Core Tension:
+                                    What is the most critical hurdle in making this work at scale?
+                                    
+                                    🚀 Key Takeaway:
+                                    Keep architecture decoupled, optimize for local-first persistence, and execute directly.
+                                    """.trimIndent()
+                                }
+                            } else {
+                                currentText
+                            }
+
+                        val uri =
+                            DeeplinkRoute.Status
+                                .OmniScribe(
+                                    statusKey =
+                                        MicroBlogKey(
+                                            id = "composer_${Clock.System.now().toEpochMilliseconds()}",
+                                            host = "draft",
+                                        ),
+                                    accountType = accountType,
+                                    initialText = initialDraft,
+                                    authorName = authorName,
+                                    authorHandle = authorHandle,
+                                    articleTitle = "",
+                                    sourceUrl = "",
+                                ).toUri()
+                        uriHandler.openUri(uri)
+                    },
+                    enabled = canGenerateCarousel,
+                ) {
+                    FAIcon(
+                        imageVector = FontAwesomeIcons.Solid.WandMagicSparkles,
+                        contentDescription = "Create Visual Carousel",
+                        tint =
+                            if (canGenerateCarousel) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurface.copy(
+                                    alpha = 0.38f,
+                                )
+                            },
+                    )
                 }
                 state.state.visibilityState.onSuccess { visibilityState ->
                     val visibilityName = stringResource(id = visibilityState.visibility.localName)
@@ -1289,9 +1430,9 @@ private fun composePresenter(
             }
     state.initialTextState?.onSuccess {
         LaunchedEffect(it) {
-            if (it.text.isNotEmpty()) {
+            if (it.text.isNotEmpty() && !textFieldState.text.contains(it.text)) {
                 textFieldState.edit {
-                    append(it.text)
+                    insert(0, it.text)
                     selection = TextRange(it.cursorPosition)
                 }
             }
@@ -1680,21 +1821,25 @@ private fun SmartReplyComposerChipsBar(
     authorHandle: String,
     onSelectReply: (String) -> Unit,
     modifier: Modifier = Modifier,
+    mediaDescription: String = "",
 ) {
     val haptic = rememberFlareHapticFeedback(true)
     var selectedAngle by remember { mutableStateOf<SmartReplyAngle?>(null) }
-    val replyResult = remember(parentText, authorName, authorHandle) {
-        SmartReplyEngine.generateReplies(
-            postText = parentText,
-            authorName = authorName,
-            authorHandle = authorHandle,
-        )
-    }
+    val replyResult =
+        remember(parentText, authorName, authorHandle, mediaDescription) {
+            SmartReplyEngine.generateReplies(
+                postText = parentText,
+                authorName = authorName,
+                authorHandle = authorHandle,
+                mediaDescription = mediaDescription,
+            )
+        }
 
     Column(
-        modifier = modifier
-            .padding(horizontal = screenHorizontalPadding)
-            .padding(top = 8.dp),
+        modifier =
+            modifier
+                .padding(horizontal = screenHorizontalPadding)
+                .padding(top = 6.dp, bottom = 4.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -1717,6 +1862,7 @@ private fun SmartReplyComposerChipsBar(
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
                     letterSpacing = 0.5.sp,
+                    maxLines = 1,
                 )
             }
             Text(
@@ -1724,53 +1870,68 @@ private fun SmartReplyComposerChipsBar(
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 10.sp,
+                maxLines = 1,
             )
         }
 
         Spacer(modifier = Modifier.height(4.dp))
 
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState()),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             replyResult.options.forEach { option ->
                 val isSelected = selectedAngle == option.angle
-                val icon = when (option.angle) {
-                    SmartReplyAngle.Insight -> FontAwesomeIcons.Solid.Lightbulb
-                    SmartReplyAngle.Question -> FontAwesomeIcons.Solid.Question
-                    SmartReplyAngle.Counterpoint -> FontAwesomeIcons.Solid.ScaleBalanced
-                    SmartReplyAngle.Punchy -> FontAwesomeIcons.Solid.Bolt
-                }
+                val icon =
+                    when (option.angle) {
+                        SmartReplyAngle.Insight -> FontAwesomeIcons.Solid.Lightbulb
+                        SmartReplyAngle.Question -> FontAwesomeIcons.Solid.Question
+                        SmartReplyAngle.Counterpoint -> FontAwesomeIcons.Solid.ScaleBalanced
+                        SmartReplyAngle.Punchy -> FontAwesomeIcons.Solid.Bolt
+                    }
 
-                FilterChip(
-                    selected = isSelected,
-                    onClick = {
+                ToggleButton(
+                    checked = isSelected,
+                    onCheckedChange = {
                         haptic.perform(FlareHapticEvent.SelectionChange)
                         selectedAngle = option.angle
                         onSelectReply(option.replyText)
                     },
-                    label = {
-                        Text(
-                            text = option.angle.displayName,
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                        )
-                    },
-                    leadingIcon = {
+                    colors =
+                        ToggleButtonDefaults.colors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            checkedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                            checkedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        ),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
                         FAIcon(
                             imageVector = icon,
                             contentDescription = null,
                             modifier = Modifier.size(11.dp),
-                            tint = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                            tint =
+                                if (isSelected) {
+                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
                         )
-                    },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    ),
-                )
+                        Text(
+                            text = option.angle.displayName,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            maxLines = 1,
+                        )
+                    }
+                }
             }
         }
     }

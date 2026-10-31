@@ -15,6 +15,7 @@ import dev.dimension.flare.data.datasource.microblog.datasource.RelationDataSour
 import dev.dimension.flare.data.datasource.microblog.datasource.UserDataSource
 import dev.dimension.flare.data.datasource.microblog.loader.RelationActionType
 import dev.dimension.flare.data.datasource.microblog.paging.RemoteLoader
+import dev.dimension.flare.data.model.tab.LocalFollowLimits
 import dev.dimension.flare.data.repository.AccountRepository
 import dev.dimension.flare.data.repository.NoActiveAccountException
 import dev.dimension.flare.data.repository.accountServiceFlow
@@ -320,6 +321,21 @@ private fun buildProfileMenus(
         emptyList<ActionMenu>()
     } else {
         listOfNotNull(
+            if (myAccountKey != null && userKey != null && LocalFollowLimits.isSupported(user.platformId)) {
+                ActionMenu.Item(
+                    icon = UiIcon.List,
+                    text = ActionMenu.Item.Text.Raw("Follow locally"),
+                    clickEvent =
+                        ClickEvent.Deeplink(
+                            DeeplinkRoute.EditLocalFollow(
+                                accountKey = myAccountKey,
+                                userKey = userKey,
+                            ),
+                        ),
+                )
+            } else {
+                null
+            },
             if (myAccountKey != null && userKey != null && isListDataSource) {
                 ActionMenu.Item(
                     icon = UiIcon.List,

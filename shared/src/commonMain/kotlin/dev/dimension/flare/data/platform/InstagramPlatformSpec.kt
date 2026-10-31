@@ -3,6 +3,7 @@ package dev.dimension.flare.data.platform
 import dev.dimension.flare.data.datasource.instagram.InstagramDataSource
 import dev.dimension.flare.data.datasource.microblog.MicroblogDataSource
 import dev.dimension.flare.data.model.tab.TimelineSpec
+import dev.dimension.flare.model.AccountType
 import dev.dimension.flare.model.MicroBlogKey
 import dev.dimension.flare.model.PlatformDataSourceContext
 import dev.dimension.flare.model.PlatformDeepLink
@@ -41,40 +42,55 @@ public data object InstagramPlatformSpec : PlatformSpec {
     public override val order: Int = 70
 
     override fun deepLinks(accountKey: MicroBlogKey): ImmutableList<PlatformDeepLink<*>> {
-        val postPatterns = listOf(
-            "https://www.instagram.com/p/{code}/",
-            "https://www.instagram.com/p/{code}",
-            "https://instagram.com/p/{code}/",
-            "https://instagram.com/p/{code}",
-            "https://www.instagram.com/reel/{code}/",
-            "https://www.instagram.com/reel/{code}",
-        )
-        val profilePatterns = listOf(
-            "https://www.instagram.com/{handle}/",
-            "https://www.instagram.com/{handle}",
-            "https://instagram.com/{handle}/",
-            "https://instagram.com/{handle}",
-        )
-
-        val postLinks = postPatterns.map { pattern ->
-            PlatformDeepLink(
-                uriPattern = pattern,
-                serializer = InstagramPostDeepLink.serializer(),
-                callback = { data ->
-                    DeeplinkRoute.OpenLinkDirectly("https://www.instagram.com/p/${data.code}/")
-                },
+        val postPatterns =
+            listOf(
+                "https://www.instagram.com/p/{code}/",
+                "https://www.instagram.com/p/{code}",
+                "https://instagram.com/p/{code}/",
+                "https://instagram.com/p/{code}",
+                "https://www.instagram.com/reel/{code}/",
+                "https://www.instagram.com/reel/{code}",
             )
-        }
-
-        val profileLinks = profilePatterns.map { pattern ->
-            PlatformDeepLink(
-                uriPattern = pattern,
-                serializer = InstagramProfileDeepLink.serializer(),
-                callback = { data ->
-                    DeeplinkRoute.OpenLinkDirectly("https://www.instagram.com/${data.handle}/")
-                },
+        val profilePatterns =
+            listOf(
+                "https://www.instagram.com/{handle}/",
+                "https://www.instagram.com/{handle}",
+                "https://instagram.com/{handle}/",
+                "https://instagram.com/{handle}",
             )
-        }
+
+        val postLinks =
+            postPatterns.map { pattern ->
+                PlatformDeepLink(
+                    uriPattern = pattern,
+                    serializer = InstagramPostDeepLink.serializer(),
+                    callback = { data ->
+                        DeeplinkRoute.Status.Detail(
+                            statusKey =
+                                MicroBlogKey(
+                                    id = data.code,
+                                    host = INSTAGRAM_HOST,
+                                ),
+                            accountType = AccountType.Specific(accountKey),
+                        )
+                    },
+                )
+            }
+
+        val profileLinks =
+            profilePatterns.map { pattern ->
+                PlatformDeepLink(
+                    uriPattern = pattern,
+                    serializer = InstagramProfileDeepLink.serializer(),
+                    callback = { data ->
+                        DeeplinkRoute.Profile.UserNameWithHost(
+                            accountType = AccountType.Specific(accountKey),
+                            userName = data.handle,
+                            host = INSTAGRAM_HOST,
+                        )
+                    },
+                )
+            }
 
         return (postLinks + profileLinks).toImmutableList()
     }
@@ -93,6 +109,5 @@ public data object InstagramPlatformSpec : PlatformSpec {
     override fun guestDataSource(
         host: String,
         locale: String,
-    ): MicroblogDataSource =
-        throw UnsupportedOperationException("$platformId guest data source is not supported")
+    ): MicroblogDataSource = throw UnsupportedOperationException("$platformId guest data source is not supported")
 }

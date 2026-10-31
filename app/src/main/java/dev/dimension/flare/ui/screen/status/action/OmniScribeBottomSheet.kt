@@ -56,6 +56,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -67,11 +68,13 @@ import compose.icons.fontawesomeicons.solid.ArrowLeft
 import compose.icons.fontawesomeicons.solid.ArrowRight
 import compose.icons.fontawesomeicons.solid.Check
 import compose.icons.fontawesomeicons.solid.Download
+import compose.icons.fontawesomeicons.solid.FileExport
 import compose.icons.fontawesomeicons.solid.PaperPlane
 import compose.icons.fontawesomeicons.solid.PenToSquare
 import compose.icons.fontawesomeicons.solid.ShareNodes
 import compose.icons.fontawesomeicons.solid.WandMagicSparkles
 import compose.icons.fontawesomeicons.solid.Xmark
+import dev.dimension.flare.R
 import dev.dimension.flare.common.FileItem
 import dev.dimension.flare.data.ai.scribe.BroadcastTargetAccount
 import dev.dimension.flare.data.ai.scribe.CarouselDeck
@@ -98,8 +101,8 @@ import dev.dimension.flare.ui.route.Route
 import dev.dimension.flare.ui.theme.screenHorizontalPadding
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlin.math.absoluteValue
 import moe.tlaster.precompose.molecule.producePresenter
+import kotlin.math.absoluteValue
 
 /**
  * Omni-Scribe Studio bottom sheet.
@@ -114,10 +117,10 @@ internal fun OmniScribeBottomSheet(
     initialText: String,
     authorName: String,
     authorHandle: String,
-    articleTitle: String = "",
-    sourceUrl: String = "",
     navigate: (Route) -> Unit,
     onBack: () -> Unit,
+    articleTitle: String = "",
+    sourceUrl: String = "",
 ) {
     val context = LocalContext.current
     val haptic = rememberFlareHapticFeedback(true)
@@ -131,6 +134,7 @@ internal fun OmniScribeBottomSheet(
     var isOpeningComposer by remember { mutableStateOf(false) }
     var isSavingGallery by remember { mutableStateOf(false) }
     var gallerySavedToast by remember { mutableStateOf(false) }
+    var isExportingPdf by remember { mutableStateOf(false) }
 
     var currentResult by remember {
         mutableStateOf(
@@ -170,15 +174,16 @@ internal fun OmniScribeBottomSheet(
 
     var selectedCarouselTemplate by remember { mutableStateOf(CarouselTemplate.ObsidianGold) }
 
-    val initialCarouselDeck = remember(editedText, currentResult.contextArc, selectedCarouselTemplate, authorName, authorHandle) {
-        CarouselDeckGenerator.generateDeck(
-            text = editedText,
-            authorName = authorName,
-            authorHandle = authorHandle,
-            template = selectedCarouselTemplate,
-            contextArc = currentResult.contextArc,
-        )
-    }
+    val initialCarouselDeck =
+        remember(editedText, currentResult.contextArc, selectedCarouselTemplate, authorName, authorHandle) {
+            CarouselDeckGenerator.generateDeck(
+                text = editedText,
+                authorName = authorName,
+                authorHandle = authorHandle,
+                template = selectedCarouselTemplate,
+                contextArc = currentResult.contextArc,
+            )
+        }
 
     val editableSlides = remember { mutableStateListOf<CarouselSlide>() }
 
@@ -187,14 +192,15 @@ internal fun OmniScribeBottomSheet(
         editableSlides.addAll(initialCarouselDeck.slides)
     }
 
-    val activeDeck = remember(editableSlides.toList(), selectedCarouselTemplate, authorName, authorHandle) {
-        CarouselDeck(
-            template = selectedCarouselTemplate,
-            authorName = authorName,
-            authorHandle = authorHandle,
-            slides = editableSlides.toList(),
-        )
-    }
+    val activeDeck =
+        remember(editableSlides.toList(), selectedCarouselTemplate, authorName, authorHandle) {
+            CarouselDeck(
+                template = selectedCarouselTemplate,
+                authorName = authorName,
+                authorHandle = authorHandle,
+                slides = editableSlides.toList(),
+            )
+        }
 
     accountsState.accounts.onSuccess { items ->
         val targets = OmniBroadcastService.mapAccountItems(items)
@@ -208,27 +214,29 @@ internal fun OmniScribeBottomSheet(
     }
 
     fun regenerate() {
-        val res = OmniScribeEngine.repackage(
-            OmniScribeInput(
-                originalText = initialText,
-                authorName = authorName,
-                authorHandle = authorHandle,
-                style = selectedStyle,
-                includeAttribution = false,
-                articleTitle = articleTitle,
-                sourceUrl = sourceUrl,
-            ),
-        )
+        val res =
+            OmniScribeEngine.repackage(
+                OmniScribeInput(
+                    originalText = initialText,
+                    authorName = authorName,
+                    authorHandle = authorHandle,
+                    style = selectedStyle,
+                    includeAttribution = false,
+                    articleTitle = articleTitle,
+                    sourceUrl = sourceUrl,
+                ),
+            )
         currentResult = res
         editedText = if (selectedFormat == OmniScribeFormat.Micro) res.microPost else res.storyPost
     }
 
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = screenHorizontalPadding)
-            .padding(bottom = 28.dp)
-            .verticalScroll(rememberScrollState()),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = screenHorizontalPadding)
+                .padding(bottom = 28.dp)
+                .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         // 1. Studio Header
@@ -242,20 +250,21 @@ internal fun OmniScribeBottomSheet(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Box(
-                    modifier = Modifier
-                        .size(42.dp)
-                        .clip(RoundedCornerShape(13.dp))
-                        .background(
-                            Brush.linearGradient(
-                                listOf(Color(0xFF7C3AED), Color(0xFF2563EB), Color(0xFF06B6D4)),
+                    modifier =
+                        Modifier
+                            .size(42.dp)
+                            .clip(RoundedCornerShape(13.dp))
+                            .background(
+                                Brush.linearGradient(
+                                    listOf(Color(0xFF7C3AED), Color(0xFF2563EB), Color(0xFF06B6D4)),
+                                ),
                             ),
-                        ),
                     contentAlignment = Alignment.Center,
                 ) {
                     FAIcon(
                         imageVector = FontAwesomeIcons.Solid.WandMagicSparkles,
                         contentDescription = null,
-                        tint = Color.White,
+                        tint = MaterialTheme.colorScheme.onPrimary,
                         modifier = Modifier.size(19.dp),
                     )
                 }
@@ -265,7 +274,7 @@ internal fun OmniScribeBottomSheet(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         Text(
-                            text = if (articleTitle.isNotBlank()) "Article Synthesis Studio" else "Omni-Scribe Studio",
+                            text = stringResource(id = R.string.omni_scribe_format_post),
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                             color = MaterialTheme.colorScheme.onSurface,
                         )
@@ -275,11 +284,12 @@ internal fun OmniScribeBottomSheet(
                                 color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
                             ) {
                                 Text(
-                                    text = if (articleTitle.isNotBlank()) "IN-DEPTH ARTICLE" else arc.themeLabel,
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 9.sp,
-                                    ),
+                                    text = arc.themeLabel,
+                                    style =
+                                        MaterialTheme.typography.labelSmall.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 9.sp,
+                                        ),
                                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                                 )
@@ -287,23 +297,31 @@ internal fun OmniScribeBottomSheet(
                         }
                     }
                     Text(
-                        text = if (articleTitle.isNotBlank()) "Article to Social Publication • 4-Slide Carousel" else "Standalone Original Post • Deep Context + Carousel",
+                        text =
+                            if (articleTitle.isNotBlank()) {
+                                "Article to social post • 4-slide carousel"
+                            } else {
+                                "Standalone post • Context and carousel"
+                            },
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
 
-            IconButton(onClick = onBack) {
+            IconButton(
+                onClick = onBack,
+                modifier = Modifier.size(48.dp),
+            ) {
                 FAIcon(
                     imageVector = FontAwesomeIcons.Solid.Xmark,
-                    contentDescription = "Close",
+                    contentDescription = stringResource(id = R.string.navigate_back),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
 
-        // 2. Source Context Breakdown Card (Shows multi-act narrative understanding)
+        // 2. Source Context Breakdown Card
         Surface(
             shape = RoundedCornerShape(14.dp),
             color = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -320,17 +338,18 @@ internal fun OmniScribeBottomSheet(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = "SOURCE NARRATIVE CONTEXT (${currentResult.contextArc?.narrativeBeats?.size ?: 1} Beats Analyzed)",
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 0.5.sp,
-                        ),
+                        text = stringResource(id = R.string.omni_scribe_source_post),
+                        style =
+                            MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 0.5.sp,
+                            ),
                         color = MaterialTheme.colorScheme.primary,
                     )
                     Text(
-                        text = "Standalone Mode",
+                        text = "Standalone",
                         style = MaterialTheme.typography.labelSmall,
-                        color = Color(0xFF00C853),
+                        color = MaterialTheme.colorScheme.primary,
                     )
                 }
                 Text(
@@ -343,33 +362,47 @@ internal fun OmniScribeBottomSheet(
             }
         }
 
-        // 3. Writing Voice Archetype Selector
+        // 3. Writing Voice Selector
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
-                text = "Writing Voice Archetype",
+                text = stringResource(id = R.string.omni_scribe_voice_style),
                 style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
                 color = MaterialTheme.colorScheme.onSurface,
             )
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 OmniScribeStyle.entries.forEach { style ->
                     val isSelected = selectedStyle == style
                     Surface(
                         shape = RoundedCornerShape(12.dp),
-                        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
-                        border = BorderStroke(
-                            1.dp,
-                            if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
-                        ),
-                        modifier = Modifier.clickable {
-                            haptic.perform(FlareHapticEvent.Confirm)
-                            selectedStyle = style
-                            regenerate()
-                        },
+                        color =
+                            if (isSelected) {
+                                MaterialTheme.colorScheme.primaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.surfaceContainerHigh
+                            },
+                        border =
+                            BorderStroke(
+                                1.dp,
+                                if (isSelected) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.outlineVariant.copy(
+                                        alpha = 0.35f,
+                                    )
+                                },
+                            ),
+                        modifier =
+                            Modifier.clickable {
+                                haptic.perform(FlareHapticEvent.Confirm)
+                                selectedStyle = style
+                                regenerate()
+                            },
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
@@ -379,10 +412,16 @@ internal fun OmniScribeBottomSheet(
                             Text(text = style.iconEmoji)
                             Text(
                                 text = style.displayName,
-                                style = MaterialTheme.typography.labelMedium.copy(
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                ),
-                                color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+                                style =
+                                    MaterialTheme.typography.labelMedium.copy(
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    ),
+                                color =
+                                    if (isSelected) {
+                                        MaterialTheme.colorScheme.onPrimaryContainer
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurface
+                                    },
                             )
                         }
                     }
@@ -400,25 +439,39 @@ internal fun OmniScribeBottomSheet(
                 Surface(
                     shape = RoundedCornerShape(12.dp),
                     color = if (isSelected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainer,
-                    border = BorderStroke(
-                        1.dp,
-                        if (isSelected) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
-                    ),
-                    modifier = Modifier
-                        .weight(1f)
-                        .clickable {
-                            haptic.perform(FlareHapticEvent.SelectionChange)
-                            selectedFormat = format
-                            editedText = if (format == OmniScribeFormat.Micro) currentResult.microPost else currentResult.storyPost
-                        },
+                    border =
+                        BorderStroke(
+                            1.dp,
+                            if (isSelected) {
+                                MaterialTheme.colorScheme.secondary
+                            } else {
+                                MaterialTheme.colorScheme.outlineVariant.copy(
+                                    alpha = 0.35f,
+                                )
+                            },
+                        ),
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .clickable {
+                                haptic.perform(FlareHapticEvent.SelectionChange)
+                                selectedFormat = format
+                                editedText = if (format == OmniScribeFormat.Micro) currentResult.microPost else currentResult.storyPost
+                            },
                 ) {
                     Box(modifier = Modifier.padding(vertical = 10.dp), contentAlignment = Alignment.Center) {
                         Text(
                             text = if (format == OmniScribeFormat.Micro) "Compact (<280 chars)" else "Full Story Essay",
-                            style = MaterialTheme.typography.labelMedium.copy(
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            ),
-                            color = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                            style =
+                                MaterialTheme.typography.labelMedium.copy(
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                ),
+                            color =
+                                if (isSelected) {
+                                    MaterialTheme.colorScheme.onSecondaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
                         )
                     }
                 }
@@ -434,15 +487,19 @@ internal fun OmniScribeBottomSheet(
             OutlinedTextField(
                 value = editedText,
                 onValueChange = { editedText = it },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 135.dp, max = 240.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 135.dp, max = 240.dp),
                 shape = RoundedCornerShape(14.dp),
                 textStyle = MaterialTheme.typography.bodyMedium,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = if (isOverLimit) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = if (isOverLimit) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outlineVariant,
-                ),
+                colors =
+                    OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor =
+                            if (isOverLimit) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor =
+                            if (isOverLimit) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outlineVariant,
+                    ),
             )
 
             Row(
@@ -459,11 +516,12 @@ internal fun OmniScribeBottomSheet(
                 Text(
                     text = "$currentLen / $charLimit",
                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                    color = when {
-                        isOverLimit -> MaterialTheme.colorScheme.error
-                        currentLen > charLimit - 20 -> Color(0xFFFFA000)
-                        else -> MaterialTheme.colorScheme.primary
-                    },
+                    color =
+                        when {
+                            isOverLimit -> MaterialTheme.colorScheme.error
+                            currentLen > charLimit - 20 -> Color(0xFFFFA000)
+                            else -> MaterialTheme.colorScheme.primary
+                        },
                 )
             }
         }
@@ -482,24 +540,41 @@ internal fun OmniScribeBottomSheet(
                 haptic.perform(FlareHapticEvent.Confirm)
                 isSavingGallery = true
                 scope.launch {
-                    val count = runCatching {
-                        CarouselBitmapRenderer.saveDeckToGallery(context, activeDeck)
-                    }.getOrDefault(0)
+                    val count =
+                        runCatching {
+                            CarouselBitmapRenderer.saveDeckToGallery(context, activeDeck)
+                        }.getOrDefault(0)
                     isSavingGallery = false
                     if (count > 0) {
                         gallerySavedToast = true
-                        Toast.makeText(
-                            context,
-                            "Saved $count high-res 1080×1350 slides to Pictures/Prism Carousels",
-                            Toast.LENGTH_SHORT,
-                        ).show()
+                        Toast
+                            .makeText(
+                                context,
+                                context.applicationContext.getString(R.string.omni_scribe_slides_saved, count),
+                                Toast.LENGTH_SHORT,
+                            ).show()
                         delay(2500)
                         gallerySavedToast = false
                     }
                 }
             },
+            onSharePdf = {
+                haptic.perform(FlareHapticEvent.Confirm)
+                isExportingPdf = true
+                scope.launch {
+                    runCatching {
+                        CarouselBitmapRenderer.sharePdfExternally(
+                            context = context,
+                            postText = editedText,
+                            deck = activeDeck,
+                        )
+                    }
+                    isExportingPdf = false
+                }
+            },
             isSavingPngs = isSavingGallery,
             pngsSavedToast = gallerySavedToast,
+            isExportingPdf = isExportingPdf,
         )
 
         // Toggle: Attach Carousel Slides when Posting
@@ -507,17 +582,19 @@ internal fun OmniScribeBottomSheet(
             shape = RoundedCornerShape(12.dp),
             color = MaterialTheme.colorScheme.surfaceContainerLow,
             border = BorderStroke(0.8.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable {
-                    haptic.perform(FlareHapticEvent.SelectionChange)
-                    attachCarouselToPost = !attachCarouselToPost
-                },
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        haptic.perform(FlareHapticEvent.SelectionChange)
+                        attachCarouselToPost = !attachCarouselToPost
+                    },
         ) {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -555,9 +632,10 @@ internal fun OmniScribeBottomSheet(
                 )
 
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     availableTargets.forEach { target ->
@@ -566,20 +644,35 @@ internal fun OmniScribeBottomSheet(
 
                         Surface(
                             shape = RoundedCornerShape(12.dp),
-                            color = if (isChecked) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f) else MaterialTheme.colorScheme.surfaceContainer,
-                            border = BorderStroke(
-                                1.dp,
-                                if (isChecked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
-                            ),
-                            modifier = Modifier.clickable {
-                                haptic.perform(FlareHapticEvent.SelectionChange)
+                            color =
                                 if (isChecked) {
-                                    selectedAccountKeys.remove(target.accountKey)
+                                    MaterialTheme.colorScheme.primaryContainer.copy(
+                                        alpha = 0.7f,
+                                    )
                                 } else {
-                                    selectedAccountKeys.add(target.accountKey)
-                                }
-                                composeState.selectAccount(target.accountKey)
-                            },
+                                    MaterialTheme.colorScheme.surfaceContainer
+                                },
+                            border =
+                                BorderStroke(
+                                    1.dp,
+                                    if (isChecked) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.outlineVariant.copy(
+                                            alpha = 0.35f,
+                                        )
+                                    },
+                                ),
+                            modifier =
+                                Modifier.clickable {
+                                    haptic.perform(FlareHapticEvent.SelectionChange)
+                                    if (isChecked) {
+                                        selectedAccountKeys.remove(target.accountKey)
+                                    } else {
+                                        selectedAccountKeys.add(target.accountKey)
+                                    }
+                                    composeState.selectAccount(target.accountKey)
+                                },
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
@@ -594,7 +687,12 @@ internal fun OmniScribeBottomSheet(
                                 Text(
                                     text = target.platformId.uppercase(),
                                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                    color = if (isChecked) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+                                    color =
+                                        if (isChecked) {
+                                            MaterialTheme.colorScheme.onPrimaryContainer
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurface
+                                        },
                                 )
                                 Text(
                                     text = target.handle,
@@ -634,16 +732,16 @@ internal fun OmniScribeBottomSheet(
                         )
                     }
                 },
-                modifier = Modifier.height(50.dp),
+                modifier = Modifier.heightIn(min = 48.dp),
                 shape = RoundedCornerShape(14.dp),
             ) {
                 FAIcon(
                     imageVector = FontAwesomeIcons.Solid.ShareNodes,
-                    contentDescription = "Share Externally",
+                    contentDescription = null,
                     modifier = Modifier.size(16.dp),
                 )
                 Spacer(modifier = Modifier.width(6.dp))
-                Text(text = "Share", fontWeight = FontWeight.SemiBold)
+                Text(text = stringResource(id = R.string.omni_scribe_share), fontWeight = FontWeight.SemiBold)
             }
 
             // Open Standalone Composer with Rewritten Text + Rendered Carousel Slides Attached
@@ -653,28 +751,31 @@ internal fun OmniScribeBottomSheet(
                     haptic.perform(FlareHapticEvent.Confirm)
                     isOpeningComposer = true
                     scope.launch {
-                        val mediaUris = if (attachCarouselToPost) {
-                            runCatching {
-                                CarouselBitmapRenderer.renderDeckToFileUris(context, activeDeck)
-                                    .map { it.toString() }
-                            }.getOrDefault(emptyList())
-                        } else {
-                            emptyList()
-                        }
+                        val mediaUris =
+                            if (attachCarouselToPost) {
+                                runCatching {
+                                    CarouselBitmapRenderer
+                                        .renderDeckToFileUris(context, activeDeck)
+                                        .map { it.toString() }
+                                }.getOrDefault(emptyList())
+                            } else {
+                                emptyList()
+                            }
                         isOpeningComposer = false
                         onBack()
                         navigate(
                             Route.Compose.OmniDraft(
                                 initialText = editedText,
                                 initialMediaUris = mediaUris,
-                            )
+                            ),
                         )
                     }
                 },
                 enabled = !isOpeningComposer && editedText.isNotBlank(),
-                modifier = Modifier
-                    .weight(1f)
-                    .height(50.dp),
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .heightIn(min = 48.dp),
                 shape = RoundedCornerShape(14.dp),
             ) {
                 if (isOpeningComposer) {
@@ -690,7 +791,7 @@ internal fun OmniScribeBottomSheet(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "Composer",
+                        text = stringResource(id = R.string.omni_scribe_composer),
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
                     )
@@ -703,27 +804,30 @@ internal fun OmniScribeBottomSheet(
                     haptic.perform(FlareHapticEvent.Confirm)
                     isPublishing = true
                     scope.launch {
-                        val renderedFiles = if (attachCarouselToPost) {
-                            runCatching {
-                                CarouselBitmapRenderer.renderDeckToCacheFiles(context, activeDeck)
-                            }.getOrDefault(emptyList())
-                        } else {
-                            emptyList()
-                        }
+                        val renderedFiles =
+                            if (attachCarouselToPost) {
+                                runCatching {
+                                    CarouselBitmapRenderer.renderDeckToCacheFiles(context, activeDeck)
+                                }.getOrDefault(emptyList())
+                            } else {
+                                emptyList()
+                            }
 
-                        val medias = renderedFiles.mapIndexed { idx, file ->
-                            ComposeData.Media(
-                                file = FileItem(context, Uri.fromFile(file)),
-                                altText = activeDeck.slides.getOrNull(idx)?.body ?: "Carousel slide ${idx + 1}",
+                        val medias =
+                            renderedFiles.mapIndexed { idx, file ->
+                                ComposeData.Media(
+                                    file = FileItem(context, Uri.fromFile(file)),
+                                    altText = activeDeck.slides.getOrNull(idx)?.body ?: "Carousel slide ${idx + 1}",
+                                )
+                            }
+
+                        val standaloneComposeData =
+                            ComposeData(
+                                content = editedText,
+                                medias = medias,
+                                visibility = UiTimelineV2.Post.Visibility.Public,
+                                referenceStatus = null, // Always a separate standalone post!
                             )
-                        }
-
-                        val standaloneComposeData = ComposeData(
-                            content = editedText,
-                            medias = medias,
-                            visibility = UiTimelineV2.Post.Visibility.Public,
-                            referenceStatus = null, // Always a separate standalone post!
-                        )
 
                         composeState.send(standaloneComposeData) { dispatched ->
                             scope.launch {
@@ -731,11 +835,16 @@ internal fun OmniScribeBottomSheet(
                                 if (dispatched) {
                                     publishDone = true
                                     haptic.perform(FlareHapticEvent.Confirm)
-                                    Toast.makeText(
-                                        context,
-                                        "Broadcast post with ${medias.size} carousel slides across ${selectedAccountKeys.size} accounts!",
-                                        Toast.LENGTH_SHORT,
-                                    ).show()
+                                    Toast
+                                        .makeText(
+                                            context,
+                                            context.applicationContext.getString(
+                                                R.string.omni_scribe_broadcast_success,
+                                                medias.size,
+                                                selectedAccountKeys.size,
+                                            ),
+                                            Toast.LENGTH_SHORT,
+                                        ).show()
                                     delay(500)
                                     onBack()
                                 } else {
@@ -746,7 +855,7 @@ internal fun OmniScribeBottomSheet(
                                         Route.Compose.OmniDraft(
                                             initialText = editedText,
                                             initialMediaUris = uris,
-                                        )
+                                        ),
                                     )
                                 }
                             }
@@ -754,14 +863,16 @@ internal fun OmniScribeBottomSheet(
                     }
                 },
                 enabled = !isPublishing && !publishDone && editedText.isNotBlank(),
-                modifier = Modifier
-                    .weight(1.15f)
-                    .height(50.dp),
+                modifier =
+                    Modifier
+                        .weight(1.15f)
+                        .height(50.dp),
                 shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                ),
+                colors =
+                    ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                    ),
             ) {
                 if (isPublishing) {
                     CircularProgressIndicator(
@@ -810,49 +921,63 @@ private fun InteractiveCarouselStudioWidget(
     selectedTemplate: CarouselTemplate,
     onTemplateSelect: (CarouselTemplate) -> Unit,
     onSavePngs: () -> Unit,
+    onSharePdf: () -> Unit,
     isSavingPngs: Boolean,
     pngsSavedToast: Boolean,
+    isExportingPdf: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val haptic = rememberFlareHapticFeedback(true)
     val scope = rememberCoroutineScope()
     val pagerState = rememberPagerState(pageCount = { editableSlides.size })
-    val (bg, cardBg, textColor, mutedColor, accentColor) = when (selectedTemplate) {
-        CarouselTemplate.ObsidianGold -> arrayOf(
-            Color(0xFF0E0E0E),
-            Color(0xFF18181A),
-            Color(0xFFF4F1EA),
-            Color(0xFF9C9890),
-            Color(0xFFE8B948),
-        )
-        CarouselTemplate.WarmLinen -> arrayOf(
-            Color(0xFFF4F1EA),
-            Color(0xFFFCFAF5),
-            Color(0xFF161616),
-            Color(0xFF5A584F),
-            Color(0xFFB8341B),
-        )
-        CarouselTemplate.CyberCyan -> arrayOf(
-            Color(0xFF101318),
-            Color(0xFF181C24),
-            Color(0xFFF1F4F8),
-            Color(0xFF8C9AAC),
-            Color(0xFF00F0FF),
-        )
-        CarouselTemplate.GradientAccent -> arrayOf(
-            Color(0xFF0F0C1C),
-            Color(0xFF18142C),
-            Color(0xFFF8F6FF),
-            Color(0xFFA89EC6),
-            Color(0xFFA855F7),
-        )
-    }
+    val (bg, cardBg, textColor, mutedColor, accentColor) =
+        when (selectedTemplate) {
+            CarouselTemplate.ObsidianGold -> {
+                arrayOf(
+                    Color(0xFF0E0E0E),
+                    Color(0xFF18181A),
+                    Color(0xFFF4F1EA),
+                    Color(0xFF9C9890),
+                    Color(0xFFE8B948),
+                )
+            }
+
+            CarouselTemplate.WarmLinen -> {
+                arrayOf(
+                    Color(0xFFF4F1EA),
+                    Color(0xFFFCFAF5),
+                    Color(0xFF161616),
+                    Color(0xFF5A584F),
+                    Color(0xFFB8341B),
+                )
+            }
+
+            CarouselTemplate.CyberCyan -> {
+                arrayOf(
+                    Color(0xFF101318),
+                    Color(0xFF181C24),
+                    Color(0xFFF1F4F8),
+                    Color(0xFF8C9AAC),
+                    Color(0xFF00F0FF),
+                )
+            }
+
+            CarouselTemplate.GradientAccent -> {
+                arrayOf(
+                    Color(0xFF0F0C1C),
+                    Color(0xFF18142C),
+                    Color(0xFFF8F6FF),
+                    Color(0xFFA89EC6),
+                    Color(0xFFA855F7),
+                )
+            }
+        }
 
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        // 1. Studio Header & Quick PNG Save
+        // 1. Studio Header & Quick Export (LinkedIn PDF + Gallery PNGs)
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -865,38 +990,50 @@ private fun InteractiveCarouselStudioWidget(
                     color = MaterialTheme.colorScheme.onSurface,
                 )
                 Text(
-                    text = "Swipe slides • Live-edit text • Instant real-time re-rendering",
+                    text = "Swipe slides • Live-edit text • Export to LinkedIn or Gallery",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
-            Surface(
-                shape = RoundedCornerShape(10.dp),
-                color = if (pngsSavedToast) Color(0xFF00C853).copy(alpha = 0.16f) else MaterialTheme.colorScheme.surfaceContainerHigh,
-                border = BorderStroke(
-                    0.8.dp,
-                    if (pngsSavedToast) Color(0xFF00C853) else MaterialTheme.colorScheme.outlineVariant,
-                ),
-                modifier = Modifier.clickable(enabled = !isSavingPngs) {
-                    onSavePngs()
-                },
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(
+                    onClick = onSharePdf,
+                    enabled = !isExportingPdf,
+                    modifier = Modifier.heightIn(min = 48.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                ) {
+                    FAIcon(
+                        imageVector = FontAwesomeIcons.Solid.FileExport,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(13.dp),
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = if (isExportingPdf) "Exporting…" else stringResource(id = R.string.omni_scribe_export_pdf),
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                    )
+                }
+
+                OutlinedButton(
+                    onClick = onSavePngs,
+                    enabled = !isSavingPngs,
+                    modifier = Modifier.heightIn(min = 48.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                 ) {
                     FAIcon(
                         imageVector = if (pngsSavedToast) FontAwesomeIcons.Solid.Check else FontAwesomeIcons.Solid.Download,
-                        contentDescription = "Save Slides",
-                        tint = if (pngsSavedToast) Color(0xFF00C853) else MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(12.dp),
+                        contentDescription = null,
+                        tint = if (pngsSavedToast) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.size(13.dp),
                     )
+                    Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = if (pngsSavedToast) "Saved to Gallery" else "Save PNGs",
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                        color = if (pngsSavedToast) Color(0xFF00C853) else MaterialTheme.colorScheme.onSurface,
+                        text = if (pngsSavedToast) "Saved" else stringResource(id = R.string.omni_scribe_save_pngs),
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
                     )
                 }
             }
@@ -904,9 +1041,10 @@ private fun InteractiveCarouselStudioWidget(
 
         // 2. Visual Theme Picker Chips
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState()),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             CarouselTemplate.entries.forEach { tmpl ->
@@ -914,25 +1052,35 @@ private fun InteractiveCarouselStudioWidget(
                 Surface(
                     shape = RoundedCornerShape(10.dp),
                     color = if (isSelected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainer,
-                    border = BorderStroke(
-                        1.dp,
-                        if (isSelected) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
-                    ),
-                    modifier = Modifier.clickable {
-                        haptic.perform(FlareHapticEvent.SelectionChange)
-                        onTemplateSelect(tmpl)
-                    },
+                    border =
+                        BorderStroke(
+                            1.dp,
+                            if (isSelected) {
+                                MaterialTheme.colorScheme.secondary
+                            } else {
+                                MaterialTheme.colorScheme.outlineVariant.copy(
+                                    alpha = 0.35f,
+                                )
+                            },
+                        ),
+                    modifier =
+                        Modifier.clickable {
+                            haptic.perform(FlareHapticEvent.SelectionChange)
+                            onTemplateSelect(tmpl)
+                        },
                 ) {
                     Text(
-                        text = when (tmpl) {
-                            CarouselTemplate.ObsidianGold -> "⚡ Obsidian Gold"
-                            CarouselTemplate.WarmLinen -> "📖 Editorial Minimal"
-                            CarouselTemplate.CyberCyan -> "💻 Dark Terminal"
-                            CarouselTemplate.GradientAccent -> "🔮 Gradient Accent"
-                        },
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                        ),
+                        text =
+                            when (tmpl) {
+                                CarouselTemplate.ObsidianGold -> "⚡ Obsidian Gold"
+                                CarouselTemplate.WarmLinen -> "📖 Editorial Minimal"
+                                CarouselTemplate.CyberCyan -> "💻 Dark Terminal"
+                                CarouselTemplate.GradientAccent -> "🔮 Gradient Accent"
+                            },
+                        style =
+                            MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            ),
                         color = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
                     )
@@ -954,30 +1102,34 @@ private fun InteractiveCarouselStudioWidget(
                 val alpha = (1f - pageOffset * 0.25f).coerceIn(0.72f, 1f)
 
                 Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .graphicsLayer {
-                            scaleX = scale
-                            scaleY = scale
-                            this.alpha = alpha
-                        },
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .graphicsLayer {
+                                scaleX = scale
+                                scaleY = scale
+                                this.alpha = alpha
+                            },
                     contentAlignment = Alignment.Center,
                 ) {
                     CarouselSlidePreviewCard(
                         slide = slide,
                         template = selectedTemplate,
-                        modifier = Modifier
-                            .width(260.dp)
-                            .height(325.dp), // 4:5 Aspect Ratio
+                        modifier =
+                            Modifier
+                                .width(260.dp)
+                                .height(325.dp),
+                        // 4:5 Aspect Ratio
                     )
                 }
             }
 
             // 4. Smooth Page Dots Indicator with Quick Step Arrows
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -989,17 +1141,22 @@ private fun InteractiveCarouselStudioWidget(
                         }
                     },
                     enabled = pagerState.currentPage > 0,
-                    modifier = Modifier.size(28.dp),
+                    modifier = Modifier.size(48.dp),
                 ) {
                     FAIcon(
                         imageVector = FontAwesomeIcons.Solid.ArrowLeft,
-                        contentDescription = "Previous Slide",
-                        tint = if (pagerState.currentPage > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
-                        modifier = Modifier.size(11.dp),
+                        contentDescription = stringResource(id = R.string.omni_scribe_previous_slide),
+                        tint =
+                            if (pagerState.currentPage > 0) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                            },
+                        modifier = Modifier.size(14.dp),
                     )
                 }
 
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(4.dp))
 
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -1011,20 +1168,21 @@ private fun InteractiveCarouselStudioWidget(
                         val dotColor = if (isCurrent) accentColor else mutedColor.copy(alpha = 0.35f)
 
                         Box(
-                            modifier = Modifier
-                                .width(dotWidth)
-                                .height(6.dp)
-                                .clip(CircleShape)
-                                .background(dotColor)
-                                .clickable {
-                                    haptic.perform(FlareHapticEvent.SelectionChange)
-                                    scope.launch { pagerState.animateScrollToPage(index) }
-                                },
+                            modifier =
+                                Modifier
+                                    .width(dotWidth)
+                                    .height(6.dp)
+                                    .clip(CircleShape)
+                                    .background(dotColor)
+                                    .clickable {
+                                        haptic.perform(FlareHapticEvent.SelectionChange)
+                                        scope.launch { pagerState.animateScrollToPage(index) }
+                                    },
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(4.dp))
 
                 IconButton(
                     onClick = {
@@ -1034,13 +1192,18 @@ private fun InteractiveCarouselStudioWidget(
                         }
                     },
                     enabled = pagerState.currentPage < editableSlides.size - 1,
-                    modifier = Modifier.size(28.dp),
+                    modifier = Modifier.size(48.dp),
                 ) {
                     FAIcon(
                         imageVector = FontAwesomeIcons.Solid.ArrowRight,
-                        contentDescription = "Next Slide",
-                        tint = if (pagerState.currentPage < editableSlides.size - 1) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
-                        modifier = Modifier.size(11.dp),
+                        contentDescription = stringResource(id = R.string.omni_scribe_next_slide),
+                        tint =
+                            if (pagerState.currentPage < editableSlides.size - 1) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                            },
+                        modifier = Modifier.size(14.dp),
                     )
                 }
             }
@@ -1086,11 +1249,12 @@ private fun InteractiveCarouselStudioWidget(
                             ) {
                                 Text(
                                     text = currentSlide.kicker,
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontSize = 9.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        fontFamily = FontFamily.Monospace,
-                                    ),
+                                    style =
+                                        MaterialTheme.typography.labelSmall.copy(
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            fontFamily = FontFamily.Monospace,
+                                        ),
                                     color = accentColor,
                                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                                 )
@@ -1115,9 +1279,10 @@ private fun InteractiveCarouselStudioWidget(
                                 editableSlides[currentIndex] = currentSlide.copy(body = newBody)
                             },
                             label = { Text("Slide Body Content") },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 72.dp, max = 135.dp),
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 72.dp, max = 135.dp),
                             shape = RoundedCornerShape(10.dp),
                             textStyle = MaterialTheme.typography.bodySmall,
                         )
@@ -1137,36 +1302,48 @@ private fun CarouselSlidePreviewCard(
     template: CarouselTemplate,
     modifier: Modifier = Modifier,
 ) {
-    val (bg, cardBg, textColor, mutedColor, accentColor) = when (template) {
-        CarouselTemplate.ObsidianGold -> arrayOf(
-            Color(0xFF0E0E0E),
-            Color(0xFF18181A),
-            Color(0xFFF4F1EA),
-            Color(0xFF9C9890),
-            Color(0xFFE8B948),
-        )
-        CarouselTemplate.WarmLinen -> arrayOf(
-            Color(0xFFF4F1EA),
-            Color(0xFFFCFAF5),
-            Color(0xFF161616),
-            Color(0xFF5A584F),
-            Color(0xFFB8341B),
-        )
-        CarouselTemplate.CyberCyan -> arrayOf(
-            Color(0xFF101318),
-            Color(0xFF181C24),
-            Color(0xFFF1F4F8),
-            Color(0xFF8C9AAC),
-            Color(0xFF00F0FF),
-        )
-        CarouselTemplate.GradientAccent -> arrayOf(
-            Color(0xFF0F0C1C),
-            Color(0xFF18142C),
-            Color(0xFFF8F6FF),
-            Color(0xFFA89EC6),
-            Color(0xFFA855F7),
-        )
-    }
+    val (bg, cardBg, textColor, mutedColor, accentColor) =
+        when (template) {
+            CarouselTemplate.ObsidianGold -> {
+                arrayOf(
+                    Color(0xFF0E0E0E),
+                    Color(0xFF18181A),
+                    Color(0xFFF4F1EA),
+                    Color(0xFF9C9890),
+                    Color(0xFFE8B948),
+                )
+            }
+
+            CarouselTemplate.WarmLinen -> {
+                arrayOf(
+                    Color(0xFFF4F1EA),
+                    Color(0xFFFCFAF5),
+                    Color(0xFF161616),
+                    Color(0xFF5A584F),
+                    Color(0xFFB8341B),
+                )
+            }
+
+            CarouselTemplate.CyberCyan -> {
+                arrayOf(
+                    Color(0xFF101318),
+                    Color(0xFF181C24),
+                    Color(0xFFF1F4F8),
+                    Color(0xFF8C9AAC),
+                    Color(0xFF00F0FF),
+                )
+            }
+
+            CarouselTemplate.GradientAccent -> {
+                arrayOf(
+                    Color(0xFF0F0C1C),
+                    Color(0xFF18142C),
+                    Color(0xFFF8F6FF),
+                    Color(0xFFA89EC6),
+                    Color(0xFFA855F7),
+                )
+            }
+        }
 
     Surface(
         shape = RoundedCornerShape(16.dp),
@@ -1175,12 +1352,13 @@ private fun CarouselSlidePreviewCard(
         modifier = modifier,
     ) {
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(8.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(cardBg)
-                .padding(14.dp),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(8.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(cardBg)
+                    .padding(14.dp),
         ) {
             Column(
                 modifier = Modifier.fillMaxSize(),
@@ -1195,11 +1373,12 @@ private fun CarouselSlidePreviewCard(
                     ) {
                         Text(
                             text = slide.kicker,
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily.Monospace,
-                                fontSize = 8.5.sp,
-                            ),
+                            style =
+                                MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontSize = 8.5.sp,
+                                ),
                             color = accentColor,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -1207,18 +1386,20 @@ private fun CarouselSlidePreviewCard(
                         )
                         Text(
                             text = "0${slide.index}/0${slide.totalSlides}",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontFamily = FontFamily.Monospace,
-                                fontSize = 8.5.sp,
-                            ),
+                            style =
+                                MaterialTheme.typography.labelSmall.copy(
+                                    fontFamily = FontFamily.Monospace,
+                                    fontSize = 8.5.sp,
+                                ),
                             color = mutedColor,
                         )
                     }
                     Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(0.8.dp)
-                            .background(accentColor.copy(alpha = 0.28f)),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .height(0.8.dp)
+                                .background(accentColor.copy(alpha = 0.28f)),
                     )
                 }
 
@@ -1226,28 +1407,31 @@ private fun CarouselSlidePreviewCard(
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
                         text = slide.headline,
-                        style = MaterialTheme.typography.labelLarge.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = if (template == CarouselTemplate.WarmLinen) FontFamily.Serif else FontFamily.Default,
-                            fontSize = 15.sp,
-                            lineHeight = 19.sp,
-                        ),
+                        style =
+                            MaterialTheme.typography.labelLarge.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = if (template == CarouselTemplate.WarmLinen) FontFamily.Serif else FontFamily.Default,
+                                fontSize = 15.sp,
+                                lineHeight = 19.sp,
+                            ),
                         color = textColor,
                         maxLines = 3,
                         overflow = TextOverflow.Ellipsis,
                     )
                     Box(
-                        modifier = Modifier
-                            .width(32.dp)
-                            .height(3.dp)
-                            .background(accentColor, shape = CircleShape),
+                        modifier =
+                            Modifier
+                                .width(32.dp)
+                                .height(3.dp)
+                                .background(accentColor, shape = CircleShape),
                     )
                     Text(
                         text = slide.body,
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            fontSize = 11.sp,
-                            lineHeight = 15.sp,
-                        ),
+                        style =
+                            MaterialTheme.typography.bodySmall.copy(
+                                fontSize = 11.sp,
+                                lineHeight = 15.sp,
+                            ),
                         color = textColor.copy(alpha = 0.92f),
                         maxLines = 7,
                         overflow = TextOverflow.Ellipsis,
@@ -1257,10 +1441,11 @@ private fun CarouselSlidePreviewCard(
                 // Bottom Editorial Progress Dots & CTA
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(0.8.dp)
-                            .background(accentColor.copy(alpha = 0.28f)),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .height(0.8.dp)
+                                .background(accentColor.copy(alpha = 0.28f)),
                     )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -1273,21 +1458,23 @@ private fun CarouselSlidePreviewCard(
                         ) {
                             for (i in 1..slide.totalSlides) {
                                 Box(
-                                    modifier = Modifier
-                                        .size(if (i == slide.index) 6.dp else 4.dp)
-                                        .clip(CircleShape)
-                                        .background(
-                                            if (i == slide.index) accentColor else mutedColor.copy(alpha = 0.4f),
-                                        ),
+                                    modifier =
+                                        Modifier
+                                            .size(if (i == slide.index) 6.dp else 4.dp)
+                                            .clip(CircleShape)
+                                            .background(
+                                                if (i == slide.index) accentColor else mutedColor.copy(alpha = 0.4f),
+                                            ),
                                 )
                             }
                         }
                         Text(
                             text = if (slide.isFinal) "SAVE & SHARE" else "SWIPE →",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 8.sp,
-                            ),
+                            style =
+                                MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 8.sp,
+                                ),
                             color = accentColor,
                         )
                     }

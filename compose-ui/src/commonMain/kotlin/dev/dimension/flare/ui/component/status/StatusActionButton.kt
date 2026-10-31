@@ -77,21 +77,23 @@ public fun StatusActionButton(
 
     val bounceScale by animateFloatAsState(
         targetValue = if (isPressed) 0.82f else 1.0f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMediumLow,
-        ),
+        animationSpec =
+            spring(
+                dampingRatio = Spring.DampingRatioMediumBouncy,
+                stiffness = Spring.StiffnessMediumLow,
+            ),
         label = "status_action_bounce",
     )
 
-    val handleClicked = remember(enabled, onClicked, haptics) {
-        {
-            if (enabled) {
-                haptics.perform(FlareHapticEvent.Confirm)
-                onClicked.invoke()
+    val handleClicked =
+        remember(enabled, onClicked, haptics) {
+            {
+                if (enabled) {
+                    haptics.perform(FlareHapticEvent.Confirm)
+                    onClicked.invoke()
+                }
             }
         }
-    }
 
     val displayNumber =
         number?.takeIf {
@@ -154,8 +156,7 @@ public fun StatusActionButton(
                         .graphicsLayer {
                             scaleX = bounceScale
                             scaleY = bounceScale
-                        }
-                        .height(PlatformTextStyle.current.fontSize.value.dp + 2.dp)
+                        }.height(PlatformTextStyle.current.fontSize.value.dp + 2.dp)
                         .pointerHoverIcon(if (enabled) PointerIcon.Hand else PointerIcon.Default)
                         .clickable(
                             onClick = handleClicked,

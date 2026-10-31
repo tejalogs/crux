@@ -42,6 +42,8 @@ public fun ActionMenu.Companion.instagramComment(
     statusKey: MicroBlogKey,
     count: Long,
     accountKey: MicroBlogKey,
+    openDetail: Boolean = false,
+    replyToHandle: String? = null,
 ): ActionMenu.Item =
     ActionMenu.Item(
         updateKey = "ig_comment_$statusKey",
@@ -49,13 +51,24 @@ public fun ActionMenu.Companion.instagramComment(
         text = ActionMenu.Item.Text.Localized(ActionMenu.Item.Text.Localized.Type.Reply),
         count = if (count > 0) UiNumber(count) else null,
         clickEvent =
-            ClickEvent.Deeplink(
-                DeeplinkRoute.Compose.Reply(
-                    accountKey = accountKey,
-                    statusKey = statusKey,
-                ),
-            ),
-        actionFamily = PostActionFamily.Reply,
+            if (openDetail) {
+                ClickEvent.Deeplink(
+                    DeeplinkRoute.Status.Detail(
+                        statusKey = statusKey,
+                        accountType = AccountType.Specific(accountKey),
+                    ),
+                )
+            } else {
+                val initialText = if (!replyToHandle.isNullOrBlank()) "@$replyToHandle " else ""
+                ClickEvent.Deeplink(
+                    DeeplinkRoute.Compose.Reply(
+                        accountKey = accountKey,
+                        statusKey = statusKey,
+                        initialText = initialText,
+                    ),
+                )
+            },
+        actionFamily = if (openDetail) PostActionFamily.Comment else PostActionFamily.Reply,
     )
 
 public fun ActionMenu.Companion.instagramShare(

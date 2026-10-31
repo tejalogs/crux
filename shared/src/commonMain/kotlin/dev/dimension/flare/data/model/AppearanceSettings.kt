@@ -30,7 +30,7 @@ internal data class AppearanceSettings(
     val lineHeightDiff: Float = 0f,
     val showComposeInHomeTimeline: Boolean = true,
     val bottomBarStyle: BottomBarStyle = BottomBarStyle.Classic,
-    val bottomBarBehavior: BottomBarBehavior = BottomBarBehavior.MinimizeOnScroll,
+    val bottomBarBehavior: BottomBarBehavior = BottomBarBehavior.AlwaysShow,
     val inAppBrowser: Boolean = true,
     val fullWidthPost: Boolean = false,
     val postActionStyle: PostActionStyle = PostActionStyle.LeftAligned,
@@ -96,4 +96,5 @@ public enum class TimelineDisplayMode {
 public enum class TimelineMediaLayout {
     Grid,
     Carousel,
+    Stack,
 }

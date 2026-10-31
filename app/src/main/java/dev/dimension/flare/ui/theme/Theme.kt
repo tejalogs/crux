@@ -67,17 +67,20 @@ private fun ColorScheme.withPureColorLightMode(): ColorScheme =
 private fun ColorScheme.withPureColorDarkMode(): ColorScheme =
     copy(
         background = Color.Black,
-        surface = MoreColors.Gray900,
+        surface = Color.Black,
+        surfaceDim = Color.Black,
+        surfaceBright = Color(0xFF121316),
         onBackground = Color.White,
         onSurface = Color.White,
-        surfaceContainer = MoreColors.Gray900,
+        surfaceContainer = Color.Black,
         surfaceContainerLow = Color.Black,
-        surfaceContainerHigh = MoreColors.Gray900,
-        surfaceContainerLowest = MoreColors.Gray900,
-        surfaceContainerHighest = MoreColors.Gray900,
+        surfaceContainerLowest = Color.Black,
+        surfaceContainerHigh = Color(0xFF0D0E11),
+        surfaceContainerHighest = Color(0xFF16181D),
+        surfaceVariant = Color(0xFF121418),
         onSurfaceVariant = MoreColors.Gray400,
-        outlineVariant = Color(0xFF262930),
-        outline = Color(0xFF3B404C),
+        outlineVariant = Color(0xFF22252C),
+        outline = Color(0xFF383C46),
     )
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)

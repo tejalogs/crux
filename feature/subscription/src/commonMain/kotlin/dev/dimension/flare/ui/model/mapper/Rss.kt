@@ -59,7 +59,7 @@ internal fun Feed.Atom.Entry.render(
             ?: links.firstOrNull { it.rel == "enclosure" && it.type?.startsWith("image/") == true }?.href
     val link = links.firstOrNull { it.rel == null || it.rel == "alternate" }?.href ?: id
     return UiTimelineV2.Feed(
-        title = title?.value?.takeIf { it.isNotEmpty() && it.isNotBlank() },
+        title = title?.value?.decodeFeedTitle()?.takeIf { it.isNotEmpty() && it.isNotBlank() },
         description = descHtml?.text(),
         descriptionHtml = rawHtml,
         url = link,
@@ -88,7 +88,7 @@ internal fun Feed.Atom.Entry.render(
             displayMode.toFeedClickEvent(
                 url = link,
                 descriptionHtml = rawHtml,
-                title = title?.value,
+                title = title?.value?.decodeFeedTitle(),
             ),
         createdAt =
             (published ?: updated)
@@ -119,7 +119,7 @@ internal fun Feed.Rss20.Item.render(
             ?: mediaContent.firstOrNull()?.url
             ?: enclosure?.takeIf { it.type.startsWith("image/") }?.url
     return UiTimelineV2.Feed(
-        title = title,
+        title = title?.decodeFeedTitle(),
         description = descHtml?.text(),
         descriptionHtml = rawHtml,
         url = url,
@@ -148,7 +148,7 @@ internal fun Feed.Rss20.Item.render(
             displayMode.toFeedClickEvent(
                 url = url,
                 descriptionHtml = rawHtml,
-                title = title,
+                title = title?.decodeFeedTitle(),
             ),
         createdAt =
             (pubDate ?: dcDate)
@@ -172,7 +172,7 @@ internal fun Feed.RDF.Item.render(
         }
     val img = descHtml?.select("img")?.firstOrNull()?.attr("src")
     return UiTimelineV2.Feed(
-        title = title,
+        title = title.decodeFeedTitle(),
         description = descHtml?.text(),
         descriptionHtml = rawHtml,
         url = url,
@@ -201,7 +201,7 @@ internal fun Feed.RDF.Item.render(
             displayMode.toFeedClickEvent(
                 url = url,
                 descriptionHtml = rawHtml,
-                title = title,
+                title = title.decodeFeedTitle(),
             ),
         createdAt =
             date
@@ -227,10 +227,27 @@ private fun RssDisplayMode.toFeedClickEvent(
             }
 
             RssDisplayMode.DESCRIPTION_ONLY -> {
-                DeeplinkRoute.Rss.Detail(url, descriptionHtml, title)
+                if (descriptionHtml.isThinFeedText()) {
+                    // Link feeds like Hacker News carry no article, so read the page instead.
+                    DeeplinkRoute.Rss.Detail(url = url, title = title, fallbackHtml = descriptionHtml)
+                } else {
+                    DeeplinkRoute.Rss.Detail(url, descriptionHtml, title)
+                }
             }
         },
     )
+
+/** Feed titles often arrive with HTML entities such as `&#8217;` still encoded. */
+internal fun String.decodeFeedTitle(): String = Ksoup.parse(this).text()
+
+/** True when the feed item has no text of its own, only links such as "Comments". */
+internal fun String?.isThinFeedText(): Boolean {
+    if (this == null) return true
+    val body = Ksoup.parse(this).body()
+    if (body.select("img[src], video[src]").isNotEmpty()) return false
+    body.select("a, script, style").remove()
+    return body.text().isBlank()
+}
 
 internal fun parseRssDateToInstant(input: String): Instant? =
     runCatching {

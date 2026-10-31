@@ -75,15 +75,4 @@ internal fun EntryProviderScope<NavKey>.mediaEntryBuilder(
         )
     }
 
-    entry<Route.Media.Podcast>(
-        metadata = BottomSheetSceneStrategy.bottomSheet()
-    ) { args ->
-        PodcastScreen(
-            accountType = args.accountType,
-            id = args.id,
-            toUser = { userKey ->
-                navigate(Route.Profile.User(args.accountType, userKey))
-            },
-        )
-    }
 }

@@ -217,7 +217,7 @@ public class HomeTabSettingsPresenter : PresenterBase<HomeTabSettingsPresenter.S
                 ((tab as? UiGroupTimelineTabItem)?.children ?: emptyList()).toImmutableList()
 
             override fun groupMergePolicy(tab: UiTimelineTabItem): TimelineMergePolicy =
-                (tab as? UiGroupTimelineTabItem)?.mergePolicy ?: TimelineMergePolicy.TimePerPage
+                (tab as? UiGroupTimelineTabItem)?.mergePolicy ?: TimelineMergePolicy.Time
 
             override fun resolveAppearance(
                 tab: UiTimelineTabItem,

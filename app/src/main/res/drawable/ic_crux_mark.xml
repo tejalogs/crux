@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Crux mark in brand violet, cropped tight for in-app use (splash, About). The launcher
+     layers (ic_launcher_*) are white-on-violet and sized for the adaptive-icon canvas. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="47dp"
+    android:viewportWidth="44.81"
+    android:viewportHeight="43.76">
+    <group
+        android:translateX="-31.5"
+        android:translateY="-32.12">
+        <path
+            android:pathData="M62.65,67.5A16.38,16.38 0,1 1,62.65 40.5"
+            android:strokeWidth="11"
+            android:strokeColor="@color/ic_launcher_background"
+            android:strokeLineCap="round" />
+        <path
+            android:fillColor="@color/ic_launcher_background"
+            android:pathData="M76.31,54a5.85,5.85 0,1 0,-11.7 0a5.85,5.85 0,1 0,11.7 0z" />
+    </group>
+</vector>

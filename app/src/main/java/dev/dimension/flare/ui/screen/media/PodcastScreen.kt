@@ -35,47 +35,9 @@ import dev.dimension.flare.ui.model.onError
 import dev.dimension.flare.ui.model.onLoading
 import dev.dimension.flare.ui.model.onSuccess
 import dev.dimension.flare.ui.presenter.invoke
-import dev.dimension.flare.ui.presenter.podcast.PodcastPresenter
 import dev.dimension.flare.ui.theme.screenHorizontalPadding
 import moe.tlaster.precompose.molecule.producePresenter
 import org.koin.compose.koinInject
-
-@Composable
-internal fun PodcastScreen(
-    accountType: AccountType,
-    id: String,
-    toUser: (MicroBlogKey) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val state by producePresenter("podcast_$accountType$id") {
-        presenter(accountType, id)
-    }
-    Column(
-        modifier =
-            modifier
-                .padding(
-                    horizontal = screenHorizontalPadding,
-                ),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        state.data
-            .onSuccess { data ->
-                PodcastContent(
-                    data = data,
-                    toUser = toUser,
-                    onLeavePodcast = {
-                        state.leavePodcast()
-                    },
-                    onJoinPodcast = {
-                        state.playPodcast()
-                    },
-                    isPlaying = state.isPlaying,
-                )
-            }.onLoading {
-            }.onError {
-            }
-    }
-}
 
 @Composable
 internal fun ColumnScope.PodcastContent(
@@ -167,45 +129,5 @@ private fun UserItem(
             maxLines = 1,
         )
         bottom.invoke()
-    }
-}
-
-@Composable
-private fun presenter(
-    accountType: AccountType,
-    id: String,
-    podcastManager: PodcastManager = koinInject(),
-) = run {
-    val state =
-        remember(
-            accountType,
-            id,
-        ) {
-            PodcastPresenter(
-                accountType = accountType,
-                id = id,
-            )
-        }.invoke()
-    val current by podcastManager.currentPodcast.collectAsState(null)
-    val isPlaying =
-        state.data.map { data ->
-            current?.id == data.id
-        }
-    object : PodcastPresenter.State by state {
-        val isPlaying: UiState<Boolean> = isPlaying
-
-        fun playPodcast() {
-            data.onSuccess {
-                podcastManager.playPodcast(
-                    podcast = it,
-                )
-            }
-        }
-
-        fun leavePodcast() {
-            data.onSuccess {
-                podcastManager.stopPodcast()
-            }
-        }
     }
 }

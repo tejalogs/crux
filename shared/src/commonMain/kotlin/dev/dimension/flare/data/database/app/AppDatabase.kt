@@ -24,8 +24,10 @@ import dev.dimension.flare.data.database.app.dao.SearchHistoryDao
         dev.dimension.flare.data.database.app.model.DbKeywordFilter::class,
         dev.dimension.flare.data.database.app.model.DbSearchHistory::class,
         dev.dimension.flare.data.database.app.model.DbRssSources::class,
+        dev.dimension.flare.data.database.app.model.DbLocalFollow::class,
+        dev.dimension.flare.data.database.app.model.DbLocalFollowGroup::class,
     ],
-    version = 12,
+    version = 13,
     autoMigrations = [
         AutoMigration(
             from = 3,
@@ -68,6 +70,8 @@ internal abstract class AppDatabase : RoomDatabase() {
 
     abstract fun rssSourceDao(): RssSourceDao
 
+    abstract fun localFollowDao(): dev.dimension.flare.data.database.app.dao.LocalFollowDao
+
     companion object {
         val MIGRATION_8_9 =
             object : Migration(8, 9) {
@@ -101,6 +105,21 @@ internal abstract class AppDatabase : RoomDatabase() {
             object : Migration(11, 12) {
                 override suspend fun migrate(connection: SQLiteConnection) {
                     // Kotlin now models platform_type as a String. The physical schema is unchanged.
+                }
+            }
+
+        val MIGRATION_12_13 =
+            object : Migration(12, 13) {
+                override suspend fun migrate(connection: SQLiteConnection) {
+                    connection.executeSQL(
+                        "CREATE TABLE IF NOT EXISTS `DbLocalFollow` (`accountKey` TEXT NOT NULL, `userKey` TEXT NOT NULL, " +
+                            "`platformId` TEXT NOT NULL, `handle` TEXT NOT NULL, `displayName` TEXT NOT NULL, `avatar` TEXT, " +
+                            "`groupId` TEXT, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`accountKey`, `userKey`))",
+                    )
+                    connection.executeSQL(
+                        "CREATE TABLE IF NOT EXISTS `DbLocalFollowGroup` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, " +
+                            "`createdAt` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+                    )
                 }
             }
     }

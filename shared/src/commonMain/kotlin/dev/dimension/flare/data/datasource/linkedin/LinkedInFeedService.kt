@@ -1,112 +1,53 @@
 package dev.dimension.flare.data.datasource.linkedin
 
-import dev.dimension.flare.common.JSON
-import dev.dimension.flare.common.decodeFromStringWithNullableFallback
-import dev.dimension.flare.data.network.ktorClient
-import io.ktor.client.HttpClient
-import io.ktor.client.request.get
-import io.ktor.client.request.header
-import io.ktor.client.request.parameter
-import io.ktor.client.request.post
-import io.ktor.client.request.setBody
-import io.ktor.client.statement.bodyAsText
-import io.ktor.http.ContentType
-import io.ktor.http.HttpHeaders
-import io.ktor.http.contentType
-import io.ktor.http.isSuccess
-
 public const val LINKEDIN_FEED_TIMELINE_URL: String = "https://www.linkedin.com/voyager/api/feed/updatesV2"
 public const val LINKEDIN_FEED_DASH_URL: String = "https://www.linkedin.com/voyager/api/feed/dash/updates"
 public const val LINKEDIN_USER_AGENT: String =
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36"
 
-public class LinkedInFeedService(
-    private val client: HttpClient = ktorClient(),
-) {
+public class LinkedInFeedService {
+    public fun normalizeThreadUrn(rawUrn: String): String {
+        val clean = rawUrn.substringBefore("#").trim()
+        val directMatch = Regex("""urn:li:(?:activity|ugcPost|share):[0-9]+""").find(clean)
+        if (directMatch != null) return directMatch.value
 
-    public suspend fun getHomeTimeline(
-        cookies: String,
-        cursor: String? = null,
-    ): LinkedInFeedResponse? {
-        if (cookies.isBlank()) return null
-        val csrfToken = extractCsrfToken(cookies)
+        val activityNum = Regex("""activity:([0-9]+)""").find(clean)?.groupValues?.get(1)
+        if (activityNum != null) return "urn:li:activity:$activityNum"
 
-        val primaryResult = fetchFromEndpoint(LINKEDIN_FEED_TIMELINE_URL, cookies, csrfToken, cursor)
-        if (primaryResult != null && primaryResult.elements.isNotEmpty()) {
-            return primaryResult
+        if (clean.startsWith("urn:li:fs_updateV2:(") && clean.contains(",")) {
+            val inner = clean.substringAfter("(").substringBefore(",")
+            if (inner.startsWith("urn:li:")) return normalizeThreadUrn(inner)
         }
-
-        // Fallback to Dash updates endpoint if primary returned empty
-        val fallbackResult = fetchFromEndpoint(LINKEDIN_FEED_DASH_URL, cookies, csrfToken, cursor)
-        return fallbackResult ?: primaryResult
+        if (clean.contains("(") && clean.contains(")")) {
+            val inner = clean.substringAfter("(").substringBefore(")")
+            val innerMatch = Regex("""urn:li:(?:activity|ugcPost|share):[0-9]+""").find(inner)
+            if (innerMatch != null) return innerMatch.value
+        }
+        return if (clean.startsWith("urn:li:")) clean else "urn:li:activity:$clean"
     }
 
-    public suspend fun likePost(
-        urn: String,
-        liked: Boolean,
-        cookies: String,
-    ): Boolean {
-        if (cookies.isBlank()) return false
-        val csrfToken = extractCsrfToken(cookies) ?: return false
-        val targetUrn = if (urn.startsWith("urn:li:")) urn else "urn:li:activity:$urn"
-        return try {
-            val response = client.post("https://www.linkedin.com/voyager/api/voyagerSocialDashReactions?action=react") {
-                header(HttpHeaders.UserAgent, LINKEDIN_USER_AGENT)
-                header(HttpHeaders.Cookie, cookies)
-                header(HttpHeaders.Accept, "application/json, application/vnd.linkedin.normalized+json+2.1")
-                header(HttpHeaders.Referrer, "https://www.linkedin.com/feed/")
-                header("x-restli-protocol-version", "2.0.0")
-                header("csrf-token", csrfToken)
-                contentType(ContentType.Application.Json)
-                setBody("""{"root":"$targetUrn","reactionType":"LIKE"}""")
-            }
-            response.status.isSuccess()
-        } catch (_: Exception) {
-            false
+    public fun normalizeParentCommentUrn(rawUrn: String): String? {
+        if (!rawUrn.contains("#") && !rawUrn.contains("comment")) return null
+        val target = if (rawUrn.contains("#")) rawUrn.substringAfter("#").trim() else rawUrn.trim()
+        if (target.isBlank()) return null
+        if (target.startsWith("urn:li:fsd_comment:")) return target
+        if (target.startsWith("urn:li:fs_comment:")) {
+            val inner = target.substringAfter("(").substringBefore(",")
+            if (inner.startsWith("urn:li:comment:")) return inner
+            return target
         }
-    }
-
-    private suspend fun fetchFromEndpoint(
-        url: String,
-        cookies: String,
-        csrfToken: String?,
-        cursor: String?,
-    ): LinkedInFeedResponse? {
-        return try {
-            val response = client.get(url) {
-                header(HttpHeaders.UserAgent, LINKEDIN_USER_AGENT)
-                header(HttpHeaders.Cookie, cookies)
-                header(HttpHeaders.Accept, "application/json, application/vnd.linkedin.normalized+json+2.1")
-                header(HttpHeaders.Referrer, "https://www.linkedin.com/feed/")
-                header("x-restli-protocol-version", "2.0.0")
-                header("sec-ch-ua", "\"Chromium\";v=\"130\", \"Google Chrome\";v=\"130\", \"Not?A_Brand\";v=\"99\"")
-                header("sec-ch-ua-mobile", "?0")
-                header("sec-ch-ua-platform", "\"macOS\"")
-                header("sec-fetch-dest", "empty")
-                header("sec-fetch-mode", "cors")
-                header("sec-fetch-site", "same-origin")
-                header("accept-language", "en-US,en;q=0.9")
-                csrfToken?.let { header("csrf-token", it) }
-
-                parameter("count", "20")
-                parameter("q", "feedUpdates")
-                cursor?.let { parameter("start", it) }
-            }
-
-            if (!response.status.isSuccess()) {
-                return null
-            }
-
-            val bodyText = response.bodyAsText()
-            LinkedInFeedParser.parse(bodyText)
-        } catch (_: Exception) {
-            null
-        }
+        val directCommentMatch = Regex("""urn:li:(?:fsd_|fs_)?comment:\([^)]+\)""").find(target)
+        if (directCommentMatch != null) return directCommentMatch.value
+        val directSimpleMatch = Regex("""urn:li:(?:fsd_|fs_)?comment:[0-9]+""").find(target)
+        if (directSimpleMatch != null) return directSimpleMatch.value
+        if (target.startsWith("urn:li:comment:")) return target
+        return null
     }
 
     public companion object {
         public fun extractCsrfToken(cookies: String): String? =
-            cookies.split(";")
+            cookies
+                .split(";")
                 .map { it.trim() }
                 .firstOrNull { it.startsWith("JSESSIONID=") }
                 ?.substringAfter("JSESSIONID=")
@@ -114,10 +55,12 @@ public class LinkedInFeedService(
 
         public fun extractUserId(cookies: String): String? {
             // 1. Try to find explicit member id / li_at token fingerprint
-            val liAt = cookies.split(";")
-                .map { it.trim() }
-                .firstOrNull { it.startsWith("li_at=") }
-                ?.substringAfter("li_at=")
+            val liAt =
+                cookies
+                    .split(";")
+                    .map { it.trim() }
+                    .firstOrNull { it.startsWith("li_at=") }
+                    ?.substringAfter("li_at=")
 
             if (!liAt.isNullOrBlank()) {
                 // Return consistent pseudo-id derived from session token
@@ -127,7 +70,8 @@ public class LinkedInFeedService(
             return null
         }
 
-        public fun hasActiveSession(cookies: String): Boolean =
-            cookies.contains("li_at=")
+        public fun hasActiveSession(cookies: String): Boolean = cookies.contains("li_at=")
+
+        public fun isValidLinkedInHost(host: String?): Boolean = LinkedInFeedParser.isValidLinkedInHost(host)
     }
 }

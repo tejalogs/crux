@@ -122,6 +122,8 @@ public sealed class DeeplinkRoute {
             val initialText: String = "",
             val authorName: String = "",
             val authorHandle: String = "",
+            val mediaDescription: String = "",
+            val parentContext: String = "",
         ) : Status()
     }
 
@@ -243,6 +245,12 @@ public sealed class DeeplinkRoute {
     ) : DeeplinkRoute()
 
     @Serializable
+    public data class EditLocalFollow(
+        val accountKey: MicroBlogKey,
+        val userKey: MicroBlogKey,
+    ) : DeeplinkRoute()
+
+    @Serializable
     public data class DirectMessage(
         val accountKey: MicroBlogKey,
         val userKey: MicroBlogKey,
@@ -318,16 +326,16 @@ public sealed class DeeplinkRoute {
         @OptIn(ExperimentalSerializationApi::class)
         public fun parse(uri: String): DeeplinkRoute? =
             runCatching {
-                val hex = when {
-                    uri.startsWith("$APPSCHEMA://") -> uri.removePrefix("$APPSCHEMA://")
-                    uri.startsWith("$LEGACY_APPSCHEMA://") -> uri.removePrefix("$LEGACY_APPSCHEMA://")
-                    else -> return null
-                }
+                val hex =
+                    when {
+                        uri.startsWith("$APPSCHEMA://") -> uri.removePrefix("$APPSCHEMA://")
+                        uri.startsWith("$LEGACY_APPSCHEMA://") -> uri.removePrefix("$LEGACY_APPSCHEMA://")
+                        else -> return null
+                    }
                 ProtoBuf.decodeFromHexString<RoutePackage>(hex).route
             }.getOrNull()
 
-        public fun isDeeplink(uri: String): Boolean =
-            uri.startsWith("$APPSCHEMA://") || uri.startsWith("$LEGACY_APPSCHEMA://")
+        public fun isDeeplink(uri: String): Boolean = uri.startsWith("$APPSCHEMA://") || uri.startsWith("$LEGACY_APPSCHEMA://")
     }
 }
 

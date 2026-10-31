@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -57,10 +58,12 @@ import compose.icons.fontawesomeicons.solid.FileExport
 import compose.icons.fontawesomeicons.solid.FileImport
 import compose.icons.fontawesomeicons.solid.HardDrive
 import compose.icons.fontawesomeicons.solid.Images
+import compose.icons.fontawesomeicons.solid.TrashCan
 import compose.icons.fontawesomeicons.solid.Wifi
 import dev.dimension.flare.R
 import dev.dimension.flare.common.ComposeInAppNotification
 import dev.dimension.flare.common.OfflineMediaPrefetcher
+import dev.dimension.flare.data.cache.CacheEvictionManager
 import dev.dimension.flare.data.cache.OfflineCacheConfig
 import dev.dimension.flare.data.cache.OfflineCacheRepository
 import dev.dimension.flare.data.readinglist.ReadingListRepository
@@ -85,6 +88,7 @@ import moe.tlaster.precompose.molecule.producePresenter
 import org.koin.compose.koinInject
 import java.io.BufferedReader
 import java.io.InputStreamReader
+import kotlin.time.Clock
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -99,6 +103,8 @@ internal fun StorageScreen(
     }
 
     val offlineCacheRepo = koinInject<OfflineCacheRepository>()
+    val cacheEvictionManager = koinInject<CacheEvictionManager>()
+    val notification = koinInject<ComposeInAppNotification>()
     val readingListRepo = koinInject<ReadingListRepository>()
     val offlineConfig by offlineCacheRepo.settings.collectAsState()
     val readingListItems by readingListRepo.items.collectAsState()
@@ -107,6 +113,8 @@ internal fun StorageScreen(
     val scope = rememberCoroutineScope()
 
     var showCacheSizeDialog by remember { mutableStateOf(false) }
+    var showRetentionDaysDialog by remember { mutableStateOf(false) }
+    var isPruningDatabase by remember { mutableStateOf(false) }
     var showImportConfirmation by remember { mutableStateOf(false) }
     var pendingImportUri by remember { mutableStateOf<android.net.Uri?>(null) }
 
@@ -125,8 +133,7 @@ internal fun StorageScreen(
                                     .clickable {
                                         scope.launch { offlineCacheRepo.setMaxMediaCacheSizeMb(sizeMb) }
                                         showCacheSizeDialog = false
-                                    }
-                                    .padding(vertical = 8.dp),
+                                    }.padding(vertical = 8.dp),
                         ) {
                             RadioButton(
                                 selected = offlineConfig.maxMediaCacheSizeMb == sizeMb,
@@ -144,6 +151,44 @@ internal fun StorageScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showCacheSizeDialog = false }) {
+                    Text(text = "Done")
+                }
+            },
+        )
+    }
+
+    if (showRetentionDaysDialog) {
+        AlertDialog(
+            onDismissRequest = { showRetentionDaysDialog = false },
+            title = { Text(text = "Timeline Cache Retention") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    OfflineCacheConfig.ALLOWED_RETENTION_DAYS.forEach { days ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        scope.launch { offlineCacheRepo.setTimelineCacheRetentionDays(days) }
+                                        showRetentionDaysDialog = false
+                                    }.padding(vertical = 8.dp),
+                        ) {
+                            RadioButton(
+                                selected = offlineConfig.timelineCacheRetentionDays == days,
+                                onClick = {
+                                    scope.launch { offlineCacheRepo.setTimelineCacheRetentionDays(days) }
+                                    showRetentionDaysDialog = false
+                                },
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(text = "$days days")
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showRetentionDaysDialog = false }) {
                     Text(text = "Done")
                 }
             },
@@ -211,6 +256,13 @@ internal fun StorageScreen(
                         .padding(horizontal = screenHorizontalPadding),
                 verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
             ) {
+                Text(
+                    text = stringResource(id = R.string.settings_storage_section_data_cache),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                )
                 SegmentedListItem(
                     onClick = {
                         state.clearImageCache()
@@ -353,7 +405,7 @@ internal fun StorageScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Text(
-                    text = "Offline Reading & Media Cache",
+                    text = stringResource(id = R.string.settings_storage_section_offline),
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold,
@@ -468,6 +520,136 @@ internal fun StorageScreen(
                             FontAwesomeIcons.Solid.Bookmark,
                             contentDescription = "Reading List Cache",
                             color = ThemeIconData.Color.ImperialMagenta,
+                        )
+                    },
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    text = stringResource(id = R.string.settings_storage_section_database),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                )
+
+                SegmentedListItem(
+                    onClick = { showRetentionDaysDialog = true },
+                    shapes = ListItemDefaults.first(),
+                    content = {
+                        Text(text = "Timeline Cache Retention")
+                    },
+                    supportingContent = {
+                        Text(text = "Keep unbookmarked posts for ${offlineConfig.timelineCacheRetentionDays} days")
+                    },
+                    leadingContent = {
+                        ThemedIcon(
+                            FontAwesomeIcons.Solid.Database,
+                            contentDescription = "Retention Period",
+                            color = ThemeIconData.Color.DeepTeal,
+                        )
+                    },
+                )
+
+                SegmentedListItem(
+                    onClick = {
+                        scope.launch {
+                            offlineCacheRepo.setAutoPruneDatabaseCache(!offlineConfig.autoPruneDatabaseCache)
+                        }
+                    },
+                    shapes = ListItemDefaults.item(),
+                    content = {
+                        Text(text = "Auto-Prune Expired Cache")
+                    },
+                    supportingContent = {
+                        Text(text = "Clean expired posts older than retention period daily in background")
+                    },
+                    trailingContent = {
+                        Switch(
+                            checked = offlineConfig.autoPruneDatabaseCache,
+                            onCheckedChange = { checked ->
+                                scope.launch {
+                                    offlineCacheRepo.setAutoPruneDatabaseCache(checked)
+                                }
+                            },
+                        )
+                    },
+                    leadingContent = {
+                        ThemedIcon(
+                            FontAwesomeIcons.Solid.HardDrive,
+                            contentDescription = "Auto-Prune",
+                            color = ThemeIconData.Color.ForestGreen,
+                        )
+                    },
+                )
+
+                SegmentedListItem(
+                    onClick = {
+                        if (!isPruningDatabase) {
+                            scope.launch {
+                                isPruningDatabase = true
+                                try {
+                                    val result = cacheEvictionManager.purgeExpiredCache()
+                                    android.widget.Toast
+                                        .makeText(
+                                            context,
+                                            context.applicationContext.getString(
+                                                R.string.storage_purge_success,
+                                                result.purgedTimelineEntries,
+                                                result.purgedStatuses,
+                                                result.durationMs,
+                                            ),
+                                            android.widget.Toast.LENGTH_SHORT,
+                                        ).show()
+                                } catch (e: Exception) {
+                                    android.widget.Toast
+                                        .makeText(
+                                            context,
+                                            context.applicationContext.getString(
+                                                R.string.storage_purge_failed,
+                                                e.message.orEmpty(),
+                                            ),
+                                            android.widget.Toast.LENGTH_SHORT,
+                                        ).show()
+                                } finally {
+                                    isPruningDatabase = false
+                                }
+                            }
+                        }
+                    },
+                    shapes = ListItemDefaults.last(),
+                    content = {
+                        Text(text = "Prune Expired Cache Now")
+                    },
+                    supportingContent = {
+                        if (isPruningDatabase) {
+                            Text(text = "Pruning cache...")
+                        } else {
+                            val lastPrune = offlineConfig.lastDatabasePruneTimestamp
+                            val lastPruneStr =
+                                if (lastPrune > 0) {
+                                    val hoursAgo = (Clock.System.now().toEpochMilliseconds() - lastPrune) / 3600000
+                                    if (hoursAgo == 0L) "Just now" else "${hoursAgo}h ago"
+                                } else {
+                                    "Never"
+                                }
+                            Text(text = "Purge posts older than ${offlineConfig.timelineCacheRetentionDays} days • Last run: $lastPruneStr")
+                        }
+                    },
+                    trailingContent = {
+                        if (isPruningDatabase) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                strokeWidth = 2.dp,
+                            )
+                        }
+                    },
+                    leadingContent = {
+                        ThemedIcon(
+                            FontAwesomeIcons.Solid.TrashCan,
+                            contentDescription = "Prune Expired Cache",
+                            color = ThemeIconData.Color.DarkAmber,
                         )
                     },
                 )

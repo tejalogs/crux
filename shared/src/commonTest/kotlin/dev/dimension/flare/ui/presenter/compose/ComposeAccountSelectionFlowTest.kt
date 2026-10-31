@@ -115,4 +115,66 @@ class ComposeAccountSelectionFlowTest {
             assertEquals(expectedEmissions, emissions)
             collection.cancel()
         }
+
+    @Test
+    fun `resolveInitialSelectedAccounts selects specific account when available`() {
+        val accountKey1 = MicroBlogKey(id = "user1", host = "x.com")
+        val accountKey2 = MicroBlogKey(id = "user2", host = "linkedin.com")
+        val accounts =
+            mapOf(
+                accountKey1 to "account1",
+                accountKey2 to "account2",
+            )
+        val selected =
+            resolveInitialSelectedAccounts(
+                composeAccounts = accounts,
+                lastAccounts = emptyList(),
+                specificAccountKey = accountKey2,
+            )
+        assertEquals(persistentListOf(accountKey2), selected)
+    }
+
+    @Test
+    fun `resolveInitialSelectedAccounts selects last used accounts when matching`() {
+        val accountKey1 = MicroBlogKey(id = "user1", host = "x.com")
+        val accountKey2 = MicroBlogKey(id = "user2", host = "linkedin.com")
+        val accounts =
+            mapOf(
+                accountKey1 to "account1",
+                accountKey2 to "account2",
+            )
+        val selected =
+            resolveInitialSelectedAccounts(
+                composeAccounts = accounts,
+                lastAccounts = listOf(accountKey2),
+            )
+        assertEquals(persistentListOf(accountKey2), selected)
+    }
+
+    @Test
+    fun `resolveInitialSelectedAccounts falls back to first account when last accounts are empty or missing`() {
+        val accountKey1 = MicroBlogKey(id = "user1", host = "x.com")
+        val accountKey2 = MicroBlogKey(id = "user2", host = "linkedin.com")
+        val accounts =
+            mapOf(
+                accountKey1 to "account1",
+                accountKey2 to "account2",
+            )
+        val selected =
+            resolveInitialSelectedAccounts(
+                composeAccounts = accounts,
+                lastAccounts = emptyList(),
+            )
+        assertEquals(persistentListOf(accountKey1), selected)
+    }
+
+    @Test
+    fun `resolveInitialSelectedAccounts returns empty when accounts are empty`() {
+        val selected =
+            resolveInitialSelectedAccounts(
+                composeAccounts = emptyMap<MicroBlogKey, Any>(),
+                lastAccounts = emptyList(),
+            )
+        assertEquals(persistentListOf(), selected)
+    }
 }

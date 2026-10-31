@@ -68,6 +68,7 @@ import dev.dimension.flare.settings_appearance_media_group_subtitle
 import dev.dimension.flare.settings_appearance_media_group_title
 import dev.dimension.flare.settings_appearance_media_layout
 import dev.dimension.flare.settings_appearance_media_layout_carousel
+import dev.dimension.flare.settings_appearance_media_layout_stack
 import dev.dimension.flare.settings_appearance_media_layout_description
 import dev.dimension.flare.settings_appearance_media_layout_grid
 import dev.dimension.flare.settings_appearance_post_action_style
@@ -552,6 +553,7 @@ internal fun TimelinePresentationEditor(
                                     persistentMapOf(
                                         TimelineMediaLayout.Grid to Res.string.settings_appearance_media_layout_grid,
                                         TimelineMediaLayout.Carousel to Res.string.settings_appearance_media_layout_carousel,
+                                        TimelineMediaLayout.Stack to Res.string.settings_appearance_media_layout_stack,
                                     ),
                                 selected = timelineAppearance.mediaLayout,
                                 onSelected = {

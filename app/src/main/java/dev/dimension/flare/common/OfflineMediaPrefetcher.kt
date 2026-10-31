@@ -41,12 +41,14 @@ public class OfflineMediaPrefetcher(
 
     public fun prefetchAll(items: List<ReadingListItem>) {
         val allUrls =
-            items.flatMap { item ->
-                buildList {
-                    item.authorAvatarUrl?.takeIf { it.isNotBlank() }?.let { add(it) }
-                    addAll(item.mediaUrls.filter { it.isNotBlank() })
-                }
-            }.distinct().filter { it.startsWith("http://") || it.startsWith("https://") }
+            items
+                .flatMap { item ->
+                    buildList {
+                        item.authorAvatarUrl?.takeIf { it.isNotBlank() }?.let { add(it) }
+                        addAll(item.mediaUrls.filter { it.isNotBlank() })
+                    }
+                }.distinct()
+                .filter { it.startsWith("http://") || it.startsWith("https://") }
 
         if (allUrls.isEmpty()) return
         prefetchUrls(allUrls)
@@ -63,7 +65,8 @@ public class OfflineMediaPrefetcher(
             for (url in urls) {
                 runCatching {
                     val request =
-                        ImageRequest.Builder(context)
+                        ImageRequest
+                            .Builder(context)
                             .data(url)
                             .memoryCachePolicy(CachePolicy.ENABLED)
                             .diskCachePolicy(CachePolicy.ENABLED)

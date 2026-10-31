@@ -43,6 +43,8 @@ public interface SubscriptionRepository {
     public suspend fun upsertAll(inputs: List<SubscriptionSourceInput>): List<UiRssSource>
 
     public suspend fun delete(id: Int): UiRssSource?
+
+    public suspend fun ensureDefaultFeedsSeeded(): List<UiRssSource>
 }
 
 @Single(binds = [SubscriptionRepository::class])
@@ -96,6 +98,15 @@ internal class DatabaseSubscriptionRepository(
                 ?.render()
         appDatabase.rssSourceDao().delete(id)
         return source
+    }
+
+    override suspend fun ensureDefaultFeedsSeeded(): List<UiRssSource> {
+        val existing = appDatabase.rssSourceDao().getAll().first()
+        if (existing.isEmpty()) {
+            val starterInputs = DefaultRssFeeds.allFeeds.map { it.toSubscriptionSourceInput() }
+            return upsertAll(starterInputs)
+        }
+        return existing.map { it.render() }
     }
 }
 

@@ -54,6 +54,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastForEach
 import androidx.compose.ui.util.fastForEachIndexed
 import compose.icons.FontAwesomeIcons
@@ -103,9 +104,9 @@ import dev.dimension.flare.compose.ui.share
 import dev.dimension.flare.compose.ui.show_media
 import dev.dimension.flare.compose.ui.status_detail_tldr
 import dev.dimension.flare.compose.ui.status_detail_translate
-import dev.dimension.flare.compose.ui.status_smart_reply_gemma
 import dev.dimension.flare.compose.ui.status_open_post
 import dev.dimension.flare.compose.ui.status_platform
+import dev.dimension.flare.compose.ui.status_smart_reply_gemma
 import dev.dimension.flare.compose.ui.status_view_insight
 import dev.dimension.flare.compose.ui.translation_badge_failed
 import dev.dimension.flare.compose.ui.translation_badge_translated
@@ -136,6 +137,7 @@ import dev.dimension.flare.ui.component.FAIcon
 import dev.dimension.flare.ui.component.FlareDividerDefaults
 import dev.dimension.flare.ui.component.HorizontalDivider
 import dev.dimension.flare.ui.component.LocalTimelineAppearance
+import dev.dimension.flare.ui.component.PlatformProvenancePill
 import dev.dimension.flare.ui.component.RichText
 import dev.dimension.flare.ui.component.placeholder
 import dev.dimension.flare.ui.component.platform.PlatformCard
@@ -190,6 +192,8 @@ public fun CommonStatusComponent(
     avatarModifier: Modifier = Modifier,
     actionsModifier: Modifier = Modifier,
     forceHideActions: Boolean = false,
+    hasParentConnector: Boolean = item.replyToHandle != null,
+    hasChildConnector: Boolean = false,
 ) {
     val uriHandler = LocalUriHandler.current
     val openPostLabel = stringResource(Res.string.status_open_post)
@@ -208,11 +212,12 @@ public fun CommonStatusComponent(
             item.user != null &&
             showMedia &&
             allowMediaCarousel &&
-            appearanceSettings.mediaLayout == TimelineMediaLayout.Carousel &&
+            appearanceSettings.mediaLayout != TimelineMediaLayout.Grid &&
             item.images.size > 1
     Row(
         modifier =
             Modifier
+                .height(IntrinsicSize.Min)
                 .let {
                     if (isDetail || !isClickable) {
                         it
@@ -231,27 +236,53 @@ public fun CommonStatusComponent(
     ) {
         if (showAsFullWidth) {
             item.user?.let {
-                AvatarComponent(
-                    data = it.avatar,
-                    platformId = item.platformId,
-                    host = it.key.host,
-                    platformIcon = item.platformIcon,
-                    contentDescription =
-                        stringResource(
-                            Res.string.profile_open_user,
-                            it.handle.canonical,
-                        ),
-                    modifier =
-                        Modifier.clickable {
-                            it.onClicked.invoke(
-                                ClickContext(
-                                    launcher = {
-                                        uriHandler.openUri(it)
-                                    },
-                                ),
-                            )
-                        },
-                )
+                val connectorColor = PlatformTheme.colorScheme.outline.copy(alpha = 0.32f)
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.width(AvatarComponentDefaults.size).fillMaxHeight(),
+                ) {
+                    if (hasParentConnector) {
+                        Box(
+                            modifier =
+                                Modifier
+                                    .width(2.dp)
+                                    .height(6.dp)
+                                    .background(connectorColor, RoundedCornerShape(1.dp)),
+                        )
+                    } else if (hasChildConnector) {
+                        Spacer(modifier = Modifier.height(2.dp))
+                    }
+                    AvatarComponent(
+                        data = it.avatar,
+                        platformId = item.platformId,
+                        host = it.key.host,
+                        platformIcon = item.platformIcon,
+                        contentDescription =
+                            stringResource(
+                                Res.string.profile_open_user,
+                                it.handle.canonical,
+                            ),
+                        modifier =
+                            Modifier.clickable {
+                                it.onClicked.invoke(
+                                    ClickContext(
+                                        launcher = {
+                                            uriHandler.openUri(it)
+                                        },
+                                    ),
+                                )
+                            },
+                    )
+                    if (hasChildConnector) {
+                        Box(
+                            modifier =
+                                Modifier
+                                    .width(2.dp)
+                                    .weight(1f)
+                                    .background(connectorColor, RoundedCornerShape(1.dp)),
+                        )
+                    }
+                }
                 Spacer(modifier = Modifier.width(10.dp))
             }
         }
@@ -287,17 +318,10 @@ public fun CommonStatusComponent(
                                 )
                             }
                             if (appearanceSettings.showPlatformLogo) {
-                                FAIcon(
-                                    imageVector = item.platformIcon.toImageVector(),
-                                    contentDescription =
-                                        stringResource(
-                                            Res.string.status_platform,
-                                            item.platformId,
-                                        ),
-                                    modifier =
-                                        Modifier
-                                            .size(PlatformTheme.typography.caption.fontSize.value.dp),
-                                    tint = PlatformTheme.colorScheme.caption,
+                                PlatformProvenancePill(
+                                    platformId = item.platformId,
+                                    host = item.user?.key?.host,
+                                    fallbackIcon = item.platformIcon,
                                 )
                             }
                             if (!isDetail) {
@@ -401,14 +425,22 @@ public fun CommonStatusComponent(
                 }
                 if (isDetail) {
                     SelectionContainer {
-                        StatusContentComponent(
-                            content = item.content,
-                            contentWarning = item.contentWarning,
-                            poll = item.poll,
-                            maxLines = Int.MAX_VALUE,
-                            showExpandButton = showExpandButton,
-                            translationDisplayed = item.translationDisplayState == TranslationDisplayState.Translated,
-                        )
+                        CompositionLocalProvider(
+                            PlatformTextStyle provides
+                                PlatformTextStyle.current.copy(
+                                    fontSize = 17.sp,
+                                    lineHeight = 24.sp,
+                                ),
+                        ) {
+                            StatusContentComponent(
+                                content = item.content,
+                                contentWarning = item.contentWarning,
+                                poll = item.poll,
+                                maxLines = Int.MAX_VALUE,
+                                showExpandButton = showExpandButton,
+                                translationDisplayed = item.translationDisplayState == TranslationDisplayState.Translated,
+                            )
+                        }
                     }
                 } else {
                     StatusContentComponent(
@@ -521,16 +553,10 @@ public fun CommonStatusComponent(
                             style = PlatformTheme.typography.caption,
                             color = PlatformTheme.colorScheme.caption.copy(alpha = 0.6f),
                         )
-                        FAIcon(
-                            imageVector = item.platformIcon.toImageVector(),
-                            contentDescription = stringResource(Res.string.status_platform, item.platformId),
-                            modifier = Modifier.size(13.dp),
-                            tint = PlatformTheme.colorScheme.caption,
-                        )
-                        PlatformText(
-                            text = item.platformId.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() },
-                            style = PlatformTheme.typography.caption,
-                            color = PlatformTheme.colorScheme.caption,
+                        PlatformProvenancePill(
+                            platformId = item.platformId,
+                            host = item.user?.key?.host,
+                            fallbackIcon = item.platformIcon,
                         )
                     }
                 }
@@ -905,17 +931,30 @@ private fun TranslationComponent(
                 )
             }
         }
-        if (rawContent.isNotBlank()) {
+        if (rawContent.isNotBlank() || item.images.isNotEmpty()) {
             PlatformTextButton(
                 onClick = {
+                    val altText = item.images.mapNotNull { it.description?.takeIf { d -> d.isNotBlank() } }.joinToString("\n")
+                    val parentContext = item.replyToHandle?.let { "Replying to @$it" }.orEmpty()
                     uriHandler.openUri(
-                        DeeplinkRoute.Status.SmartReply(
-                            statusKey = item.statusKey,
-                            accountType = item.accountType,
-                            initialText = rawContent,
-                            authorName = item.user?.name?.raw.orEmpty(),
-                            authorHandle = item.user?.handle?.canonical.orEmpty(),
-                        ).toUri(),
+                        DeeplinkRoute.Status
+                            .SmartReply(
+                                statusKey = item.statusKey,
+                                accountType = item.accountType,
+                                initialText = rawContent,
+                                authorName =
+                                    item.user
+                                        ?.name
+                                        ?.raw
+                                        .orEmpty(),
+                                authorHandle =
+                                    item.user
+                                        ?.handle
+                                        ?.canonical
+                                        .orEmpty(),
+                                mediaDescription = altText,
+                                parentContext = parentContext,
+                            ).toUri(),
                     )
                 },
             ) {
@@ -1350,8 +1389,11 @@ private fun ActionMenu.Item.Text.asString(): String =
 @Composable
 private fun ActionMenu.Item.Color.toComposeColor(): Color =
     when (this) {
-        ActionMenu.Item.Color.Red -> Color(0xFFF91880) // Vibrant Rose / Ruby for liked state
+        ActionMenu.Item.Color.Red -> Color(0xFFF91880)
+
+        // Vibrant Rose / Ruby for liked state
         ActionMenu.Item.Color.ContentColor -> PlatformContentColor.current
+
         ActionMenu.Item.Color.PrimaryColor -> Color(0xFF00BA7C) // Vibrant Emerald for boosted state
     }
 

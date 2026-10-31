@@ -114,7 +114,7 @@ public class GroupConfigPresenter : PresenterBase<GroupConfigPresenter.State>() 
             appearancePatch: AppearancePatch?,
             enabled: Boolean,
             tabs: List<UiTimelineTabItem>,
-            mergePolicy: TimelineMergePolicy = initialItem?.mergePolicy ?: TimelineMergePolicy.TimePerPage,
+            mergePolicy: TimelineMergePolicy = initialItem?.mergePolicy ?: TimelineMergePolicy.Time,
             filterConfig: TimelineFilterConfig = initialItem?.filterConfig ?: TimelineFilterConfig(),
             defaultGroupName: String,
         ): UiGroupTimelineTabItem?
@@ -126,7 +126,7 @@ public class GroupConfigPresenter : PresenterBase<GroupConfigPresenter.State>() 
             appearancePatch: AppearancePatch?,
             enabled: Boolean,
             tabs: List<UiTimelineTabItem>,
-            mergePolicy: TimelineMergePolicy = initialItem?.mergePolicy ?: TimelineMergePolicy.TimePerPage,
+            mergePolicy: TimelineMergePolicy = initialItem?.mergePolicy ?: TimelineMergePolicy.Time,
             filterConfig: TimelineFilterConfig = initialItem?.filterConfig ?: TimelineFilterConfig(),
             defaultGroupName: String,
         )
@@ -140,7 +140,7 @@ internal fun TabSettingsV2.upsertGroupConfig(
     appearancePatch: AppearancePatch?,
     enabled: Boolean,
     tabs: List<UiTimelineTabItem>,
-    mergePolicy: TimelineMergePolicy = initialItem?.mergePolicy ?: TimelineMergePolicy.TimePerPage,
+    mergePolicy: TimelineMergePolicy = initialItem?.mergePolicy ?: TimelineMergePolicy.Time,
     filterConfig: TimelineFilterConfig = initialItem?.filterConfig ?: TimelineFilterConfig(),
     defaultGroupName: String,
     timelineResolver: TimelineResolver,

@@ -330,9 +330,7 @@ internal interface PagingTimelineDao {
             "ORDER BY DbStatus.rowid DESC " +
             "LIMIT :limit",
     )
-    suspend fun getRecentCachedStatuses(
-        limit: Int = 200,
-    ): List<DbStatusWithReference>
+    suspend fun getRecentCachedStatuses(limit: Int = 200): List<DbStatusWithReference>
 
     @Transaction
     @Query(
@@ -564,4 +562,20 @@ internal interface PagingTimelineDao {
         pagingKey: String,
         prevKey: String,
     )
+
+    @Query(
+        "DELETE FROM DbPagingTimeline " +
+            "WHERE sortId > 0 AND sortId < :cutoffSortId " +
+            "AND pagingKey NOT LIKE '%bookmark%' " +
+            "AND pagingKey NOT LIKE '%favorite%' " +
+            "AND pagingKey NOT LIKE '%favourite%' " +
+            "AND pagingKey NOT LIKE '%reading_list%'",
+    )
+    suspend fun pruneExpiredTimelineEntries(cutoffSortId: Long): Int
+
+    @Query("DELETE FROM timeline_item_presentation_reference WHERE timelineId NOT IN (SELECT _id FROM DbPagingTimeline)")
+    suspend fun pruneOrphanedPresentationReferences(): Int
+
+    @Query("DELETE FROM DbPagingKey WHERE pagingKey NOT IN (SELECT DISTINCT pagingKey FROM DbPagingTimeline)")
+    suspend fun pruneOrphanedPagingKeys(): Int
 }

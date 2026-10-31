@@ -148,4 +148,7 @@ internal interface TranslationDao {
 
     @Query("DELETE FROM DbTranslation")
     suspend fun clear()
+
+    @Query("DELETE FROM DbTranslation WHERE entityKey NOT IN (SELECT id FROM DbStatus)")
+    suspend fun pruneOrphanedTranslations(): Int
 }

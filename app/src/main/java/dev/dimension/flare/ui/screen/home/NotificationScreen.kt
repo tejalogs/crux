@@ -2,23 +2,22 @@ package dev.dimension.flare.ui.screen.home
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
 import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridState
 import androidx.compose.material3.Badge
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.LeadingIconTab
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SecondaryScrollableTabRow
-import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -29,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import compose.icons.FontAwesomeIcons
 import compose.icons.fontawesomeicons.Solid
@@ -40,16 +40,17 @@ import dev.dimension.flare.data.model.BottomBarBehavior
 import dev.dimension.flare.data.model.TimelineDisplayMode
 import dev.dimension.flare.ui.component.AvatarComponent
 import dev.dimension.flare.ui.component.FAIcon
+import dev.dimension.flare.ui.component.FlareLargeFlexibleTopAppBar
 import dev.dimension.flare.ui.component.FlareScaffold
 import dev.dimension.flare.ui.component.FlareTopAppBar
 import dev.dimension.flare.ui.component.LocalGlobalAppearance
 import dev.dimension.flare.ui.component.LocalTimelineAppearance
 import dev.dimension.flare.ui.component.RefreshContainer
-import dev.dimension.flare.ui.haptic.FlareHapticEvent
-import dev.dimension.flare.ui.haptic.rememberFlareHapticFeedback
 import dev.dimension.flare.ui.component.platform.isCompatScreen
 import dev.dimension.flare.ui.component.status.LazyStatusVerticalStaggeredGrid
 import dev.dimension.flare.ui.component.status.status
+import dev.dimension.flare.ui.haptic.FlareHapticEvent
+import dev.dimension.flare.ui.haptic.rememberFlareHapticFeedback
 import dev.dimension.flare.ui.model.onSuccess
 import dev.dimension.flare.ui.presenter.home.AllNotificationPresenter
 import dev.dimension.flare.ui.presenter.invoke
@@ -61,6 +62,7 @@ import moe.tlaster.precompose.molecule.producePresenter
 
 @OptIn(
     ExperimentalMaterial3Api::class,
+    ExperimentalMaterial3ExpressiveApi::class,
 )
 @Composable
 internal fun NotificationScreen() {
@@ -82,62 +84,47 @@ internal fun NotificationScreen() {
         } else {
             TopAppBarDefaults.enterAlwaysScrollBehavior()
         }
+    val isPlain = LocalTimelineAppearance.current.timelineDisplayMode == TimelineDisplayMode.Plain && isLightTheme() && isCompatScreen
+    val screenBgColor = if (isPlain) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.background
     FlareScaffold(
+        containerColor = screenBgColor,
         topBar = {
-            FlareTopAppBar(
-                colors =
-                    when (LocalTimelineAppearance.current.timelineDisplayMode) {
-                        TimelineDisplayMode.Plain if isLightTheme() && isCompatScreen() -> {
-                            TopAppBarDefaults.topAppBarColors(
-                                containerColor = MaterialTheme.colorScheme.surface,
-                                scrolledContainerColor = MaterialTheme.colorScheme.surface,
-                                actionIconContentColor = MaterialTheme.colorScheme.primary,
-                            )
-                        }
-
-                        else -> {
-                            TopAppBarDefaults.topAppBarColors(
-                                containerColor = MaterialTheme.colorScheme.background,
-                                scrolledContainerColor = MaterialTheme.colorScheme.background,
-                                actionIconContentColor = MaterialTheme.colorScheme.primary,
-                            )
-                        }
-                    },
-                title = {
-                    if (state.notifications.size > 1) {
-                        SecondaryScrollableTabRow(
-                            containerColor = Color.Transparent,
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth(),
-                            selectedTabIndex = state.selectedAccountIndex,
-                            edgePadding = 0.dp,
-                            divider = { },
-                            indicator = {
-                                TabRowDefaults.SecondaryIndicator(
-                                    Modifier.tabIndicatorOffset(
-                                        state.selectedAccountIndex,
-                                        matchContentSize = false,
-                                    ),
-                                )
-                            },
-                            minTabWidth = 48.dp,
+            if (state.notifications.size > 1) {
+                FlareTopAppBar(
+                    colors =
+                        TopAppBarDefaults.topAppBarColors(
+                            containerColor = screenBgColor,
+                            scrolledContainerColor = screenBgColor,
+                            actionIconContentColor = MaterialTheme.colorScheme.primary,
+                        ),
+                    title = {
+                        LazyRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentPadding = PaddingValues(horizontal = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            LeadingIconTab(
-                                selectedContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                                unselectedContentColor = LocalContentColor.current,
-                                selected = state.isUnified,
-                                onClick = {
-                                    haptics.perform(FlareHapticEvent.SelectionChange)
-                                    state.setAllAccounts()
-                                },
-                                text = { Text(text = stringResource(id = R.string.notification_tab_unified), maxLines = 1) },
-                                icon = {
+                            item(key = "unified") {
+                                ToggleButton(
+                                    checked = state.isUnified,
+                                    onCheckedChange = {
+                                        haptics.perform(FlareHapticEvent.SelectionChange)
+                                        state.setAllAccounts()
+                                    },
+                                    colors =
+                                        ToggleButtonDefaults.colors(
+                                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            checkedContainerColor = MaterialTheme.colorScheme.primary,
+                                            checkedContentColor = MaterialTheme.colorScheme.onPrimary,
+                                        ),
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                ) {
                                     Box(contentAlignment = Alignment.BottomEnd) {
                                         FAIcon(
                                             imageVector = FontAwesomeIcons.Solid.Bell,
                                             contentDescription = null,
-                                            modifier = Modifier.size(18.dp),
+                                            modifier = Modifier.size(16.dp),
                                         )
                                         if (state.totalBadgeCount > 0) {
                                             Badge {
@@ -149,71 +136,119 @@ internal fun NotificationScreen() {
                                             }
                                         }
                                     }
-                                },
-                            )
-                            state.notifications.forEach { item ->
+                                    Text(
+                                        text = stringResource(id = R.string.notification_tab_unified),
+                                        maxLines = 1,
+                                        style =
+                                            MaterialTheme.typography.labelLarge.copy(
+                                                fontWeight = if (state.isUnified) FontWeight.Bold else FontWeight.Medium,
+                                            ),
+                                        modifier = Modifier.padding(start = 6.dp),
+                                    )
+                                }
+                            }
+                            items(state.notifications, key = { it.profile.key.toString() }) { item ->
                                 val account = item.profile
                                 val badge = item.badge
-                                LeadingIconTab(
-                                    selectedContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                                    unselectedContentColor = LocalContentColor.current,
-                                    selected = state.selectedAccount?.key == account.key,
-                                    onClick = {
+                                val isSelected = state.selectedAccount?.key == account.key
+                                ToggleButton(
+                                    checked = isSelected,
+                                    onCheckedChange = {
                                         haptics.perform(FlareHapticEvent.SelectionChange)
                                         state.setAccount(account)
                                     },
-                                    text = {
-                                        Text(
-                                            text = account.handle.canonical,
-                                            maxLines = 1,
+                                    colors =
+                                        ToggleButtonDefaults.colors(
+                                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            checkedContainerColor = MaterialTheme.colorScheme.primary,
+                                            checkedContentColor = MaterialTheme.colorScheme.onPrimary,
+                                        ),
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                                ) {
+                                    Box(contentAlignment = Alignment.BottomEnd) {
+                                        AvatarComponent(
+                                            account.avatar,
+                                            size = 20.dp,
                                         )
-                                    },
-                                    icon = {
-                                        Box(
-                                            contentAlignment = Alignment.BottomEnd,
-                                        ) {
-                                            AvatarComponent(
-                                                account.avatar,
-                                                size = 24.dp,
-                                            )
-                                            if (badge > 0) {
-                                                Badge {
-                                                    Text(
-                                                        text = badge.toString(),
-                                                        maxLines = 1,
-                                                        style = MaterialTheme.typography.labelSmall,
-                                                    )
-                                                }
+                                        if (badge > 0) {
+                                            Badge {
+                                                Text(
+                                                    text = badge.toString(),
+                                                    maxLines = 1,
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                )
                                             }
                                         }
-                                    },
-                                )
+                                    }
+                                    Text(
+                                        text = account.handle.canonical,
+                                        maxLines = 1,
+                                        style =
+                                            MaterialTheme.typography.labelLarge.copy(
+                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                            ),
+                                        modifier = Modifier.padding(start = 6.dp),
+                                    )
+                                }
                             }
                         }
-                    } else {
-                        Text(text = stringResource(id = R.string.home_tab_notifications_title))
-                    }
-                },
-                scrollBehavior = topAppBarScrollBehavior,
-                actions = {
-                    if (!isCompatScreen) {
-                        state.supportedNotificationFilters.onSuccess { filters ->
-                            if (filters.size > 1) {
-                                NotificationFilterSelector(
-                                    filters,
-                                    state.selectedFilter,
-                                    onFilterChanged = {
-                                        state.setFilter(it)
-                                    },
-                                    modifier =
-                                        Modifier
-                                            .padding(horizontal = screenHorizontalPadding),
-                                )
+                    },
+                    scrollBehavior = topAppBarScrollBehavior,
+                    actions = {
+                        if (!isCompatScreen) {
+                            state.supportedNotificationFilters.onSuccess { filters ->
+                                if (filters.size > 1) {
+                                    NotificationFilterSelector(
+                                        filters,
+                                        state.selectedFilter,
+                                        onFilterChanged = {
+                                            state.setFilter(it)
+                                        },
+                                        modifier =
+                                            Modifier
+                                                .padding(horizontal = screenHorizontalPadding),
+                                    )
+                                }
                             }
                         }
-                    }
-                },
-            )
+                    },
+                )
+            } else {
+                FlareLargeFlexibleTopAppBar(
+                    colors =
+                        TopAppBarDefaults.topAppBarColors(
+                            containerColor = screenBgColor,
+                            scrolledContainerColor = screenBgColor,
+                            actionIconContentColor = MaterialTheme.colorScheme.primary,
+                        ),
+                    title = {
+                        Text(
+                            text = stringResource(id = R.string.home_tab_notifications_title),
+                            style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+                        )
+                    },
+                    scrollBehavior = topAppBarScrollBehavior,
+                    actions = {
+                        if (!isCompatScreen) {
+                            state.supportedNotificationFilters.onSuccess { filters ->
+                                if (filters.size > 1) {
+                                    NotificationFilterSelector(
+                                        filters,
+                                        state.selectedFilter,
+                                        onFilterChanged = {
+                                            state.setFilter(it)
+                                        },
+                                        modifier =
+                                            Modifier
+                                                .padding(horizontal = screenHorizontalPadding),
+                                    )
+                                }
+                            }
+                        }
+                    },
+                )
+            }
         },
         modifier = Modifier.nestedScroll(topAppBarScrollBehavior.nestedScrollConnection),
     ) { contentPadding ->
@@ -236,7 +271,10 @@ internal fun NotificationScreen() {
                                         modifier =
                                             Modifier
                                                 .fillMaxWidth()
-                                                .padding(horizontal = screenHorizontalPadding),
+                                                .padding(
+                                                    horizontal = screenHorizontalPadding,
+                                                    vertical = 6.dp,
+                                                ),
                                         contentAlignment = Alignment.CenterStart,
                                     ) {
                                         NotificationFilterSelector(
@@ -267,21 +305,36 @@ private fun NotificationFilterSelector(
     modifier: Modifier = Modifier,
 ) {
     val haptics = rememberFlareHapticFeedback(LocalGlobalAppearance.current.hapticsEnabled)
-    Row(
+    LazyRow(
         modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        filters.forEach { filter ->
-            FilterChip(
-                selected = filter == selectedFilter,
-                onClick = {
+        items(filters) { filter ->
+            val isSelected = filter == selectedFilter
+            ToggleButton(
+                checked = isSelected,
+                onCheckedChange = {
                     haptics.perform(FlareHapticEvent.SelectionChange)
                     onFilterChanged(filter)
                 },
-                label = {
-                    Text(stringResource(id = filter.title))
-                },
-            )
+                colors =
+                    ToggleButtonDefaults.colors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        checkedContainerColor = MaterialTheme.colorScheme.primary,
+                        checkedContentColor = MaterialTheme.colorScheme.onPrimary,
+                    ),
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+            ) {
+                Text(
+                    text = stringResource(id = filter.title),
+                    style =
+                        MaterialTheme.typography.labelLarge.copy(
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                        ),
+                )
+            }
         }
     }
 }

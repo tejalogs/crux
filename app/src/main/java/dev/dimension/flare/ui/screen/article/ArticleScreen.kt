@@ -264,24 +264,31 @@ internal fun ArticleScreen(
                             enabled = article != null,
                             onClick = {
                                 val title = articleTitle.orEmpty()
-                                val body = article?.content?.rawText?.takeIf { it.isNotBlank() }
-                                    ?: article?.content?.blocks?.joinToString("\n\n") { it.toString() }.orEmpty()
-                                val author = when (val a = article?.author) {
-                                    is UiArticleAuthor.Profile -> a.profile.name.raw
-                                    is UiArticleAuthor.Rss -> a.byline ?: a.siteName.orEmpty()
-                                    null -> ""
-                                }
+                                val body =
+                                    article?.content?.rawText?.takeIf { it.isNotBlank() }
+                                        ?: article
+                                            ?.content
+                                            ?.blocks
+                                            ?.joinToString("\n\n") { it.toString() }
+                                            .orEmpty()
+                                val author =
+                                    when (val a = article?.author) {
+                                        is UiArticleAuthor.Profile -> a.profile.name.raw
+                                        is UiArticleAuthor.Rss -> a.byline ?: a.siteName.orEmpty()
+                                        null -> ""
+                                    }
                                 val url = sourceUrl.orEmpty()
                                 uriHandler.openUri(
-                                    DeeplinkRoute.Status.OmniScribe(
-                                        statusKey = articleKey,
-                                        accountType = accountType,
-                                        initialText = body,
-                                        authorName = author,
-                                        authorHandle = "article",
-                                        articleTitle = title,
-                                        sourceUrl = url,
-                                    ).toUri(),
+                                    DeeplinkRoute.Status
+                                        .OmniScribe(
+                                            statusKey = articleKey,
+                                            accountType = accountType,
+                                            initialText = body,
+                                            authorName = author,
+                                            authorHandle = "article",
+                                            articleTitle = title,
+                                            sourceUrl = url,
+                                        ).toUri(),
                                 )
                             },
                         ) {

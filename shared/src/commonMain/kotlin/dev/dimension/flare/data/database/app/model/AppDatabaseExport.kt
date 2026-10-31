@@ -8,4 +8,6 @@ internal data class AppDatabaseExport(
     val keywordFilters: List<DbKeywordFilter> = emptyList(),
     val searchHistories: List<DbSearchHistory> = emptyList(),
     val rssSources: List<DbRssSources> = emptyList(),
+    val localFollows: List<DbLocalFollow> = emptyList(),
+    val localFollowGroups: List<DbLocalFollowGroup> = emptyList(),
 )

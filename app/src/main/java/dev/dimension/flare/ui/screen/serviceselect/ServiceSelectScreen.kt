@@ -20,10 +20,10 @@ import dev.dimension.flare.ui.screen.login.ServiceSelectionScreenContent
 @Composable
 internal fun ServiceSelectScreen(
     onWebViewLogin: (url: String, cookieCallback: (cookies: String?) -> Boolean) -> Unit,
-    onToInstagramWeb: () -> Unit = {},
-    onToLinkedInWeb: () -> Unit = {},
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    onToInstagramWeb: () -> Unit = {},
+    onToLinkedInWeb: () -> Unit = {},
 ) {
     val uriHandler = LocalUriHandler.current
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()

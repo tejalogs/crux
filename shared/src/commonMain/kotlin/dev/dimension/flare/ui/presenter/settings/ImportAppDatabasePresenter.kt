@@ -47,6 +47,10 @@ public class ImportAppDatabasePresenter(
             if (export.rssSources.isNotEmpty()) {
                 appDatabase.rssSourceDao().insertAll(export.rssSources)
             }
+
+            export.localFollowGroups.forEach { appDatabase.localFollowDao().insertGroup(it) }
+
+            export.localFollows.forEach { appDatabase.localFollowDao().insertFollow(it) }
         }
     }
 

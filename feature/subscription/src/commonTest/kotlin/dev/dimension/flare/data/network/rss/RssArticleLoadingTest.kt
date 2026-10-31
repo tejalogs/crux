@@ -5,7 +5,9 @@ import dev.dimension.flare.data.network.rss.model.Feed
 import dev.dimension.flare.model.MicroBlogKey
 import dev.dimension.flare.ui.model.ClickEvent
 import dev.dimension.flare.ui.model.UiTimelineV2
+import dev.dimension.flare.ui.model.mapper.decodeFeedTitle
 import dev.dimension.flare.ui.model.mapper.fromRss
+import dev.dimension.flare.ui.model.mapper.isThinFeedText
 import dev.dimension.flare.ui.model.mapper.render
 import dev.dimension.flare.ui.route.DeeplinkRoute
 import io.ktor.client.HttpClient
@@ -24,6 +26,7 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class RssArticleLoadingTest {
@@ -73,6 +76,20 @@ class RssArticleLoadingTest {
                 client.close()
             }
         }
+
+    @Test
+    fun feedTitlesDecodeHtmlEntities() {
+        assertEquals("Here\u2019s why", "Here&#8217;s why".decodeFeedTitle())
+        assertEquals("Plain title", "Plain title".decodeFeedTitle())
+    }
+
+    @Test
+    fun linkOnlyFeedTextIsThinButRealTextAndImagesAreNot() {
+        assertTrue("<a href='https://news.ycombinator.com/item?id=1'>Comments</a>".isThinFeedText())
+        assertTrue(null.isThinFeedText())
+        assertFalse("<img src='https://example.com/a.jpg'>".isThinFeedText())
+        assertFalse("<p>Short but real feed text.</p>".isThinFeedText())
+    }
 
     @Test
     fun timeoutFallsBackAndCancellationDoesNot() =

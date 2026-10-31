@@ -3,7 +3,6 @@ package dev.dimension.flare.ui.screen.linkedin
 import android.content.Intent
 import android.net.Uri
 import android.view.ViewGroup.LayoutParams
-import android.webkit.CookieManager
 import android.webkit.GeolocationPermissions
 import android.webkit.PermissionRequest
 import android.webkit.ValueCallback
@@ -11,7 +10,6 @@ import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
-import android.webkit.WebStorage
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.FrameLayout
@@ -27,6 +25,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -37,6 +36,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
@@ -61,6 +61,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -75,10 +76,13 @@ import compose.icons.fontawesomeicons.solid.ArrowLeft
 import compose.icons.fontawesomeicons.solid.ArrowRight
 import compose.icons.fontawesomeicons.solid.ArrowUpRightFromSquare
 import compose.icons.fontawesomeicons.solid.Bookmark
+import compose.icons.fontawesomeicons.solid.EllipsisVertical
 import compose.icons.fontawesomeicons.solid.RotateRight
 import compose.icons.fontawesomeicons.solid.ShieldHalved
 import compose.icons.fontawesomeicons.solid.TrashCan
 import compose.icons.fontawesomeicons.solid.Xmark
+import dev.dimension.flare.R
+import dev.dimension.flare.data.datasource.linkedin.LinkedInFeedParser
 import dev.dimension.flare.data.datasource.linkedin.LinkedInFeedService
 import dev.dimension.flare.data.datasource.linkedin.LinkedInSyncService
 import dev.dimension.flare.data.readinglist.ReadingListItem
@@ -86,148 +90,19 @@ import dev.dimension.flare.data.readinglist.ReadingListRepository
 import dev.dimension.flare.di.koinInject
 import dev.dimension.flare.ui.component.BackButton
 import dev.dimension.flare.ui.component.FAIcon
+import dev.dimension.flare.ui.component.FlareDropdownMenu
 import dev.dimension.flare.ui.component.FlareScaffold
 import dev.dimension.flare.ui.component.FlareTopAppBar
-import kotlinx.coroutines.delay
+import dev.dimension.flare.ui.screen.home.LiveWebSite
+import dev.dimension.flare.ui.screen.home.cookieManager
+import dev.dimension.flare.ui.screen.home.useProfileOf
+import dev.dimension.flare.ui.screen.home.webStorage
 import kotlinx.coroutines.launch
 import java.io.ByteArrayInputStream
-import kotlin.time.Duration.Companion.seconds
 
 private const val LINKEDIN_HOME_URL = "https://www.linkedin.com/feed/"
 
-private const val LINKEDIN_MOBILE_USER_AGENT =
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36"
-
-private const val PRISM_LINKEDIN_SHIELD_JS = """
-(function() {
-    var styleId = 'prism-linkedin-shield';
-    if (!document.getElementById(styleId)) {
-        var style = document.createElement('style');
-        style.id = styleId;
-        style.textContent = `
-            div[class*="app-banner"],
-            div[class*="upsell-banner"],
-            div[data-tracking-control-name="public_profile_contextual-sign-in-modal"],
-            div[data-tracking-control-name="cold_join"],
-            a[href*="linkedin.com/download"],
-            a[href*="play.google.com/store/apps/details?id=com.linkedin.android"],
-            div.modal__overlay--active[data-tracking-control-name*="app_banner"],
-            html, body { -webkit-tap-highlight-color: transparent; }
-        `;
-        (document.head || document.documentElement).appendChild(style);
-    }
-
-    if (!window.__prismTelemetryBlocked) {
-        window.__prismTelemetryBlocked = true;
-        try {
-            var origBeacon = navigator.sendBeacon;
-            navigator.sendBeacon = function(url) {
-                if (typeof url === 'string' && (
-                    url.indexOf('snap.licdn.com') !== -1 ||
-                    url.indexOf('px.ads.linkedin.com') !== -1 ||
-                    url.indexOf('platform.linkedin.com/litms/') !== -1 ||
-                    url.indexOf('/li/track') !== -1 ||
-                    url.indexOf('google-analytics.com') !== -1
-                )) {
-                    return true;
-                }
-                return origBeacon ? origBeacon.apply(this, arguments) : true;
-            };
-        } catch (_) {}
-    }
-
-    function cleanDOM() {
-        var dialogs = document.querySelectorAll('div[role="dialog"]');
-        for (var i = 0; i < dialogs.length; i++) {
-            var text = dialogs[i].innerText || '';
-            if (text.indexOf('Open in LinkedIn') !== -1 || text.indexOf('Use the app') !== -1 || text.indexOf('Join LinkedIn') !== -1) {
-                dialogs[i].remove();
-            }
-        }
-    }
-
-    if (!window.__prismObserverActive && document.body) {
-        window.__prismObserverActive = true;
-        try {
-            var obs = new MutationObserver(function() {
-                cleanDOM();
-            });
-            obs.observe(document.body, { childList: true, subtree: true });
-        } catch (_) {}
-    }
-    cleanDOM();
-
-    if (!window.__prismFeedHooked) {
-        window.__prismFeedHooked = true;
-        try {
-            var origFetch = window.fetch;
-            if (origFetch) {
-                window.fetch = async function() {
-                    var response = await origFetch.apply(this, arguments);
-                    try {
-                        var arg = arguments[0];
-                        var u = typeof arg === 'string' ? arg : (arg ? arg.url : '');
-                        if (u && (u.indexOf('voyager/api/feed') !== -1 || u.indexOf('feedUpdates') !== -1 || u.indexOf('voyager/api/graphql') !== -1 || u.indexOf('dash/updates') !== -1 || u.indexOf('updatesV2') !== -1)) {
-                            response.clone().text().then(function(t) {
-                                if (window.LinkedInPrismBridge && t) {
-                                    window.LinkedInPrismBridge.onFeedData(t);
-                                }
-                            });
-                        }
-                    } catch (_) {}
-                    return response;
-                };
-            }
-
-            var origOpen = XMLHttpRequest.prototype.open;
-            var origSend = XMLHttpRequest.prototype.send;
-            XMLHttpRequest.prototype.open = function(method, url) {
-                this.__prismUrl = url;
-                return origOpen.apply(this, arguments);
-            };
-            XMLHttpRequest.prototype.send = function() {
-                this.addEventListener('load', function() {
-                    try {
-                        if (this.__prismUrl && (
-                            this.__prismUrl.indexOf('voyager/api/feed') !== -1 ||
-                            this.__prismUrl.indexOf('feedUpdates') !== -1 ||
-                            this.__prismUrl.indexOf('voyager/api/graphql') !== -1 ||
-                            this.__prismUrl.indexOf('dash/updates') !== -1 ||
-                            this.__prismUrl.indexOf('updatesV2') !== -1
-                        )) {
-                            if (window.LinkedInPrismBridge && this.responseText) {
-                                window.LinkedInPrismBridge.onFeedData(this.responseText);
-                            }
-                        }
-                    } catch (_) {}
-                });
-                return origSend.apply(this, arguments);
-            };
-        } catch (_) {}
-    }
-})();
-"""
-
-private const val PRISM_LINKEDIN_FETCH_FEED_JS = """
-(function() {
-    try {
-        var csrf = (document.cookie.match(/JSESSIONID="?([^";]+)"?/) || [])[1] || '';
-        if (csrf && window.LinkedInPrismBridge) {
-            fetch('/voyager/api/feed/dash/updates?count=20&q=feedUpdates', {
-                headers: { 'csrf-token': csrf }
-            }).then(function(r) { return r.text(); }).then(function(t) {
-                if (t && window.LinkedInPrismBridge) window.LinkedInPrismBridge.onFeedData(t);
-            }).catch(function() {
-                fetch('/voyager/api/feed/updatesV2?count=20&q=feedUpdates', {
-                    headers: { 'csrf-token': csrf }
-                }).then(function(r) { return r.text(); }).then(function(t) {
-                    if (t && window.LinkedInPrismBridge) window.LinkedInPrismBridge.onFeedData(t);
-                }).catch(function() {});
-            });
-        }
-    } catch (_) {}
-})();
-"""
+internal fun isLinkedInHost(host: String?): Boolean = LinkedInFeedParser.isValidLinkedInHost(host)
 
 internal fun isLinkedInAdOrTrackingUrl(url: String): Boolean {
     val lower = url.lowercase()
@@ -256,6 +131,10 @@ internal fun LinkedInWebScreen(
 ) {
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
+    val feedSyncedMsg = stringResource(R.string.linkedin_feed_synced)
+    val readingListRemovedMsg = stringResource(R.string.linkedin_reading_list_removed)
+    val readingListSavedMsg = stringResource(R.string.linkedin_reading_list_saved)
+    val sessionClearedMsg = stringResource(R.string.linkedin_session_cleared)
     val webViewRef = remember { mutableStateOf<WebView?>(null) }
     val readingListRepo by koinInject<ReadingListRepository>()
     val linkedInSyncService by koinInject<LinkedInSyncService>()
@@ -272,6 +151,13 @@ internal fun LinkedInWebScreen(
     val webViewState = rememberWebViewState(targetUrl)
 
     var currentUrl by remember { mutableStateOf(targetUrl) }
+    val committedUrlHolder =
+        remember {
+            object {
+                @Volatile
+                var url: String? = targetUrl
+            }
+        }
     val isSavedState by remember(currentUrl) { readingListRepo.isSaved(currentUrl) }.collectAsState(false)
     var canGoBack by remember { mutableStateOf(false) }
     var canGoForward by remember { mutableStateOf(false) }
@@ -279,19 +165,24 @@ internal fun LinkedInWebScreen(
     var isPageLoading by remember { mutableStateOf(true) }
     var showPrivacyDialog by remember { mutableStateOf(false) }
     var showClearConfirmDialog by remember { mutableStateOf(false) }
+    var showOverflowMenu by remember { mutableStateOf(false) }
     var isFeedSynced by remember { mutableStateOf(false) }
     var isDockExpanded by remember { mutableStateOf(false) }
 
     fun checkAndSyncSession(silent: Boolean = false) {
-        val cookies = CookieManager.getInstance().getCookie("https://www.linkedin.com")
+        val cookies = LiveWebSite.LinkedIn.cookieManager().getCookie("https://www.linkedin.com")
         if (!cookies.isNullOrBlank() && LinkedInFeedService.hasActiveSession(cookies)) {
-            webViewRef.value?.evaluateJavascript(PRISM_LINKEDIN_FETCH_FEED_JS, null)
             scope.launch {
                 val synced = linkedInSyncService.syncSession(cookies)
                 if (synced) {
                     isFeedSynced = true
                     if (!silent) {
-                        Toast.makeText(context, "LinkedIn feed synced with Prism!", Toast.LENGTH_SHORT).show()
+                        Toast
+                            .makeText(
+                                context,
+                                feedSyncedMsg,
+                                Toast.LENGTH_SHORT,
+                            ).show()
                     }
                 }
             }
@@ -300,10 +191,6 @@ internal fun LinkedInWebScreen(
 
     LaunchedEffect(Unit) {
         checkAndSyncSession(silent = true)
-        while (true) {
-            delay(10.seconds)
-            checkAndSyncSession(silent = true)
-        }
     }
 
     BackHandler(enabled = canGoBack) {
@@ -330,106 +217,106 @@ internal fun LinkedInWebScreen(
                     title = {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
                             Box(
-                                modifier = Modifier
-                                    .size(24.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(0xFF0A66C2)),
+                                modifier =
+                                    Modifier
+                                        .size(28.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.primaryContainer),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 FAIcon(
                                     imageVector = FontAwesomeIcons.Brands.LinkedinIn,
-                                    contentDescription = "LinkedIn",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(13.dp),
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    modifier = Modifier.size(14.dp),
                                 )
                             }
-                            Text(
-                                text = "LinkedIn",
-                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            )
-                            if (isFeedSynced) {
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .background(Color(0xFF0A66C2).copy(alpha = 0.15f))
-                                        .border(0.6.dp, Color(0xFF0A66C2).copy(alpha = 0.40f), RoundedCornerShape(12.dp))
-                                        .clickable { onBack() }
-                                        .padding(horizontal = 6.dp, vertical = 2.dp),
-                                ) {
-                                    Text(
-                                        text = "Feed Synced",
-                                        style = MaterialTheme.typography.labelSmall.copy(
-                                            color = Color(0xFF0A66C2),
-                                            fontWeight = FontWeight.Bold,
-                                        ),
-                                    )
-                                }
+                            Column {
+                                Text(
+                                    text = "LinkedIn",
+                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                    maxLines = 1,
+                                )
+                                Text(
+                                    text = stringResource(if (isFeedSynced) R.string.web_status_synced else R.string.web_status_syncing),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                )
                             }
                         }
                     },
                     actions = {
-                        if (isFeedSynced) {
-                            TextButton(onClick = onBack) {
-                                Text(
-                                    text = "Native Feed",
-                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                    color = Color(0xFF0A66C2),
+                        IconButton(
+                            onClick = {
+                                val urlToOpen = webViewRef.value?.url?.takeIf { it.isNotBlank() } ?: currentUrl
+                                uriHandler.openUri(urlToOpen)
+                            },
+                            modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp),
+                        ) {
+                            FAIcon(
+                                imageVector = FontAwesomeIcons.Solid.ArrowUpRightFromSquare,
+                                contentDescription = stringResource(R.string.web_open_in_browser),
+                                modifier = Modifier.size(18.dp),
+                            )
+                        }
+                        Box {
+                            IconButton(
+                                onClick = { showOverflowMenu = true },
+                                modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp),
+                            ) {
+                                FAIcon(
+                                    imageVector = FontAwesomeIcons.Solid.EllipsisVertical,
+                                    contentDescription = stringResource(R.string.web_overflow_menu),
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            }
+                            FlareDropdownMenu(
+                                expanded = showOverflowMenu,
+                                onDismissRequest = { showOverflowMenu = false },
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.web_privacy_info)) },
+                                    onClick = {
+                                        showOverflowMenu = false
+                                        showPrivacyDialog = true
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Reload") },
+                                    onClick = {
+                                        showOverflowMenu = false
+                                        webViewRef.value?.reload()
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            text = stringResource(R.string.web_clear_session),
+                                            color = MaterialTheme.colorScheme.error,
+                                        )
+                                    },
+                                    onClick = {
+                                        showOverflowMenu = false
+                                        showClearConfirmDialog = true
+                                    },
                                 )
                             }
                         }
-                        IconButton(
-                            onClick = {
-                                scope.launch {
-                                    if (isSavedState) {
-                                        readingListRepo.remove(currentUrl)
-                                        Toast.makeText(context, "Removed from Reading List", Toast.LENGTH_SHORT).show()
-                                    } else {
-                                        val title = webViewRef.value?.title?.takeIf { it.isNotBlank() } ?: "LinkedIn Web Post"
-                                        readingListRepo.save(
-                                            ReadingListItem(
-                                                id = currentUrl,
-                                                title = title,
-                                                authorName = "LinkedIn",
-                                                authorHandle = "",
-                                                contentText = "Saved LinkedIn link: $currentUrl",
-                                                sourceUrl = currentUrl,
-                                                platformId = "linkedin",
-                                                savedAtTimestamp = System.currentTimeMillis(),
-                                            ),
-                                        )
-                                        Toast.makeText(context, "Saved to Reading List", Toast.LENGTH_SHORT).show()
-                                    }
-                                }
-                            },
-                        ) {
-                            FAIcon(
-                                imageVector = FontAwesomeIcons.Solid.Bookmark,
-                                contentDescription = if (isSavedState) "Remove from Reading List" else "Save to Reading List",
-                                tint = if (isSavedState) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(18.dp),
-                            )
-                        }
-                        IconButton(onClick = { showPrivacyDialog = true }) {
-                            FAIcon(
-                                imageVector = FontAwesomeIcons.Solid.ShieldHalved,
-                                contentDescription = "Privacy Shield",
-                                tint = Color(0xFF0A66C2),
-                                modifier = Modifier.size(18.dp),
-                            )
-                        }
                     },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                    ),
+                    colors =
+                        TopAppBarDefaults.topAppBarColors(
+                            containerColor = MaterialTheme.colorScheme.surface,
+                        ),
                 )
                 if (isPageLoading) {
                     LinearProgressIndicator(
                         progress = { pageProgress },
                         modifier = Modifier.fillMaxWidth().height(2.5.dp),
-                        color = Color(0xFF0A66C2),
+                        color = MaterialTheme.colorScheme.primary,
                         trackColor = Color.Transparent,
                     )
                 }
@@ -437,14 +324,16 @@ internal fun LinkedInWebScreen(
         },
     ) { innerPadding ->
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
         ) {
             WebView(
                 state = webViewState,
                 modifier = Modifier.fillMaxSize(),
                 onCreated = { webView ->
+                    webView.useProfileOf(LiveWebSite.LinkedIn)
                     webViewRef.value = webView
                     webView.settings.apply {
                         javaScriptEnabled = true
@@ -458,80 +347,96 @@ internal fun LinkedInWebScreen(
                         displayZoomControls = false
                         loadWithOverviewMode = true
                         useWideViewPort = true
-                        userAgentString = LINKEDIN_MOBILE_USER_AGENT
                     }
 
-                    val cookieManager = CookieManager.getInstance()
+                    val cookieManager = LiveWebSite.LinkedIn.cookieManager()
                     cookieManager.setAcceptCookie(true)
                     cookieManager.setAcceptThirdPartyCookies(webView, false)
 
-                    webView.addJavascriptInterface(
-                        object {
-                            @android.webkit.JavascriptInterface
-                            fun onFeedData(json: String) {
-                                scope.launch {
-                                    linkedInSyncService.cacheFeedPayload(json)
-                                }
-                            }
-                        },
-                        "LinkedInPrismBridge",
-                    )
-
                     webView.webViewClient =
                         object : WebViewClient() {
+                            override fun shouldOverrideUrlLoading(
+                                view: WebView?,
+                                request: WebResourceRequest?,
+                            ): Boolean {
+                                val uri = request?.url ?: return false
+                                val host = uri.host
+                                if (isLinkedInHost(host)) {
+                                    return false
+                                }
+                                runCatching {
+                                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, uri)
+                                    view?.context?.startActivity(intent)
+                                }
+                                return true
+                            }
+
                             override fun shouldInterceptRequest(
                                 view: WebView?,
                                 request: WebResourceRequest?,
-                            ): WebResourceResponse? {
-                                val reqUrl = request?.url?.toString() ?: return null
-                                if (isLinkedInAdOrTrackingUrl(reqUrl)) {
-                                    return WebResourceResponse(
-                                        "text/plain",
-                                        "UTF-8",
-                                        ByteArrayInputStream(ByteArray(0)),
-                                    )
-                                }
-                                return super.shouldInterceptRequest(view, request)
-                            }
+                            ): WebResourceResponse? = super.shouldInterceptRequest(view, request)
 
-                            override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
+                            override fun onPageStarted(
+                                view: WebView?,
+                                url: String?,
+                                favicon: android.graphics.Bitmap?,
+                            ) {
                                 super.onPageStarted(view, url, favicon)
-                                url?.let {
+                                val committed = url ?: view?.url
+                                committedUrlHolder.url = committed
+                                committed?.let {
                                     currentUrl = it
                                     canGoBack = view?.canGoBack() ?: false
                                     canGoForward = view?.canGoForward() ?: false
                                 }
                                 isPageLoading = true
-                                view?.evaluateJavascript(PRISM_LINKEDIN_SHIELD_JS, null)
                             }
 
-                            override fun onPageFinished(view: WebView?, url: String?) {
+                            override fun onPageFinished(
+                                view: WebView?,
+                                url: String?,
+                            ) {
                                 super.onPageFinished(view, url)
                                 isPageLoading = false
-                                url?.let {
+                                val committed = url ?: view?.url
+                                committedUrlHolder.url = committed
+                                committed?.let {
                                     currentUrl = it
                                     canGoBack = view?.canGoBack() ?: false
                                     canGoForward = view?.canGoForward() ?: false
                                 }
-                                view?.evaluateJavascript(PRISM_LINKEDIN_SHIELD_JS, null)
-                                view?.evaluateJavascript(PRISM_LINKEDIN_FETCH_FEED_JS, null)
-                                checkAndSyncSession(silent = true)
+                                val host = committed?.let { Uri.parse(it).host }
+                                if (LinkedInFeedParser.isValidLinkedInHost(host)) {
+                                    checkAndSyncSession(silent = true)
+                                }
                             }
 
-                            override fun doUpdateVisitedHistory(view: WebView?, url: String?, isReload: Boolean) {
+                            override fun doUpdateVisitedHistory(
+                                view: WebView?,
+                                url: String?,
+                                isReload: Boolean,
+                            ) {
                                 super.doUpdateVisitedHistory(view, url, isReload)
-                                url?.let {
+                                val committed = url ?: view?.url
+                                committedUrlHolder.url = committed
+                                committed?.let {
                                     currentUrl = it
                                     canGoBack = view?.canGoBack() ?: false
                                     canGoForward = view?.canGoForward() ?: false
                                 }
-                                checkAndSyncSession(silent = true)
+                                val host = committed?.let { runCatching { Uri.parse(it).host }.getOrNull() }
+                                if (LinkedInFeedParser.isValidLinkedInHost(host)) {
+                                    checkAndSyncSession(silent = true)
+                                }
                             }
                         }
 
                     webView.webChromeClient =
                         object : WebChromeClient() {
-                            override fun onProgressChanged(view: WebView?, newProgress: Int) {
+                            override fun onProgressChanged(
+                                view: WebView?,
+                                newProgress: Int,
+                            ) {
                                 pageProgress = newProgress / 100f
                                 if (newProgress >= 100) {
                                     isPageLoading = false
@@ -570,11 +475,12 @@ internal fun LinkedInWebScreen(
 
             // Ergonomic Floating Navigation Dock
             Box(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .navigationBarsPadding()
-                    .padding(end = 16.dp, bottom = 16.dp)
-                    .zIndex(10f),
+                modifier =
+                    Modifier
+                        .align(Alignment.BottomEnd)
+                        .navigationBarsPadding()
+                        .padding(end = 16.dp, bottom = 16.dp)
+                        .zIndex(10f),
             ) {
                 if (!isDockExpanded) {
                     Surface(
@@ -583,15 +489,16 @@ internal fun LinkedInWebScreen(
                         color = MaterialTheme.colorScheme.surface,
                         tonalElevation = 6.dp,
                         shadowElevation = 8.dp,
-                        modifier = Modifier
-                            .size(46.dp)
-                            .border(0.8.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.25f), CircleShape),
+                        modifier =
+                            Modifier
+                                .size(48.dp)
+                                .border(0.8.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.25f), CircleShape),
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             FAIcon(
                                 imageVector = FontAwesomeIcons.Solid.ShieldHalved,
                                 contentDescription = "Open Navigation Controls",
-                                tint = Color(0xFF0A66C2),
+                                tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(20.dp),
                             )
                         }
@@ -599,11 +506,12 @@ internal fun LinkedInWebScreen(
                 } else {
                     ElevatedCard(
                         shape = RoundedCornerShape(24.dp),
-                        modifier = Modifier.border(
-                            0.8.dp,
-                            MaterialTheme.colorScheme.outline.copy(alpha = 0.25f),
-                            RoundedCornerShape(24.dp),
-                        ),
+                        modifier =
+                            Modifier.border(
+                                0.8.dp,
+                                MaterialTheme.colorScheme.outline.copy(alpha = 0.25f),
+                                RoundedCornerShape(24.dp),
+                            ),
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
@@ -613,30 +521,45 @@ internal fun LinkedInWebScreen(
                             IconButton(
                                 onClick = { webViewRef.value?.goBack() },
                                 enabled = canGoBack,
-                                modifier = Modifier.size(36.dp),
+                                modifier = Modifier.size(48.dp),
                             ) {
                                 FAIcon(
                                     imageVector = FontAwesomeIcons.Solid.ArrowLeft,
                                     contentDescription = "Back",
-                                    tint = if (canGoBack) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                                    tint =
+                                        if (canGoBack) {
+                                            MaterialTheme.colorScheme.onSurface
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurface.copy(
+                                                alpha = 0.38f,
+                                            )
+                                        },
                                     modifier = Modifier.size(15.dp),
                                 )
                             }
                             IconButton(
                                 onClick = { webViewRef.value?.goForward() },
                                 enabled = canGoForward,
-                                modifier = Modifier.size(36.dp),
+                                modifier = Modifier.size(48.dp),
                             ) {
                                 FAIcon(
                                     imageVector = FontAwesomeIcons.Solid.ArrowRight,
                                     contentDescription = "Forward",
-                                    tint = if (canGoForward) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                                    tint =
+                                        if (canGoForward) {
+                                            MaterialTheme.colorScheme.onSurface
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurface
+                                                .copy(
+                                                    alpha = 0.38f,
+                                                )
+                                        },
                                     modifier = Modifier.size(15.dp),
                                 )
                             }
                             IconButton(
                                 onClick = { webViewRef.value?.reload() },
-                                modifier = Modifier.size(36.dp),
+                                modifier = Modifier.size(48.dp),
                             ) {
                                 FAIcon(
                                     imageVector = FontAwesomeIcons.Solid.RotateRight,
@@ -648,12 +571,12 @@ internal fun LinkedInWebScreen(
                                 onClick = {
                                     checkAndSyncSession(silent = false)
                                 },
-                                modifier = Modifier.size(36.dp),
+                                modifier = Modifier.size(48.dp),
                             ) {
                                 FAIcon(
                                     imageVector = FontAwesomeIcons.Brands.LinkedinIn,
                                     contentDescription = "Sync Feed",
-                                    tint = Color(0xFF0A66C2),
+                                    tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(15.dp),
                                 )
                             }
@@ -661,7 +584,7 @@ internal fun LinkedInWebScreen(
                                 onClick = {
                                     uriHandler.openUri(currentUrl)
                                 },
-                                modifier = Modifier.size(36.dp),
+                                modifier = Modifier.size(48.dp),
                             ) {
                                 FAIcon(
                                     imageVector = FontAwesomeIcons.Solid.ArrowUpRightFromSquare,
@@ -671,7 +594,7 @@ internal fun LinkedInWebScreen(
                             }
                             IconButton(
                                 onClick = { isDockExpanded = false },
-                                modifier = Modifier.size(36.dp),
+                                modifier = Modifier.size(48.dp),
                             ) {
                                 FAIcon(
                                     imageVector = FontAwesomeIcons.Solid.Xmark,
@@ -690,51 +613,17 @@ internal fun LinkedInWebScreen(
         AlertDialog(
             onDismissRequest = { showPrivacyDialog = false },
             title = {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    FAIcon(
-                        imageVector = FontAwesomeIcons.Solid.ShieldHalved,
-                        contentDescription = null,
-                        tint = Color(0xFF0A66C2),
-                        modifier = Modifier.size(24.dp),
-                    )
-                    Text(text = "Prism LinkedIn Shield")
-                }
+                Text(text = stringResource(R.string.web_privacy_dialog_title))
             },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(
-                        text = "Your LinkedIn browsing is sandboxed with strict sovereign privacy rules:",
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    Text(
-                        text = "• 3rd-party tracking scripts & telemetry blocked (Snap, Google Analytics, DoubleClick, px.ads.linkedin.com)\n" +
-                            "• App-install nagging popups & redirects suppressed\n" +
-                            "• Geolocation & sensor access denied\n" +
-                            "• Automatic session sync to native Prism feed",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+                Text(
+                    text = stringResource(R.string.web_privacy_dialog_description),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
             },
             confirmButton = {
                 TextButton(onClick = { showPrivacyDialog = false }) {
-                    Text("Got it")
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = {
-                        showPrivacyDialog = false
-                        showClearConfirmDialog = true
-                    },
-                ) {
-                    Text(
-                        text = "Clear Session",
-                        color = MaterialTheme.colorScheme.error,
-                    )
+                    Text(stringResource(android.R.string.ok))
                 }
             },
         )
@@ -743,32 +632,37 @@ internal fun LinkedInWebScreen(
     if (showClearConfirmDialog) {
         AlertDialog(
             onDismissRequest = { showClearConfirmDialog = false },
-            title = { Text("Log out of LinkedIn?") },
+            title = { Text(stringResource(id = R.string.linkedin_logout_title)) },
             text = {
-                Text("This will clear all cookies, local cache, and saved session tokens for LinkedIn.")
+                Text(stringResource(id = R.string.linkedin_logout_description))
             },
             confirmButton = {
                 TextButton(
                     onClick = {
                         showClearConfirmDialog = false
-                        CookieManager.getInstance().removeAllCookies(null)
-                        WebStorage.getInstance().deleteAllData()
+                        LiveWebSite.LinkedIn.cookieManager().removeAllCookies(null)
+                        LiveWebSite.LinkedIn.webStorage().deleteAllData()
                         webViewRef.value?.clearCache(true)
                         webViewRef.value?.clearHistory()
                         webViewRef.value?.loadUrl(LINKEDIN_HOME_URL)
                         isFeedSynced = false
-                        Toast.makeText(context, "LinkedIn session cleared", Toast.LENGTH_SHORT).show()
+                        Toast
+                            .makeText(
+                                context,
+                                sessionClearedMsg,
+                                Toast.LENGTH_SHORT,
+                            ).show()
                     },
                 ) {
                     Text(
-                        text = "Log Out",
+                        text = stringResource(id = R.string.linkedin_logout_confirm),
                         color = MaterialTheme.colorScheme.error,
                     )
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showClearConfirmDialog = false }) {
-                    Text("Cancel")
+                    Text(stringResource(id = R.string.action_cancel))
                 }
             },
         )

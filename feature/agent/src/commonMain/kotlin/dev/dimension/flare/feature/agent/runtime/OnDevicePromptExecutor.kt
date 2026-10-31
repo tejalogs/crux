@@ -23,6 +23,8 @@ import kotlinx.coroutines.flow.emitAll
  * Enforces a strict Zero-Egress Privacy Policy: only local loopback endpoints
  * (127.0.0.1, localhost) or fully offline sovereign engines are permitted.
  */
+public class SecurityException(message: String) : IllegalStateException(message)
+
 internal class OnDevicePromptExecutor(
     private val config: AppSettings.AiConfig.Type.OnDevice,
     private val httpClientFactory: KoogHttpClient.Factory,

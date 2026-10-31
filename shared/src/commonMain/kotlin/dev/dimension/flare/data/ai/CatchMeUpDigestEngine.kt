@@ -41,32 +41,199 @@ public object CatchMeUpDigestEngine {
     private val HASHTAG_REGEX = Regex("#[\\p{L}0-9_]{2,}")
     private val PROPER_ENTITY_REGEX = Regex("\\b[A-Z][a-zA-Z0-9]{3,}\\b")
 
-    private val STOPWORDS = setOf(
-        "the", "be", "to", "of", "and", "a", "in", "that", "have", "i",
-        "it", "for", "not", "on", "with", "he", "as", "you", "do", "at",
-        "this", "but", "his", "by", "from", "they", "we", "say", "her",
-        "she", "or", "an", "will", "my", "one", "all", "would", "there",
-        "their", "what", "so", "up", "out", "if", "about", "who", "get",
-        "which", "go", "me", "when", "make", "can", "like", "time", "no",
-        "just", "him", "know", "take", "people", "into", "year", "your",
-        "good", "some", "could", "them", "see", "other", "than", "then",
-        "now", "look", "only", "come", "its", "over", "think", "also",
-        "back", "after", "use", "two", "how", "our", "work", "first",
-        "well", "way", "even", "new", "want", "because", "any", "these",
-        "give", "day", "most", "us", "http", "https", "com", "org", "net",
-        "were", "been", "being", "much", "many", "more", "very", "such",
-        "here", "where", "why", "while", "before", "through", "between",
-        "under", "again", "further", "once", "same", "own", "both", "each",
-        "few", "those", "should", "might", "must", "shall", "still", "never",
-        "always", "really", "actually", "going", "making", "doing", "having",
-        "getting", "looking", "trying", "using", "working", "talking", "saying",
-        "started", "required", "selling", "move", "moved", "built", "made",
-        "things", "thing", "something", "anything", "everything", "nothing",
-        "someone", "anyone", "everyone", "today", "yesterday", "tomorrow",
-        "around", "without", "within", "across", "behind", "beyond", "towards",
-        "another", "every", "other", "others", "great", "better", "best",
-        "high", "quality", "little", "small", "large", "long", "short",
-    )
+    private val STOPWORDS =
+        setOf(
+            "the",
+            "be",
+            "to",
+            "of",
+            "and",
+            "a",
+            "in",
+            "that",
+            "have",
+            "i",
+            "it",
+            "for",
+            "not",
+            "on",
+            "with",
+            "he",
+            "as",
+            "you",
+            "do",
+            "at",
+            "this",
+            "but",
+            "his",
+            "by",
+            "from",
+            "they",
+            "we",
+            "say",
+            "her",
+            "she",
+            "or",
+            "an",
+            "will",
+            "my",
+            "one",
+            "all",
+            "would",
+            "there",
+            "their",
+            "what",
+            "so",
+            "up",
+            "out",
+            "if",
+            "about",
+            "who",
+            "get",
+            "which",
+            "go",
+            "me",
+            "when",
+            "make",
+            "can",
+            "like",
+            "time",
+            "no",
+            "just",
+            "him",
+            "know",
+            "take",
+            "people",
+            "into",
+            "year",
+            "your",
+            "good",
+            "some",
+            "could",
+            "them",
+            "see",
+            "other",
+            "than",
+            "then",
+            "now",
+            "look",
+            "only",
+            "come",
+            "its",
+            "over",
+            "think",
+            "also",
+            "back",
+            "after",
+            "use",
+            "two",
+            "how",
+            "our",
+            "work",
+            "first",
+            "well",
+            "way",
+            "even",
+            "new",
+            "want",
+            "because",
+            "any",
+            "these",
+            "give",
+            "day",
+            "most",
+            "us",
+            "http",
+            "https",
+            "com",
+            "org",
+            "net",
+            "were",
+            "been",
+            "being",
+            "much",
+            "many",
+            "more",
+            "very",
+            "such",
+            "here",
+            "where",
+            "why",
+            "while",
+            "before",
+            "through",
+            "between",
+            "under",
+            "again",
+            "further",
+            "once",
+            "same",
+            "own",
+            "both",
+            "each",
+            "few",
+            "those",
+            "should",
+            "might",
+            "must",
+            "shall",
+            "still",
+            "never",
+            "always",
+            "really",
+            "actually",
+            "going",
+            "making",
+            "doing",
+            "having",
+            "getting",
+            "looking",
+            "trying",
+            "using",
+            "working",
+            "talking",
+            "saying",
+            "started",
+            "required",
+            "selling",
+            "move",
+            "moved",
+            "built",
+            "made",
+            "things",
+            "thing",
+            "something",
+            "anything",
+            "everything",
+            "nothing",
+            "someone",
+            "anyone",
+            "everyone",
+            "today",
+            "yesterday",
+            "tomorrow",
+            "around",
+            "without",
+            "within",
+            "across",
+            "behind",
+            "beyond",
+            "towards",
+            "another",
+            "every",
+            "other",
+            "others",
+            "great",
+            "better",
+            "best",
+            "high",
+            "quality",
+            "little",
+            "small",
+            "large",
+            "long",
+            "short",
+        )
 
     /**
      * Synthesizes an on-device feed digest from a list of timeline posts.
@@ -87,8 +254,10 @@ public object CatchMeUpDigestEngine {
         val entityCounts = mutableMapOf<String, Int>()
 
         for (item in eligiblePosts) {
-            val rawText = item.post.content.original.raw.ifBlank { item.searchText }
-                .replace(Regex("https?://\\S+"), "")
+            val rawText =
+                item.post.content.original.raw
+                    .ifBlank { item.searchText }
+                    .replace(Regex("https?://\\S+"), "")
 
             HASHTAG_REGEX.findAll(rawText).forEach { match ->
                 val rawTag = match.value
@@ -108,50 +277,56 @@ public object CatchMeUpDigestEngine {
                 }
             }
 
-            val tokens = rawText.lowercase()
-                .split(Regex("[\\s\\p{Punct}&&[^@#]]+"))
-                .filter {
-                    it.length >= 4 &&
-                        it !in STOPWORDS &&
-                        !it.startsWith("http") &&
-                        !it.startsWith("@") &&
-                        !it.startsWith("#") &&
-                        it.any { ch -> ch.isLetter() }
-                }
-                .distinct() // Count once per post so a single repetitive post doesn't skew topics
+            val tokens =
+                rawText
+                    .lowercase()
+                    .split(Regex("[\\s\\p{Punct}&&[^@#]]+"))
+                    .filter {
+                        it.length >= 4 &&
+                            it !in STOPWORDS &&
+                            !it.startsWith("http") &&
+                            !it.startsWith("@") &&
+                            !it.startsWith("#") &&
+                            it.any { ch -> ch.isLetter() }
+                    }.distinct() // Count once per post so a single repetitive post doesn't skew topics
 
             for (token in tokens) {
                 keywordCounts[token] = (keywordCounts[token] ?: 0) + 1
             }
         }
 
-        val topHashtags = hashtagCounts.entries
-            .sortedByDescending { it.value }
-            .map { hashtagDisplay[it.key] ?: it.key }
+        val topHashtags =
+            hashtagCounts.entries
+                .sortedByDescending { it.value }
+                .map { hashtagDisplay[it.key] ?: it.key }
 
-        val topKeywords = keywordCounts.entries
-            .filter { it.value >= 2 }
-            .sortedByDescending { it.value * 10 + minOf(it.key.length, 10) }
-            .map { entry ->
-                // Prefer proper-case entity if seen
-                entityCounts.keys.firstOrNull { it.equals(entry.key, ignoreCase = true) }
-                    ?: entry.key.replaceFirstChar { char -> char.uppercase() }
+        val topKeywords =
+            keywordCounts.entries
+                .filter { it.value >= 2 }
+                .sortedByDescending { it.value * 10 + minOf(it.key.length, 10) }
+                .map { entry ->
+                    // Prefer proper-case entity if seen
+                    entityCounts.keys.firstOrNull { it.equals(entry.key, ignoreCase = true) }
+                        ?: entry.key.replaceFirstChar { char -> char.uppercase() }
+                }
+
+        val topEntities =
+            entityCounts.entries
+                .filter { it.value >= 1 && it.key.length >= 5 }
+                .sortedByDescending { it.value * 10 + minOf(it.key.length, 12) }
+                .map { it.key }
+
+        val combinedTopics =
+            (topHashtags + topKeywords + topEntities)
+                .distinctBy { it.lowercase().removePrefix("#") }
+                .take(5)
+
+        val finalTopics =
+            if (combinedTopics.isEmpty()) {
+                listOf("Top Stories", "Community", "Updates")
+            } else {
+                combinedTopics
             }
-
-        val topEntities = entityCounts.entries
-            .filter { it.value >= 1 && it.key.length >= 5 }
-            .sortedByDescending { it.value * 10 + minOf(it.key.length, 12) }
-            .map { it.key }
-
-        val combinedTopics = (topHashtags + topKeywords + topEntities)
-            .distinctBy { it.lowercase().removePrefix("#") }
-            .take(5)
-
-        val finalTopics = if (combinedTopics.isEmpty()) {
-            listOf("Top Stories", "Community", "Updates")
-        } else {
-            combinedTopics
-        }
 
         // 2. Synthesize Executive Highlights with full narrative context (Setup + Payoff)
         val highlights = mutableListOf<DigestHighlight>()
@@ -159,21 +334,24 @@ public object CatchMeUpDigestEngine {
 
         for (topic in finalTopics.take(3)) {
             val topicQuery = topic.removePrefix("#").lowercase()
-            val matchedPost = eligiblePosts.firstOrNull { post ->
-                val text = post.searchText.lowercase()
-                post.post.statusKey.toString() !in usedPostKeys && text.contains(topicQuery)
-            } ?: eligiblePosts.firstOrNull { it.post.statusKey.toString() !in usedPostKeys }
+            val matchedPost =
+                eligiblePosts.firstOrNull { post ->
+                    val text = post.searchText.lowercase()
+                    post.post.statusKey.toString() !in usedPostKeys && text.contains(topicQuery)
+                } ?: eligiblePosts.firstOrNull { it.post.statusKey.toString() !in usedPostKeys }
 
             if (matchedPost != null) {
                 usedPostKeys.add(matchedPost.post.statusKey.toString())
-                val rawText = matchedPost.post.content.original.raw.ifBlank {
-                    matchedPost.searchText
-                }
+                val rawText =
+                    matchedPost.post.content.original.raw.ifBlank {
+                        matchedPost.searchText
+                    }
                 val executiveSummary = synthesizeExecutiveSummary(rawText)
                 val user = matchedPost.post.user
-                val platformName = matchedPost.post.platformId
-                    .takeIf { it.isNotBlank() }
-                    ?.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+                val platformName =
+                    matchedPost.post.platformId
+                        .takeIf { it.isNotBlank() }
+                        ?.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
 
                 highlights.add(
                     DigestHighlight(
@@ -185,7 +363,7 @@ public object CatchMeUpDigestEngine {
                         engagementInfo = platformName,
                         platformId = matchedPost.post.platformId,
                         onClick = matchedPost.post.onClicked,
-                    )
+                    ),
                 )
             }
         }
@@ -193,7 +371,9 @@ public object CatchMeUpDigestEngine {
         if (highlights.isEmpty() && eligiblePosts.isNotEmpty()) {
             val sample = eligiblePosts.first()
             val user = sample.post.user
-            val rawText = sample.post.content.original.raw.ifBlank { sample.searchText }
+            val rawText =
+                sample.post.content.original.raw
+                    .ifBlank { sample.searchText }
             highlights.add(
                 DigestHighlight(
                     topic = "Key Update",
@@ -203,7 +383,7 @@ public object CatchMeUpDigestEngine {
                     authorAvatar = user?.avatar?.url,
                     platformId = sample.post.platformId,
                     onClick = sample.post.onClicked,
-                )
+                ),
             )
         }
 
@@ -225,25 +405,29 @@ public object CatchMeUpDigestEngine {
      * and the resolution/conclusion of a post, while normalizing line breaks that lack periods.
      */
     internal fun synthesizeExecutiveSummary(raw: String): String {
-        val cleaned = raw
-            .replace(Regex("https?://\\S+"), "")
-            .lines()
-            .map { it.trim().replace(Regex("\\s+"), " ") }
-            .filter { it.isNotBlank() }
-            .joinToString(" ") { line ->
-                val last = line.last()
-                if (last in charArrayOf('.', '!', '?', ':', ';')) line else "$line."
-            }
-            .trim()
+        val cleaned =
+            raw
+                .replace(Regex("https?://\\S+"), "")
+                .lines()
+                .map { it.trim().replace(Regex("\\s+"), " ") }
+                .filter { it.isNotBlank() }
+                .joinToString(" ") { line ->
+                    val last = line.last()
+                    if (last in charArrayOf('.', '!', '?', ':', ';')) line else "$line."
+                }.trim()
 
         if (cleaned.isEmpty()) return ""
 
-        val sentences = cleaned.split(Regex("(?<=[.!?])\\s+"))
-            .map { it.trim() }
-            .filter { it.isNotBlank() }
+        val sentences =
+            cleaned
+                .split(Regex("(?<=[.!?])\\s+"))
+                .map { it.trim() }
+                .filter { it.isNotBlank() }
 
         return when {
-            cleaned.length <= 185 -> cleaned
+            cleaned.length <= 185 -> {
+                cleaned
+            }
 
             sentences.size >= 3 -> {
                 // Combine the setup (first sentence) and the payoff/resolution (last sentence)
@@ -262,11 +446,16 @@ public object CatchMeUpDigestEngine {
                 if (combined.length <= 200) combined else truncateAtWordBoundary(combined, 185)
             }
 
-            else -> truncateAtWordBoundary(cleaned, 185)
+            else -> {
+                truncateAtWordBoundary(cleaned, 185)
+            }
         }
     }
 
-    private fun truncateAtWordBoundary(text: String, maxLength: Int): String {
+    private fun truncateAtWordBoundary(
+        text: String,
+        maxLength: Int,
+    ): String {
         if (text.length <= maxLength) return text
         val candidate = text.take(maxLength - 1)
         val lastSpace = candidate.lastIndexOf(' ')

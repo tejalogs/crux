@@ -538,6 +538,8 @@ internal fun TimelinePresentationEditor(
                                         TimelineMediaLayout.Grid to stringResource(id = R.string.settings_appearance_media_layout_grid),
                                         TimelineMediaLayout.Carousel to
                                             stringResource(id = R.string.settings_appearance_media_layout_carousel),
+                                        TimelineMediaLayout.Stack to
+                                            stringResource(id = R.string.settings_appearance_media_layout_stack),
                                     ),
                                 selected = timelineAppearance.mediaLayout,
                                 onSelected = {

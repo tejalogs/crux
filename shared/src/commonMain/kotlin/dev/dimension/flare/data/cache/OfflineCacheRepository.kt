@@ -65,6 +65,16 @@ public class OfflineCacheRepository internal constructor(
 
     public suspend fun setTimelineCacheRetentionDays(days: Int) {
         val current = _settings.value
-        updateSettings(current.copy(timelineCacheRetentionDays = days))
+        updateSettings(current.copy(timelineCacheRetentionDays = days.coerceIn(14, 30)))
+    }
+
+    public suspend fun setAutoPruneDatabaseCache(enabled: Boolean) {
+        val current = _settings.value
+        updateSettings(current.copy(autoPruneDatabaseCache = enabled))
+    }
+
+    public suspend fun updateLastDatabasePruneTimestamp(timestamp: Long) {
+        val current = _settings.value
+        updateSettings(current.copy(lastDatabasePruneTimestamp = timestamp))
     }
 }

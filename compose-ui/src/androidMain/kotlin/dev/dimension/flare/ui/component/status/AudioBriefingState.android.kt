@@ -19,6 +19,8 @@ private class AndroidAudioBriefingState(
         private set
     override var isPaused: Boolean by mutableStateOf(false)
         private set
+    override var speechRate: Float by mutableStateOf(1.0f)
+        private set
     override val isSupported: Boolean = true
 
     private var tts: TextToSpeech? = null
@@ -27,34 +29,38 @@ private class AndroidAudioBriefingState(
     private var lastSpokenText: String = ""
 
     init {
-        tts = TextToSpeech(context) { status ->
-            if (status == TextToSpeech.SUCCESS) {
-                tts?.language = Locale.getDefault()
-                isInitialized = true
-                tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-                    override fun onStart(utteranceId: String?) {
-                        isSpeaking = true
-                        isPaused = false
-                    }
+        tts =
+            TextToSpeech(context) { status ->
+                if (status == TextToSpeech.SUCCESS) {
+                    tts?.language = Locale.getDefault()
+                    tts?.setSpeechRate(speechRate)
+                    isInitialized = true
+                    tts?.setOnUtteranceProgressListener(
+                        object : UtteranceProgressListener() {
+                            override fun onStart(utteranceId: String?) {
+                                isSpeaking = true
+                                isPaused = false
+                            }
 
-                    override fun onDone(utteranceId: String?) {
-                        isSpeaking = false
-                        isPaused = false
-                    }
+                            override fun onDone(utteranceId: String?) {
+                                isSpeaking = false
+                                isPaused = false
+                            }
 
-                    @Deprecated("Deprecated in Java")
-                    override fun onError(utteranceId: String?) {
-                        isSpeaking = false
-                        isPaused = false
+                            @Deprecated("Deprecated in Java")
+                            override fun onError(utteranceId: String?) {
+                                isSpeaking = false
+                                isPaused = false
+                            }
+                        },
+                    )
+                    val pending = pendingSpeechText
+                    if (!pending.isNullOrBlank()) {
+                        pendingSpeechText = null
+                        speak(pending)
                     }
-                })
-                val pending = pendingSpeechText
-                if (!pending.isNullOrBlank()) {
-                    pendingSpeechText = null
-                    speak(pending)
                 }
             }
-        }
     }
 
     override fun speak(text: String) {
@@ -64,9 +70,15 @@ private class AndroidAudioBriefingState(
             return
         }
         tts?.stop()
+        tts?.setSpeechRate(speechRate)
         tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "catch_me_up_briefing")
         isSpeaking = true
         isPaused = false
+    }
+
+    override fun updateSpeechRate(rate: Float) {
+        speechRate = rate
+        tts?.setSpeechRate(rate)
     }
 
     override fun pause() {

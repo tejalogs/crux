@@ -26,6 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
+import androidx.compose.ui.util.fastForEachIndexed
 import androidx.compose.ui.zIndex
 import compose.icons.FontAwesomeIcons
 import compose.icons.fontawesomeicons.Solid
@@ -246,12 +247,16 @@ internal fun UiTimelineComponent(
     item: UiTimelineV2,
     modifier: Modifier = Modifier,
     detailStatusKey: MicroBlogKey? = null,
+    hasParentConnector: Boolean = false,
+    hasChildConnector: Boolean = false,
 ) {
     when (item) {
         is UiTimelineV2.Post -> {
             StatusContent(
                 data = item.asTimelinePostItem() ?: return,
                 detailStatusKey = detailStatusKey,
+                hasParentConnector = hasParentConnector,
+                hasChildConnector = hasChildConnector,
                 modifier = modifier,
             )
         }
@@ -260,6 +265,8 @@ internal fun UiTimelineComponent(
             StatusContent(
                 data = item,
                 detailStatusKey = detailStatusKey,
+                hasParentConnector = hasParentConnector,
+                hasChildConnector = hasChildConnector,
                 modifier = modifier,
             )
         }
@@ -419,7 +426,11 @@ private fun UserListContent(
     val uriHandler = LocalUriHandler.current
     val appearance = LocalTimelineAppearance.current
     val platformId = data.post?.platformId ?: data.users.firstOrNull()?.platformId
-    val host = data.post?.statusKey?.host ?: data.users.firstOrNull()?.key?.host ?: data.statusKey.host
+    val host =
+        data.post?.statusKey?.host ?: data.users
+            .firstOrNull()
+            ?.key
+            ?.host ?: data.statusKey.host
 
     Column(
         modifier = modifier,
@@ -541,6 +552,8 @@ private fun UserListContent(
 private fun StatusContent(
     data: UiTimelineV2.TimelinePostItem,
     detailStatusKey: MicroBlogKey?,
+    hasParentConnector: Boolean = false,
+    hasChildConnector: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val post = data.displayPost
@@ -550,77 +563,33 @@ private fun StatusContent(
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         if (presentation.inlineParents.any()) {
-            Layout(
-                content = {
-                    CompositionLocalProvider(
-                        LocalTimelineAppearance provides
-                            LocalTimelineAppearance.current.copy(
-                                fullWidthPost = false,
-                            ),
-                    ) {
-                        Column(
-                            verticalArrangement = Arrangement.spacedBy(2.dp),
-                        ) {
-                            presentation.inlineParents.fastForEach {
-                                CommonStatusComponent(
-                                    item = it.displayPost,
-                                    quotes = it.presentation.quotes,
-                                    isDetail = false,
-                                    allowMediaCarousel = true,
-                                    carouselOuterHorizontalPadding = screenHorizontalPadding,
-                                    modifier =
-                                        Modifier.padding(
-                                            horizontal = screenHorizontalPadding,
-                                            vertical = 8.dp,
-                                        ),
-                                )
-                            }
-                        }
-                    }
-                    VerticalDivider(
-                        thickness = 2.dp,
-                        color = PlatformTheme.colorScheme.outline.copy(alpha = 0.40f),
-                        modifier =
-                            Modifier
-                                .zIndex(-1f)
-                                .padding(
-                                    start = screenHorizontalPadding + (AvatarComponentDefaults.size / 2) - 1.dp,
-                                ).padding(
-                                    top = AvatarComponentDefaults.size / 2,
-                                ).let {
-                                    if (presentation.message == null) {
-                                        it.offset(y = AvatarComponentDefaults.size / 2)
-                                    } else {
-                                        it
-                                    }
-                                },
-                    )
-                },
-                measurePolicy = { measurables, constraints ->
-                    val divider = measurables.last()
-                    val content = measurables.first()
-                    val placeables = content.measure(constraints)
-                    val dividerPlaceable =
-                        divider.measure(
-                            Constraints(
-                                maxWidth = constraints.maxWidth,
-                                minWidth = constraints.minWidth,
-                                maxHeight = placeables.measuredHeight,
-                                minHeight = placeables.measuredHeight,
-                            ),
+            CompositionLocalProvider(
+                LocalTimelineAppearance provides
+                    LocalTimelineAppearance.current.copy(
+                        fullWidthPost = false,
+                    ),
+            ) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(0.dp),
+                ) {
+                    presentation.inlineParents.fastForEachIndexed { index, parent ->
+                        CommonStatusComponent(
+                            item = parent.displayPost,
+                            quotes = parent.presentation.quotes,
+                            isDetail = false,
+                            allowMediaCarousel = true,
+                            carouselOuterHorizontalPadding = screenHorizontalPadding,
+                            hasParentConnector = index > 0,
+                            hasChildConnector = true,
+                            modifier =
+                                Modifier.padding(
+                                    horizontal = screenHorizontalPadding,
+                                    vertical = 4.dp,
+                                ),
                         )
-                    layout(
-                        width = placeables.width,
-                        height = placeables.height,
-                    ) {
-                        dividerPlaceable.placeRelative(
-                            x = 0,
-                            y = 0,
-                        )
-                        placeables.placeRelative(0, 0)
                     }
-                },
-            )
+                }
+            }
         }
         Column {
             presentation.message?.let { message ->
@@ -641,6 +610,10 @@ private fun StatusContent(
                 isDetail = post.statusKey == detailStatusKey,
                 allowMediaCarousel = true,
                 carouselOuterHorizontalPadding = screenHorizontalPadding,
+                hasParentConnector =
+                    hasParentConnector || presentation.inlineParents.any() ||
+                        (post.replyToHandle != null && post.statusKey != detailStatusKey),
+                hasChildConnector = hasChildConnector,
                 modifier =
                     Modifier
                         .padding(

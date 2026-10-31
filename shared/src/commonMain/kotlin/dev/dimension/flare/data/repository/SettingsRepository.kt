@@ -20,6 +20,7 @@ import dev.dimension.flare.data.model.appearance.toBag
 import dev.dimension.flare.data.model.appearance.toGlobalAppearance
 import dev.dimension.flare.data.model.appearance.toPatch
 import dev.dimension.flare.data.model.appearance.toTimelineAppearance
+import dev.dimension.flare.data.model.tab.LiveWebTimelineSpecs
 import dev.dimension.flare.data.model.tab.TabSettingsV2
 import dev.dimension.flare.data.model.tab.TimelineResolver
 import dev.dimension.flare.data.model.tab.TimelineSlot
@@ -28,11 +29,13 @@ import dev.dimension.flare.data.model.tab.UiTimelineTabItem
 import dev.dimension.flare.data.model.tab.findById
 import dev.dimension.flare.data.model.tab.isSystemHomeMixedTimeline
 import dev.dimension.flare.data.model.tab.migrateTabSettingsV1ToV2
+import dev.dimension.flare.data.model.tab.toUiTimelineTabItem
 import dev.dimension.flare.data.model.tab.withSystemHomeMixedTimelineEnabled
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
@@ -221,6 +224,32 @@ public class SettingsRepository internal constructor(
             )
             tabSettingsMigrationCompleted = true
         }
+    }
+
+    /** Adds the Reddit tab once, so removing it in tab settings sticks. */
+    public suspend fun ensureRedditTabAdded() {
+        val tabs = homeTimelineTabs.first()
+        if (tabs.isEmpty()) return
+        val redditTab = LiveWebTimelineSpecs.redditCandidate.toUiTimelineTabItem()
+        if (appSettings.first().redditTabAdded) {
+            // Tabs added before the Reddit icon existed saved a globe.
+            if (tabs.any { it.id == redditTab.id && it.icon != redditTab.icon }) {
+                replaceHomeTimelineTabs(tabs.map { if (it.id == redditTab.id) redditTab else it })
+            }
+            return
+        }
+        replaceHomeTimelineTabs(tabs + redditTab)
+        updateAppSettings { copy(redditTabAdded = true) }
+    }
+
+    /** Replaces the old native X tabs with one live X tab, once. */
+    internal suspend fun replaceNativeXTabs(xAccountKeys: Set<String>) {
+        if (appSettings.first().xTabAdded) return
+        val tabs = homeTimelineTabs.first()
+        if (tabs.isEmpty()) return
+        val kept = tabs.filterNot { tab -> xAccountKeys.any { tab.id.endsWith(":$it") } }
+        replaceHomeTimelineTabs(kept + LiveWebTimelineSpecs.xCandidate.toUiTimelineTabItem())
+        updateAppSettings { copy(xTabAdded = true) }
     }
 
     public suspend fun updateAppSettings(block: AppSettings.() -> AppSettings) {

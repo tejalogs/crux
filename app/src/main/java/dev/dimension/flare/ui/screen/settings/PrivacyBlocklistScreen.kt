@@ -24,8 +24,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import kotlinx.coroutines.launch
-import org.koin.compose.koinInject
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
@@ -34,8 +32,8 @@ import compose.icons.FontAwesomeIcons
 import compose.icons.fontawesomeicons.Solid
 import compose.icons.fontawesomeicons.solid.Trash
 import dev.dimension.flare.R
-import dev.dimension.flare.data.privacy.normaliseBlockedHost
 import dev.dimension.flare.data.privacy.PrivacySettingsRepository
+import dev.dimension.flare.data.privacy.normaliseBlockedHost
 import dev.dimension.flare.ui.component.BackButton
 import dev.dimension.flare.ui.component.FAIcon
 import dev.dimension.flare.ui.component.FlareLargeFlexibleTopAppBar
@@ -43,6 +41,8 @@ import dev.dimension.flare.ui.component.FlareScaffold
 import dev.dimension.flare.ui.theme.item
 import dev.dimension.flare.ui.theme.last
 import dev.dimension.flare.ui.theme.screenHorizontalPadding
+import kotlinx.coroutines.launch
+import org.koin.compose.koinInject
 
 /**
  * Editor for the local host blocklist.
@@ -53,9 +53,7 @@ import dev.dimension.flare.ui.theme.screenHorizontalPadding
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun PrivacyBlocklistScreen(
-    onBack: () -> Unit,
-) {
+internal fun PrivacyBlocklistScreen(onBack: () -> Unit) {
     val topAppBarScrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val repository = koinInject<PrivacySettingsRepository>()
     val settings by repository.settings().collectAsState()
@@ -67,7 +65,10 @@ internal fun PrivacyBlocklistScreen(
     fun commit() {
         val host = normaliseBlockedHost(draft)
         when {
-            host.isEmpty() -> error = invalidHostMessage
+            host.isEmpty() -> {
+                error = invalidHostMessage
+            }
+
             host in settings.blockedHosts -> {
                 draft = ""
                 error = null
@@ -168,4 +169,3 @@ internal fun PrivacyBlocklistScreen(
         }
     }
 }
-

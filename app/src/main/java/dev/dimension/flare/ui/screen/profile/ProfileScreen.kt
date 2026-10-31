@@ -21,6 +21,8 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.staggeredgrid.LazyStaggeredGridState
 import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
@@ -31,6 +33,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -38,6 +41,8 @@ import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.SecondaryScrollableTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
+import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -60,6 +65,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
 import compose.icons.FontAwesomeIcons
@@ -80,6 +86,7 @@ import dev.dimension.flare.ui.component.ErrorContent
 import dev.dimension.flare.ui.component.FAIcon
 import dev.dimension.flare.ui.component.FlareScaffold
 import dev.dimension.flare.ui.component.FlareTopAppBar
+import dev.dimension.flare.ui.component.LocalGlobalAppearance
 import dev.dimension.flare.ui.component.LocalTimelineAppearance
 import dev.dimension.flare.ui.component.ProfileHeader
 import dev.dimension.flare.ui.component.ProfileHeaderLoading
@@ -97,6 +104,8 @@ import dev.dimension.flare.ui.component.status.MediaItem
 import dev.dimension.flare.ui.component.status.StatusPlaceholder
 import dev.dimension.flare.ui.component.status.status
 import dev.dimension.flare.ui.component.status.statusLoadingPlaceholders
+import dev.dimension.flare.ui.haptic.FlareHapticEvent
+import dev.dimension.flare.ui.haptic.rememberFlareHapticFeedback
 import dev.dimension.flare.ui.model.ClickContext
 import dev.dimension.flare.ui.model.UiMedia
 import dev.dimension.flare.ui.model.UiRelation
@@ -244,6 +253,7 @@ private fun profileWithUserNameAndHostPresenter(
 
 @OptIn(
     ExperimentalMaterial3Api::class,
+    ExperimentalMaterial3ExpressiveApi::class,
 )
 @Composable
 internal fun ProfileScreen(
@@ -259,6 +269,7 @@ internal fun ProfileScreen(
     showBackButton: Boolean = true,
     onMediaClick: (statusKey: MicroBlogKey, index: Int, preview: String?) -> Unit,
 ) {
+    val haptics = rememberFlareHapticFeedback(LocalGlobalAppearance.current.hapticsEnabled)
     val state by producePresenter(key = "${accountType}_$userKey") {
         profilePresenter(userKey = userKey, accountType = accountType)
     }
@@ -552,42 +563,39 @@ internal fun ProfileScreen(
                                         verticalArrangement = Arrangement.spacedBy(8.dp),
                                     ) {
                                         if (tabs.size > 1) {
-                                            SecondaryScrollableTabRow(
-                                                containerColor = Color.Transparent,
-                                                selectedTabIndex = pagerState.currentPage,
+                                            LazyRow(
                                                 modifier = Modifier.fillMaxWidth(),
-                                                edgePadding = screenHorizontalPadding,
-                                                divider = {},
-                                                indicator = {
-                                                    TabRowIndicator(
-                                                        selectedIndex =
-                                                            minOf(
-                                                                pagerState.currentPage,
-                                                                tabs.size - 1,
-                                                            ),
-                                                    )
-                                                },
+                                                contentPadding = PaddingValues(horizontal = screenHorizontalPadding),
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp),
                                             ) {
-                                                tabs
-                                                    .toImmutableList()
-                                                    .forEachIndexed { index, profileTab ->
-                                                        Tab(
-                                                            modifier = Modifier.clip(CircleShape),
-                                                            selected = pagerState.currentPage == index,
-                                                            onClick = {
-                                                                scope.launch {
-                                                                    pagerState.animateScrollToPage(index)
-                                                                }
-                                                            },
-                                                        ) {
-                                                            dev.dimension.flare.ui.component.Text(
-                                                                text = profileTab.name.asText(),
-                                                                modifier =
-                                                                    Modifier
-                                                                        .padding(8.dp),
-                                                            )
-                                                        }
+                                                itemsIndexed(tabs) { index, profileTab ->
+                                                    val isSelected = pagerState.currentPage == index
+                                                    ToggleButton(
+                                                        checked = isSelected,
+                                                        onCheckedChange = {
+                                                            haptics.perform(FlareHapticEvent.SelectionChange)
+                                                            scope.launch {
+                                                                pagerState.animateScrollToPage(index)
+                                                            }
+                                                        },
+                                                        colors =
+                                                            ToggleButtonDefaults.colors(
+                                                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                                                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                                checkedContainerColor = MaterialTheme.colorScheme.primary,
+                                                                checkedContentColor = MaterialTheme.colorScheme.onPrimary,
+                                                            ),
+                                                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                                                    ) {
+                                                        dev.dimension.flare.ui.component.Text(
+                                                            text = profileTab.name.asText(),
+                                                            style =
+                                                                MaterialTheme.typography.labelLarge.copy(
+                                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                                                ),
+                                                        )
                                                     }
+                                                }
                                             }
                                         }
                                         HorizontalPager(

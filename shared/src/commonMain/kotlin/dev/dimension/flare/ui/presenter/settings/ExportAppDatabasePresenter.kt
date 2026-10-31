@@ -25,6 +25,8 @@ public class ExportAppDatabasePresenter : PresenterBase<ExportState>() {
                 keywordFilters = appDatabase.keywordFilterDao().selectAll().first(),
                 searchHistories = appDatabase.searchHistoryDao().select().first(),
                 rssSources = appDatabase.rssSourceDao().getAll().first(),
+                localFollows = appDatabase.localFollowDao().follows().first(),
+                localFollowGroups = appDatabase.localFollowDao().groups().first(),
             )
         return export.encodeJson()
     }

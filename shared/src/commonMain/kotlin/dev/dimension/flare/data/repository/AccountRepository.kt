@@ -228,6 +228,19 @@ internal class AccountRepository internal constructor(
             cacheDatabase.messageDao().clearMessageTimeline(
                 AccountType.Specific(accountKey),
             )
+            if (accountKey.host == dev.dimension.flare.data.platform.LINKEDIN_HOST) {
+                runCatching {
+                    dev.dimension.flare.di
+                        .koinGet<dev.dimension.flare.data.datasource.linkedin.LinkedInSyncService>()
+                        .clearCache()
+                }
+            } else if (accountKey.host == dev.dimension.flare.data.platform.INSTAGRAM_HOST) {
+                runCatching {
+                    dev.dimension.flare.di
+                        .koinGet<dev.dimension.flare.data.datasource.instagram.InstagramSyncService>()
+                        .clearCache()
+                }
+            }
             appDatabase.accountDao().delete(accountKey)
         }
 
@@ -292,7 +305,8 @@ internal class AccountRepository internal constructor(
                         dbAccount.account_key,
                         credentialCipher.encrypt(dbAccount.credential_json),
                     )
-                } catch (_: Throwable) {}
+                } catch (_: Throwable) {
+                }
             }
         }
 

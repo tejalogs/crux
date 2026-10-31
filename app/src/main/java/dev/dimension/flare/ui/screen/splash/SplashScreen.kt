@@ -24,7 +24,7 @@ internal fun SplashScreen() {
         ) {
             if (Build.VERSION.SDK_INT > Build.VERSION_CODES.M) {
                 Image(
-                    painterResource(id = R.drawable.ic_launcher_foreground),
+                    painterResource(id = R.drawable.ic_crux_mark),
                     contentDescription = null,
                 )
             }

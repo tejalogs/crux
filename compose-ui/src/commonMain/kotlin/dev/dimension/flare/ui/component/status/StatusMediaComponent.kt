@@ -1,9 +1,21 @@
 package dev.dimension.flare.ui.component.status
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -20,6 +32,11 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -27,6 +44,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -37,6 +55,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.layout.ContentScale
@@ -44,10 +63,10 @@ import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import compose.icons.FontAwesomeIcons
 import compose.icons.fontawesomeicons.Solid
 import compose.icons.fontawesomeicons.solid.CirclePlay
@@ -71,6 +90,7 @@ import dev.dimension.flare.data.model.VideoAutoplay
 import dev.dimension.flare.ui.component.AdaptiveGrid
 import dev.dimension.flare.ui.component.AudioPlayer
 import dev.dimension.flare.ui.component.FAIcon
+import dev.dimension.flare.ui.component.LocalGlobalAppearance
 import dev.dimension.flare.ui.component.LocalTimelineAppearance
 import dev.dimension.flare.ui.component.LocalTimelineCarouselItem
 import dev.dimension.flare.ui.component.LocalTimelinePlayback
@@ -78,7 +98,6 @@ import dev.dimension.flare.ui.component.NetworkImage
 import dev.dimension.flare.ui.component.TimelineCarouselItem
 import dev.dimension.flare.ui.component.UgoiraPlayer
 import dev.dimension.flare.ui.component.accessibleDescription
-import dev.dimension.flare.ui.component.rememberEffectiveAutoplay
 import dev.dimension.flare.ui.component.platform.LocalWifiState
 import dev.dimension.flare.ui.component.platform.PlatformCircularProgressIndicator
 import dev.dimension.flare.ui.component.platform.PlatformDropdownMenu
@@ -88,6 +107,9 @@ import dev.dimension.flare.ui.component.platform.PlatformFlyoutContainer
 import dev.dimension.flare.ui.component.platform.PlatformIconButton
 import dev.dimension.flare.ui.component.platform.PlatformText
 import dev.dimension.flare.ui.component.platform.PlatformVideoPlayer
+import dev.dimension.flare.ui.component.rememberEffectiveAutoplay
+import dev.dimension.flare.ui.haptic.FlareHapticEvent
+import dev.dimension.flare.ui.haptic.rememberFlareHapticFeedback
 import dev.dimension.flare.ui.humanizer.humanize
 import dev.dimension.flare.ui.model.TimelineCarouselLayout
 import dev.dimension.flare.ui.model.UiMedia
@@ -97,8 +119,10 @@ import dev.dimension.flare.ui.route.toUri
 import dev.dimension.flare.ui.theme.PlatformTheme
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import kotlin.math.abs
+import kotlin.math.absoluteValue
 import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
@@ -122,6 +146,10 @@ internal fun StatusMediaComponent(
         allowCarousel &&
             appearanceSettings.mediaLayout == TimelineMediaLayout.Carousel &&
             data.size > 1
+    val usesStack =
+        allowCarousel &&
+            appearanceSettings.mediaLayout == TimelineMediaLayout.Stack &&
+            data.size > 1
     val carouselState = if (usesCarousel) rememberLazyListState() else null
     val carouselId = remember(post.statusKey) { Any() }
     val playback = LocalTimelinePlayback.current
@@ -131,13 +159,15 @@ internal fun StatusMediaComponent(
         playback?.selectMedia(carouselId, index, userInitiated = true)
         onMediaClick(index)
     }
-    DisposableEffect(playback, carouselId, mediaUrls, carouselState) {
-        playback?.mediaSelections?.register(carouselId, mediaUrls) { index ->
-            selectedIndex = index
-            playback.selectMedia(carouselId, index, userInitiated = false)
-            carouselState?.requestScrollToItem(index)
+    if (carouselState != null) {
+        DisposableEffect(playback, carouselId, mediaUrls, carouselState) {
+            playback?.mediaSelections?.register(carouselId, mediaUrls) { index ->
+                selectedIndex = index
+                playback.selectMedia(carouselId, index, userInitiated = false)
+                carouselState.requestScrollToItem(index)
+            }
+            onDispose { playback?.mediaSelections?.remove(carouselId) }
         }
-        onDispose { playback?.mediaSelections?.remove(carouselId) }
     }
     val mediaContentModifier =
         Modifier.let {
@@ -151,7 +181,7 @@ internal fun StatusMediaComponent(
     val hideSensitiveMediaLabel = stringResource(Res.string.hide_sensitive_media)
     Box(
         modifier =
-            if (usesCarousel) {
+            if (usesCarousel || usesStack) {
                 modifier.expandHorizontally(
                     leading = carouselLeadingPadding,
                     trailing = carouselTrailingPadding,
@@ -160,7 +190,218 @@ internal fun StatusMediaComponent(
                 modifier.clip(shape)
             },
     ) {
-        if (carouselState != null) {
+        if (usesStack) {
+            val pagerState = rememberPagerState(pageCount = { data.size })
+            val coroutineScope = rememberCoroutineScope()
+            val globalAppearance = LocalGlobalAppearance.current
+            val haptics = rememberFlareHapticFeedback(globalAppearance.hapticsEnabled)
+
+            LaunchedEffect(pagerState) {
+                snapshotFlow { pagerState.settledPage }.distinctUntilChanged().collect {
+                    haptics.perform(FlareHapticEvent.Tick)
+                }
+            }
+            LaunchedEffect(pagerState, playback, carouselId) {
+                snapshotFlow { pagerState.currentPage }.distinctUntilChanged().collect { page ->
+                    playback?.selectMedia(carouselId, page, userInitiated = true)
+                }
+            }
+            LaunchedEffect(pagerState, playback, carouselId) {
+                snapshotFlow { pagerState.isScrollInProgress }.distinctUntilChanged().collect { scrolling ->
+                    playback?.setScrolling(source = carouselId, scrolling = scrolling, vertical = false)
+                }
+            }
+            DisposableEffect(playback, carouselId, mediaUrls, pagerState) {
+                playback?.mediaSelections?.register(carouselId, mediaUrls) { index ->
+                    coroutineScope.launch {
+                        pagerState.animateScrollToPage(index)
+                    }
+                }
+                onDispose {
+                    playback?.mediaSelections?.remove(carouselId)
+                    playback?.setScrolling(source = carouselId, scrolling = false, vertical = false)
+                }
+            }
+            BoxWithConstraints(
+                modifier =
+                    mediaContentModifier
+                        .fillMaxWidth(),
+            ) {
+                val firstRatio = data.firstOrNull()?.timelineAspectRatio ?: 1.0f
+                val targetRatio = firstRatio.coerceIn(0.75f, 1.85f)
+                val stackHeight = (maxWidth / targetRatio).coerceIn(240.dp, 460.dp)
+
+                HorizontalPager(
+                    state = pagerState,
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .height(stackHeight),
+                    contentPadding =
+                        PaddingValues(
+                            start = carouselLeadingPadding.coerceAtLeast(16.dp),
+                            end = carouselTrailingPadding.coerceAtLeast(16.dp),
+                        ),
+                    pageSpacing = 12.dp,
+                ) { page ->
+                    val pageOffset = ((pagerState.currentPage - page) + pagerState.currentPageOffsetFraction)
+                    val absOffset = pageOffset.absoluteValue.coerceIn(0f, 1f)
+                    val scale = 1f - (absOffset * 0.05f)
+                    val alpha = 1f - (absOffset * 0.25f)
+
+                    CompositionLocalProvider(
+                        LocalTimelineCarouselItem provides
+                            TimelineCarouselItem(
+                                groupId = carouselId,
+                                mediaIndex = page,
+                                selected = (page == pagerState.currentPage),
+                                isCarousel = true,
+                            ),
+                    ) {
+                        StatusMediaItem(
+                            post = post,
+                            media = data[page],
+                            mediaCount = data.size,
+                            onMediaClick = { openMedia(page) },
+                            hideSensitive = hideSensitive,
+                            keepAspectRatio = false,
+                            fillContainer = true,
+                            modifier =
+                                Modifier
+                                    .fillMaxSize()
+                                    .graphicsLayer {
+                                        scaleX = scale
+                                        scaleY = scale
+                                        this.alpha = alpha
+                                    }.clip(shape)
+                                    .border(
+                                        width = 0.6.dp,
+                                        color = Color.White.copy(alpha = 0.15f),
+                                        shape = shape,
+                                    ),
+                        )
+                    }
+                }
+
+                // Floating glassmorphic stack counter badge
+                Box(
+                    modifier =
+                        Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(
+                                top = 10.dp,
+                                end = 10.dp + carouselTrailingPadding,
+                            ).background(
+                                color = Color.Black.copy(alpha = 0.60f),
+                                shape = RoundedCornerShape(14.dp),
+                            ).border(0.6.dp, Color.White.copy(alpha = 0.20f), RoundedCornerShape(14.dp))
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        FAIcon(
+                            imageVector = FontAwesomeIcons.Solid.Copy,
+                            contentDescription = null,
+                            modifier = Modifier.size(11.dp),
+                            tint = Color.White,
+                        )
+                        AnimatedContent(
+                            targetState = pagerState.currentPage + 1,
+                            transitionSpec = {
+                                if (targetState > initialState) {
+                                    (slideInVertically { height -> height } + fadeIn()) togetherWith
+                                        (slideOutVertically { height -> -height } + fadeOut())
+                                } else {
+                                    (slideInVertically { height -> -height } + fadeIn()) togetherWith
+                                        (slideOutVertically { height -> height } + fadeOut())
+                                }.using(SizeTransform(clip = false))
+                            },
+                            label = "StackPageCounter",
+                        ) { targetPage ->
+                            PlatformText(
+                                text = "$targetPage",
+                                style =
+                                    PlatformTheme.typography.caption.copy(
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                    ),
+                                color = Color.White,
+                            )
+                        }
+                        PlatformText(
+                            text = "/${data.size}",
+                            style =
+                                PlatformTheme.typography.caption.copy(
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium,
+                                ),
+                            color = Color.White.copy(alpha = 0.85f),
+                        )
+                    }
+                }
+
+                // Bottom indicator dots with smooth spring-animated morphing pills
+                val dotScrollState = rememberScrollState()
+                LaunchedEffect(pagerState.currentPage) {
+                    if (data.size > 8) {
+                        dotScrollState.animateScrollTo(
+                            (pagerState.currentPage * 20).coerceAtLeast(0),
+                        )
+                    }
+                }
+                Box(
+                    modifier =
+                        Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = 10.dp)
+                            .background(
+                                color = Color.Black.copy(alpha = 0.40f),
+                                shape = CircleShape,
+                            ).border(0.5.dp, Color.White.copy(alpha = 0.15f), CircleShape)
+                            .padding(horizontal = 8.dp, vertical = 5.dp),
+                ) {
+                    Row(
+                        modifier = if (data.size > 8) Modifier.horizontalScroll(dotScrollState) else Modifier,
+                        horizontalArrangement = Arrangement.spacedBy(5.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        val selectedWidth = if (data.size > 8) 14.dp else 18.dp
+                        val unselectedWidth = if (data.size > 8) 4.dp else 6.dp
+                        repeat(data.size) { index ->
+                            val isSelected = index == pagerState.currentPage
+                            val dotWidth by animateDpAsState(
+                                targetValue = if (isSelected) selectedWidth else unselectedWidth,
+                                animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                                label = "stackDotWidth",
+                            )
+                            val dotColor by animateColorAsState(
+                                targetValue = if (isSelected) Color.White else Color.White.copy(alpha = 0.45f),
+                                animationSpec = tween(durationMillis = 200),
+                                label = "stackDotColor",
+                            )
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .height(6.dp)
+                                        .width(dotWidth)
+                                        .background(
+                                            color = dotColor,
+                                            shape = CircleShape,
+                                        ).semantics {
+                                            contentDescription = "Media item ${index + 1} of ${data.size}"
+                                        }.clickable {
+                                            coroutineScope.launch {
+                                                pagerState.animateScrollToPage(index)
+                                            }
+                                        },
+                            )
+                        }
+                    }
+                }
+            }
+        } else if (carouselState != null) {
             LaunchedEffect(carouselState, playback, carouselId) {
                 var interacted = false
                 snapshotFlow { carouselState.isScrollInProgress }.distinctUntilChanged().collect { scrolling ->
@@ -269,11 +510,13 @@ internal fun StatusMediaComponent(
                             onMediaClick = { openMedia(index) },
                             hideSensitive = hideSensitive,
                             keepAspectRatio = data.size == 1 && appearanceSettings.expandMediaSize,
+                            modifier = Modifier.fillMaxSize(),
+                            fillContainer = data.size > 1 || !appearanceSettings.expandMediaSize,
                         )
                     }
                 },
                 maxItems = if (appearanceSettings.limitMediaGridToNine) 9 else data.size,
-                modifier = mediaContentModifier,
+                modifier = mediaContentModifier.fillMaxWidth(),
                 expandedSize = appearanceSettings.expandMediaSize,
             )
         }
@@ -624,7 +867,7 @@ public fun MediaItem(
             val wifi = LocalWifiState.current
             UgoiraPlayer(
                 media,
-                modifier.fillMaxWidth().let { if (keepAspectRatio) it.aspectRatio(media.aspectRatio) else it },
+                modifier.let { if (keepAspectRatio) it.fillMaxWidth().aspectRatio(media.aspectRatio) else it.fillMaxSize() },
                 autoplay = rememberEffectiveAutoplay(appearanceSettings.videoAutoplay, wifi),
                 contentScale = contentScale,
             )
@@ -638,15 +881,14 @@ public fun MediaItem(
                 customHeaders = media.customHeaders,
                 modifier =
                     modifier
-                        .fillMaxWidth()
                         .let {
                             if (keepAspectRatio) {
-                                it.aspectRatio(
+                                it.fillMaxWidth().aspectRatio(
                                     media.aspectRatio,
                                     matchHeightConstraintsFirst = media.aspectRatio > 1f,
                                 )
                             } else {
-                                it
+                                it.fillMaxSize()
                             }
                         },
             )
@@ -665,15 +907,14 @@ public fun MediaItem(
                     contentDescription = accessibleDescription,
                     modifier =
                         modifier
-                            .fillMaxWidth()
                             .let {
                                 if (keepAspectRatio) {
-                                    it.aspectRatio(
+                                    it.fillMaxWidth().aspectRatio(
                                         media.aspectRatio,
                                         matchHeightConstraintsFirst = media.aspectRatio > 1f,
                                     )
                                 } else {
-                                    it
+                                    it.fillMaxSize()
                                 }
                             },
                     loadingPlaceholder = {

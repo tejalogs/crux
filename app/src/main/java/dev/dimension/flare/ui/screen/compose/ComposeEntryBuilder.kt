@@ -20,6 +20,7 @@ internal fun EntryProviderScope<NavKey>.composeEntryBuilder(
         metadata = DialogSceneStrategy.dialog(
             dialogProperties = DialogProperties(
                 dismissOnClickOutside = false,
+                decorFitsSystemWindows = false,
             )
         )
     ) {
@@ -36,6 +37,7 @@ internal fun EntryProviderScope<NavKey>.composeEntryBuilder(
         metadata = DialogSceneStrategy.dialog(
             dialogProperties = DialogProperties(
                 dismissOnClickOutside = false,
+                decorFitsSystemWindows = false,
             )
         )
     ) { args ->
@@ -54,6 +56,7 @@ internal fun EntryProviderScope<NavKey>.composeEntryBuilder(
         metadata = DialogSceneStrategy.dialog(
             dialogProperties = DialogProperties(
                 dismissOnClickOutside = false,
+                decorFitsSystemWindows = false,
             )
         )
     ) { args ->
@@ -71,6 +74,7 @@ internal fun EntryProviderScope<NavKey>.composeEntryBuilder(
         metadata = DialogSceneStrategy.dialog(
             dialogProperties = DialogProperties(
                 dismissOnClickOutside = false,
+                decorFitsSystemWindows = false,
             )
         )
     ) { args ->
@@ -89,6 +93,7 @@ internal fun EntryProviderScope<NavKey>.composeEntryBuilder(
         metadata = DialogSceneStrategy.dialog(
             dialogProperties = DialogProperties(
                 dismissOnClickOutside = false,
+                decorFitsSystemWindows = false,
             )
         )
     ) { args ->
@@ -106,6 +111,7 @@ internal fun EntryProviderScope<NavKey>.composeEntryBuilder(
         metadata = DialogSceneStrategy.dialog(
             dialogProperties = DialogProperties(
                 dismissOnClickOutside = false,
+                decorFitsSystemWindows = false,
             )
         )
     ) { args ->

@@ -1,6 +1,12 @@
 package dev.dimension.flare.data.datasource.linkedin
 
+import dev.dimension.flare.data.database.cache.CacheDatabase
+import dev.dimension.flare.data.database.cache.model.DbStatus
 import dev.dimension.flare.data.datasource.microblog.AuthenticatedMicroblogDataSource
+import dev.dimension.flare.data.datasource.microblog.ComposeConfig
+import dev.dimension.flare.data.datasource.microblog.ComposeData
+import dev.dimension.flare.data.datasource.microblog.ComposeDataSource
+import dev.dimension.flare.data.datasource.microblog.ComposeType
 import dev.dimension.flare.data.datasource.microblog.DatabaseUpdater
 import dev.dimension.flare.data.datasource.microblog.PostEvent
 import dev.dimension.flare.data.datasource.microblog.ProfileTab
@@ -9,6 +15,9 @@ import dev.dimension.flare.data.datasource.microblog.datasource.TimelineTabConfi
 import dev.dimension.flare.data.datasource.microblog.handler.PostEventHandler
 import dev.dimension.flare.data.datasource.microblog.handler.PostHandler
 import dev.dimension.flare.data.datasource.microblog.loader.PostLoader
+import dev.dimension.flare.data.datasource.microblog.paging.CacheableRemoteLoader
+import dev.dimension.flare.data.datasource.microblog.paging.PagingRequest
+import dev.dimension.flare.data.datasource.microblog.paging.PagingResult
 import dev.dimension.flare.data.datasource.microblog.paging.RemoteLoader
 import dev.dimension.flare.data.datasource.microblog.paging.notSupported
 import dev.dimension.flare.data.model.IconType
@@ -25,11 +34,14 @@ import dev.dimension.flare.ui.model.UiIcon
 import dev.dimension.flare.ui.model.UiProfile
 import dev.dimension.flare.ui.model.UiText
 import dev.dimension.flare.ui.model.UiTimelineV2
+import dev.dimension.flare.ui.presenter.compose.ComposeStatus
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
+import kotlin.native.HiddenFromObjC
 
+@HiddenFromObjC
 public class LinkedInDataSource(
     override val accountKey: MicroBlogKey,
     private val credentialFlow: Flow<LinkedInCredential>,
@@ -37,28 +49,50 @@ public class LinkedInDataSource(
 ) : AuthenticatedMicroblogDataSource,
     TimelineTabConfigurationDataSource,
     PostDataSource,
-    PostEventHandler.Handler {
+    PostEventHandler.Handler,
+    ComposeDataSource {
+    private val syncService: LinkedInSyncService by lazy {
+        runCatching { koinGet<LinkedInSyncService>() }.getOrNull() ?: LinkedInSyncService()
+    }
 
-    private val resolvedSyncService: LinkedInSyncService? by lazy {
-        runCatching { koinGet<LinkedInSyncService>() }.getOrNull()
+    private val database: CacheDatabase? by lazy {
+        runCatching { koinGet<CacheDatabase>() }.getOrNull()
     }
 
     private val postLoader by lazy {
         object : PostLoader {
             override suspend fun status(statusKey: MicroBlogKey): UiTimelineV2 {
-                val cached = resolvedSyncService?.getLatestCachedUpdates()?.firstOrNull {
-                    it.id == statusKey.id || it.urn == statusKey.id || it.entityUrn == statusKey.id
-                }
+                val cleanId = statusKey.id
+                val cached =
+                    syncService.ensureLoaded().firstOrNull {
+                        it.id == cleanId ||
+                            it.urn == cleanId ||
+                            it.entityUrn == cleanId ||
+                            it.trackingUrn == cleanId ||
+                            (it.urn != null && (cleanId.contains(it.urn) || it.urn.contains(cleanId))) ||
+                            (it.id.isNotBlank() && (cleanId.contains(it.id) || it.id.contains(cleanId)))
+                    }
                 if (cached != null) {
                     val rendered = LinkedInTimelineMapper.render(cached, accountKey)
                     if (rendered != null) return rendered
                 }
-                throw UnsupportedOperationException("LinkedIn single post fetch is not supported")
+
+                // Check Room CacheDatabase for offline persistence across cold starts
+                val cachedDb =
+                    database
+                        ?.statusDao()
+                        ?.getByKeys(
+                            statusKeys = listOf(statusKey, MicroBlogKey(cleanId, "linkedin.com")),
+                            accountType = AccountType.Specific(accountKey),
+                        )?.firstOrNull()
+                        ?.content
+                if (cachedDb != null) return cachedDb
+
+                throw NoSuchElementException("LinkedIn post $cleanId could not be loaded")
             }
 
-            override suspend fun deleteStatus(statusKey: MicroBlogKey) {
+            override suspend fun deleteStatus(statusKey: MicroBlogKey): Unit =
                 throw UnsupportedOperationException("LinkedIn post deletion is not supported")
-            }
         }
     }
 
@@ -80,21 +114,38 @@ public class LinkedInDataSource(
         event: PostEvent,
         updater: DatabaseUpdater,
     ) {
-        if (event is PostEvent.LinkedIn.Like) {
-            val credential = credentialFlow.firstOrNull() ?: return
-            service.likePost(
-                urn = event.postKey.id,
-                liked = !event.liked,
-                cookies = credential.cookies,
-            )
-        }
     }
+
+    override fun composeConfig(type: ComposeType): ComposeConfig =
+        ComposeConfig(
+            text = ComposeConfig.Text(3000),
+            media =
+                if (type == ComposeType.Reply) {
+                    null
+                } else {
+                    ComposeConfig.Media(
+                        maxCount = 9,
+                        canSensitive = false,
+                        altTextMaxLength = 1000,
+                        allowMediaOnly = false,
+                    )
+                },
+        )
+
+    override suspend fun publish(
+        data: ComposeData,
+        progress: () -> Unit,
+    ): Unit =
+        throw UnsupportedOperationException(
+            "To protect your account from bot detection, posting from Crux is disabled. Please open LinkedIn in the web browser to create posts or comments.",
+        )
 
     override fun homeTimeline(): RemoteLoader<UiTimelineV2> =
         LinkedInHomeTimelineRemoteLoader(
             service = service,
             accountKey = accountKey,
             credentialFlow = credentialFlow,
+            syncService = syncService,
         )
 
     override fun userTimeline(
@@ -102,7 +153,15 @@ public class LinkedInDataSource(
         mediaOnly: Boolean,
     ): RemoteLoader<UiTimelineV2> = notSupported()
 
-    override fun context(statusKey: MicroBlogKey): RemoteLoader<UiTimelineV2> = notSupported()
+    override fun context(statusKey: MicroBlogKey): RemoteLoader<UiTimelineV2> =
+        LinkedInContextRemoteLoader(
+            statusKey = statusKey,
+            accountKey = accountKey,
+            service = service,
+            credentialFlow = credentialFlow,
+            postLoader = postLoader,
+            syncService = syncService,
+        )
 
     override fun searchStatus(query: String): RemoteLoader<UiTimelineV2> = notSupported()
 

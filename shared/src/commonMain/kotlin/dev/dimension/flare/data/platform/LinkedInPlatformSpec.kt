@@ -3,6 +3,7 @@ package dev.dimension.flare.data.platform
 import dev.dimension.flare.data.datasource.linkedin.LinkedInDataSource
 import dev.dimension.flare.data.datasource.microblog.MicroblogDataSource
 import dev.dimension.flare.data.model.tab.TimelineSpec
+import dev.dimension.flare.model.AccountType
 import dev.dimension.flare.model.MicroBlogKey
 import dev.dimension.flare.model.PlatformDataSourceContext
 import dev.dimension.flare.model.PlatformDeepLink
@@ -20,12 +21,12 @@ public const val LINKEDIN_PLATFORM_ID: String = "linkedin"
 public const val LINKEDIN_HOST: String = "linkedin.com"
 
 @Serializable
-internal data class LinkedInPostDeepLink(
+public data class LinkedInPostDeepLink(
     val id: String,
 )
 
 @Serializable
-internal data class LinkedInProfileDeepLink(
+public data class LinkedInProfileDeepLink(
     val handle: String,
 )
 
@@ -41,42 +42,62 @@ public data object LinkedInPlatformSpec : PlatformSpec {
     public override val order: Int = 75
 
     override fun deepLinks(accountKey: MicroBlogKey): ImmutableList<PlatformDeepLink<*>> {
-        val postPatterns = listOf(
-            "https://www.linkedin.com/posts/{id}/",
-            "https://www.linkedin.com/posts/{id}",
-            "https://linkedin.com/posts/{id}/",
-            "https://linkedin.com/posts/{id}",
-            "https://www.linkedin.com/feed/update/{id}/",
-            "https://www.linkedin.com/feed/update/{id}",
-            "https://linkedin.com/feed/update/{id}/",
-            "https://linkedin.com/feed/update/{id}",
-        )
-        val profilePatterns = listOf(
-            "https://www.linkedin.com/in/{handle}/",
-            "https://www.linkedin.com/in/{handle}",
-            "https://linkedin.com/in/{handle}/",
-            "https://linkedin.com/in/{handle}",
-        )
-
-        val postLinks = postPatterns.map { pattern ->
-            PlatformDeepLink(
-                uriPattern = pattern,
-                serializer = LinkedInPostDeepLink.serializer(),
-                callback = { data ->
-                    DeeplinkRoute.OpenLinkDirectly("https://www.linkedin.com/feed/update/${data.id}/")
-                },
+        val postPatterns =
+            listOf(
+                "https://www.linkedin.com/posts/{id}/",
+                "https://www.linkedin.com/posts/{id}",
+                "https://linkedin.com/posts/{id}/",
+                "https://linkedin.com/posts/{id}",
+                "https://www.linkedin.com/feed/update/{id}/",
+                "https://www.linkedin.com/feed/update/{id}",
+                "https://linkedin.com/feed/update/{id}/",
+                "https://linkedin.com/feed/update/{id}",
             )
-        }
-
-        val profileLinks = profilePatterns.map { pattern ->
-            PlatformDeepLink(
-                uriPattern = pattern,
-                serializer = LinkedInProfileDeepLink.serializer(),
-                callback = { data ->
-                    DeeplinkRoute.OpenLinkDirectly("https://www.linkedin.com/in/${data.handle}/")
-                },
+        val profilePatterns =
+            listOf(
+                "https://www.linkedin.com/in/{handle}/",
+                "https://www.linkedin.com/in/{handle}",
+                "https://linkedin.com/in/{handle}/",
+                "https://linkedin.com/in/{handle}",
             )
-        }
+
+        val postLinks =
+            postPatterns.map { pattern ->
+                PlatformDeepLink(
+                    uriPattern = pattern,
+                    serializer = LinkedInPostDeepLink.serializer(),
+                    callback = { data ->
+                        val cleanId = data.id.trim()
+                        val targetId =
+                            if (cleanId.startsWith("urn:li:")) {
+                                cleanId
+                            } else if (cleanId.all { it.isDigit() }) {
+                                "urn:li:activity:$cleanId"
+                            } else {
+                                cleanId
+                            }
+                        DeeplinkRoute.Status.Detail(
+                            statusKey =
+                                MicroBlogKey(
+                                    id = targetId,
+                                    host = LINKEDIN_HOST,
+                                ),
+                            accountType = AccountType.Specific(accountKey),
+                        )
+                    },
+                )
+            }
+
+        val profileLinks =
+            profilePatterns.map { pattern ->
+                PlatformDeepLink(
+                    uriPattern = pattern,
+                    serializer = LinkedInProfileDeepLink.serializer(),
+                    callback = { data ->
+                        DeeplinkRoute.OpenLinkDirectly("https://www.linkedin.com/in/${data.handle}/")
+                    },
+                )
+            }
 
         return (postLinks + profileLinks).toImmutableList()
     }
@@ -95,6 +116,5 @@ public data object LinkedInPlatformSpec : PlatformSpec {
     override fun guestDataSource(
         host: String,
         locale: String,
-    ): MicroblogDataSource =
-        throw UnsupportedOperationException("$platformId guest data source is not supported")
+    ): MicroblogDataSource = throw UnsupportedOperationException("$platformId guest data source is not supported")
 }

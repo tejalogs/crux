@@ -112,7 +112,7 @@ internal class AccountTabSyncCoordinator(
     private fun TimelineSlot.cleanupAccountSlots(shouldKeep: (MicroBlogKey?) -> Boolean): TimelineSlot? =
         when (val slotContent = content) {
             is TimelineSlotContent.Source -> {
-                if (shouldKeep(timelineResolver.resolveAccountKey(this))) {
+                if (timelineResolver.hasSpec(this) && shouldKeep(timelineResolver.resolveAccountKey(this))) {
                     this
                 } else {
                     null
@@ -152,7 +152,7 @@ internal fun List<TimelineSlot>.normalizeSystemHomeMixedTimeline(enabled: Boolea
                     source = GroupSource.SystemHome,
                     mergePolicy =
                         (existingSystemHomeGroup?.content as? TimelineSlotContent.Group)?.mergePolicy
-                            ?: TimelineMergePolicy.TimePerPage,
+                            ?: TimelineMergePolicy.Time,
                 ),
             presentation = existingSystemHomeGroup?.presentation ?: TimelinePresentation(),
         )

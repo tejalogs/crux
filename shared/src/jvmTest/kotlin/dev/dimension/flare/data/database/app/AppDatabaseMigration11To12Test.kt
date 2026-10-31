@@ -24,7 +24,7 @@ class AppDatabaseMigration11To12Test {
                 val database =
                     Room
                         .databaseBuilder<AppDatabase>(name = path)
-                        .addMigrations(AppDatabase.MIGRATION_11_12)
+                        .addMigrations(AppDatabase.MIGRATION_11_12, AppDatabase.MIGRATION_12_13)
                         .setDriver(BundledSQLiteDriver())
                         .setQueryCoroutineContext(Dispatchers.Unconfined)
                         .build()
@@ -45,7 +45,7 @@ class AppDatabaseMigration11To12Test {
                 BundledSQLiteDriver().open(path).use { connection ->
                     connection.prepare("PRAGMA user_version").use { statement ->
                         assertEquals(true, statement.step())
-                        assertEquals(12L, statement.getLong(0))
+                        assertEquals(13L, statement.getLong(0))
                     }
                     connection.prepare("SELECT identity_hash FROM room_master_table WHERE id = 42").use { statement ->
                         assertEquals(true, statement.step())
@@ -85,7 +85,7 @@ class AppDatabaseMigration11To12Test {
     }
 
     private companion object {
-        const val APP_DATABASE_IDENTITY_HASH = "30af886dd6bd572e9c4c3d06afdb8a68"
+        const val APP_DATABASE_IDENTITY_HASH = "6509db2920bbb2f6aeff28f1b7c582c2"
 
         val V11_SCHEMA =
             listOf(

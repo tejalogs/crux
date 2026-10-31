@@ -81,15 +81,15 @@ import compose.icons.fontawesomeicons.solid.WandMagicSparkles
 import dev.dimension.flare.common.OfflineMediaPrefetcher
 import dev.dimension.flare.data.readinglist.ReadingListItem
 import dev.dimension.flare.data.readinglist.ReadingListRepository
+import dev.dimension.flare.di.koinInject
 import dev.dimension.flare.model.AccountType
 import dev.dimension.flare.model.MicroBlogKey
-import dev.dimension.flare.ui.route.DeeplinkRoute
-import dev.dimension.flare.ui.route.toUri
-import dev.dimension.flare.di.koinInject
 import dev.dimension.flare.ui.component.BackButton
 import dev.dimension.flare.ui.component.FAIcon
 import dev.dimension.flare.ui.component.FlareScaffold
 import dev.dimension.flare.ui.component.FlareTopAppBar
+import dev.dimension.flare.ui.route.DeeplinkRoute
+import dev.dimension.flare.ui.route.toUri
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -144,7 +144,13 @@ internal fun ReadingListScreen(
         AlertDialog(
             onDismissRequest = { showClearConfirmation = false },
             title = { Text(text = "Clear Reading List?") },
-            text = { Text(text = "This will remove all ${items.size} saved offline items. Cached images can still be managed in Storage settings.") },
+            text = {
+                Text(
+                    text =
+                        "This will remove all ${items.size} saved offline items. " +
+                            "Cached images can still be managed in Storage settings.",
+                )
+            },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -484,15 +490,17 @@ private fun ReadingListItemCard(
             ) {
                 TextButton(
                     onClick = {
-                        val uri = DeeplinkRoute.Status.OmniScribe(
-                            statusKey = MicroBlogKey(item.id.hashCode().toString(), item.platformId),
-                            accountType = AccountType.Guest,
-                            initialText = item.contentText,
-                            authorName = item.authorName.takeIf { it.isNotBlank() } ?: item.authorHandle,
-                            authorHandle = item.authorHandle,
-                            articleTitle = item.title,
-                            sourceUrl = item.sourceUrl,
-                        ).toUri()
+                        val uri =
+                            DeeplinkRoute.Status
+                                .OmniScribe(
+                                    statusKey = MicroBlogKey(item.id.hashCode().toString(), item.platformId),
+                                    accountType = AccountType.Guest,
+                                    initialText = item.contentText,
+                                    authorName = item.authorName.takeIf { it.isNotBlank() } ?: item.authorHandle,
+                                    authorHandle = item.authorHandle,
+                                    articleTitle = item.title,
+                                    sourceUrl = item.sourceUrl,
+                                ).toUri()
                         uriHandler.openUri(uri)
                     },
                 ) {
@@ -538,21 +546,30 @@ private fun ReadingListItemCard(
 private fun PlatformBadge(platformId: String) {
     val (icon, brush) =
         when (platformId.lowercase()) {
-            "mastodon" ->
+            "mastodon" -> {
                 FontAwesomeIcons.Brands.Mastodon to
                     Brush.linearGradient(listOf(Color(0xFF6364FF), Color(0xFF563ACC)))
-            "bluesky" ->
+            }
+
+            "bluesky" -> {
                 FontAwesomeIcons.Brands.Bluesky to
                     Brush.linearGradient(listOf(Color(0xFF0085FF), Color(0xFF0066CC)))
-            "instagram" ->
+            }
+
+            "instagram" -> {
                 FontAwesomeIcons.Brands.Instagram to
                     Brush.linearGradient(listOf(Color(0xFF833AB4), Color(0xFFFD1D1D), Color(0xFFFCB045)))
-            "rss" ->
+            }
+
+            "rss" -> {
                 FontAwesomeIcons.Solid.Rss to
                     Brush.linearGradient(listOf(Color(0xFFF26522), Color(0xFFFF9900)))
-            else ->
+            }
+
+            else -> {
                 FontAwesomeIcons.Solid.Bookmark to
                     Brush.linearGradient(listOf(Color(0xFF4A6572), Color(0xFF344955)))
+            }
         }
 
     Box(
@@ -674,15 +691,17 @@ private fun ReadingListDetailSheet(
 
             Button(
                 onClick = {
-                    val uri = DeeplinkRoute.Status.OmniScribe(
-                        statusKey = MicroBlogKey(item.id.hashCode().toString(), item.platformId),
-                        accountType = AccountType.Guest,
-                        initialText = item.contentText,
-                        authorName = item.authorName.takeIf { it.isNotBlank() } ?: item.authorHandle,
-                        authorHandle = item.authorHandle,
-                        articleTitle = item.title,
-                        sourceUrl = item.sourceUrl,
-                    ).toUri()
+                    val uri =
+                        DeeplinkRoute.Status
+                            .OmniScribe(
+                                statusKey = MicroBlogKey(item.id.hashCode().toString(), item.platformId),
+                                accountType = AccountType.Guest,
+                                initialText = item.contentText,
+                                authorName = item.authorName.takeIf { it.isNotBlank() } ?: item.authorHandle,
+                                authorHandle = item.authorHandle,
+                                articleTitle = item.title,
+                                sourceUrl = item.sourceUrl,
+                            ).toUri()
                     uriHandler.openUri(uri)
                     onDismiss()
                 },
@@ -731,7 +750,9 @@ private fun ReadingListDetailSheet(
     }
 }
 
-private enum class ReadingListFilter(val label: String) {
+private enum class ReadingListFilter(
+    val label: String,
+) {
     ALL("All"),
     UNREAD("Unread"),
     READ("Read"),

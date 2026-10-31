@@ -118,14 +118,24 @@ private fun GalleryPostTile(
         } else {
             listOf(post.content.original)
         }
-    val likeCount = remember(post.actions) {
-        post.actions.filterIsInstance<ActionMenu.Item>()
-            .firstOrNull { it.actionFamily == PostActionFamily.Like || it.actionFamily == PostActionFamily.Favorite }
-            ?.count?.humanized
-            ?: (post.actions.filterIsInstance<ActionMenu.Group>()
-                .firstOrNull { it.displayItem.actionFamily == PostActionFamily.Like || it.displayItem.actionFamily == PostActionFamily.Favorite }
-                ?.displayItem?.count?.humanized)
-    }
+    val likeCount =
+        remember(post.actions) {
+            post.actions
+                .filterIsInstance<ActionMenu.Item>()
+                .firstOrNull { it.actionFamily == PostActionFamily.Like || it.actionFamily == PostActionFamily.Favorite }
+                ?.count
+                ?.humanized
+                ?: (
+                    post.actions
+                        .filterIsInstance<ActionMenu.Group>()
+                        .firstOrNull {
+                            it.displayItem.actionFamily == PostActionFamily.Like ||
+                                it.displayItem.actionFamily == PostActionFamily.Favorite
+                        }?.displayItem
+                        ?.count
+                        ?.humanized
+                )
+        }
 
     TimelineMediaMenuBox(
         expanded = isMenuExpanded,
@@ -218,8 +228,7 @@ private fun GalleryPostTile(
                                                 .background(
                                                     color = Color.Black.copy(alpha = 0.65f),
                                                     shape = RoundedCornerShape(4.dp),
-                                                )
-                                                .padding(horizontal = 5.dp, vertical = 2.dp),
+                                                ).padding(horizontal = 5.dp, vertical = 2.dp),
                                         contentAlignment = Alignment.Center,
                                     ) {
                                         Row(
@@ -249,8 +258,7 @@ private fun GalleryPostTile(
                                                 .background(
                                                     color = Color.Black.copy(alpha = 0.65f),
                                                     shape = RoundedCornerShape(4.dp),
-                                                )
-                                                .padding(4.dp),
+                                                ).padding(4.dp),
                                         contentAlignment = Alignment.Center,
                                     ) {
                                         FAIcon(

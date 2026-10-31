@@ -16,4 +16,6 @@ public interface OnDeviceAI {
         targetLanguage: String,
         prompt: String,
     ): String?
+
+    public suspend fun generate(prompt: String): String? = null
 }
