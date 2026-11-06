@@ -148,52 +148,6 @@ class TimelinePresenterBindingTest {
         }
 
     @Test
-    fun systemHomeMixedTimelineKeepsStableIdButChangesLoaderKeyWhenChildIsDisabled() =
-        runTest {
-            val firstSlot = homeSlot(accountId = "first")
-            val secondSlot = homeSlot(accountId = "second")
-            settingsRepository.updateTabSettingsV2 {
-                TabSettingsV2(
-                    homeSlots =
-                        listOf(
-                            systemHomeMixedSlot(firstSlot, secondSlot),
-                            firstSlot,
-                            secondSlot,
-                        ),
-                )
-            }
-            val initialMixedTab = systemHomeMixedTab()
-
-            val disabledSecondSlot = secondSlot.copy(presentation = TimelinePresentation(enabled = false))
-            settingsRepository.updateTabSettingsV2 {
-                TabSettingsV2(
-                    homeSlots =
-                        listOf(
-                            systemHomeMixedSlot(firstSlot, disabledSecondSlot),
-                            firstSlot,
-                            disabledSecondSlot,
-                        ),
-                )
-            }
-            val updatedMixedTab = systemHomeMixedTab()
-
-            assertEquals(initialMixedTab.id, updatedMixedTab.id)
-            assertEquals(
-                listOf(true, true),
-                initialMixedTab.children.map { it.enabled },
-            )
-            assertEquals(
-                listOf(true, false),
-                updatedMixedTab.children.map { it.enabled },
-            )
-            assertNotEquals(
-                initialMixedTab.loaderKey,
-                updatedMixedTab.loaderKey,
-            )
-            assertEquals(setOf(MicroBlogKey("first", "example.com")), timelineResolver.accountKeys(updatedMixedTab))
-        }
-
-    @Test
     fun savingTabsPreservesExcludedSourcesAndGroupsInsideManualGroup() =
         runTest {
             val visible = homeSlot(accountId = "visible")
@@ -220,29 +174,6 @@ class TimelinePresenterBindingTest {
             settingsRepository.replaceHomeTimelineTabs(tabs)
 
             assertEquals(listOf(group), settingsRepository.tabSettingsV2.first().homeSlots)
-        }
-
-    @Test
-    fun timelinePresenterFactoryUsesDynamicPresenterForSystemHomeMixedTimeline() =
-        runTest {
-            val firstSlot = homeSlot(accountId = "first")
-            val secondSlot = homeSlot(accountId = "second")
-            settingsRepository.updateTabSettingsV2 {
-                TabSettingsV2(
-                    homeSlots =
-                        listOf(
-                            systemHomeMixedSlot(firstSlot, secondSlot),
-                            firstSlot,
-                            secondSlot,
-                        ),
-                )
-            }
-
-            val presenter =
-                TimelinePresenterFactory(timelineResolver)
-                    .create(systemHomeMixedTab())
-
-            assertIs<SystemHomeMixedTimelinePresenter>(presenter)
         }
 
     private suspend fun systemHomeMixedTab(): UiGroupTimelineTabItem {

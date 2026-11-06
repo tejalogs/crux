@@ -288,4 +288,12 @@ class LiveWebTweaksTest {
         }
         assertEquals(listOf("https://x.com", "https://www.x.com"), storageOriginsFor("x.com"))
     }
+
+    @Test
+    fun promptHidingNeverClimbsIntoASiteHeader() {
+        val script = buildSiteScript(LiveWebSite.Reddit, SiteTweak.forSite(LiveWebSite.Reddit).toSet()).orEmpty()
+        // The header around Reddit's "Open App" button also holds the menu and search.
+        assertTrue(script.contains("querySelectorAll(clickable).length<=1"))
+        assertTrue(script.contains("HEADER|NAV"))
+    }
 }

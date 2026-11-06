@@ -131,7 +131,20 @@ class PlatformTabSyncTest {
 
     @Test
     fun dropsTheEmptyCombinedHomeTabAndAddsAllRss() {
-        val withMixed = listOf(source("web.x:x"), source("web.reddit:reddit")).withSystemHomeMixedTimelineEnabled(enabled = true)
+        val tabs = listOf(source("web.x:x"), source("web.reddit:reddit"))
+        val mixed =
+            UiGroupTimelineTabItem(
+                id = SYSTEM_HOME_MIXED_TIMELINE_ID,
+                children = tabs,
+                mergePolicy = TimelineMergePolicy.Time,
+                source = GroupSource.SystemHome,
+                presentation = TimelinePresentation(),
+                title = UiText.Raw("Mixed"),
+                icon = IconType.Material(UiIcon.Rss),
+                appearancePatch = null,
+                enabled = true,
+            )
+        val withMixed = listOf(mixed) + tabs
         assertTrue(withMixed.any { it.isSystemHomeMixedTimeline })
         val result = syncPlatformTabs(withMixed, setOf("X", "Reddit", "Rss"))
         assertTrue(result.none { it.isSystemHomeMixedTimeline })

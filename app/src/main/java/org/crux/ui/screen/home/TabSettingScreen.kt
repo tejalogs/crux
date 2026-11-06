@@ -155,7 +155,8 @@ internal fun TabSettingScreen(
                     .padding(horizontal = screenHorizontalPadding),
             verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
         ) {
-            if (state.canShowMixedTimelineSetting) {
+            // Crux: no combined tab, so no toggle for it.
+            if (false && state.canShowMixedTimelineSetting) {
                 item("header") {
                     Column(
                         verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),

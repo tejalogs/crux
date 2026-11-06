@@ -237,6 +237,8 @@ internal fun UiTimelineTabItem.findById(id: String): UiTimelineTabItem? =
 
 internal fun List<UiTimelineTabItem>.findById(id: String): UiTimelineTabItem? = firstNotNullOfOrNull { it.findById(id) }
 
+internal const val CRUX_ALLOWS_SYSTEM_HOME_MIXED_TIMELINE: Boolean = false
+
 public fun List<UiTimelineTabItem>.withSystemHomeMixedTimelineEnabled(
     enabled: Boolean,
     mergePolicy: TimelineMergePolicy? = null,
@@ -244,7 +246,9 @@ public fun List<UiTimelineTabItem>.withSystemHomeMixedTimelineEnabled(
 ): List<UiTimelineTabItem> {
     val existingGroup = filterIsInstance<UiGroupTimelineTabItem>().firstOrNull { it.source == GroupSource.SystemHome }
     val tabsWithoutSystemGroup = filterNot { it.isSystemHomeMixedTimeline }
-    if (!enabled || tabsWithoutSystemGroup.size < 2) {
+    // Crux: every tab is a live web page or RSS, so a combined "Home" tab has nothing to merge and
+    // only ever shows an empty list. It is never built.
+    if (!CRUX_ALLOWS_SYSTEM_HOME_MIXED_TIMELINE || !enabled || tabsWithoutSystemGroup.size < 2) {
         return tabsWithoutSystemGroup
     }
 

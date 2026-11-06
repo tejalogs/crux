@@ -8,6 +8,7 @@ import org.crux.data.datasource.microblog.datasource.TimelineTabConfigurationDat
 import org.crux.data.model.MixedTimelineTabItem
 import org.crux.data.model.TabSettings
 import org.crux.data.model.TimelineTabItem
+import org.crux.data.model.tab.CRUX_ALLOWS_SYSTEM_HOME_MIXED_TIMELINE
 import org.crux.data.model.tab.GroupSource
 import org.crux.data.model.tab.SYSTEM_HOME_MIXED_TIMELINE_ID
 import org.crux.data.model.tab.TimelineMergePolicy
@@ -148,7 +149,7 @@ internal fun List<TimelineSlot>.normalizeSystemHomeMixedTimeline(enabled: Boolea
     val deduplicatedSlots = distinctBy { it.id }
     val existingSystemHomeGroup = deduplicatedSlots.firstOrNull { it.isSystemHomeMixedTimeline() }
     val slotsWithoutSystemHomeGroup = deduplicatedSlots.filterNot { it.isSystemHomeMixedTimeline() }
-    if (!enabled || slotsWithoutSystemHomeGroup.size < 2) {
+    if (!CRUX_ALLOWS_SYSTEM_HOME_MIXED_TIMELINE || !enabled || slotsWithoutSystemHomeGroup.size < 2) {
         return slotsWithoutSystemHomeGroup
     }
 

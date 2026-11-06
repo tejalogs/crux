@@ -24,27 +24,6 @@ import kotlin.test.assertNotNull
 
 class AccountTabSyncCoordinatorSanitizerTest {
     @Test
-    fun normalizeSystemHomeMixedTimelineAddsSystemMixedWhenSecondDefaultTabIsAdded() {
-        val firstAccountKey = MicroBlogKey("1872639344760254464", "x.com")
-        val secondAccountKey = MicroBlogKey("1711111111111111111", "mastodon.social")
-
-        val normalized =
-            listOf(
-                HomeTimelineTabItem(AccountType.Specific(firstAccountKey)).toTimelineSlotOrNull()!!,
-                HomeTimelineTabItem(AccountType.Specific(secondAccountKey)).toTimelineSlotOrNull()!!,
-            ).normalizeSystemHomeMixedTimeline(enabled = true)
-
-        assertEquals(
-            listOf(
-                SYSTEM_HOME_MIXED_TIMELINE_ID,
-                "common.home:$firstAccountKey",
-                "common.home:$secondAccountKey",
-            ),
-            normalized.map { it.id },
-        )
-    }
-
-    @Test
     fun normalizeSystemHomeMixedTimelineDoesNotReAddSystemMixedAfterItWasRemoved() {
         val firstAccountKey = MicroBlogKey("1872639344760254464", "x.com")
         val secondAccountKey = MicroBlogKey("1711111111111111111", "mastodon.social")

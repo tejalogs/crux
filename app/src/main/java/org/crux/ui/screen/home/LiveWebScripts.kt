@@ -370,7 +370,10 @@ private val ENGINE_JS =
       var hide=function(e){if(e&&e.style)e.style.setProperty('display','none','important')};
       var clean=function(t){return (t||'').replace(/[​-‍﻿ ]/g,' ').trim()};
       var bar=function(e){
-        while(e.parentElement&&e.parentElement!==document.body&&e.parentElement.getBoundingClientRect().height<=120){e=e.parentElement}
+        // Climb only through wrappers that hold nothing else clickable: a site header that also has
+        // the menu or search must stay, so stop at it.
+        var clickable='a,button,input,select,textarea,[role=button],[role=search],[role=navigation]';
+        while(e.parentElement&&e.parentElement!==document.body&&e.parentElement.getBoundingClientRect().height<=120&&!/^(HEADER|NAV)$/.test(e.parentElement.tagName)&&!/header/i.test(e.parentElement.tagName)&&e.parentElement.querySelectorAll(clickable).length<=1){e=e.parentElement}
         return e;
       };
       var scan=function(){
