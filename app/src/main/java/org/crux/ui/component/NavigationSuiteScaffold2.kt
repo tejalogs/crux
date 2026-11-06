@@ -123,7 +123,10 @@ class BottomBarAccessory {
     var onLongClick: (() -> Unit)? by mutableStateOf(null)
 
     // Live web tabs send no scroll events to Compose, so a hidden dock could never come back there.
-    var keepVisible: Boolean by mutableStateOf(false)
+    // Owned by the visible live tab. An owner, not a flag: when switching tabs the old tab's
+    // cleanup runs after the new tab has claimed it, and must not undo the new tab's claim.
+    var keepVisibleOwner: Any? by mutableStateOf(null)
+    val keepVisible: Boolean get() = keepVisibleOwner != null
 
     // Set by the visible live web tab that supports smart replies; shown as a dock button so it
     // never floats over the page.

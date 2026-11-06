@@ -364,10 +364,10 @@ internal fun LiveWebTab(
     val page = remember(site, pages, homeUrl, config) { pages.page(site, context, config) }
     BindFileChooser(page)
     val accessory = LocalBottomBarAccessory.current
-    DisposableEffect(accessory, isCurrentlyVisible) {
-        if (isCurrentlyVisible) accessory?.keepVisible = true
+    DisposableEffect(accessory, isCurrentlyVisible, site) {
+        if (isCurrentlyVisible) accessory?.keepVisibleOwner = site
         onDispose {
-            if (isCurrentlyVisible) accessory?.keepVisible = false
+            if (accessory?.keepVisibleOwner == site) accessory.keepVisibleOwner = null
         }
     }
     val smartReply = rememberSmartReplyAction(site, page)
