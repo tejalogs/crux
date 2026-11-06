@@ -69,7 +69,7 @@
     <string name="mastodon_visibility_private_description">רק עוקבים יכולים לראות את הפוסט הזה</string>
     <string name="mastodon_visibility_direct_description">רק משתמשים שהוזכרו יכולים לראות את הפוסט הזה</string>
     <string name="settings_notifications_title">התראות</string>
-    <string name="settings_notifications_subtitle">התאם אישית כיצד Flare מתריע בפניך</string>
+    <string name="settings_notifications_subtitle">התאם אישית כיצד Crux מתריע בפניך</string>
     <string name="status_loadmore_end">אין פוסטים נוספים</string>
     <string name="status_loadmore_error">שגיאה בטעינת פוסטים נוספים</string>
     <string name="status_loadmore_error_retry">נסה שוב</string>
@@ -350,9 +350,8 @@
     <string name="mastodon_trending_statuses">סטטוסים מגמתיים</string>
     <string name="mastodon_federated_timeline">ציר זמן פדרטיבי</string>
     <string name="mastodon_local_timeline">ציר זמן מקומי</string>
-    <string name="service_select_welcome_title">ברוכים הבאים ל-Flare</string>
+    <string name="service_select_welcome_title">ברוכים הבאים ל-Crux</string>
     <string name="service_select_welcome_message">הזן שרת כדי להתחיל.</string>
-    <string name="service_select_welcome_hint">Flare תומך ב-Mastodon, Misskey, Bluesky, Nostr ו-X.</string>
     <string name="service_select_welcome_list_hint">או בחר מתוך שרתים אלו</string>
     <string name="bluesky_login_username_hint">שם משתמש</string>
     <string name="bluesky_login_password_hint">סיסמה</string>
@@ -380,7 +379,7 @@
     <string name="service_select_instance_input_placeholder">כתובת השרת</string>
     <string name="service_select_next_button">הבא</string>
     <string name="service_select_empty_message">לא נמצאו שרתים</string>
-    <string name="service_select_compatibility_warning">שרת זה משתמש ב-%1$s, Flare יפעל במצב תאימות. ייתכן שחלק מהתכונות לא יעבדו כראוי.</string>
+    <string name="service_select_compatibility_warning">שרת זה משתמש ב-%1$s, Crux יפעל במצב תאימות. ייתכן שחלק מהתכונות לא יעבדו כראוי.</string>
     <string name="login_agreement">על ידי התחברות, אתה מסכים ל-%1$s.</string>
     <string name="eula_privacy_policy">תנאי שימוש ומדיניות פרטיות</string>
     <string name="home_tab_home_title">בית</string>
@@ -407,7 +406,7 @@
     <string name="settings_appearance_absolute_timestamp">חותמת זמן מוחלטת</string>
     <string name="settings_appearance_absolute_timestamp_description">הצג חותמות זמן מדויקות בפוסטים</string>
     <string name="channel_title">ערוץ</string>
-    <string name="app_name" translatable="false">Prism</string>
+    <string name="app_name" translatable="false">Crux</string>
     <string name="profile_header_button_request_follow">בקש לעקוב</string>
     <string name="posts_with_replies_title">פוסטים ותגובות</string>
     <string name="pixiv_ranking_week_title">דירוג שבועי</string>

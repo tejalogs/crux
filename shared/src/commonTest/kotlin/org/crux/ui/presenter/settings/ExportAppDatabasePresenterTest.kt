@@ -1,0 +1,179 @@
+package org.crux.ui.presenter.settings
+
+import androidx.room3.Room
+import app.cash.molecule.RecompositionMode
+import app.cash.molecule.moleculeFlow
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.Json
+import org.crux.RobolectricTest
+import org.crux.data.database.app.AppDatabase
+import org.crux.data.database.app.model.AppDatabaseExport
+import org.crux.data.database.app.model.DbAccount
+import org.crux.data.database.app.model.DbKeywordFilter
+import org.crux.data.database.app.model.DbRssSources
+import org.crux.data.database.app.model.DbSearchHistory
+import org.crux.data.database.createDatabaseDriver
+import org.crux.di.startKoin
+import org.crux.di.testSingle
+import org.crux.memoryDatabaseBuilder
+import org.crux.model.MicroBlogKey
+import org.crux.ui.presenter.ExportState
+import org.koin.core.context.stopKoin
+import org.koin.dsl.module
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
+
+@OptIn(ExperimentalCoroutinesApi::class)
+class ExportAppDatabasePresenterTest : RobolectricTest() {
+    private lateinit var db: AppDatabase
+    private val json = Json { ignoreUnknownKeys = true }
+
+    @BeforeTest
+    fun setup() {
+        val db =
+            Room
+                .memoryDatabaseBuilder<AppDatabase>()
+                .setDriver(createDatabaseDriver())
+                .setQueryCoroutineContext(Dispatchers.Unconfined)
+                .build()
+        this.db = db
+
+        startKoin {
+            modules(
+                module {
+                    testSingle { db }
+                },
+            )
+        }
+    }
+
+    @AfterTest
+    fun tearDown() {
+        db.close()
+        stopKoin()
+    }
+
+    @Test
+    fun testExport() =
+        runTest {
+            // Given
+            val account =
+                DbAccount(
+                    account_key = MicroBlogKey("user", "example.com"),
+                    credential_json = "{}",
+                    platformId = "Mastodon",
+                    last_active = 123456789L,
+                )
+            db.accountDao().insert(account)
+
+            val keywordFilter =
+                DbKeywordFilter(
+                    keyword = "spam",
+                    for_timeline = 1,
+                    for_notification = 1,
+                    for_search = 0,
+                    expired_at = 0,
+                    is_regex = 1,
+                )
+            db.keywordFilterDao().insert(keywordFilter)
+
+            val searchHistory =
+                DbSearchHistory(
+                    search = "kotlin",
+                    created_at = 123456789L,
+                )
+            db.searchHistoryDao().insert(searchHistory)
+
+            val rssSource =
+                DbRssSources(
+                    url = "https://example.com/feed",
+                    title = "Example Feed",
+                    icon = null,
+                    lastUpdate = 0,
+                )
+            db.rssSourceDao().insert(rssSource)
+
+            val presenter = ExportAppDatabasePresenter()
+
+            val states = mutableListOf<ExportState>()
+            val job =
+                launch {
+                    moleculeFlow(mode = RecompositionMode.Immediate) {
+                        presenter.body()
+                    }.collect {
+                        states.add(it)
+                    }
+                }
+
+            advanceUntilIdle()
+            job.cancel()
+
+            val finalState = states.last()
+            val jsonString = finalState.export()
+
+            val export = json.decodeFromString<AppDatabaseExport>(jsonString)
+
+            assertEquals(1, export.accounts.size)
+            assertEquals(account, export.accounts.first())
+
+            assertEquals(1, export.keywordFilters.size)
+            assertEquals(keywordFilter, export.keywordFilters.first())
+
+            assertEquals(1, export.searchHistories.size)
+            assertEquals(searchHistory, export.searchHistories.first())
+
+            assertEquals(1, export.rssSources.size)
+            assertEquals(rssSource.url, export.rssSources.first().url)
+        }
+
+    @Test
+    fun oldBackupKeepsUnknownPlatformIdAndLegacyFieldName() =
+        runTest {
+            val fixture =
+                """
+                {
+                  "accounts": [
+                    {
+                      "account_key": {"id": "future-user", "host": "testnet.example"},
+                      "credential_json": "{\"token\":\"kept\"}",
+                      "platform_type": "TestNet",
+                      "last_active": 123,
+                      "sort_id": 7
+                    }
+                  ]
+                }
+                """.trimIndent()
+
+            ImportAppDatabasePresenter(fixture).import()
+
+            val account = db.accountDao().getAccount(MicroBlogKey("future-user", "testnet.example"))
+            assertEquals("TestNet", account?.platformId)
+            assertEquals("{\"token\":\"kept\"}", account?.credential_json)
+            assertEquals(7L, account?.sort_id)
+
+            val reExported = ExportAppDatabasePresenter().export()
+            assertTrue(reExported.contains("\"platform_type\":\"TestNet\""))
+            assertTrue(!reExported.contains("\"platformId\""))
+        }
+
+    @Test
+    fun importRejectsOnlyInvalidPlatformIdSyntax() =
+        runTest {
+            val fixture =
+                """
+                {"accounts":[{"account_key":{"id":"bad","host":"example.com"},"credential_json":"{}","platform_type":"bad/id","last_active":1,"sort_id":0}]}
+                """.trimIndent()
+
+            assertFailsWith<IllegalArgumentException> {
+                ImportAppDatabasePresenter(fixture).import()
+            }
+        }
+}

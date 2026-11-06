@@ -353,7 +353,6 @@
     <string name="mastodon_local_timeline">Paikallinen aikajana</string>
     <string name="service_select_welcome_title">Tervetuloa Flareen</string>
     <string name="service_select_welcome_message">Anna palvelin aloittaaksesi.</string>
-    <string name="service_select_welcome_hint">Flare tukee Mastodonia, Misskeytä, Blueskyta, Nostria ja X:ää.</string>
     <string name="service_select_welcome_list_hint">Tai valitse näistä palvelimista</string>
     <string name="bluesky_login_username_hint">Käyttäjätunnus</string>
     <string name="bluesky_login_password_hint">Salasana</string>
@@ -381,7 +380,7 @@
     <string name="service_select_instance_input_placeholder">Palvelimen URL-osoite</string>
     <string name="service_select_next_button">Seuraava</string>
     <string name="service_select_empty_message">Palvelimia ei löytynyt</string>
-    <string name="service_select_compatibility_warning">Tämä palvelin käyttää versiota %1$s, Flare toimii yhteensopivuustilassa. Jotkut ominaisuudet eivät ehkä toimi oikein.</string>
+    <string name="service_select_compatibility_warning">Tämä palvelin käyttää versiota %1$s, Crux toimii yhteensopivuustilassa. Jotkut ominaisuudet eivät ehkä toimi oikein.</string>
     <string name="login_agreement">Kirjautumalla hyväksyt %1$s.</string>
     <string name="eula_privacy_policy">EULA:n ja tietosuojakäytännön</string>
     <string name="home_tab_home_title">Koti</string>
@@ -418,7 +417,7 @@
     <string name="pixiv_ranking_day_manga_title">Manga Ranking</string>
     <string name="illustrations_title">Kuvitukset</string>
     <string name="manga_title">Manga</string>
-    <string name="app_name" translatable="false">Prism</string>
+    <string name="app_name" translatable="false">Crux</string>
     <string name="media_menu_download">Lataa</string>
     <string name="media_menu_download_all">Lataa kaikki</string>
     <string name="media_menu_share_image">Jaa kuva</string>

@@ -1,0 +1,206 @@
+package org.crux.ui.screen.rss
+
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import compose.icons.FontAwesomeIcons
+import compose.icons.fontawesomeicons.Solid
+import compose.icons.fontawesomeicons.solid.EllipsisVertical
+import compose.icons.fontawesomeicons.solid.File
+import compose.icons.fontawesomeicons.solid.Pen
+import compose.icons.fontawesomeicons.solid.Thumbtack
+import compose.icons.fontawesomeicons.solid.ThumbtackSlash
+import compose.icons.fontawesomeicons.solid.Trash
+import org.crux.compose.ui.Res
+import org.crux.compose.ui.delete_rss_source
+import org.crux.compose.ui.edit_rss_source
+import org.crux.compose.ui.empty_rss_sources
+import org.crux.compose.ui.more
+import org.crux.compose.ui.tab_settings_add
+import org.crux.compose.ui.tab_settings_remove
+import org.crux.ui.component.FAIcon
+import org.crux.ui.component.NetworkImage
+import org.crux.ui.component.platform.PlatformDropdownMenu
+import org.crux.ui.component.platform.PlatformDropdownMenuItem
+import org.crux.ui.component.platform.PlatformFilledTonalButton
+import org.crux.ui.component.platform.PlatformIconButton
+import org.crux.ui.component.platform.PlatformSegmentedListItem
+import org.crux.ui.component.platform.PlatformText
+import org.crux.ui.model.UiRssSource
+import org.crux.ui.model.onSuccess
+import org.crux.ui.theme.PlatformTheme
+import org.jetbrains.compose.resources.stringResource
+
+public fun LazyListScope.rssListWithTabs(
+    state: RssListWithTabsPresenter.State,
+    onClicked: (item: UiRssSource) -> Unit,
+    onEdit: (id: Int) -> Unit,
+) {
+    if (state.sources.isEmpty()) {
+        item {
+            Column(
+                modifier =
+                    Modifier
+                        .fillParentMaxSize(),
+                verticalArrangement =
+                    Arrangement.spacedBy(
+                        12.dp,
+                        Alignment.CenterVertically,
+                    ),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                FAIcon(
+                    FontAwesomeIcons.Solid.File,
+                    contentDescription = stringResource(Res.string.empty_rss_sources),
+                    modifier = Modifier.size(48.dp),
+                )
+                PlatformText(
+                    text = stringResource(Res.string.empty_rss_sources),
+                    style = PlatformTheme.typography.headline,
+                )
+                PlatformFilledTonalButton(
+                    onClick = {
+                        state.seedDefaults()
+                    },
+                ) {
+                    PlatformText("Add Curated Starter Feeds")
+                }
+                PlatformText(
+                    text = "Tech • Privacy • Censorship & Rights • Creativity • Marketing",
+                    style = PlatformTheme.typography.caption,
+                )
+            }
+        }
+    } else {
+        itemsIndexed(
+            state.sources,
+        ) { index, it ->
+            PlatformSegmentedListItem(
+                onClick = {
+                    onClicked.invoke(it)
+                },
+                index = index,
+                totalCount = state.sources.size,
+                headlineContent = {
+                    it.title?.let {
+                        PlatformText(text = it)
+                    }
+                },
+                supportingContent = {
+                    PlatformText(it.url)
+                },
+                leadingContent = {
+                    NetworkImage(
+                        model = it.favIcon,
+                        contentDescription = it.title,
+                        modifier = Modifier.size(24.dp),
+                    )
+                },
+                trailingContent = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        state.pins.onSuccess { currentTabs ->
+                            val isPinned =
+                                remember(
+                                    it,
+                                    currentTabs,
+                                ) {
+                                    currentTabs.contains(it)
+                                }
+                            PlatformIconButton(
+                                onClick = {
+                                    if (isPinned) {
+                                        state.unpinTab(it)
+                                    } else {
+                                        state.pinTab(it)
+                                    }
+                                },
+                            ) {
+                                AnimatedContent(isPinned) {
+                                    if (it) {
+                                        FAIcon(
+                                            imageVector = FontAwesomeIcons.Solid.ThumbtackSlash,
+                                            contentDescription = stringResource(Res.string.tab_settings_add),
+                                        )
+                                    } else {
+                                        FAIcon(
+                                            imageVector = FontAwesomeIcons.Solid.Thumbtack,
+                                            contentDescription = stringResource(Res.string.tab_settings_remove),
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        var showDropdown by remember {
+                            mutableStateOf(false)
+                        }
+                        PlatformIconButton(onClick = { showDropdown = true }) {
+                            Box {
+                                FAIcon(
+                                    imageVector = FontAwesomeIcons.Solid.EllipsisVertical,
+                                    contentDescription = stringResource(Res.string.more),
+                                )
+                                PlatformDropdownMenu(
+                                    expanded = showDropdown,
+                                    onDismissRequest = { showDropdown = false },
+                                ) {
+                                    PlatformDropdownMenuItem(
+                                        text = {
+                                            PlatformText(
+                                                text = stringResource(Res.string.edit_rss_source),
+                                            )
+                                        },
+                                        onClick = {
+                                            onEdit.invoke(it.id)
+                                            showDropdown = false
+                                        },
+                                        leadingIcon = {
+                                            FAIcon(
+                                                imageVector = FontAwesomeIcons.Solid.Pen,
+                                                contentDescription = stringResource(Res.string.edit_rss_source),
+                                            )
+                                        },
+                                    )
+                                    PlatformDropdownMenuItem(
+                                        text = {
+                                            PlatformText(
+                                                text = stringResource(Res.string.delete_rss_source),
+                                                color = PlatformTheme.colorScheme.error,
+                                            )
+                                        },
+                                        onClick = {
+                                            state.delete(it.id)
+                                            showDropdown = false
+                                        },
+                                        leadingIcon = {
+                                            FAIcon(
+                                                imageVector = FontAwesomeIcons.Solid.Trash,
+                                                contentDescription = stringResource(Res.string.delete_rss_source),
+                                                tint = PlatformTheme.colorScheme.error,
+                                            )
+                                        },
+                                    )
+                                }
+                            }
+                        }
+                    }
+                },
+            )
+        }
+    }
+}

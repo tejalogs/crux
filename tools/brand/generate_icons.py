@@ -4,17 +4,14 @@
 The mark is a bold "C" (round-capped arc) pointing at a dot, drawn on the 108-unit
 Android adaptive-icon canvas. Android uses the vector XML directly
 (app/src/main/res/drawable/ic_launcher_*.xml); this script produces everything else:
-master SVGs, legacy Android mipmaps, the Play Store icon, desktop (png/ico/icns + Windows
-appx tiles) and the Apple Icon Composer layers.
+master SVGs, legacy Android mipmaps and the Play Store icon.
 
 Run from the repo root:  python3 tools/brand/generate_icons.py
-Needs Pillow; uses macOS `iconutil` for the .icns.
+Needs Pillow.
 """
 
 import math
 import shutil
-import subprocess
-import tempfile
 from pathlib import Path
 
 from PIL import Image, ImageDraw
@@ -142,38 +139,6 @@ def main():
         res = ROOT / f"app/src/main/res/mipmap-{density}"
         save(render(px), res / "ic_launcher.webp", lossless=True)
         save(render(px, plate="circle"), res / "ic_launcher_round.webp", lossless=True)
-
-    # Desktop
-    desk = ROOT / "desktopApp/resources"
-    save(render(512, margin=0.04), desk / "ic_launcher.png")
-    ico_sizes = [16, 24, 32, 48, 64, 128, 256]
-    render(256, margin=0.04).save(desk / "ic_launcher.ico", sizes=[(s, s) for s in ico_sizes])
-    with tempfile.TemporaryDirectory() as tmp:
-        iconset = Path(tmp) / "ic_launcher.iconset"
-        iconset.mkdir()
-        for base in (16, 32, 128, 256, 512):
-            for mult, suffix in ((1, ""), (2, "@2x")):
-                px = base * mult
-                render(px, margin=0.1).save(iconset / f"icon_{base}x{base}{suffix}.png")
-        subprocess.run(["iconutil", "-c", "icns", str(iconset), "-o", str(desk / "ic_launcher.icns")], check=True)
-
-    # Windows appx tiles: keep existing filenames and sizes
-    for png in sorted((desk / "appx").glob("*.png")):
-        with Image.open(png) as old:
-            w, h = old.size
-        name = png.name
-        if "unplated" in name:
-            img = render(w, plate=None, view=(29.0, 50.0))  # glyph only, brand colour, transparent
-        elif w != h:
-            img = render(w, plate="square", height=h, view=(0.0, 108.0))
-        else:
-            img = render(w, plate="square")
-        img.save(png)
-
-    # Apple Icon Composer layers (same art in every colour variant; the variant sets the fill)
-    for icon_dir in sorted((ROOT / "appleApp").glob("*/AppIcon*.icon")):
-        for layer in ("Group.svg", "Group-2.svg"):
-            (icon_dir / "Assets" / layer).write_text(mark_svg("#FFFFFF"))
 
     print("Crux icons generated.")
 

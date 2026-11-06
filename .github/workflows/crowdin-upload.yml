@@ -6,7 +6,6 @@ on:
     paths:
       - "**/values/strings.xml"
       - "crowdin.yml"
-      - "appleApp/Shared/FlareAppleResource/Resources/Localizable.xcstrings"
 
 jobs:
   crowdin:

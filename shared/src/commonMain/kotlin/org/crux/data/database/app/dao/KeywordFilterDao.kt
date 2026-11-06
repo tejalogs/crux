@@ -1,0 +1,51 @@
+package org.crux.data.database.app.dao
+
+import androidx.room3.Dao
+import androidx.room3.Insert
+import androidx.room3.OnConflictStrategy
+import androidx.room3.Query
+import kotlinx.coroutines.flow.Flow
+import org.crux.data.database.app.model.DbKeywordFilter
+
+@Dao
+internal interface KeywordFilterDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(keywordFilter: DbKeywordFilter)
+
+    @Query("SELECT * FROM DbKeywordFilter")
+    fun selectAll(): Flow<List<DbKeywordFilter>>
+
+    @Query("SELECT * FROM DbKeywordFilter WHERE expired_at = 0 OR expired_at > :currentTime")
+    fun selectAllNotExpired(currentTime: Long): Flow<List<DbKeywordFilter>>
+
+    @Query(
+        "SELECT * FROM DbKeywordFilter WHERE (expired_at = 0 OR expired_at > :currentTime) AND (for_timeline = :forTimeline OR for_notification = :forNotification OR for_search = :forSearch)",
+    )
+    fun selectNotExpiredFor(
+        currentTime: Long,
+        forTimeline: Long,
+        forNotification: Long,
+        forSearch: Long,
+    ): Flow<List<DbKeywordFilter>>
+
+    @Query("SELECT * FROM DbKeywordFilter WHERE keyword = :keyword")
+    fun selectByKeyword(keyword: String): Flow<DbKeywordFilter?>
+
+    @Query("DELETE FROM DbKeywordFilter WHERE keyword = :keyword")
+    suspend fun deleteByKeyword(keyword: String)
+
+    @Query("DELETE FROM DbKeywordFilter")
+    suspend fun deleteAll()
+
+    @Query(
+        "UPDATE DbKeywordFilter SET for_timeline = :forTimeline, for_notification = :forNotification, for_search = :forSearch, expired_at = :expiredAt, is_regex = :isRegex WHERE keyword = :keyword",
+    )
+    suspend fun update(
+        keyword: String,
+        forTimeline: Long,
+        forNotification: Long,
+        forSearch: Long,
+        expiredAt: Long,
+        isRegex: Long,
+    )
+}

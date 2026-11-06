@@ -1,5 +1,5 @@
 <resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
-    <string name="app_name" translatable="false">Prism</string>
+    <string name="app_name" translatable="false">Crux</string>
 
     <string name="login_button">Log in</string>
     <string name="navigate_back">Go back</string>
@@ -126,7 +126,7 @@
     <string name="status_insight_trace_agent_closing">Closing analysis…</string>
     <string name="ask_ai">Ask AI</string>
     <string name="agent_chat_title">AI Chat</string>
-    <string name="agent_history_title">Flare AI</string>
+    <string name="agent_history_title">Crux AI</string>
     <string name="agent_history_empty">No AI chat history yet.</string>
     <string name="agent_chat_input_placeholder">Ask anything…</string>
     <string name="agent_chat_send">Send</string>
@@ -146,7 +146,7 @@
     <string name="settings_accounts_title">Accounts</string>
     <string name="settings_accounts_subtitle">Manage logged-in accounts</string>
     <string name="settings_appearance_title">Appearance</string>
-    <string name="settings_appearance_subtitle">Customize the look and feel of Flare</string>
+    <string name="settings_appearance_subtitle">Customize the look and feel of Crux</string>
     <string name="settings_appearance_theme_group_title">Theme</string>
     <string name="settings_appearance_theme_group_subtitle">Colors, font size, and avatar shape</string>
     <string name="settings_appearance_layout_group_title">Layout</string>
@@ -156,7 +156,7 @@
     <string name="settings_behavior_title">Behavior</string>
     <string name="settings_behavior_description">Timeline refresh, browser, and link handling preferences</string>
     <string name="settings_refresh_home_timeline_on_launch">Refresh home timeline on launch</string>
-    <string name="settings_refresh_home_timeline_on_launch_description">Fetch new posts when Flare opens</string>
+    <string name="settings_refresh_home_timeline_on_launch_description">Fetch new posts when Crux opens</string>
     <string name="settings_home_timeline_auto_refresh_interval">Auto-refresh home timeline</string>
     <string name="settings_home_timeline_auto_refresh_interval_description">Refresh the currently selected timeline while the home screen is open</string>
     <string name="settings_auto_refresh_disabled">Off</string>
@@ -169,9 +169,9 @@
     <string name="settings_appearance_media_group_subtitle">Media visibility, playback, sensitive content, and save location</string>
     <string name="settings_storage_title">Storage</string>
     <string name="settings_storage_subtitle">Manage cached files, logs, and backups</string>
-    <string name="settings_about_title">About</string>
-    <string name="settings_about_subtitle">Learn more about Prism</string>
-    <string name="settings_about_description">An open-source, AI-powered client for decentralized social platforms.</string>
+    <string name="settings_about_title">About Crux</string>
+    <string name="settings_about_subtitle">Learn more about Crux</string>
+    <string name="settings_about_description">A private, AI-powered personal command center for social feeds, isolated web profiles, and Kindle-style reading.</string>
     <string name="settings_about_source_code">Source code</string>
     <string name="settings_about_upstream">Upstream Project</string>
     <string name="settings_about_upstream_description">Forked from Flare (AGPL-3.0) by DimensionDev</string>
@@ -182,7 +182,7 @@
     <string name="settings_about_line" translatable="false">Line</string>
     <string name="settings_about_line_description">Join our Line group</string>
     <string name="settings_about_localization">Crowdin</string>
-    <string name="settings_about_localization_description">Help us translate Prism</string>
+    <string name="settings_about_localization_description">Help us translate Crux</string>
     <string name="settings_privacy_policy">Privacy Policy</string>
     <string name="settings_side_panel">Side Panel customization</string>
     <string name="settings_side_panel_description">Customize the side panel</string>
@@ -203,7 +203,7 @@
     <string name="settings_ai_config_server_url_requirement">The URL must end with a trailing slash and support a compatible v1/chat/completions API.</string>
     <string name="settings_ai_config_server_self_host_description">Use the official service or your own compatible server</string>
     <string name="settings_ai_config_type">AI Type</string>
-    <string name="settings_ai_config_type_description">Choose which AI backend Flare uses</string>
+    <string name="settings_ai_config_type_description">Choose which AI backend Crux uses</string>
     <string name="settings_ai_config_type_select">Select</string>
     <string name="settings_ai_config_type_on_device">On-device AI</string>
     <string name="settings_ai_config_type_on_device_description">Run supported AI models locally on this device</string>
@@ -274,7 +274,7 @@
     <string name="settings_translation_ai_test_original">Sample text</string>
     <string name="settings_translation_ai_test_result">Translated text</string>
     <string name="settings_language_title">Language</string>
-    <string name="settings_language_description">Change Flare\'s app language</string>
+    <string name="settings_language_description">Change Crux\'s app language</string>
     <string name="settings_rss_management_title">Subscription Management</string>
     <string name="settings_rss_management_description">Manage subscriptions</string>
     <string name="settings_nostr_relays_manage">Nostr relays</string>
@@ -288,7 +288,7 @@
     <string name="login_expired_message">Tap to log in again</string>
     <string name="login_expired_relogin">Log in again</string>
 
-    <string name="service_select_welcome_title">Welcome to Flare</string>
+    <string name="service_select_welcome_title">Welcome to Crux</string>
     <string name="service_select_welcome_message">Enter a server to get started.</string>
 
     <string name="mastodon_login_verify_message">Verifying your credentials…</string>
@@ -310,7 +310,6 @@
     <string name="bluesky_login_oauth_button">Log in with OAuth</string>
     <string name="bluesky_login_fix_delegation_scopes_button">Fix Tranquil permissions</string>
     <string name="bluesky_login_use_password_button">Use password</string>
-    <string name="bluesky_login_oauth_hint">Bluesky OAuth may still be unstable. If you run into issues, use password login instead.</string>
 
     <string name="report_title">Report</string>
     <string name="report_description">What\'s wrong with this post?</string>
@@ -342,7 +341,6 @@
     <string name="discover_status">Trending Posts</string>
     <string name="discover_hashtags">Trending Hashtags</string>
     <string name="discover_fediverse_hint_title">Explore the Open Social Web</string>
-    <string name="discover_fediverse_hint_description">Search people, handles, hashtags, and posts across Mastodon, Bluesky, Threads, Pixelfed, Misskey, and Nostr.</string>
 
     <string name="search_users">Users</string>
     <string name="search_status">Posts</string>
@@ -480,7 +478,7 @@
     <string name="settings_lite_mode_text_only_description">Never fetch media. Lowest data use</string>
     <string name="settings_privacy_title">Privacy</string>
     <string name="settings_privacy_traffic_log">Record traffic</string>
-    <string name="settings_privacy_traffic_log_description">Keep an on-device record of requests Flare makes</string>
+    <string name="settings_privacy_traffic_log_description">Keep an on-device record of requests Crux makes</string>
     <string name="settings_privacy_block_telemetry">Block telemetry</string>
     <string name="settings_privacy_block_telemetry_description">Refuse impression and seen-tracking endpoints</string>
     <string name="settings_privacy_block_profiling">Block profiling</string>
@@ -490,9 +488,9 @@
     <string name="settings_privacy_strip_fingerprint">Strip fingerprint headers</string>
     <string name="settings_privacy_strip_fingerprint_description">Remove client-hint headers. May break login on networks that require them</string>
     <string name="settings_privacy_app_lock">Biometric &amp; Device Lock</string>
-    <string name="settings_privacy_app_lock_description">Require device PIN, fingerprint, or face unlock when opening Prism</string>
+    <string name="settings_privacy_app_lock_description">Require device PIN, fingerprint, or face unlock when opening Crux</string>
     <string name="settings_privacy_traffic_log_title">Traffic log</string>
-    <string name="settings_privacy_traffic_log_open_description">See every host Flare contacted and what was removed</string>
+    <string name="settings_privacy_traffic_log_open_description">See every host Crux contacted and what was removed</string>
     <string name="settings_privacy_traffic_log_empty">No requests recorded yet. Browse a timeline and come back.</string>
     <string name="settings_privacy_traffic_log_summary">%1$d requests recorded</string>
     <string name="settings_privacy_traffic_log_summary_detail">%1$d telemetry · %2$d profiling · %3$d blocked · %4$d identifiers removed</string>
@@ -503,7 +501,7 @@
     <string name="settings_appearance_swipe_to_act">Swipe to act</string>
     <string name="settings_appearance_swipe_to_act_description">Swipe a post sideways to reply, repost or like</string>
     <string name="settings_appearance_in_app_browser">In-app browser</string>
-    <string name="settings_appearance_in_app_browser_description">Open external links inside Flare</string>
+    <string name="settings_appearance_in_app_browser_description">Open external links inside Crux</string>
     <string name="settings_hardened_browser_title">Hardened Browser</string>
     <string name="settings_hardened_browser_description">Cookie-isolated, hardened in-app browser</string>
     <string name="settings_hardened_browser_url">URL</string>
@@ -692,6 +690,7 @@
     <string name="opml_import">Import from OPML</string>
     <string name="opml_export">Export to OPML</string>
     <string name="export_completed">Export completed</string>
+    <string name="export_failed">Export failed</string>
 
     <string name="rss_sources_title_label">Title</string>
     <string name="rss_sources_url_label">URL</string>
@@ -713,7 +712,7 @@
     <string name="mastodon_trending_statuses">Trending Posts</string>
     <string name="mastodon_federated_timeline">Federated timeline</string>
     <string name="mastodon_local_timeline">Local timeline</string>
-    <string name="subscription_url_hint">Paste an RSS feed URL or a Mastodon instance URL</string>
+    <string name="subscription_url_hint">Paste an RSS feed URL</string>
     <string name="rss_sources_display_mode">Display mode</string>
 
     <string name="rss_detail_open_in_browser">Open in browser</string>
@@ -770,7 +769,7 @@
     <string name="settings_mxga_never_refreshed">Not refreshed yet</string>
     <string name="settings_mxga_learn_more">What is MXGA?</string>
     <string name="settings_link_open_default_title">Default for %1$s links</string>
-    <string name="settings_link_open_default_description">Choose how supported links open when Flare can handle them</string>
+    <string name="settings_link_open_default_description">Choose how supported links open when Crux can handle them</string>
     <string name="settings_link_open_default_ask_every_time">Ask every time</string>
 
     <string name="block_user_title">Block user</string>
@@ -894,9 +893,9 @@
     <string name="rss_detail_unavailable">This article could not be loaded. You can open the original page.</string>
 
     <!-- Drawer Navigation & Sovereign Client -->
-    <string name="drawer_section_feeds_and_social">Feeds and social</string>
-    <string name="drawer_section_personal_library">Personal library</string>
-    <string name="drawer_section_connected_accounts">Connected accounts</string>
+    <string name="drawer_section_feeds_and_social">Your platforms</string>
+    <string name="drawer_section_personal_library">Library</string>
+    <string name="drawer_section_connected_accounts">Other networks</string>
     <string name="drawer_section_sovereignty_and_system">Settings and system</string>
     <string name="drawer_instagram">Instagram</string>
     <string name="drawer_linkedin">LinkedIn</string>
@@ -906,8 +905,8 @@
         <item quantity="one">%1$d Account</item>
         <item quantity="other">%1$d Accounts</item>
     </plurals>
-    <string name="drawer_flare_client_title">Flare</string>
-    <string name="drawer_flare_client_subtitle">Decentralized and multi-protocol</string>
+    <string name="drawer_flare_client_title">Crux</string>
+    <string name="drawer_flare_client_subtitle">Personal social &amp; reading command center</string>
 
     <!-- Smart Reply Studio -->
     <string name="smart_reply_refined_tone_toast">Refined in %1$s tone</string>
@@ -934,10 +933,6 @@
     <string name="smart_reply_humanized_badge">Humanized</string>
 
     <!-- Web Screen Toasts & Labels -->
-    <string name="instagram_feed_synced">Instagram feed synced with Home Timeline!</string>
-    <string name="instagram_sync_unable">Unable to sync Instagram session</string>
-    <string name="instagram_login_to_sync">Log in to Instagram to sync your feed</string>
-    <string name="linkedin_feed_synced">LinkedIn feed synced with Flare!</string>
     <string name="linkedin_reading_list_removed">Removed from Reading List</string>
     <string name="linkedin_reading_list_saved">Saved to Reading List</string>
     <string name="linkedin_session_cleared">LinkedIn session cleared</string>
@@ -947,10 +942,8 @@
     <string name="linkedin_logout_confirm">Log Out</string>
     <string name="action_cancel">Cancel</string>
     <string name="web_privacy_dialog_title">Feed connection</string>
-    <string name="web_privacy_dialog_description">Flare loads your feed inside this view and reads your home timeline to show posts in your unified feed. Your password is never stored by Flare.</string>
+    <string name="web_privacy_dialog_description">Crux loads your feed inside this view and reads your home timeline to show posts in your unified feed. Your password is never stored by Crux.</string>
     <string name="web_open_in_browser">Open in browser</string>
-    <string name="web_status_synced">Feed synced</string>
-    <string name="web_status_syncing">Syncing feed…</string>
     <string name="web_clear_session">Clear session</string>
     <string name="web_privacy_info">Privacy info</string>
     <string name="web_overflow_menu">More options</string>
@@ -980,7 +973,7 @@
     <!-- Storage & OmniScribe Toasts -->
     <string name="storage_purge_success">Purged %1$d timeline entries &amp; %2$d statuses in %3$dms</string>
     <string name="storage_purge_failed">Cache prune failed: %1$s</string>
-    <string name="omni_scribe_slides_saved">Saved %1$d high-res slides to Pictures/Flare Carousels</string>
+    <string name="omni_scribe_slides_saved">Saved %1$d high-res slides to Pictures/Crux Carousels</string>
     <string name="omni_scribe_broadcast_success">Broadcast post with %1$d carousel slides across %2$d accounts!</string>
 
     <!-- Daily Brief / Catch up strings -->
@@ -1046,4 +1039,141 @@
     <string name="reader_page_footer">%1$d%% · %2$d min left</string>
     <string name="live_web_smart_reply">Smart reply to this post</string>
     <string name="live_web_no_post">No post in view. Scroll to one or select its text.</string>
+    <string name="live_share_title">Post on the web</string>
+    <string name="live_share_action">Open ready to post</string>
+    <string name="live_share_step">%1$s (%2$d of %3$d)</string>
+    <string name="live_share_next">Next</string>
+    <string name="live_share_done">Done</string>
+    <string name="live_share_slides_hint">Slides saved to your gallery. Attach them in the composer.</string>
+    <string name="live_share_post_article">Post this article</string>
+    <!-- Crux: platforms -->
+    <string name="crux_platform_mastodon_tagline">Your server, your community. The open, ad-free social web.</string>
+    <string name="crux_platform_x_tagline">News and conversation as it happens.</string>
+    <string name="crux_platform_instagram_tagline">Photos and stories from people you follow.</string>
+    <string name="crux_platform_linkedin_tagline">Your professional network and industry news.</string>
+    <string name="crux_platform_reddit_tagline">Communities on every topic. Works signed out too.</string>
+    <string name="crux_platform_rss_tagline">Blogs, newsletters and news sites, in a quiet reader.</string>
+    <string name="crux_status_not_added">Not added</string>
+    <string name="crux_status_rss">No account needed</string>
+    <string name="crux_status_signed_in">Signed in</string>
+    <string name="crux_status_signed_in_on">Signed in on %1$s</string>
+    <string name="crux_status_signed_out_ok">Browsing signed out</string>
+    <string name="crux_status_sign_in_needed">Sign in needed</string>
+    <string name="crux_action_add">Add</string>
+    <string name="crux_action_sign_in">Sign in</string>
+    <string name="crux_action_open">Open</string>
+    <string name="crux_action_change_server">Change server</string>
+    <string name="crux_action_sign_out">Sign out</string>
+    <string name="crux_action_remove">Remove from Crux</string>
+    <string name="crux_manage_platforms">Manage platforms</string>
+    <string name="crux_home_empty_title">No tabs yet</string>
+    <string name="crux_home_empty_body">Choose the platforms you use and Crux adds a tab for each one.</string>
+    <string name="crux_accounts_platforms_title">Your platforms</string>
+    <string name="crux_accounts_platforms_subtitle">Each one is the real site in its own sealed sandbox. You sign in on the site itself; Crux never sees your password.</string>
+    <string name="crux_accounts_other_title">Other networks</string>
+    <string name="crux_accounts_other_subtitle">Other accounts saved on this device.</string>
+    <string name="crux_switch_account_title">Active account</string>
+    <string name="crux_switch_account_empty">Your platforms are managed in one place. Accounts from other networks you connect will appear here.</string>
+    <string name="crux_drawer_no_platforms">No platforms yet. Tap to add one.</string>
+    <string name="crux_drawer_signed_in_count">Signed in to %1$d of %2$d</string>
+
+    <!-- Crux: compose -->
+    <string name="crux_compose_title">Write once</string>
+    <string name="crux_compose_subtitle">Pick where it goes. Crux opens each app ready to post.</string>
+    <string name="crux_compose_placeholder">What\'s on your mind?</string>
+    <string name="crux_compose_x_limit">%1$d / %2$d — too long for X</string>
+    <string name="crux_compose_link_label">Link</string>
+    <string name="crux_compose_add_link">Add a link</string>
+    <string name="crux_compose_post_to">Post to</string>
+    <string name="crux_compose_no_platforms">No platforms that support posting are set up yet.</string>
+    <string name="crux_compose_footnote">Each app opens with your text filled in and you tap Post yourself. Crux never posts behind your back, which keeps your accounts safe from being flagged.</string>
+    <string name="crux_compose_post">Post</string>
+    <string name="crux_compose_post_count">Post to %1$d</string>
+    <string name="live_share_instagram_hint">Caption copied. Tap + in Instagram, pick a photo and paste.</string>
+
+    <!-- Crux: onboarding -->
+    <string name="crux_onboarding_skip">Skip</string>
+    <string name="crux_onboarding_tagline">Every feed you follow. One calm place.</string>
+    <string name="crux_onboarding_value_one_title">One home for your feeds</string>
+    <string name="crux_onboarding_value_one_body">X, Instagram, LinkedIn, Reddit and RSS side by side. Switch with a tap instead of five apps.</string>
+    <string name="crux_onboarding_value_two_title">Private by design</string>
+    <string name="crux_onboarding_value_two_body">Every site runs in its own sealed sandbox. Logins and cookies never leave this phone and never mix between sites.</string>
+    <string name="crux_onboarding_value_three_title">Write once, post anywhere</string>
+    <string name="crux_onboarding_value_three_body">Draft a post and send it to every platform you choose.</string>
+    <string name="crux_onboarding_get_started">Get started</string>
+    <string name="crux_onboarding_platforms_title">Which do you use?</string>
+    <string name="crux_onboarding_platforms_subtitle">Pick only what you need. You can add or remove platforms any time.</string>
+    <string name="crux_onboarding_continue">Continue</string>
+    <string name="crux_onboarding_signin_title">Sign in</string>
+    <string name="crux_onboarding_signin_subtitle">Sign in on each real site, just like in a browser. You can also do this later from the side panel.</string>
+    <string name="crux_onboarding_rss_later">RSS needs no account. Add feeds from the side panel whenever you like.</string>
+    <string name="crux_onboarding_signin_privacy">Crux never sees your password. Sessions stay in each site\'s own sandbox on this device.</string>
+    <string name="crux_onboarding_calm_title">Make it calm</string>
+    <string name="crux_onboarding_calm_subtitle">Social apps are designed to keep you scrolling, and colour is part of the pull. Crux can look more like a page than a slot machine.</string>
+    <string name="crux_onboarding_calm_footnote">Change these any time in Settings.</string>
+    <string name="crux_onboarding_finish">Enter Crux</string>
+    <string name="crux_replay_welcome">Replay welcome tour</string>
+    <string name="crux_onboarding_rss_starter_title">Curated Starter Feeds</string>
+    <string name="crux_onboarding_rss_starter_subtitle">Choose high-quality feeds to begin with</string>
+    <string name="crux_onboarding_rss_select_all">Select all</string>
+    <string name="crux_onboarding_rss_deselect_all">Clear</string>
+    <string name="rss_curated_sources_title">Curated Feeds</string>
+    <string name="rss_curated_sources_subtitle">Tap any source to auto-fill its feed URL</string>
+    <string name="rss_curated_category_all">All</string>
+    <string name="rss_curated_add_action">Use Feed</string>
+
+    <!-- Crux: calm mode -->
+    <string name="crux_grayscale_title">Grayscale</string>
+    <string name="crux_grayscale_description">Remove colour from the whole app, feeds and photos included, so scrolling is less compelling.</string>
+    <string name="crux_paper_tint_title">Paper tint</string>
+    <string name="crux_paper_tint_description">Warm, off-white pages instead of glowing white, like reading print.</string>
+
+    <!-- Privacy & Tweaks -->
+    <string name="web_tweaks_title">Privacy &amp; Tweaks</string>
+    <string name="web_tweaks_subtitle">Per-site protection, focus tweaks and saved data for Instagram, X, LinkedIn and Reddit</string>
+    <string name="web_tweaks_protection">Protection level</string>
+    <string name="web_tweaks_standard">Standard</string>
+    <string name="web_tweaks_strict">Strict</string>
+    <string name="web_tweaks_standard_description">Only hides things on the page. No request is blocked or changed.</string>
+    <string name="web_tweaks_strict_description">Also refuses requests to known tracker and ad hosts.</string>
+    <string name="web_tweaks_strict_account_warning">Strict can raise the chance this account is flagged. Standard is the safer choice for an account you are signed in to.</string>
+    <string name="web_tweaks_focus_header">Focus tweaks</string>
+    <string name="web_tweaks_focus_description">These only hide parts of the page. Turning one off shows it again.</string>
+    <string name="web_tweaks_block_autoplay">Block autoplaying video</string>
+    <string name="web_tweaks_block_autoplay_description">Video starts only when you tap it.</string>
+    <string name="web_tweaks_clear_data">Clear this site\'s data</string>
+    <string name="web_tweaks_clear_title">Clear %1$s data?</string>
+    <string name="web_tweaks_clear_message">This signs you out of %1$s and deletes its cookies and saved site data. Other sites are not touched.</string>
+    <string name="web_tweaks_clear_message_shared">This browser has no separate profiles, so only %1$s\'s own cookies and saved site data are cleared. Other sites are not touched.</string>
+    <string name="web_tweaks_clear_confirm">Clear</string>
+    <string name="web_tweaks_clear_cancel">Cancel</string>
+    <string name="web_tweaks_cleared">Cleared %1$s data</string>
+    <string name="web_tweaks_global_header">All sites</string>
+    <string name="web_tweaks_clean_links">Clean outgoing links</string>
+    <string name="web_tweaks_clean_links_description">Follow tracking redirects and drop tracking parameters on links that leave a site.</string>
+    <string name="web_tweaks_secure_window">Hide Crux in screenshots and recents</string>
+    <string name="web_tweaks_secure_window_description">Blocks screenshots and shows a blank card in the recent apps list.</string>
+    <string name="web_tweaks_gpc">Send Global Privacy Control</string>
+    <string name="web_tweaks_gpc_description">Tells Strict sites you opt out of data sale and sharing. Not sent on Standard sites.</string>
+    <string name="web_tweaks_reload_note">Changes apply right away: the site\'s page is rebuilt.</string>
+    <string name="web_tweak_instagram_ads">Hide ads and sponsored posts</string>
+    <string name="web_tweak_instagram_suggested">Hide suggested posts and people</string>
+    <string name="web_tweak_instagram_app_prompts">Hide \"use the app\" prompts</string>
+    <string name="web_tweak_instagram_reels">Hide Reels tab and entry points</string>
+    <string name="web_tweak_instagram_explore">Hide the Explore grid</string>
+    <string name="web_tweak_x_promoted">Hide promoted posts</string>
+    <string name="web_tweak_x_who_to_follow">Hide \"Who to follow\"</string>
+    <string name="web_tweak_x_trends">Hide trends and \"What\'s happening\"</string>
+    <string name="web_tweak_x_premium_grok">Hide Premium and Grok upsells</string>
+    <string name="web_tweak_x_app_prompts">Hide \"use the app\" prompts</string>
+    <string name="web_tweak_x_hide_for_you">Hide the \"For you\" tab</string>
+    <string name="web_tweak_x_hide_for_you_description">Hides the tab only. X remembers the tab you picked last, so choose Following once.</string>
+    <string name="web_tweak_linkedin_promoted">Hide promoted posts</string>
+    <string name="web_tweak_linkedin_suggested">Hide suggested and celebration posts</string>
+    <string name="web_tweak_linkedin_premium">Hide Premium upsells</string>
+    <string name="web_tweak_linkedin_app_prompts">Hide \"use the app\" prompts</string>
+    <string name="web_tweak_linkedin_news">Hide LinkedIn News and \"Add to your feed\"</string>
+    <string name="web_tweak_reddit_promoted">Hide promoted posts</string>
+    <string name="web_tweak_reddit_nags">Hide app and login nags</string>
+    <string name="web_tweak_reddit_recommended">Hide recommended and \"because you visited\" posts</string>
 </resources>

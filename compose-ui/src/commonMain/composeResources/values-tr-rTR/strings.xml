@@ -69,7 +69,7 @@
     <string name="mastodon_visibility_private_description">Bu gönderiyi yalnızca takipçiler görebilir</string>
     <string name="mastodon_visibility_direct_description">Bu gönderiyi yalnızca bahsedilen kullanıcılar görebilir</string>
     <string name="settings_notifications_title">Bildirimler</string>
-    <string name="settings_notifications_subtitle">Flare\'in sizi nasıl bilgilendireceğini özelleştirin</string>
+    <string name="settings_notifications_subtitle">Crux\'in sizi nasıl bilgilendireceğini özelleştirin</string>
     <string name="status_loadmore_end">Daha fazla gönderi yok</string>
     <string name="status_loadmore_error">Daha fazla gönderi yüklenirken hata oluştu</string>
     <string name="status_loadmore_error_retry">Tekrar dene</string>
@@ -350,9 +350,8 @@
     <string name="mastodon_trending_statuses">Trend olan durumlar</string>
     <string name="mastodon_federated_timeline">Birleşik zaman tüneli</string>
     <string name="mastodon_local_timeline">Yerel zaman tüneli</string>
-    <string name="service_select_welcome_title">Flare\'e Hoş Geldiniz</string>
+    <string name="service_select_welcome_title">Crux\'e Hoş Geldiniz</string>
     <string name="service_select_welcome_message">Başlamak için bir sunucu girin.</string>
-    <string name="service_select_welcome_hint">Flare; Mastodon, Misskey, Bluesky, Nostr ve X\'i destekler.</string>
     <string name="service_select_welcome_list_hint">Veya bu sunuculardan birini seçin</string>
     <string name="bluesky_login_username_hint">Kullanıcı adı</string>
     <string name="bluesky_login_password_hint">Şifre</string>
@@ -380,7 +379,7 @@
     <string name="service_select_instance_input_placeholder">Sunucu (Instance) URL\'si</string>
     <string name="service_select_next_button">İleri</string>
     <string name="service_select_empty_message">Sunucu bulunamadı</string>
-    <string name="service_select_compatibility_warning">Bu sunucu %1$s kullanıyor, Flare uyumluluk modunda çalışacak. Bazı özellikler düzgün çalışmayabilir.</string>
+    <string name="service_select_compatibility_warning">Bu sunucu %1$s kullanıyor, Crux uyumluluk modunda çalışacak. Bazı özellikler düzgün çalışmayabilir.</string>
     <string name="login_agreement">Giriş yaparak %1$s kabul etmiş olursunuz.</string>
     <string name="eula_privacy_policy">EULA ve Gizlilik Politikası</string>
     <string name="home_tab_home_title">Ana Sayfa</string>
@@ -407,7 +406,7 @@
     <string name="settings_appearance_absolute_timestamp">Mutlak zaman damgası</string>
     <string name="settings_appearance_absolute_timestamp_description">Gönderilerde tam zaman damgalarını göster</string>
     <string name="channel_title">Kanal</string>
-    <string name="app_name" translatable="false">Prism</string>
+    <string name="app_name" translatable="false">Crux</string>
     <string name="profile_header_button_request_follow">Takip isteği gönder</string>
     <string name="posts_with_replies_title">Gönderiler ve yanıtlar</string>
     <string name="pixiv_ranking_week_title">Haftalık sıralama</string>

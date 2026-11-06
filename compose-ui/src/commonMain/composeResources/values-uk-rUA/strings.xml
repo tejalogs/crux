@@ -70,7 +70,7 @@
     <string name="mastodon_visibility_private_description">Тільки підписники можуть бачити цей допис</string>
     <string name="mastodon_visibility_direct_description">Тільки згадані користувачі можуть бачити цей допис</string>
     <string name="settings_notifications_title">Сповіщення</string>
-    <string name="settings_notifications_subtitle">Налаштуйте, як Flare сповіщає вас</string>
+    <string name="settings_notifications_subtitle">Налаштуйте, як Crux сповіщає вас</string>
     <string name="status_loadmore_end">Більше немає дописів</string>
     <string name="status_loadmore_error">Помилка завантаження дописів</string>
     <string name="status_loadmore_error_retry">Повторити</string>
@@ -351,9 +351,8 @@
     <string name="mastodon_trending_statuses">Популярні статуси</string>
     <string name="mastodon_federated_timeline">Глобальна стрічка</string>
     <string name="mastodon_local_timeline">Локальна стрічка</string>
-    <string name="service_select_welcome_title">Ласкаво просимо до Flare</string>
+    <string name="service_select_welcome_title">Ласкаво просимо до Crux</string>
     <string name="service_select_welcome_message">Введіть сервер, щоб розпочати.</string>
-    <string name="service_select_welcome_hint">Flare підтримує Mastodon, Misskey, Bluesky, Nostr та X.</string>
     <string name="service_select_welcome_list_hint">Або виберіть із цих серверів</string>
     <string name="bluesky_login_username_hint">Ім\'я користувача</string>
     <string name="bluesky_login_password_hint">Пароль</string>
@@ -381,7 +380,7 @@
     <string name="service_select_instance_input_placeholder">URL сервера</string>
     <string name="service_select_next_button">Далі</string>
     <string name="service_select_empty_message">Серверів не знайдено</string>
-    <string name="service_select_compatibility_warning">Цей сервер використовує %1$s, Flare працюватиме в режимі сумісності. Деякі функції можуть працювати некоректно.</string>
+    <string name="service_select_compatibility_warning">Цей сервер використовує %1$s, Crux працюватиме в режимі сумісності. Деякі функції можуть працювати некоректно.</string>
     <string name="login_agreement">Входячи, ви погоджуєтеся з %1$s.</string>
     <string name="eula_privacy_policy">EULA та Політикою конфіденційності</string>
     <string name="home_tab_home_title">Головна</string>
@@ -418,7 +417,7 @@
     <string name="pixiv_ranking_day_manga_title">Manga Ranking</string>
     <string name="illustrations_title">Ілюстрації</string>
     <string name="manga_title">Манґа</string>
-    <string name="app_name" translatable="false">Prism</string>
+    <string name="app_name" translatable="false">Crux</string>
     <string name="media_menu_download">Завантажити</string>
     <string name="media_menu_download_all">Завантажити все</string>
     <string name="media_menu_share_image">Поділитися зображенням</string>

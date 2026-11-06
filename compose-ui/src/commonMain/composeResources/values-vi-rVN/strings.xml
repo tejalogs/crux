@@ -69,7 +69,7 @@
     <string name="mastodon_visibility_private_description">Chỉ người theo dõi mới có thể xem bài đăng này</string>
     <string name="mastodon_visibility_direct_description">Chỉ những người được nhắc đến mới có thể xem bài đăng này</string>
     <string name="settings_notifications_title">Thông báo</string>
-    <string name="settings_notifications_subtitle">Tùy chỉnh cách Flare thông báo cho bạn</string>
+    <string name="settings_notifications_subtitle">Tùy chỉnh cách Crux thông báo cho bạn</string>
     <string name="status_loadmore_end">Không còn bài đăng nào</string>
     <string name="status_loadmore_error">Lỗi khi tải thêm bài đăng</string>
     <string name="status_loadmore_error_retry">Thử lại</string>
@@ -350,9 +350,8 @@
     <string name="mastodon_trending_statuses">Trạng thái thịnh hành</string>
     <string name="mastodon_federated_timeline">Dòng thời gian liên hợp</string>
     <string name="mastodon_local_timeline">Dòng thời gian cục bộ</string>
-    <string name="service_select_welcome_title">Chào mừng đến với Flare</string>
+    <string name="service_select_welcome_title">Chào mừng đến với Crux</string>
     <string name="service_select_welcome_message">Nhập một máy chủ để bắt đầu.</string>
-    <string name="service_select_welcome_hint">Flare hỗ trợ Mastodon, Misskey, Bluesky, Nostr và X.</string>
     <string name="service_select_welcome_list_hint">Hoặc chọn từ các máy chủ này</string>
     <string name="bluesky_login_username_hint">Tên người dùng</string>
     <string name="bluesky_login_password_hint">Mật khẩu</string>
@@ -380,7 +379,7 @@
     <string name="service_select_instance_input_placeholder">URL máy chủ</string>
     <string name="service_select_next_button">Tiếp theo</string>
     <string name="service_select_empty_message">Không tìm thấy máy chủ nào</string>
-    <string name="service_select_compatibility_warning">Máy chủ này sử dụng %1$s, Flare sẽ chạy ở chế độ tương thích. Một số tính năng có thể không hoạt động bình thường.</string>
+    <string name="service_select_compatibility_warning">Máy chủ này sử dụng %1$s, Crux sẽ chạy ở chế độ tương thích. Một số tính năng có thể không hoạt động bình thường.</string>
     <string name="login_agreement">Bằng cách đăng nhập, bạn đồng ý với %1$s.</string>
     <string name="eula_privacy_policy">EULA và Chính sách Bảo mật</string>
     <string name="home_tab_home_title">Trang chủ</string>
@@ -407,7 +406,7 @@
     <string name="settings_appearance_absolute_timestamp">Dấu thời gian tuyệt đối</string>
     <string name="settings_appearance_absolute_timestamp_description">Hiển thị thời gian chính xác trên bài đăng</string>
     <string name="channel_title">Kênh</string>
-    <string name="app_name" translatable="false">Prism</string>
+    <string name="app_name" translatable="false">Crux</string>
     <string name="profile_header_button_request_follow">Yêu cầu theo dõi</string>
     <string name="posts_with_replies_title">Bài viết và trả lời</string>
     <string name="pixiv_ranking_week_title">Xếp hạng tuần</string>

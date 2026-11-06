@@ -1,0 +1,47 @@
+package org.crux.ui.component.platform
+
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
+import kotlinx.collections.immutable.ImmutableMap
+import org.crux.ui.component.VideoPlayer
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+internal actual fun PlatformVideoPlayer(
+    uri: String,
+    previewUri: String?,
+    contentDescription: String?,
+    customHeaders: ImmutableMap<String, String>?,
+    modifier: Modifier,
+    muted: Boolean,
+    showControls: Boolean,
+    keepScreenOn: Boolean,
+    aspectRatio: Float?,
+    contentScale: ContentScale,
+    onClick: (() -> Unit)?,
+    onLongClick: (() -> Unit)?,
+    autoPlay: Boolean,
+    remainingTimeContent: @Composable (BoxScope.(Long) -> Unit)?,
+    errorContent: @Composable BoxScope.() -> Unit,
+    loadingPlaceholder: @Composable BoxScope.() -> Unit,
+) {
+    VideoPlayer(
+        uri = uri,
+        previewUri = previewUri,
+        contentDescription = contentDescription,
+        modifier = modifier,
+        muted = muted,
+        showControls = showControls,
+        keepScreenOn = keepScreenOn,
+        aspectRatio = aspectRatio,
+        contentScale = contentScale,
+        onClick = onClick,
+        onLongClick = onLongClick,
+        autoPlay = autoPlay,
+        remainingTimeContent = remainingTimeContent,
+        loadingPlaceholder = loadingPlaceholder,
+    )
+}

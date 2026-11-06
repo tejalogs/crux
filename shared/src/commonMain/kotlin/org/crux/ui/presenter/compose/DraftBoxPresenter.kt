@@ -1,0 +1,171 @@
+package org.crux.ui.presenter.compose
+
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
+import org.crux.common.InAppNotification
+import org.crux.common.Message
+import org.crux.data.database.app.model.DraftMediaType
+import org.crux.data.repository.DraftRepository
+import org.crux.di.koinInject
+import org.crux.ui.model.UiDraft
+import org.crux.ui.model.UiDraftAccount
+import org.crux.ui.model.UiDraftMedia
+import org.crux.ui.model.UiDraftMediaType
+import org.crux.ui.model.UiDraftStatus
+import org.crux.ui.model.takeSuccess
+import org.crux.ui.presenter.PresenterBase
+import org.crux.ui.presenter.settings.AccountsPresenter
+import org.crux.ui.render.toUi
+import kotlin.time.Instant
+
+public class DraftBoxPresenter : PresenterBase<DraftBoxState>() {
+    private val draftRepository: DraftRepository by koinInject()
+    private val sendDraftUseCase: SendDraftUseCase by koinInject()
+    private val inAppNotification: InAppNotification by koinInject()
+    private val coroutineScope: CoroutineScope by koinInject()
+
+    @Composable
+    override fun body(): DraftBoxState {
+        val visibleDrafts by draftRepository.visibleDrafts.collectAsState(emptyList())
+        val sendingDrafts by draftRepository.sendingDrafts.collectAsState(emptyList())
+        val accountsState = remember { AccountsPresenter() }.body()
+        val avatarMap =
+            remember(
+                accountsState.accounts,
+            ) {
+                accountsState.accounts
+                    .takeSuccess()
+                    ?.toImmutableList()
+                    ?.associate { (account, profileState) ->
+                        account.accountKey to profileState.takeSuccess()?.avatar
+                    }.orEmpty()
+            }
+
+        val items =
+            remember(visibleDrafts, sendingDrafts, avatarMap, accountsState.accounts) {
+                val accountMap =
+                    accountsState.accounts
+                        .takeSuccess()
+                        ?.toImmutableList()
+                        ?.associate { it.account.accountKey to it.account }
+                        .orEmpty()
+                (visibleDrafts + sendingDrafts)
+                    .associateBy { it.groupId }
+                    .values
+                    .sortedWith(
+                        compareBy<org.crux.data.repository.DraftGroup>({ it.toUiDraftStatus().sortOrder })
+                            .thenByDescending { it.updatedAt },
+                    ).mapNotNull { draft ->
+                        val accounts =
+                            draft.targets.mapNotNull { target ->
+                                accountMap[target.accountKey]?.let { account ->
+                                    UiDraftAccount(
+                                        account = account,
+                                        avatar = avatarMap[target.accountKey],
+                                    )
+                                }
+                            }
+                        if (accounts.isEmpty()) {
+                            return@mapNotNull null
+                        }
+                        UiDraft(
+                            groupId = draft.groupId,
+                            status = draft.toUiDraftStatus(),
+                            updatedAt = Instant.fromEpochMilliseconds(draft.updatedAt).toUi(),
+                            accounts = accounts.toImmutableList(),
+                            data = draft.content.toComposeData(medias = emptyList()),
+                            medias =
+                                draft.medias
+                                    .map { media ->
+                                        UiDraftMedia(
+                                            cachePath = media.cachePath,
+                                            fileName = media.fileName,
+                                            type =
+                                                when (media.mediaType) {
+                                                    DraftMediaType.IMAGE -> UiDraftMediaType.IMAGE
+                                                    DraftMediaType.VIDEO -> UiDraftMediaType.VIDEO
+                                                    DraftMediaType.OTHER -> UiDraftMediaType.OTHER
+                                                },
+                                            altText = media.altText,
+                                        )
+                                    }.toImmutableList(),
+                        )
+                    }.toImmutableList()
+            }
+
+        return object : DraftBoxState {
+            override val items: ImmutableList<UiDraft> = items
+
+            override fun retry(groupId: String) {
+                sendDraft(groupId)
+            }
+
+            override fun send(groupId: String) {
+                sendDraft(groupId)
+            }
+
+            override fun delete(groupId: String) {
+                coroutineScope.launch {
+                    draftRepository.deleteGroup(groupId)
+                }
+            }
+
+            private fun sendDraft(groupId: String) {
+                coroutineScope.launch {
+                    sendDraftUseCase(groupId) {
+                        when (it) {
+                            is ComposeProgressState.Error -> {
+                                inAppNotification.onError(Message.Compose, it.throwable)
+                            }
+
+                            is ComposeProgressState.Progress -> {
+                                if (it.max > 0) {
+                                    inAppNotification.onProgress(
+                                        Message.Compose,
+                                        it.current,
+                                        it.max,
+                                    )
+                                }
+                            }
+
+                            ComposeProgressState.Success -> {
+                                inAppNotification.onSuccess(Message.Compose)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+public interface DraftBoxState {
+    public val items: ImmutableList<UiDraft>
+
+    public fun retry(groupId: String)
+
+    public fun send(groupId: String)
+
+    public fun delete(groupId: String)
+}
+
+private val UiDraftStatus.sortOrder: Int
+    get() =
+        when (this) {
+            UiDraftStatus.SENDING -> 0
+            UiDraftStatus.FAILED -> 1
+            UiDraftStatus.DRAFT -> 2
+        }
+
+private fun org.crux.data.repository.DraftGroup.toUiDraftStatus(): UiDraftStatus =
+    when {
+        targets.any { it.status == org.crux.data.database.app.model.DraftTargetStatus.SENDING } -> UiDraftStatus.SENDING
+        targets.any { it.status == org.crux.data.database.app.model.DraftTargetStatus.FAILED } -> UiDraftStatus.FAILED
+        else -> UiDraftStatus.DRAFT
+    }

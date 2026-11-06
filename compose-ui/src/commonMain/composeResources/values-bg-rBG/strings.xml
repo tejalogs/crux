@@ -69,7 +69,7 @@
     <string name="mastodon_visibility_private_description">Само последователите могат да виждат тази публикация</string>
     <string name="mastodon_visibility_direct_description">Само споменатите потребители могат да виждат тази публикация</string>
     <string name="settings_notifications_title">Известия</string>
-    <string name="settings_notifications_subtitle">Персонализирайте как Flare ви известява</string>
+    <string name="settings_notifications_subtitle">Персонализирайте как Crux ви известява</string>
     <string name="status_loadmore_end">Няма повече публикации</string>
     <string name="status_loadmore_error">Грешка при зареждане на още публикации</string>
     <string name="status_loadmore_error_retry">Повторен опит</string>
@@ -342,9 +342,8 @@
     <string name="mastodon_trending_statuses">Трендови статуси</string>
     <string name="mastodon_federated_timeline">Федерирана хронология</string>
     <string name="mastodon_local_timeline">Локална хронология</string>
-    <string name="service_select_welcome_title">Добре дошли във Flare</string>
+    <string name="service_select_welcome_title">Добре дошли във Crux</string>
     <string name="service_select_welcome_message">Въведете сървър, за да започнете.</string>
-    <string name="service_select_welcome_hint">Flare поддържа Mastodon, Misskey, Bluesky, Nostr и X.</string>
     <string name="service_select_welcome_list_hint">Или изберете от тези сървъри</string>
     <string name="bluesky_login_username_hint">Потребителско име</string>
     <string name="bluesky_login_password_hint">Парола</string>
@@ -372,7 +371,7 @@
     <string name="service_select_instance_input_placeholder">URL адрес на инстанса</string>
     <string name="service_select_next_button">Напред</string>
     <string name="service_select_empty_message">Няма намерени инстанси</string>
-    <string name="service_select_compatibility_warning">Този сървър използва %1$s, Flare ще работи в режим на съвместимост. Някои функции може да не работят правилно.</string>
+    <string name="service_select_compatibility_warning">Този сървър използва %1$s, Crux ще работи в режим на съвместимост. Някои функции може да не работят правилно.</string>
     <string name="login_agreement">Чрез влизане вие се съгласявате с %1$s.</string>
     <string name="eula_privacy_policy">EULA и Политика за поверителност</string>
     <string name="home_tab_home_title">Начало</string>
@@ -399,7 +398,7 @@
     <string name="settings_appearance_absolute_timestamp">Абсолютно клеймо за време</string>
     <string name="settings_appearance_absolute_timestamp_description">Показвай точното време на публикациите</string>
     <string name="channel_title">Канал</string>
-    <string name="app_name" translatable="false">Prism</string>
+    <string name="app_name" translatable="false">Crux</string>
     <string name="profile_header_button_request_follow">Заявка за последване</string>
     <string name="date_format_year_month_day">d.MM.yyyy</string>
     <string name="date_format_month_day">d.MM</string>

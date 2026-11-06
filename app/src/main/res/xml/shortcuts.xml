@@ -9,25 +9,15 @@
         android:shortcutDisabledMessage="@string/compose_title">
         <intent
             android:action="android.intent.action.VIEW"
-            android:targetPackage="org.prism.social"
-            android:targetClass="dev.dimension.flare.ui.screen.compose.ShortcutComposeActivity" />
+            android:targetPackage="org.crux.social"
+            android:targetClass="org.crux.ui.screen.compose.ShortcutComposeActivity" />
         <categories android:name="android.shortcut.conversation" />
         <capability-binding android:key="actions.intent.CREATE_MESSAGE" />
     </shortcut>
 
-    <share-target android:targetClass="dev.dimension.flare.ui.screen.compose.ShortcutComposeActivity">
+    <share-target android:targetClass="org.crux.ui.screen.compose.ShortcutComposeActivity">
         <data android:mimeType="text/plain" />
-        <category android:name="org.prism.social.sharingshortcuts.category.TEXT_SHARE_TARGET" />
-        <category android:name="dev.dimension.flare.sharingshortcuts.category.TEXT_SHARE_TARGET" />
-    </share-target>
-    <share-target android:targetClass="dev.dimension.flare.ui.screen.compose.ShortcutComposeActivity">
-        <data android:mimeType="image/*" />
-        <category android:name="org.prism.social.sharingshortcuts.category.IMAGE_SHARE_TARGET" />
-        <category android:name="dev.dimension.flare.sharingshortcuts.category.IMAGE_SHARE_TARGET" />
-    </share-target>
-    <share-target android:targetClass="dev.dimension.flare.ui.screen.compose.ShortcutComposeActivity">
-        <data android:mimeType="video/*" />
-        <category android:name="org.prism.social.sharingshortcuts.category.VIDEO_SHARE_TARGET" />
-        <category android:name="dev.dimension.flare.sharingshortcuts.category.VIDEO_SHARE_TARGET" />
+        <category android:name="org.crux.social.sharingshortcuts.category.TEXT_SHARE_TARGET" />
+        <category android:name="org.crux.sharingshortcuts.category.TEXT_SHARE_TARGET" />
     </share-target>
 </shortcuts>

@@ -70,7 +70,7 @@
     <string name="mastodon_visibility_private_description">المتابعون فقط يمكنهم رؤية هذا المنشور</string>
     <string name="mastodon_visibility_direct_description">المستخدمون المذكورون فقط يمكنهم رؤية هذا المنشور</string>
     <string name="settings_notifications_title">الإشعارات</string>
-    <string name="settings_notifications_subtitle">خصص كيف يخطرك Flare</string>
+    <string name="settings_notifications_subtitle">خصص كيف يخطرك Crux</string>
     <string name="status_loadmore_end">لا توجد منشورات أخرى</string>
     <string name="status_loadmore_error">خطأ في تحميل المزيد من المنشورات</string>
     <string name="status_loadmore_error_retry">إعادة المحاولة</string>
@@ -351,9 +351,8 @@
     <string name="mastodon_trending_statuses">الحالات المتداولة</string>
     <string name="mastodon_federated_timeline">الجدول الزمني الموحد</string>
     <string name="mastodon_local_timeline">الجدول الزمني المحلي</string>
-    <string name="service_select_welcome_title">مرحباً بك في Flare</string>
+    <string name="service_select_welcome_title">مرحباً بك في Crux</string>
     <string name="service_select_welcome_message">أدخل خادماً للبدء.</string>
-    <string name="service_select_welcome_hint">يدعم Flare منصات Mastodon و Misskey و Bluesky و Nostr و X.</string>
     <string name="service_select_welcome_list_hint">أو اختر من هذه الخوادم</string>
     <string name="bluesky_login_username_hint">اسم المستخدم</string>
     <string name="bluesky_login_password_hint">كلمة المرور</string>
@@ -381,7 +380,7 @@
     <string name="service_select_instance_input_placeholder">رابط الخادم</string>
     <string name="service_select_next_button">التالي</string>
     <string name="service_select_empty_message">لم يتم العثور على خوادم</string>
-    <string name="service_select_compatibility_warning">يستخدم هذا الخادم %1$s، سيعمل Flare في وضع التوافق. قد لا تعمل بعض الميزات بشكل صحيح.</string>
+    <string name="service_select_compatibility_warning">يستخدم هذا الخادم %1$s، سيعمل Crux في وضع التوافق. قد لا تعمل بعض الميزات بشكل صحيح.</string>
     <string name="login_agreement">بتسجيل الدخول، فإنك توافق على %1$s.</string>
     <string name="eula_privacy_policy">اتفاقية ترخيص المستخدم النهائي وسياسة الخصوصية</string>
     <string name="home_tab_home_title">الرئيسية</string>
@@ -418,7 +417,7 @@
     <string name="pixiv_ranking_day_manga_title">Manga Ranking</string>
     <string name="illustrations_title">الرسوم التوضيحية</string>
     <string name="manga_title">مانغا</string>
-    <string name="app_name" translatable="false">Prism</string>
+    <string name="app_name" translatable="false">Crux</string>
     <string name="media_menu_download">تنزيل</string>
     <string name="media_menu_download_all">تنزيل الكل</string>
     <string name="media_menu_share_image">مشاركة الصورة</string>

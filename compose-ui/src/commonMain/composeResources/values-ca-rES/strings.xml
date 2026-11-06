@@ -69,7 +69,7 @@
     <string name="mastodon_visibility_private_description">Només els seguidors poden veure aquesta publicació</string>
     <string name="mastodon_visibility_direct_description">Només els usuaris esmentats poden veure aquesta publicació</string>
     <string name="settings_notifications_title">Notificacions</string>
-    <string name="settings_notifications_subtitle">Personalitza com Flare t\'avisa</string>
+    <string name="settings_notifications_subtitle">Personalitza com Crux t\'avisa</string>
     <string name="status_loadmore_end">No hi ha més publicacions</string>
     <string name="status_loadmore_error">Error en carregar més publicacions</string>
     <string name="status_loadmore_error_retry">Reintenta-ho</string>
@@ -350,9 +350,8 @@
     <string name="mastodon_trending_statuses">Estats tendència</string>
     <string name="mastodon_federated_timeline">Cronologia federada</string>
     <string name="mastodon_local_timeline">Cronologia local</string>
-    <string name="service_select_welcome_title">Benvingut a Flare</string>
+    <string name="service_select_welcome_title">Benvingut a Crux</string>
     <string name="service_select_welcome_message">Introdueix un servidor per començar.</string>
-    <string name="service_select_welcome_hint">Flare admet Mastodon, Misskey, Bluesky, Nostr i X.</string>
     <string name="service_select_welcome_list_hint">O tria entre aquests servidors</string>
     <string name="bluesky_login_username_hint">Nom d\'usuari</string>
     <string name="bluesky_login_password_hint">Contrasenya</string>
@@ -380,7 +379,7 @@
     <string name="service_select_instance_input_placeholder">URL de la instància</string>
     <string name="service_select_next_button">Següent</string>
     <string name="service_select_empty_message">No s\'han trobat instàncies</string>
-    <string name="service_select_compatibility_warning">Aquest servidor utilitza %1$s, Flare s\'executarà en mode de compatibilitat. Algunes funcions poden no funcionar correctament.</string>
+    <string name="service_select_compatibility_warning">Aquest servidor utilitza %1$s, Crux s\'executarà en mode de compatibilitat. Algunes funcions poden no funcionar correctament.</string>
     <string name="login_agreement">En iniciar la sessió, acceptes el %1$s.</string>
     <string name="eula_privacy_policy">EULA i Política de Privadesa</string>
     <string name="home_tab_home_title">Inici</string>
@@ -406,7 +405,7 @@
     <string name="settings_appearance_absolute_timestamp">Marca de temps absoluta</string>
     <string name="settings_appearance_absolute_timestamp_description">Mostra marques de temps exactes a les publicacions</string>
     <string name="channel_title">Canal</string>
-    <string name="app_name" translatable="false">Prism</string>
+    <string name="app_name" translatable="false">Crux</string>
     <string name="profile_header_button_request_follow">Sol·licita seguir</string>
     <string name="social_title">Social</string>
     <string name="posts_with_replies_title">Publicacions i respostes</string>

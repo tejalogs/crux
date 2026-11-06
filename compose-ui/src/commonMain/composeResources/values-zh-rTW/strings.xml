@@ -70,7 +70,7 @@
     <string name="mastodon_visibility_private_description">只有關注者可以看到此貼文</string>
     <string name="mastodon_visibility_direct_description">只有被標記的人可以看到此貼文</string>
     <string name="settings_notifications_title">通知</string>
-    <string name="settings_notifications_subtitle">自訂 Flare 如何通知您</string>
+    <string name="settings_notifications_subtitle">自訂 Crux 如何通知您</string>
     <string name="status_loadmore_end">沒有更多貼文了</string>
     <string name="status_loadmore_error">載入更多貼文時出錯</string>
     <string name="status_loadmore_error_retry">重試</string>
@@ -355,9 +355,8 @@
     <string name="mastodon_trending_statuses">熱門趨勢</string>
     <string name="mastodon_federated_timeline">跨站時間軸</string>
     <string name="mastodon_local_timeline">本站時間軸</string>
-    <string name="service_select_welcome_title">歡迎來到 Flare</string>
+    <string name="service_select_welcome_title">歡迎來到 Crux</string>
     <string name="service_select_welcome_message">輸入伺服器以開始。</string>
-    <string name="service_select_welcome_hint">Flare 支援 Mastodon, Misskey, Bluesky, Nostr 和 X。</string>
     <string name="service_select_welcome_list_hint">或者從這些伺服器中選擇</string>
     <string name="bluesky_login_username_hint">使用者名稱</string>
     <string name="bluesky_login_password_hint">密碼</string>
@@ -385,7 +384,7 @@
     <string name="service_select_instance_input_placeholder">實例 URL</string>
     <string name="service_select_next_button">下一步</string>
     <string name="service_select_empty_message">未找到實例</string>
-    <string name="service_select_compatibility_warning">此伺服器使用 %1$s，Flare 將在相容模式下執行。某些功能可能無法正常運作。</string>
+    <string name="service_select_compatibility_warning">此伺服器使用 %1$s，Crux 將在相容模式下執行。某些功能可能無法正常運作。</string>
     <string name="login_agreement">登入即表示您同意 %1$s。</string>
     <string name="eula_privacy_policy">最終用戶許可協議 (EULA) 和隱私政策</string>
     <string name="home_tab_home_title">首頁</string>
@@ -417,7 +416,7 @@
     <string name="settings_appearance_absolute_timestamp">絕對時間戳記</string>
     <string name="settings_appearance_absolute_timestamp_description">在貼文上顯示確切的時間戳記</string>
     <string name="channel_title">頻道</string>
-    <string name="app_name" translatable="false">Prism</string>
+    <string name="app_name" translatable="false">Crux</string>
     <string name="posts_with_replies_title">貼文和回覆</string>
     <string name="pixiv_ranking_week_title">週排名</string>
     <string name="pixiv_ranking_month_title">月排名</string>

@@ -1,10 +1,10 @@
 
-import dev.dimension.flare.buildlogic.FlarePlatform
-import dev.dimension.flare.buildlogic.flare
+import org.crux.buildlogic.CruxPlatform
+import org.crux.buildlogic.flare
 import org.jetbrains.compose.compose
 
 plugins {
-    id("dev.dimension.flare.multiplatform-library")
+    id("org.crux.multiplatform-library")
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.kotlin.serialization)
@@ -15,10 +15,10 @@ plugins {
 
 kotlin {
     flare {
-        namespace = "dev.dimension.flare.compose.ui"
+        namespace = "org.crux.compose.ui"
         platforms(
-            FlarePlatform.ANDROID,
-            FlarePlatform.JVM,
+            CruxPlatform.ANDROID,
+            CruxPlatform.JVM,
         )
     }
     android {
@@ -33,11 +33,6 @@ kotlin {
             dependencies {
                 api(projects.feature.login)
                 implementation(projects.shared)
-                implementation(projects.social.bluesky)
-                implementation(projects.social.mastodon)
-                implementation(projects.social.misskey)
-                implementation(projects.social.nostr)
-                implementation(projects.social.vvo)
                 implementation(projects.feature.subscription)
                 implementation(compose("org.jetbrains.compose.ui:ui"))
                 implementation(compose("org.jetbrains.compose.runtime:runtime"))
@@ -115,6 +110,6 @@ dependencies {
 }
 
 compose.resources {
-    packageOfResClass = "dev.dimension.flare.compose.ui"
+    packageOfResClass = "org.crux.compose.ui"
     generateResClass = always
 }

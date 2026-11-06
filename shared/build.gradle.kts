@@ -1,11 +1,11 @@
 
-import dev.dimension.flare.buildlogic.FlarePlatform
-import dev.dimension.flare.buildlogic.GenerateGraphemePropertiesTask
-import dev.dimension.flare.buildlogic.flare
+import org.crux.buildlogic.CruxPlatform
+import org.crux.buildlogic.GenerateGraphemePropertiesTask
+import org.crux.buildlogic.flare
 import java.time.Duration
 
 plugins {
-    id("dev.dimension.flare.multiplatform-library")
+    id("org.crux.multiplatform-library")
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.kotlin.serialization)
@@ -22,13 +22,13 @@ val generateGraphemeProperties by tasks.registering(GenerateGraphemePropertiesTa
 
 kotlin {
     flare {
-        namespace = "dev.dimension.flare.shared"
+        namespace = "org.crux.shared"
         platforms(
-            FlarePlatform.ANDROID,
-            FlarePlatform.JVM,
-            FlarePlatform.IOS,
-            FlarePlatform.WEB,
-            FlarePlatform.MACOS,
+            CruxPlatform.ANDROID,
+            CruxPlatform.JVM,
+            CruxPlatform.IOS,
+            CruxPlatform.WEB,
+            CruxPlatform.MACOS,
         )
         ksp(
             libs.ktorfit.ksp,
@@ -90,11 +90,6 @@ kotlin {
                 implementation(libs.kotlinx.coroutines.test)
                 implementation(libs.paging.testing)
                 implementation(libs.ktor.client.mock)
-            }
-        }
-        val jvmTest by getting {
-            dependencies {
-                implementation(projects.social.pixiv)
             }
         }
         val androidJvmMain by getting {

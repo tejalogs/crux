@@ -1,0 +1,125 @@
+package org.crux.ui.component.status
+
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.unit.dp
+import org.crux.compose.ui.Res
+import org.crux.compose.ui.feed_open_article
+import org.crux.ui.component.DateTimeText
+import org.crux.ui.component.NetworkImage
+import org.crux.ui.component.accessibleDescription
+import org.crux.ui.component.platform.PlatformText
+import org.crux.ui.model.ClickContext
+import org.crux.ui.model.TranslationDisplayState
+import org.crux.ui.model.UiTimelineV2
+import org.crux.ui.theme.PlatformTheme
+import org.crux.ui.theme.screenHorizontalPadding
+import org.jetbrains.compose.resources.stringResource
+
+@Composable
+internal fun FeedComponent(
+    data: UiTimelineV2.Feed,
+    modifier: Modifier = Modifier,
+) {
+    val uriHandler = LocalUriHandler.current
+    val openArticleLabel = stringResource(Res.string.feed_open_article)
+    Column(
+        modifier =
+            Modifier
+                .clickable(onClickLabel = openArticleLabel) {
+                    data.onClicked.invoke(
+                        ClickContext(uriHandler::openUri),
+                    )
+                }.padding(
+                    horizontal = screenHorizontalPadding,
+                    vertical = 8.dp,
+                ).then(modifier),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+        ) {
+            data.source.icon?.let {
+                NetworkImage(
+                    it,
+                    contentDescription = data.source.name,
+                    modifier = Modifier.size(16.dp),
+                )
+            }
+            PlatformText(
+                text = data.source.name,
+                style = PlatformTheme.typography.caption,
+                modifier = Modifier.weight(1f),
+                maxLines = 1,
+            )
+            AnimatedVisibility(data.translationDisplayState != TranslationDisplayState.Hidden) {
+                TranslationDisplayBadge(
+                    state = data.translationDisplayState,
+                )
+            }
+            data.actualCreatedAt?.let {
+                DateTimeText(
+                    it,
+                    style = PlatformTheme.typography.caption,
+                    color = PlatformTheme.colorScheme.caption,
+                )
+            }
+        }
+        data.title?.let { title ->
+            PlatformText(
+                text = title,
+                style = PlatformTheme.typography.title,
+            )
+        }
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            data.description?.let {
+                PlatformText(
+                    text = it,
+                    style = PlatformTheme.typography.caption,
+                    maxLines = 5,
+                    color = PlatformTheme.colorScheme.caption,
+                    modifier =
+                        Modifier.let {
+                            if (data.media != null) {
+                                it.weight(1f)
+                            } else {
+                                it
+                            }
+                        },
+                )
+            }
+            data.media?.let {
+                NetworkImage(
+                    model = it.url,
+                    contentDescription = it.accessibleDescription(),
+                    modifier =
+                        Modifier
+                            .let {
+                                if (data.description != null) {
+                                    it.size(80.dp)
+                                } else {
+                                    it.aspectRatio(16f / 9f)
+                                }
+                            }.clip(
+                                PlatformTheme.shapes.medium,
+                            ),
+                    customHeaders = it.customHeaders,
+                )
+            }
+        }
+    }
+}

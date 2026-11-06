@@ -1,0 +1,52 @@
+package org.crux.ui.presenter.list
+
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
+import kotlinx.collections.immutable.ImmutableList
+import org.crux.data.datasource.microblog.datasource.ListDataSource
+import org.crux.data.datasource.microblog.list.ListMetaData
+import org.crux.data.datasource.microblog.list.ListMetaDataType
+import org.crux.data.repository.AccountRepository
+import org.crux.data.repository.accountServiceProvider
+import org.crux.di.koinInject
+import org.crux.model.AccountType
+import org.crux.ui.model.UiState
+import org.crux.ui.model.map
+import org.crux.ui.model.onSuccess
+import org.crux.ui.presenter.PresenterBase
+
+/**
+ * Presenter for creating lists.
+ */
+public class CreateListPresenter(
+    private val accountType: AccountType,
+) : PresenterBase<CreateListState>() {
+    private val accountRepository: AccountRepository by koinInject()
+
+    @Composable
+    override fun body(): CreateListState {
+        val serviceState = accountServiceProvider(accountType = accountType, repository = accountRepository)
+
+        return object : CreateListState {
+            override val supportedMetaData =
+                serviceState.map {
+                    require(it is ListDataSource)
+                    it.listHandler.supportedMetaData
+                }
+
+            override suspend fun createList(listMetaData: ListMetaData) {
+                serviceState.onSuccess {
+                    require(it is ListDataSource)
+                    it.listHandler.create(listMetaData)
+                }
+            }
+        }
+    }
+}
+
+@Immutable
+public interface CreateListState {
+    public val supportedMetaData: UiState<ImmutableList<ListMetaDataType>>
+
+    public suspend fun createList(listMetaData: ListMetaData)
+}

@@ -25,11 +25,11 @@
 -keep class *$$serializer { *; }
 
 # Preserve Flare data models & dynamic payloads
--keep class dev.dimension.flare.data.model.** { *; }
--keep class dev.dimension.flare.data.datasource.linkedin.** { *; }
--keep class dev.dimension.flare.data.datasource.instagram.** { *; }
--keep class dev.dimension.flare.data.ai.** { *; }
--keep class dev.dimension.flare.data.privacy.** { *; }
+-keep class org.crux.data.model.** { *; }
+-keep class org.crux.data.datasource.linkedin.** { *; }
+-keep class org.crux.data.datasource.instagram.** { *; }
+-keep class org.crux.data.ai.** { *; }
+-keep class org.crux.data.privacy.** { *; }
 
 # ------------------------------------------------------------------------------
 # Android WebView & JavaScript Interfaces
@@ -41,8 +41,8 @@
 -keep class * {
     @android.webkit.JavascriptInterface <methods>;
 }
--keep class dev.dimension.flare.ui.screen.linkedin.** { *; }
--keep class dev.dimension.flare.ui.screen.instagram.** { *; }
+-keep class org.crux.ui.screen.linkedin.** { *; }
+-keep class org.crux.ui.screen.instagram.** { *; }
 
 # ------------------------------------------------------------------------------
 # Ktor & Ktorfit

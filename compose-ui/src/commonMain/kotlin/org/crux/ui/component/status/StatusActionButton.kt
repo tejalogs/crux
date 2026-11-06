@@ -1,0 +1,283 @@
+package org.crux.ui.component.status
+
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.PointerIcon
+import androidx.compose.ui.input.pointer.pointerHoverIcon
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import org.crux.ui.component.AnimatedNumber
+import org.crux.ui.component.FAIcon
+import org.crux.ui.component.LocalGlobalAppearance
+import org.crux.ui.component.LocalTimelineAppearance
+import org.crux.ui.component.platform.PlatformDropdownMenu
+import org.crux.ui.component.platform.PlatformDropdownMenuScope
+import org.crux.ui.component.platform.PlatformText
+import org.crux.ui.component.platform.PlatformTextStyle
+import org.crux.ui.component.platform.rippleIndication
+import org.crux.ui.haptic.CruxHapticEvent
+import org.crux.ui.haptic.rememberFlareHapticFeedback
+import org.crux.ui.model.UiNumber
+import org.crux.ui.theme.PlatformContentColor
+import org.crux.ui.theme.PlatformTheme
+
+@Composable
+public fun StatusActionButton(
+    icon: ImageVector,
+    number: UiNumber?,
+    onClicked: () -> Unit,
+    modifier: Modifier = Modifier,
+    color: Color = PlatformContentColor.current,
+    contentDescription: String? = null,
+    enabled: Boolean = true,
+    withTextMinWidth: Boolean = false,
+    isStretched: Boolean = false,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val appearanceSettings = LocalTimelineAppearance.current
+    val globalAppearance = LocalGlobalAppearance.current
+    val haptics = rememberFlareHapticFeedback(globalAppearance.hapticsEnabled)
+
+    val bounceScale by animateFloatAsState(
+        targetValue = if (isPressed) 0.82f else 1.0f,
+        animationSpec =
+            spring(
+                dampingRatio = Spring.DampingRatioMediumBouncy,
+                stiffness = Spring.StiffnessMediumLow,
+            ),
+        label = "status_action_bounce",
+    )
+
+    val handleClicked =
+        remember(enabled, onClicked, haptics) {
+            {
+                if (enabled) {
+                    haptics.perform(CruxHapticEvent.Confirm)
+                    onClicked.invoke()
+                }
+            }
+        }
+
+    val displayNumber =
+        number?.takeIf {
+            appearanceSettings.showNumbers && it.humanized.isNotEmpty()
+        }
+    val actionDescription = contentDescription?.takeIf { it.isNotBlank() }
+    val accessibilityDescription =
+        listOfNotNull(
+            actionDescription,
+            displayNumber?.humanized,
+        ).joinToString(separator = ", ")
+    val accessibilityModifier =
+        if (actionDescription != null) {
+            Modifier
+                // Keep the action separate from the clickable post that contains it.
+                .semantics(mergeDescendants = true) {}
+                .clearAndSetSemantics {
+                    this.contentDescription = accessibilityDescription
+                    role = Role.Button
+                    if (!enabled) {
+                        disabled()
+                    }
+                    onClick {
+                        if (enabled) {
+                            handleClicked.invoke()
+                            true
+                        } else {
+                            false
+                        }
+                    }
+                }
+        } else {
+            Modifier
+        }
+    val actionIcon: @Composable () -> Unit = {
+        // Keep the icon mounted across scroll transitions; animate only color changes.
+        val contentColor = PlatformContentColor.current
+        AnimatedContent(
+            color,
+            transitionSpec = {
+                if (targetState == contentColor) {
+                    fadeIn() togetherWith fadeOut()
+                } else {
+                    fadeIn() +
+                        scaleIn(
+                            animationSpec =
+                                spring(
+                                    stiffness = Spring.StiffnessMediumLow,
+                                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                                ),
+                        ) togetherWith scaleOut() + fadeOut()
+                }.using(SizeTransform(clip = false))
+            },
+        ) { color ->
+            FAIcon(
+                imageVector = icon,
+                contentDescription = contentDescription,
+                modifier =
+                    Modifier
+                        .graphicsLayer {
+                            scaleX = bounceScale
+                            scaleY = bounceScale
+                        }.height(PlatformTextStyle.current.fontSize.value.dp + 2.dp)
+                        .pointerHoverIcon(if (enabled) PointerIcon.Hand else PointerIcon.Default)
+                        .clickable(
+                            onClick = handleClicked,
+                            enabled = enabled,
+                            interactionSource = interactionSource,
+                            indication =
+                                rippleIndication(
+                                    bounded = false,
+                                    radius = 20.dp,
+                                    color = Color.Unspecified,
+                                ),
+                        ),
+                tint = color,
+            )
+        }
+    }
+    Row(
+        modifier =
+            modifier
+                .then(accessibilityModifier)
+                .alpha(if (enabled) 1f else 0.4f)
+                .padding(vertical = 4.dp, horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        if (withTextMinWidth && displayNumber == null) {
+            Box(
+                contentAlignment = Alignment.CenterStart,
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    FAIcon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        modifier = Modifier.height(PlatformTextStyle.current.fontSize.value.dp + 2.dp),
+                        tint = Color.Transparent,
+                    )
+                    PlatformText(
+                        "0000",
+                        color = Color.Transparent,
+                    )
+                }
+                actionIcon()
+            }
+        } else {
+            actionIcon()
+        }
+        if (displayNumber != null) {
+            Box(
+                modifier = Modifier.align(Alignment.CenterVertically),
+            ) {
+                if (withTextMinWidth) {
+                    PlatformText(
+                        "0000",
+                        color = Color.Transparent,
+                    )
+                }
+                AnimatedNumber(
+                    number = displayNumber,
+                    color = color,
+                    overflow = if (isStretched) TextOverflow.Ellipsis else TextOverflow.Clip,
+                    softWrap = !isStretched,
+                    modifier =
+                        Modifier
+                            .then(if (isStretched) Modifier.clipToBounds() else Modifier)
+                            .pointerHoverIcon(if (enabled) PointerIcon.Hand else PointerIcon.Default)
+                            .clickable(
+                                onClick = handleClicked,
+                                enabled = enabled,
+                                interactionSource = interactionSource,
+                                indication = null,
+                            ),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+internal fun StatusActionGroup(
+    icon: ImageVector,
+    number: UiNumber?,
+    modifier: Modifier = Modifier,
+    color: Color = PlatformContentColor.current,
+    contentDescription: String? = null,
+    enabled: Boolean = true,
+    withTextMinWidth: Boolean = false,
+    isStretched: Boolean = false,
+    subMenus: @Composable PlatformDropdownMenuScope.(closeMenu: () -> Unit, isMenuShown: Boolean) -> Unit,
+) {
+    var showMenu by remember { mutableStateOf(false) }
+    Box(
+        modifier = modifier,
+    ) {
+        StatusActionButton(
+            icon = icon,
+            number = number,
+            contentDescription = contentDescription,
+            onClicked = {
+                showMenu = true
+            },
+            color = color,
+            enabled = enabled,
+            withTextMinWidth = withTextMinWidth,
+            isStretched = isStretched,
+        )
+        PlatformDropdownMenu(
+            expanded = showMenu,
+            onDismissRequest = { showMenu = false },
+        ) {
+            CompositionLocalProvider(
+                PlatformContentColor provides PlatformTheme.colorScheme.text,
+                PlatformTextStyle provides PlatformTheme.typography.body,
+            ) {
+                subMenus.invoke(
+                    this,
+                    { showMenu = false },
+                    showMenu,
+                )
+            }
+        }
+    }
+}

@@ -1,7 +1,7 @@
 import org.koin.compiler.plugin.KoinGradleExtension
 
 plugins {
-    id("dev.dimension.flare.root-conventions")
+    id("org.crux.root-conventions")
     alias(libs.plugins.android.library) apply false
     alias(libs.plugins.kotlin.android) apply false
     alias(libs.plugins.kotlin.multiplatform) apply false

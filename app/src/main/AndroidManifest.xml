@@ -14,11 +14,6 @@
             <category android:name="android.intent.category.BROWSABLE" />
             <data android:scheme="https" />
         </intent>
-        <intent>
-            <action android:name="android.intent.action.VIEW" />
-            <category android:name="android.intent.category.BROWSABLE" />
-            <data android:scheme="nostrsigner" />
-        </intent>
     </queries>
     <application
         android:allowBackup="true"
@@ -28,32 +23,24 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.Prism.Starting"
+        android:theme="@style/Theme.Crux.Starting"
         android:enableOnBackInvokedCallback="true"
         android:name=".App">
         <activity
             android:windowSoftInputMode="adjustResize"
             android:launchMode="singleTask"
-            android:name="dev.dimension.flare.MainActivity"
+            android:name="org.crux.MainActivity"
             android:exported="true"
-            android:theme="@style/Theme.Prism.Starting">
+            android:theme="@style/Theme.Crux.Starting">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
             <intent-filter>
+                <data android:scheme="crux" />
                 <data android:scheme="prism" />
                 <data android:scheme="flare" />
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-            </intent-filter>
-            <intent-filter>
-                <data
-                    android:scheme="pixiv"
-                    android:host="account"
-                    android:path="/login" />
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
@@ -63,33 +50,15 @@
         </activity>
         <activity
             android:label="@string/compose_title"
-            android:theme="@android:style/Theme.DeviceDefault.Dialog.NoActionBar"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
             android:exported="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
             android:name=".ui.screen.compose.ShortcutComposeActivity">
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
-                <data android:mimeType="image/*" />
-            </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.SEND" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <data android:mimeType="video/*" />
-            </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.SEND" />
-                <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="text/plain" />
-            </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.SEND_MULTIPLE" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <data android:mimeType="image/*" />
-            </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.SEND_MULTIPLE" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <data android:mimeType="video/*" />
             </intent-filter>
         </activity>
 

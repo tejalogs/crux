@@ -69,7 +69,7 @@
     <string name="mastodon_visibility_private_description">Csak a követők láthatják ezt a bejegyzést</string>
     <string name="mastodon_visibility_direct_description">Csak a megemlített felhasználók láthatják ezt a bejegyzést</string>
     <string name="settings_notifications_title">Értesítések</string>
-    <string name="settings_notifications_subtitle">Személyre szabhatod a Flare értesítéseit</string>
+    <string name="settings_notifications_subtitle">Személyre szabhatod a Crux értesítéseit</string>
     <string name="status_loadmore_end">Nincs több bejegyzés</string>
     <string name="status_loadmore_error">Hiba történt a további bejegyzések betöltésekor</string>
     <string name="status_loadmore_error_retry">Újra</string>
@@ -350,9 +350,8 @@
     <string name="mastodon_trending_statuses">Népszerű állapotok</string>
     <string name="mastodon_federated_timeline">Föderált idővonal</string>
     <string name="mastodon_local_timeline">Helyi idővonal</string>
-    <string name="service_select_welcome_title">Üdvözöl a Flare</string>
+    <string name="service_select_welcome_title">Üdvözöl a Crux</string>
     <string name="service_select_welcome_message">Adj meg egy szervert a kezdéshez.</string>
-    <string name="service_select_welcome_hint">A Flare támogatja a Mastodon, Misskey, Bluesky, Nostr és X platformokat.</string>
     <string name="service_select_welcome_list_hint">Vagy válassz ezek közül a szerverek közül</string>
     <string name="bluesky_login_username_hint">Felhasználónév</string>
     <string name="bluesky_login_password_hint">Jelszó</string>
@@ -379,7 +378,7 @@
     <string name="service_select_instance_input_placeholder">Példány URL</string>
     <string name="service_select_next_button">Következő</string>
     <string name="service_select_empty_message">Nem található példány</string>
-    <string name="service_select_compatibility_warning">Ez a szerver %1$s-t használ, a Flare kompatibilitási módban fog futni. Néhány funkció nem biztos, hogy megfelelően működik.</string>
+    <string name="service_select_compatibility_warning">Ez a szerver %1$s-t használ, a Crux kompatibilitási módban fog futni. Néhány funkció nem biztos, hogy megfelelően működik.</string>
     <string name="login_agreement">A bejelentkezéssel elfogadod a következőt: %1$s.</string>
     <string name="eula_privacy_policy">EULA és Adatvédelmi nyilatkozat</string>
     <string name="home_tab_home_title">Kezdőlap</string>
@@ -406,7 +405,7 @@
     <string name="settings_appearance_absolute_timestamp">Abszolút időbélyeg</string>
     <string name="settings_appearance_absolute_timestamp_description">Pontos időbélyeg megjelenítése a bejegyzéseken</string>
     <string name="channel_title">Csatorna</string>
-    <string name="app_name" translatable="false">Prism</string>
+    <string name="app_name" translatable="false">Crux</string>
     <string name="profile_header_button_request_follow">Követés kérése</string>
     <string name="nostr_login_qr_link_label">Nostr Connect-hivatkozás</string>
     <string name="posts_with_replies_title">Bejegyzések és válaszok</string>

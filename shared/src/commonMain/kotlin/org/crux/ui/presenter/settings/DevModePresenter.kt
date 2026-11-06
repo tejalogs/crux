@@ -1,0 +1,57 @@
+package org.crux.ui.presenter.settings
+
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.flow.map
+import org.crux.data.repository.DebugRepository
+import org.crux.ui.presenter.PresenterBase
+import org.crux.web.shared.WebPresenter
+
+@WebPresenter("devMode")
+public class DevModePresenter : PresenterBase<DevModePresenter.State>() {
+    @Immutable
+    public interface State {
+        public val enabled: Boolean
+
+        public fun setEnabled(value: Boolean)
+
+        public val messages: ImmutableList<String>
+
+        public fun printMessageToString(): String
+
+        public fun clear()
+    }
+
+    @Composable
+    override fun body(): State {
+        val enabled by remember {
+            DebugRepository.enabled
+        }.collectAsState(false)
+        val messages by remember {
+            DebugRepository.messages.map {
+                it.toImmutableList()
+            }
+        }.collectAsState(persistentListOf())
+        return object : State {
+            override val enabled = enabled
+
+            override fun setEnabled(value: Boolean) {
+                DebugRepository.setEnabled(value)
+            }
+
+            override val messages = messages
+
+            override fun printMessageToString(): String = DebugRepository.printToString()
+
+            override fun clear() {
+                DebugRepository.clear()
+            }
+        }
+    }
+}

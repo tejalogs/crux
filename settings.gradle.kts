@@ -27,25 +27,13 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Flare"
+rootProject.name = "Crux"
 include(":app")
 include(":shared")
-include(":social:bluesky")
-include(":social:bluesky:api")
-include(":social:fanbox")
-include(":social:mastodon")
-include(":social:misskey")
-include(":social:nostr")
-include(":social:pixiv")
-include(":social:vvo")
 include(":feature:login-api")
 include(":feature:agent")
 include(":feature:login")
 include(":feature:subscription")
 include(":feature:tab")
 include(":compose-ui")
-include(":apple-shared")
-include(":web-shared")
-include(":web-presenter-processor")
-include(":desktopApp")
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")

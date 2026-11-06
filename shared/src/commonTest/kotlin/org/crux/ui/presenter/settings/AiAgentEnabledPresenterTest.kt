@@ -1,0 +1,66 @@
+package org.crux.ui.presenter.settings
+
+import org.crux.data.datastore.model.AppSettings
+import kotlin.test.Test
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
+
+class AiAgentEnabledPresenterTest {
+    @Test
+    fun isAiAgentEnabled_requiresAgentAndOpenAIModel() {
+        assertTrue(
+            AppSettings
+                .AiConfig(
+                    agent = true,
+                    type =
+                        AppSettings.AiConfig.Type.OpenAI(
+                            serverUrl = "",
+                            apiKey = "",
+                            model = "gpt-4.1",
+                        ),
+                ).isAiAgentEnabled(),
+        )
+
+        assertFalse(
+            AppSettings
+                .AiConfig(
+                    agent = false,
+                    type =
+                        AppSettings.AiConfig.Type.OpenAI(
+                            serverUrl = "",
+                            apiKey = "",
+                            model = "gpt-4.1",
+                        ),
+                ).isAiAgentEnabled(),
+        )
+
+        assertFalse(
+            AppSettings
+                .AiConfig(
+                    agent = true,
+                    type =
+                        AppSettings.AiConfig.Type.OpenAI(
+                            serverUrl = "",
+                            apiKey = "",
+                            model = " ",
+                        ),
+                ).isAiAgentEnabled(),
+        )
+
+        assertTrue(
+            AppSettings
+                .AiConfig(
+                    agent = true,
+                    type = AppSettings.AiConfig.Type.OnDevice(),
+                ).isAiAgentEnabled(),
+        )
+
+        assertFalse(
+            AppSettings
+                .AiConfig(
+                    agent = false,
+                    type = AppSettings.AiConfig.Type.OnDevice(),
+                ).isAiAgentEnabled(),
+        )
+    }
+}

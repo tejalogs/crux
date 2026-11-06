@@ -1,8 +1,8 @@
-import dev.dimension.flare.buildlogic.FlarePlatform
-import dev.dimension.flare.buildlogic.flare
+import org.crux.buildlogic.CruxPlatform
+import org.crux.buildlogic.flare
 
 plugins {
-    id("dev.dimension.flare.multiplatform-library")
+    id("org.crux.multiplatform-library")
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.compose.compiler)
@@ -11,13 +11,13 @@ plugins {
 
 kotlin {
     flare {
-        namespace = "dev.dimension.flare.feature.tab"
+        namespace = "org.crux.feature.tab"
         platforms(
-            FlarePlatform.ANDROID,
-            FlarePlatform.JVM,
-            FlarePlatform.IOS,
-            FlarePlatform.WEB,
-            FlarePlatform.MACOS,
+            CruxPlatform.ANDROID,
+            CruxPlatform.JVM,
+            CruxPlatform.IOS,
+            CruxPlatform.WEB,
+            CruxPlatform.MACOS,
         )
     }
 

@@ -69,7 +69,7 @@
     <string name="mastodon_visibility_private_description">Slegs volgelinge kan hierdie plasing sien</string>
     <string name="mastodon_visibility_direct_description">Slegs genoemde gebruikers kan hierdie plasing sien</string>
     <string name="settings_notifications_title">Kennisgewings</string>
-    <string name="settings_notifications_subtitle">Pasmaak hoe Flare jou in kennis stel</string>
+    <string name="settings_notifications_subtitle">Pasmaak hoe Crux jou in kennis stel</string>
     <string name="status_loadmore_end">Geen meer plasings nie</string>
     <string name="status_loadmore_error">Fout met die laai van meer plasings</string>
     <string name="status_loadmore_error_retry">Probeer weer</string>
@@ -350,9 +350,8 @@
     <string name="mastodon_trending_statuses">Gewilde statusse</string>
     <string name="mastodon_federated_timeline">Gefedereerde tydlyn</string>
     <string name="mastodon_local_timeline">Plaaslike tydlyn</string>
-    <string name="service_select_welcome_title">Welkom by Flare</string>
+    <string name="service_select_welcome_title">Welkom by Crux</string>
     <string name="service_select_welcome_message">Voer \'n bediener in om te begin.</string>
-    <string name="service_select_welcome_hint">Flare ondersteun Mastodon, Misskey, Bluesky, Nostr, en X.</string>
     <string name="service_select_welcome_list_hint">Of kies uit hierdie bedieners</string>
     <string name="bluesky_login_username_hint">Gebruikersnaam</string>
     <string name="bluesky_login_password_hint">Wagwoord</string>
@@ -380,7 +379,7 @@
     <string name="service_select_instance_input_placeholder">Instansie-URL</string>
     <string name="service_select_next_button">Volgende</string>
     <string name="service_select_empty_message">Geen instansies gevind nie</string>
-    <string name="service_select_compatibility_warning">Hierdie bediener gebruik %1$s, Flare sal in versoenbaarheidsmodus loop. Sommige kenmerke mag dalk nie reg werk nie.</string>
+    <string name="service_select_compatibility_warning">Hierdie bediener gebruik %1$s, Crux sal in versoenbaarheidsmodus loop. Sommige kenmerke mag dalk nie reg werk nie.</string>
     <string name="login_agreement">Deur aan te meld, stem jy in tot die %1$s.</string>
     <string name="eula_privacy_policy">Eindgebruiker-lisensieooreenkoms (EULA) en Privaatheidsbeleid</string>
     <string name="home_tab_home_title">Tuis</string>
@@ -406,7 +405,7 @@
     <string name="settings_appearance_absolute_timestamp">Absoluut tydstempel</string>
     <string name="settings_appearance_absolute_timestamp_description">Wys presiese tydstempels op plasings</string>
     <string name="channel_title">Kanaal</string>
-    <string name="app_name" translatable="false">Prism</string>
+    <string name="app_name" translatable="false">Crux</string>
     <string name="profile_header_button_request_follow">Versoek volg</string>
     <string name="antenna_title">Antennes</string>
     <string name="posts_with_replies_title">Plasings en antwoorde</string>

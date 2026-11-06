@@ -70,7 +70,7 @@
     <string name="mastodon_visibility_private_description">Apenas seguidores podem ver esta postagem</string>
     <string name="mastodon_visibility_direct_description">Apenas usuários mencionados podem ver esta postagem</string>
     <string name="settings_notifications_title">Notificações</string>
-    <string name="settings_notifications_subtitle">Personalize como o Flare notifica você</string>
+    <string name="settings_notifications_subtitle">Personalize como o Crux notifica você</string>
     <string name="status_loadmore_end">Não há mais postagens</string>
     <string name="status_loadmore_error">Erro ao carregar mais postagens</string>
     <string name="status_loadmore_error_retry">Tentar novamente</string>
@@ -351,9 +351,8 @@
     <string name="mastodon_trending_statuses">Postagens em alta</string>
     <string name="mastodon_federated_timeline">Linha do tempo federada</string>
     <string name="mastodon_local_timeline">Linha do tempo local</string>
-    <string name="service_select_welcome_title">Bem-vindo ao Flare</string>
+    <string name="service_select_welcome_title">Bem-vindo ao Crux</string>
     <string name="service_select_welcome_message">Digite um servidor para começar.</string>
-    <string name="service_select_welcome_hint">O Flare suporta Mastodon, Misskey, Bluesky, Nostr e X.</string>
     <string name="service_select_welcome_list_hint">Ou escolha entre estes servidores</string>
     <string name="bluesky_login_username_hint">Nome de usuário</string>
     <string name="bluesky_login_password_hint">Senha</string>
@@ -381,7 +380,7 @@
     <string name="service_select_instance_input_placeholder">URL da instância</string>
     <string name="service_select_next_button">Próximo</string>
     <string name="service_select_empty_message">Nenhuma instância encontrada</string>
-    <string name="service_select_compatibility_warning">Este servidor usa %1$s, o Flare será executado em modo de compatibilidade. Alguns recursos podem não funcionar corretamente.</string>
+    <string name="service_select_compatibility_warning">Este servidor usa %1$s, o Crux será executado em modo de compatibilidade. Alguns recursos podem não funcionar corretamente.</string>
     <string name="login_agreement">Ao entrar, você concorda com o %1$s.</string>
     <string name="eula_privacy_policy">EULA e Política de Privacidade</string>
     <string name="home_tab_home_title">Início</string>
@@ -418,7 +417,7 @@
     <string name="pixiv_ranking_day_manga_title">Manga Ranking</string>
     <string name="illustrations_title">Ilustrações</string>
     <string name="manga_title">Manga</string>
-    <string name="app_name" translatable="false">Prism</string>
+    <string name="app_name" translatable="false">Crux</string>
     <string name="media_menu_download">Baixar</string>
     <string name="media_menu_download_all">Baixar tudo</string>
     <string name="media_menu_share_image">Compartilhar imagem</string>

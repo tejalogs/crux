@@ -1,4 +1,4 @@
-# Prism (Flare Fork) - Sovereign Multiplatform Social Hub
+# Crux - One Calm Home for Your Social Feeds
 
 [![license](https://img.shields.io/badge/License-AGPL%203.0-blue.svg)](LICENSE)
 ![badge-Android](https://img.shields.io/badge/Android-8.0+-3DDC84?logo=android&logoColor=white)
@@ -7,7 +7,7 @@
 ![badge-Linux](https://img.shields.io/badge/Linux-AppImage%2FDeb-orange?logo=linux&logoColor=white)
 ![badge-Privacy](https://img.shields.io/badge/Zero--Egress%20AI-Gemma%204%20Edge-8A2BE2)
 
-Prism (evolution of Flare) is an open-source, sovereign, privacy-first multiplatform social hub built with **Kotlin Multiplatform (KMP)** and **Compose Multiplatform**. It unifies your fragmented social feeds into an integrated, beautiful timeline with **zero telemetry**, **zero cloud AI data leakage**, and hardware-backed local intelligence.
+Crux (which began as a fork of [Flare](https://github.com/DimensionDev/Flare)) is an open-source, sovereign, privacy-first multiplatform social hub built with **Kotlin Multiplatform (KMP)** and **Compose Multiplatform**. It unifies your fragmented social feeds into an integrated, beautiful timeline with **zero telemetry**, **zero cloud AI data leakage**, and hardware-backed local intelligence.
 
 ---
 

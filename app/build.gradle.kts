@@ -3,11 +3,11 @@ import com.google.firebase.crashlytics.buildtools.gradle.CrashlyticsExtension
 import com.google.firebase.crashlytics.buildtools.gradle.CrashlyticsPlugin
 // END Non-FOSS component
 import com.google.gms.googleservices.GoogleServicesPlugin
-import dev.dimension.flare.buildlogic.flare
+import org.crux.buildlogic.flare
 import java.util.Properties
 
 plugins {
-    id("dev.dimension.flare.android-application")
+    id("org.crux.android-application")
     alias(libs.plugins.ksp)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ktorfit)
@@ -21,8 +21,8 @@ plugins {
 }
 
 flare {
-    namespace = "dev.dimension.flare"
-    applicationId = "org.prism.social"
+    namespace = "org.crux"
+    applicationId = "org.crux.social"
 }
 
 // START Non-FOSS component
@@ -56,7 +56,7 @@ android {
 
     signingConfigs {
         if (hasSigningProps) {
-            create("flare") {
+            create("crux") {
                 val signingProp = Properties()
                 signingProp.load(file.inputStream())
                 storeFile = rootProject.file(signingProp.getProperty("storeFile"))
@@ -70,7 +70,7 @@ android {
     buildTypes {
         debug {
             if (hasSigningProps) {
-                signingConfig = signingConfigs.getByName("flare")
+                signingConfig = signingConfigs.getByName("crux")
             }
         }
         release {
@@ -92,7 +92,7 @@ android {
             }
             // END Non-FOSS component
             if (hasSigningProps) {
-                signingConfig = signingConfigs.getByName("flare")
+                signingConfig = signingConfigs.getByName("crux")
             } else {
                 signingConfig = signingConfigs.getByName("debug")
             }
@@ -151,13 +151,6 @@ dependencies {
     coreLibraryDesugaring(libs.desugar.jdk.libs)
     implementation(libs.compose.webview)
     implementation(projects.shared)
-    implementation(projects.social.bluesky)
-    implementation(projects.social.fanbox)
-    implementation(projects.social.mastodon)
-    implementation(projects.social.misskey)
-    implementation(projects.social.nostr)
-    implementation(projects.social.pixiv)
-    implementation(projects.social.vvo)
     implementation(projects.feature.login)
     implementation(projects.feature.subscription)
     implementation(projects.feature.tab)
@@ -231,7 +224,7 @@ abstract class GenerateDeepLinkManifestTask : DefaultTask() {
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
   <application>
-    <activity android:name="dev.dimension.flare.MainActivity" android:exported="true">
+    <activity android:name="org.crux.MainActivity" android:exported="true">
       <intent-filter android:autoVerify="false">
         <action android:name="android.intent.action.VIEW"/>
         <category android:name="android.intent.category.DEFAULT"/>

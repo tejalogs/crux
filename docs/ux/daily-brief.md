@@ -67,7 +67,7 @@ Reads like a calm, structured news briefing.
 
 ## 3. List of Composables & Architecture
 
-All shared UI components are extracted into focused composables in `compose-ui/src/commonMain/kotlin/dev/dimension/flare/ui/component/status/`, each under ~150 lines:
+All shared UI components are extracted into focused composables in `compose-ui/src/commonMain/kotlin/org/crux/ui/component/status/`, each under ~150 lines:
 
 1. **`DigestHighlightRow.kt`**:
    - `DigestCompactHighlightRow`: Compact row for the inline card (author avatar 24dp, one-line bold topic, one-line summary with ellipsis).

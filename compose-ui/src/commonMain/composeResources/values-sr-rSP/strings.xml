@@ -69,7 +69,7 @@
     <string name="mastodon_visibility_private_description">Samo pratioci mogu videti ovu objavu</string>
     <string name="mastodon_visibility_direct_description">Samo pomenuti korisnici mogu videti ovu objavu</string>
     <string name="settings_notifications_title">Obaveštenja</string>
-    <string name="settings_notifications_subtitle">Prilagodite kako vas Flare obaveštava</string>
+    <string name="settings_notifications_subtitle">Prilagodite kako vas Crux obaveštava</string>
     <string name="status_loadmore_end">Nema više objava</string>
     <string name="status_loadmore_error">Greška pri učitavanju objava</string>
     <string name="status_loadmore_error_retry">Pokušaj ponovo</string>
@@ -350,9 +350,8 @@
     <string name="mastodon_trending_statuses">Popularne objave</string>
     <string name="mastodon_federated_timeline">Federisana vremenska linija</string>
     <string name="mastodon_local_timeline">Lokalna vremenska linija</string>
-    <string name="service_select_welcome_title">Dobrodošli u Flare</string>
+    <string name="service_select_welcome_title">Dobrodošli u Crux</string>
     <string name="service_select_welcome_message">Unesite server da biste počeli.</string>
-    <string name="service_select_welcome_hint">Flare podržava Mastodon, Misskey, Bluesky, Nostr i X.</string>
     <string name="service_select_welcome_list_hint">Ili izaberite neki od ovih servera</string>
     <string name="bluesky_login_username_hint">Korisničko ime</string>
     <string name="bluesky_login_password_hint">Lozinka</string>
@@ -379,7 +378,7 @@
     <string name="service_select_instance_input_placeholder">URL instance</string>
     <string name="service_select_next_button">Dalje</string>
     <string name="service_select_empty_message">Instanci nisu pronađene</string>
-    <string name="service_select_compatibility_warning">Ovaj server koristi %1$s, Flare će raditi u režimu kompatibilnosti. Neke funkcije možda neće raditi ispravno.</string>
+    <string name="service_select_compatibility_warning">Ovaj server koristi %1$s, Crux će raditi u režimu kompatibilnosti. Neke funkcije možda neće raditi ispravno.</string>
     <string name="login_agreement">Prijavljivanjem prihvatate %1$s.</string>
     <string name="eula_privacy_policy">EULA i Politiku privatnosti</string>
     <string name="home_tab_home_title">Početna</string>
@@ -406,7 +405,7 @@
     <string name="settings_appearance_absolute_timestamp">Apsolutno vreme</string>
     <string name="settings_appearance_absolute_timestamp_description">Prikaži tačno vreme na objavama</string>
     <string name="channel_title">Kanal</string>
-    <string name="app_name" translatable="false">Prism</string>
+    <string name="app_name" translatable="false">Crux</string>
     <string name="profile_header_button_request_follow">Затражи праћење</string>
     <string name="nostr_login_qr_link_label">Nostr Connect веза</string>
     <string name="posts_with_replies_title">Објаве и одговори</string>

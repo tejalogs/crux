@@ -70,7 +70,7 @@
     <string name="mastodon_visibility_private_description">Μόνο οι ακόλουθοι μπορούν να δουν αυτή τη δημοσίευση</string>
     <string name="mastodon_visibility_direct_description">Μόνο οι αναφερόμενοι χρήστες μπορούν να δουν αυτή τη δημοσίευση</string>
     <string name="settings_notifications_title">Ειδοποιήσεις</string>
-    <string name="settings_notifications_subtitle">Προσαρμόστε τον τρόπο με τον οποίο το Flare σας ειδοποιεί</string>
+    <string name="settings_notifications_subtitle">Προσαρμόστε τον τρόπο με τον οποίο το Crux σας ειδοποιεί</string>
     <string name="status_loadmore_end">Δεν υπάρχουν άλλες δημοσιεύσεις</string>
     <string name="status_loadmore_error">Σφάλμα κατά τη φόρτωση περισσότερων δημοσιεύσεων</string>
     <string name="status_loadmore_error_retry">Προσπάθεια ξανά</string>
@@ -351,9 +351,8 @@
     <string name="mastodon_trending_statuses">Δημοφιλείς καταστάσεις</string>
     <string name="mastodon_federated_timeline">Ομοσπονδιακό χρονολόγιο</string>
     <string name="mastodon_local_timeline">Τοπικό χρονολόιο</string>
-    <string name="service_select_welcome_title">Καλώς ήρθατε στο Flare</string>
+    <string name="service_select_welcome_title">Καλώς ήρθατε στο Crux</string>
     <string name="service_select_welcome_message">Εισαγάγετε έναν διακομιστή για να ξεκινήσετε.</string>
-    <string name="service_select_welcome_hint">Το Flare υποστηρίζει Mastodon, Misskey, Bluesky, Nostr και X.</string>
     <string name="service_select_welcome_list_hint">Ή επιλέξτε από αυτούς τους διακομιστές</string>
     <string name="bluesky_login_username_hint">Όνομα χρήστη</string>
     <string name="bluesky_login_password_hint">Κωδικός πρόσβασης</string>
@@ -381,7 +380,7 @@
     <string name="service_select_instance_input_placeholder">URL παρουσίας</string>
     <string name="service_select_next_button">Επόμενο</string>
     <string name="service_select_empty_message">Δεν βρέθηκαν παρουσίες</string>
-    <string name="service_select_compatibility_warning">Αυτός ο διακομιστής χρησιμοποιεί %1$s, το Flare θα εκτελείται σε κατάσταση συμβατότητας. Ορισμένες λειτουργίες ενδέχεται να μην λειτουργούν σωστά.</string>
+    <string name="service_select_compatibility_warning">Αυτός ο διακομιστής χρησιμοποιεί %1$s, το Crux θα εκτελείται σε κατάσταση συμβατότητας. Ορισμένες λειτουργίες ενδέχεται να μην λειτουργούν σωστά.</string>
     <string name="login_agreement">Με τη σύνδεση, συμφωνείτε με το %1$s.</string>
     <string name="eula_privacy_policy">EULA και Πολιτική Απορρήτου</string>
     <string name="home_tab_home_title">Αρχική</string>
@@ -418,7 +417,7 @@
     <string name="pixiv_ranking_day_manga_title">Manga Ranking</string>
     <string name="illustrations_title">Εικονογραφήσεις</string>
     <string name="manga_title">Μάνγκα</string>
-    <string name="app_name" translatable="false">Prism</string>
+    <string name="app_name" translatable="false">Crux</string>
     <string name="media_menu_download">Λήψη</string>
     <string name="media_menu_download_all">Λήψη όλων</string>
     <string name="media_menu_share_image">Κοινοποίηση εικόνας</string>

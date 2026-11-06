@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name" translatable="false">Prism</string>
+    <string name="app_name" translatable="false">Crux</string>
     <string name="delete">Delete</string>
     <string name="done">Done</string>
     <string name="cancel">Cancel</string>
@@ -71,7 +71,7 @@
     <string name="mastodon_visibility_private_description">Only followers can see this post</string>
     <string name="mastodon_visibility_direct_description">Only mentioned users can see this post</string>
     <string name="settings_notifications_title">Notifications</string>
-    <string name="settings_notifications_subtitle">Customize how Flare notifies you</string>
+    <string name="settings_notifications_subtitle">Customize how Crux notifies you</string>
     <string name="status_loadmore_end">No more posts</string>
     <string name="status_loadmore_error">Error loading more posts</string>
     <string name="status_loadmore_error_retry">Retry</string>
@@ -356,9 +356,9 @@
     <string name="mastodon_trending_statuses">Trending Posts</string>
     <string name="mastodon_federated_timeline">Federated timeline</string>
     <string name="mastodon_local_timeline">Local timeline</string>
-    <string name="service_select_welcome_title">Welcome to Flare</string>
+    <string name="service_select_welcome_title">Welcome to Crux</string>
     <string name="service_select_welcome_message">Enter a server to get started.</string>
-    <string name="service_select_welcome_hint">Flare supports Mastodon, Misskey, Bluesky, Nostr, and X.</string>
+    <string name="service_select_welcome_hint">Crux brings X, Instagram, LinkedIn, Reddit and RSS together in one app.</string>
     <string name="service_select_welcome_list_hint">Or choose from these servers</string>
     <string name="bluesky_login_username_hint">Username</string>
     <string name="bluesky_login_password_hint">Password</string>
@@ -386,7 +386,7 @@
     <string name="service_select_instance_input_placeholder">Server URL</string>
     <string name="service_select_next_button">Next</string>
     <string name="service_select_empty_message">No servers found</string>
-    <string name="service_select_compatibility_warning">This server uses %1$s, Flare will run in compatibility mode. Some features may not work properly.</string>
+    <string name="service_select_compatibility_warning">This server uses %1$s, Crux will run in compatibility mode. Some features may not work properly.</string>
     <string name="login_agreement">By logging in, you agree to the %1$s.</string>
     <string name="eula_privacy_policy">EULA and Privacy Policy</string>
     <string name="home_tab_home_title">Home</string>

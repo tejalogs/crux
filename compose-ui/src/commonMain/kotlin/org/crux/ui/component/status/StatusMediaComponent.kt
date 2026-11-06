@@ -1,0 +1,1105 @@
+package org.crux.ui.component.status
+
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerIcon
+import androidx.compose.ui.input.pointer.pointerHoverIcon
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import compose.icons.FontAwesomeIcons
+import compose.icons.fontawesomeicons.Solid
+import compose.icons.fontawesomeicons.solid.CirclePlay
+import compose.icons.fontawesomeicons.solid.Copy
+import compose.icons.fontawesomeicons.solid.Download
+import compose.icons.fontawesomeicons.solid.EyeSlash
+import compose.icons.fontawesomeicons.solid.ShareNodes
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.launch
+import org.crux.common.SystemUtils
+import org.crux.compose.ui.Res
+import org.crux.compose.ui.hide_sensitive_media
+import org.crux.compose.ui.media_menu_copy_link
+import org.crux.compose.ui.media_menu_download
+import org.crux.compose.ui.media_menu_download_all
+import org.crux.compose.ui.media_menu_share_image
+import org.crux.compose.ui.media_play_video
+import org.crux.compose.ui.media_view_alt_text
+import org.crux.compose.ui.show_sensitive_media
+import org.crux.compose.ui.status_sensitive_media
+import org.crux.data.model.TimelineMediaLayout
+import org.crux.data.model.VideoAutoplay
+import org.crux.ui.component.AdaptiveGrid
+import org.crux.ui.component.AudioPlayer
+import org.crux.ui.component.FAIcon
+import org.crux.ui.component.LocalGlobalAppearance
+import org.crux.ui.component.LocalTimelineAppearance
+import org.crux.ui.component.LocalTimelineCarouselItem
+import org.crux.ui.component.LocalTimelinePlayback
+import org.crux.ui.component.NetworkImage
+import org.crux.ui.component.TimelineCarouselItem
+import org.crux.ui.component.accessibleDescription
+import org.crux.ui.component.platform.LocalWifiState
+import org.crux.ui.component.platform.PlatformCircularProgressIndicator
+import org.crux.ui.component.platform.PlatformDropdownMenu
+import org.crux.ui.component.platform.PlatformDropdownMenuItem
+import org.crux.ui.component.platform.PlatformDropdownMenuScope
+import org.crux.ui.component.platform.PlatformFlyoutContainer
+import org.crux.ui.component.platform.PlatformIconButton
+import org.crux.ui.component.platform.PlatformText
+import org.crux.ui.component.platform.PlatformVideoPlayer
+import org.crux.ui.component.rememberEffectiveAutoplay
+import org.crux.ui.haptic.CruxHapticEvent
+import org.crux.ui.haptic.rememberFlareHapticFeedback
+import org.crux.ui.humanizer.humanize
+import org.crux.ui.model.TimelineCarouselLayout
+import org.crux.ui.model.UiMedia
+import org.crux.ui.model.UiTimelineV2
+import org.crux.ui.route.DeeplinkRoute
+import org.crux.ui.route.toUri
+import org.crux.ui.theme.PlatformTheme
+import org.jetbrains.compose.resources.stringResource
+import kotlin.math.abs
+import kotlin.math.absoluteValue
+import kotlin.time.Duration.Companion.milliseconds
+
+@Composable
+internal fun StatusMediaComponent(
+    post: UiTimelineV2.Post,
+    data: ImmutableList<UiMedia>,
+    onMediaClick: (Int) -> Unit,
+    sensitive: Boolean,
+    shape: Shape,
+    allowCarousel: Boolean = false,
+    carouselLeadingPadding: Dp = 0.dp,
+    carouselTrailingPadding: Dp = 0.dp,
+    modifier: Modifier = Modifier,
+) {
+    val appearanceSettings = LocalTimelineAppearance.current
+    var hideSensitive by remember(appearanceSettings.showSensitiveContent) {
+        mutableStateOf(sensitive && !appearanceSettings.showSensitiveContent)
+    }
+    val showSensitiveButton = sensitive && !appearanceSettings.showSensitiveContent
+    val usesCarousel =
+        allowCarousel &&
+            appearanceSettings.mediaLayout == TimelineMediaLayout.Carousel &&
+            data.size > 1
+    val usesStack =
+        allowCarousel &&
+            appearanceSettings.mediaLayout == TimelineMediaLayout.Stack &&
+            data.size > 1
+    val carouselState = if (usesCarousel) rememberLazyListState() else null
+    val carouselId = remember(post.statusKey) { Any() }
+    val playback = LocalTimelinePlayback.current
+    var selectedIndex by remember(post.statusKey) { mutableStateOf(0) }
+    val mediaUrls = remember(data) { data.map { it.url } }
+    val openMedia: (Int) -> Unit = { index ->
+        playback?.selectMedia(carouselId, index, userInitiated = true)
+        onMediaClick(index)
+    }
+    if (carouselState != null) {
+        DisposableEffect(playback, carouselId, mediaUrls, carouselState) {
+            playback?.mediaSelections?.register(carouselId, mediaUrls) { index ->
+                selectedIndex = index
+                playback.selectMedia(carouselId, index, userInitiated = false)
+                carouselState.requestScrollToItem(index)
+            }
+            onDispose { playback?.mediaSelections?.remove(carouselId) }
+        }
+    }
+    val mediaContentModifier =
+        Modifier.let {
+            if (hideSensitive && SystemUtils.isBlurSupported) {
+                it.blur(32.dp)
+            } else {
+                it
+            }
+        }
+    val showSensitiveMediaLabel = stringResource(Res.string.show_sensitive_media)
+    val hideSensitiveMediaLabel = stringResource(Res.string.hide_sensitive_media)
+    Box(
+        modifier =
+            if (usesCarousel || usesStack) {
+                modifier.expandHorizontally(
+                    leading = carouselLeadingPadding,
+                    trailing = carouselTrailingPadding,
+                )
+            } else {
+                modifier.clip(shape)
+            },
+    ) {
+        if (usesStack) {
+            val pagerState = rememberPagerState(pageCount = { data.size })
+            val coroutineScope = rememberCoroutineScope()
+            val globalAppearance = LocalGlobalAppearance.current
+            val haptics = rememberFlareHapticFeedback(globalAppearance.hapticsEnabled)
+
+            LaunchedEffect(pagerState) {
+                snapshotFlow { pagerState.settledPage }.distinctUntilChanged().collect {
+                    haptics.perform(CruxHapticEvent.Tick)
+                }
+            }
+            LaunchedEffect(pagerState, playback, carouselId) {
+                snapshotFlow { pagerState.currentPage }.distinctUntilChanged().collect { page ->
+                    playback?.selectMedia(carouselId, page, userInitiated = true)
+                }
+            }
+            LaunchedEffect(pagerState, playback, carouselId) {
+                snapshotFlow { pagerState.isScrollInProgress }.distinctUntilChanged().collect { scrolling ->
+                    playback?.setScrolling(source = carouselId, scrolling = scrolling, vertical = false)
+                }
+            }
+            DisposableEffect(playback, carouselId, mediaUrls, pagerState) {
+                playback?.mediaSelections?.register(carouselId, mediaUrls) { index ->
+                    coroutineScope.launch {
+                        pagerState.animateScrollToPage(index)
+                    }
+                }
+                onDispose {
+                    playback?.mediaSelections?.remove(carouselId)
+                    playback?.setScrolling(source = carouselId, scrolling = false, vertical = false)
+                }
+            }
+            BoxWithConstraints(
+                modifier =
+                    mediaContentModifier
+                        .fillMaxWidth(),
+            ) {
+                val firstRatio = data.firstOrNull()?.timelineAspectRatio ?: 1.0f
+                val targetRatio = firstRatio.coerceIn(0.75f, 1.85f)
+                val stackHeight = (maxWidth / targetRatio).coerceIn(240.dp, 460.dp)
+
+                HorizontalPager(
+                    state = pagerState,
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .height(stackHeight),
+                    contentPadding =
+                        PaddingValues(
+                            start = carouselLeadingPadding.coerceAtLeast(16.dp),
+                            end = carouselTrailingPadding.coerceAtLeast(16.dp),
+                        ),
+                    pageSpacing = 12.dp,
+                ) { page ->
+                    val pageOffset = ((pagerState.currentPage - page) + pagerState.currentPageOffsetFraction)
+                    val absOffset = pageOffset.absoluteValue.coerceIn(0f, 1f)
+                    val scale = 1f - (absOffset * 0.05f)
+                    val alpha = 1f - (absOffset * 0.25f)
+
+                    CompositionLocalProvider(
+                        LocalTimelineCarouselItem provides
+                            TimelineCarouselItem(
+                                groupId = carouselId,
+                                mediaIndex = page,
+                                selected = (page == pagerState.currentPage),
+                                isCarousel = true,
+                            ),
+                    ) {
+                        StatusMediaItem(
+                            post = post,
+                            media = data[page],
+                            mediaCount = data.size,
+                            onMediaClick = { openMedia(page) },
+                            hideSensitive = hideSensitive,
+                            keepAspectRatio = false,
+                            fillContainer = true,
+                            modifier =
+                                Modifier
+                                    .fillMaxSize()
+                                    .graphicsLayer {
+                                        scaleX = scale
+                                        scaleY = scale
+                                        this.alpha = alpha
+                                    }.clip(shape)
+                                    .border(
+                                        width = 0.6.dp,
+                                        color = Color.White.copy(alpha = 0.15f),
+                                        shape = shape,
+                                    ),
+                        )
+                    }
+                }
+
+                // Floating glassmorphic stack counter badge
+                Box(
+                    modifier =
+                        Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(
+                                top = 10.dp,
+                                end = 10.dp + carouselTrailingPadding,
+                            ).background(
+                                color = Color.Black.copy(alpha = 0.60f),
+                                shape = RoundedCornerShape(14.dp),
+                            ).border(0.6.dp, Color.White.copy(alpha = 0.20f), RoundedCornerShape(14.dp))
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        FAIcon(
+                            imageVector = FontAwesomeIcons.Solid.Copy,
+                            contentDescription = null,
+                            modifier = Modifier.size(11.dp),
+                            tint = Color.White,
+                        )
+                        AnimatedContent(
+                            targetState = pagerState.currentPage + 1,
+                            transitionSpec = {
+                                if (targetState > initialState) {
+                                    (slideInVertically { height -> height } + fadeIn()) togetherWith
+                                        (slideOutVertically { height -> -height } + fadeOut())
+                                } else {
+                                    (slideInVertically { height -> -height } + fadeIn()) togetherWith
+                                        (slideOutVertically { height -> height } + fadeOut())
+                                }.using(SizeTransform(clip = false))
+                            },
+                            label = "StackPageCounter",
+                        ) { targetPage ->
+                            PlatformText(
+                                text = "$targetPage",
+                                style =
+                                    PlatformTheme.typography.caption.copy(
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                    ),
+                                color = Color.White,
+                            )
+                        }
+                        PlatformText(
+                            text = "/${data.size}",
+                            style =
+                                PlatformTheme.typography.caption.copy(
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium,
+                                ),
+                            color = Color.White.copy(alpha = 0.85f),
+                        )
+                    }
+                }
+
+                // Bottom indicator dots with smooth spring-animated morphing pills
+                val dotScrollState = rememberScrollState()
+                LaunchedEffect(pagerState.currentPage) {
+                    if (data.size > 8) {
+                        dotScrollState.animateScrollTo(
+                            (pagerState.currentPage * 20).coerceAtLeast(0),
+                        )
+                    }
+                }
+                Box(
+                    modifier =
+                        Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = 10.dp)
+                            .background(
+                                color = Color.Black.copy(alpha = 0.40f),
+                                shape = CircleShape,
+                            ).border(0.5.dp, Color.White.copy(alpha = 0.15f), CircleShape)
+                            .padding(horizontal = 8.dp, vertical = 5.dp),
+                ) {
+                    Row(
+                        modifier = if (data.size > 8) Modifier.horizontalScroll(dotScrollState) else Modifier,
+                        horizontalArrangement = Arrangement.spacedBy(5.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        val selectedWidth = if (data.size > 8) 14.dp else 18.dp
+                        val unselectedWidth = if (data.size > 8) 4.dp else 6.dp
+                        repeat(data.size) { index ->
+                            val isSelected = index == pagerState.currentPage
+                            val dotWidth by animateDpAsState(
+                                targetValue = if (isSelected) selectedWidth else unselectedWidth,
+                                animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                                label = "stackDotWidth",
+                            )
+                            val dotColor by animateColorAsState(
+                                targetValue = if (isSelected) Color.White else Color.White.copy(alpha = 0.45f),
+                                animationSpec = tween(durationMillis = 200),
+                                label = "stackDotColor",
+                            )
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .height(6.dp)
+                                        .width(dotWidth)
+                                        .background(
+                                            color = dotColor,
+                                            shape = CircleShape,
+                                        ).semantics {
+                                            contentDescription = "Media item ${index + 1} of ${data.size}"
+                                        }.clickable {
+                                            coroutineScope.launch {
+                                                pagerState.animateScrollToPage(index)
+                                            }
+                                        },
+                            )
+                        }
+                    }
+                }
+            }
+        } else if (carouselState != null) {
+            LaunchedEffect(carouselState, playback, carouselId) {
+                var interacted = false
+                snapshotFlow { carouselState.isScrollInProgress }.distinctUntilChanged().collect { scrolling ->
+                    if (scrolling) interacted = true
+                    if (!scrolling && interacted) {
+                        val layout = carouselState.layoutInfo
+                        val center = (layout.viewportStartOffset + layout.viewportEndOffset) / 2f
+                        val closest = layout.visibleItemsInfo.minByOrNull { abs(it.offset + it.size / 2f - center) }
+                        val current = layout.visibleItemsInfo.firstOrNull { it.index == selectedIndex }
+                        if (closest != null && (
+                                current == null ||
+                                    abs(current.offset + current.size / 2f - center) > abs(closest.offset + closest.size / 2f - center) + 2f
+                            )
+                        ) {
+                            selectedIndex = closest.index
+                        }
+                    }
+                    playback?.setScrolling(source = carouselId, scrolling = scrolling, vertical = false)
+                }
+            }
+            DisposableEffect(playback, carouselId) {
+                onDispose { playback?.setScrolling(source = carouselId, scrolling = false, vertical = false) }
+            }
+            BoxWithConstraints(
+                modifier =
+                    mediaContentModifier
+                        .fillMaxWidth(),
+            ) {
+                val layoutSpec =
+                    remember(
+                        data.size,
+                        data[0].carouselAspectRatio,
+                        data[1].carouselAspectRatio,
+                    ) {
+                        TimelineCarouselLayout.spec(
+                            mediaCount = data.size,
+                            firstAspectRatio = data[0].carouselAspectRatio,
+                            secondAspectRatio = data[1].carouselAspectRatio,
+                        )
+                    }
+                val horizontalInsets = carouselLeadingPadding + carouselTrailingPadding
+                val contentWidth = (maxWidth - horizontalInsets).coerceAtLeast(0.dp)
+                val carouselHeight =
+                    layoutSpec
+                        .height(
+                            viewportWidth = maxWidth.value,
+                            horizontalInsets = horizontalInsets.value,
+                            itemSpacing = CarouselItemSpacing.value,
+                        ).dp
+
+                LazyRow(
+                    state = carouselState,
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .height(carouselHeight),
+                    contentPadding =
+                        PaddingValues(
+                            start = carouselLeadingPadding,
+                            end = carouselTrailingPadding,
+                        ),
+                    horizontalArrangement = Arrangement.spacedBy(CarouselItemSpacing),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    items(count = data.size) { index ->
+                        val media = data[index]
+                        val itemWidth =
+                            layoutSpec
+                                .itemWidth(
+                                    contentWidth = contentWidth.value,
+                                    height = carouselHeight.value,
+                                    aspectRatio = media.timelineAspectRatio,
+                                ).dp
+                        CompositionLocalProvider(
+                            LocalTimelineCarouselItem provides TimelineCarouselItem(carouselId, index, index == selectedIndex),
+                        ) {
+                            StatusMediaItem(
+                                post = post,
+                                media = media,
+                                mediaCount = data.size,
+                                onMediaClick = { openMedia(index) },
+                                hideSensitive = hideSensitive,
+                                keepAspectRatio = false,
+                                fillContainer = true,
+                                modifier =
+                                    Modifier
+                                        .fillParentMaxHeight()
+                                        .width(itemWidth)
+                                        .clip(shape),
+                            )
+                        }
+                    }
+                }
+            }
+        } else {
+            AdaptiveGrid(
+                itemCount = data.size,
+                itemContent = { index ->
+                    CompositionLocalProvider(
+                        LocalTimelineCarouselItem provides TimelineCarouselItem(carouselId, index, selected = true, isCarousel = false),
+                    ) {
+                        StatusMediaItem(
+                            post = post,
+                            media = data[index],
+                            mediaCount = data.size,
+                            onMediaClick = { openMedia(index) },
+                            hideSensitive = hideSensitive,
+                            keepAspectRatio = data.size == 1 && appearanceSettings.expandMediaSize,
+                            modifier = Modifier.fillMaxSize(),
+                            fillContainer = data.size > 1 || !appearanceSettings.expandMediaSize,
+                        )
+                    }
+                },
+                maxItems = if (appearanceSettings.limitMediaGridToNine) 9 else data.size,
+                modifier = mediaContentModifier.fillMaxWidth(),
+                expandedSize = appearanceSettings.expandMediaSize,
+            )
+        }
+        if (showSensitiveButton) {
+            Box(
+                modifier =
+                    Modifier
+                        .matchParentSize()
+                        .let {
+                            if (hideSensitive && !SystemUtils.isBlurSupported) {
+                                it.background(PlatformTheme.colorScheme.outline)
+                            } else {
+                                it
+                            }
+                        }.let {
+                            if (hideSensitive) {
+                                it
+                                    .clickable {
+                                        hideSensitive = false
+                                    }.semantics {
+                                        contentDescription = showSensitiveMediaLabel
+                                    }
+                            } else {
+                                it
+                            }
+                        }.padding(16.dp),
+            ) {
+                AnimatedContent(
+                    hideSensitive,
+                    modifier =
+                        Modifier
+                            .matchParentSize(),
+                    label = "StatusMediaComponent",
+                ) {
+                    Box {
+                        if (it) {
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .align(Alignment.Center)
+                                        .clip(PlatformTheme.shapes.medium)
+                                        .background(PlatformTheme.colorScheme.card)
+                                        .padding(16.dp),
+                            ) {
+                                PlatformText(
+                                    text = stringResource(Res.string.status_sensitive_media),
+                                )
+                            }
+                        } else {
+                            PlatformIconButton(
+                                onClick = {
+                                    hideSensitive = true
+                                },
+                                modifier =
+                                    Modifier
+                                        .align(Alignment.TopStart)
+                                        .alpha(0.5f)
+                                        .clip(PlatformTheme.shapes.medium)
+                                        .background(PlatformTheme.colorScheme.card),
+                            ) {
+                                FAIcon(
+                                    imageVector = FontAwesomeIcons.Solid.EyeSlash,
+                                    contentDescription = hideSensitiveMediaLabel,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun Modifier.expandHorizontally(
+    leading: Dp,
+    trailing: Dp,
+): Modifier =
+    layout { measurable, constraints ->
+        if (!constraints.hasBoundedWidth) {
+            val placeable = measurable.measure(constraints)
+            layout(placeable.width, placeable.height) {
+                placeable.placeRelative(0, 0)
+            }
+        } else {
+            val leadingPx = leading.roundToPx()
+            val trailingPx = trailing.roundToPx()
+            val expandedWidth = constraints.maxWidth + leadingPx + trailingPx
+            val placeable =
+                measurable.measure(
+                    constraints.copy(
+                        minWidth = expandedWidth,
+                        maxWidth = expandedWidth,
+                    ),
+                )
+            layout(constraints.maxWidth, placeable.height) {
+                placeable.placeRelative(-leadingPx, 0)
+            }
+        }
+    }
+
+private val CarouselItemSpacing = 4.dp
+
+private val UiMedia.carouselAspectRatio: Float
+    get() {
+        val ratio =
+            when (this) {
+                is UiMedia.Image -> width / height
+                is UiMedia.Video -> width / height
+                is UiMedia.Gif -> width / height
+                is UiMedia.Audio -> 0f
+            }
+        return ratio.takeIf { it.isFinite() && it > 0f } ?: 0f
+    }
+
+private val UiMedia.timelineAspectRatio: Float
+    get() = carouselAspectRatio.takeIf { it > 0f } ?: 1f
+
+@Composable
+private fun StatusMediaItem(
+    post: UiTimelineV2.Post,
+    media: UiMedia,
+    mediaCount: Int,
+    onMediaClick: () -> Unit,
+    hideSensitive: Boolean,
+    keepAspectRatio: Boolean,
+    modifier: Modifier = Modifier,
+    fillContainer: Boolean = false,
+) {
+    val uriHandler = LocalUriHandler.current
+    val viewAltTextLabel = stringResource(Res.string.media_view_alt_text)
+    val appearanceSettings = LocalTimelineAppearance.current
+    val mediaActionConfig = LocalTimelineMediaActionConfig.current
+    var isMenuExpanded by remember(media.url) {
+        mutableStateOf(false)
+    }
+    Box(modifier = modifier) {
+        CompositionLocalProvider(
+            LocalTimelineAppearance provides
+                appearanceSettings.copy(
+                    videoAutoplay =
+                        if (hideSensitive) {
+                            VideoAutoplay.NEVER
+                        } else {
+                            appearanceSettings.videoAutoplay
+                        },
+                ),
+        ) {
+            val mediaModifier =
+                Modifier
+                    .let { if (fillContainer) it.fillMaxSize() else it }
+                    .clipToBounds()
+                    .pointerHoverIcon(PointerIcon.Hand)
+            if (mediaActionConfig != null && !hideSensitive) {
+                TimelineMediaMenuBox(
+                    expanded = isMenuExpanded,
+                    onExpandedChange = {
+                        isMenuExpanded = it
+                    },
+                    onClick = {
+                        onMediaClick()
+                    },
+                    modifier = mediaModifier,
+                    menu = {
+                        TimelineMediaDropdownMenu(
+                            expanded = isMenuExpanded,
+                            media = media,
+                            showDownloadAll = mediaCount > 1,
+                            mediaActionConfig = mediaActionConfig,
+                            onDismissRequest = {
+                                isMenuExpanded = false
+                            },
+                            onAction = { action ->
+                                isMenuExpanded = false
+                                mediaActionConfig.handler.handle(
+                                    post = post,
+                                    media = media,
+                                    action = action,
+                                )
+                            },
+                        )
+                    },
+                ) {
+                    MediaItem(
+                        media = media,
+                        modifier = if (fillContainer) Modifier.fillMaxSize() else Modifier,
+                        keepAspectRatio = keepAspectRatio,
+                    )
+                }
+            } else {
+                MediaItem(
+                    media = media,
+                    modifier =
+                        mediaModifier.clickable {
+                            onMediaClick()
+                        },
+                    keepAspectRatio = keepAspectRatio,
+                )
+            }
+        }
+        if (!media.description.isNullOrEmpty()) {
+            PlatformFlyoutContainer(
+                modifier = Modifier.align(Alignment.BottomEnd),
+                content = { requestShowFlyout ->
+                    Box(
+                        modifier =
+                            Modifier
+                                .pointerHoverIcon(PointerIcon.Hand)
+                                .padding(10.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color.Black.copy(alpha = 0.70f))
+                                .border(0.6.dp, Color.White.copy(alpha = 0.25f), RoundedCornerShape(8.dp))
+                                .clickable {
+                                    if (!requestShowFlyout.invoke()) {
+                                        media.description?.let {
+                                            uriHandler.openUri(DeeplinkRoute.Status.AltText(it).toUri())
+                                        }
+                                    }
+                                }.semantics {
+                                    contentDescription = viewAltTextLabel
+                                }.padding(
+                                    horizontal = 7.dp,
+                                    vertical = 3.dp,
+                                ),
+                    ) {
+                        PlatformText(
+                            text = "ALT",
+                            color = Color.White,
+                            style = PlatformTheme.typography.caption.copy(fontWeight = FontWeight.Bold),
+                        )
+                    }
+                },
+                flyout = {
+                    PlatformText(
+                        text = media.description ?: "",
+                        modifier =
+                            Modifier
+                                .padding(8.dp)
+                                .widthIn(max = 240.dp),
+                    )
+                },
+            )
+        }
+    }
+}
+
+@Composable
+private fun TimelineMediaDropdownMenu(
+    expanded: Boolean,
+    media: UiMedia,
+    showDownloadAll: Boolean,
+    mediaActionConfig: TimelineMediaActionConfig,
+    onDismissRequest: () -> Unit,
+    onAction: (TimelineMediaMenuAction) -> Unit,
+) {
+    PlatformDropdownMenu(
+        expanded = expanded,
+        onDismissRequest = onDismissRequest,
+    ) {
+        TimelineMediaMenuItem(
+            label = stringResource(Res.string.media_menu_download),
+            icon = {
+                FAIcon(
+                    imageVector = FontAwesomeIcons.Solid.Download,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+            },
+            onClick = {
+                onAction(TimelineMediaMenuAction.Download)
+            },
+        )
+        if (showDownloadAll) {
+            TimelineMediaMenuItem(
+                label = stringResource(Res.string.media_menu_download_all),
+                icon = {
+                    FAIcon(
+                        imageVector = FontAwesomeIcons.Solid.Download,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                },
+                onClick = {
+                    onAction(TimelineMediaMenuAction.DownloadAll)
+                },
+            )
+        }
+        if (media is UiMedia.Image && mediaActionConfig.showShareImage) {
+            TimelineMediaMenuItem(
+                label = stringResource(Res.string.media_menu_share_image),
+                icon = {
+                    FAIcon(
+                        imageVector = FontAwesomeIcons.Solid.ShareNodes,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                },
+                onClick = {
+                    onAction(TimelineMediaMenuAction.ShareImage)
+                },
+            )
+        }
+        TimelineMediaMenuItem(
+            label = stringResource(Res.string.media_menu_copy_link),
+            icon = {
+                FAIcon(
+                    imageVector = FontAwesomeIcons.Solid.Copy,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+            },
+            onClick = {
+                onAction(TimelineMediaMenuAction.CopyLink)
+            },
+        )
+    }
+}
+
+@Composable
+private fun PlatformDropdownMenuScope.TimelineMediaMenuItem(
+    label: String,
+    icon: @Composable () -> Unit,
+    onClick: () -> Unit,
+) {
+    PlatformDropdownMenuItem(
+        text = {
+            PlatformText(text = label)
+        },
+        leadingIcon = icon,
+        onClick = onClick,
+    )
+}
+
+@Composable
+public fun MediaItem(
+    media: UiMedia,
+    modifier: Modifier = Modifier,
+    keepAspectRatio: Boolean = true,
+    showCountdown: Boolean = true,
+    contentScale: ContentScale = ContentScale.Crop,
+) {
+    val appearanceSettings = LocalTimelineAppearance.current
+    val accessibleDescription = media.accessibleDescription()
+    when (media) {
+        is UiMedia.Image -> {
+            NetworkImage(
+                model = media.previewUrl,
+                contentDescription = accessibleDescription,
+                contentScale = contentScale,
+                customHeaders = media.customHeaders,
+                modifier =
+                    modifier
+                        .let {
+                            if (keepAspectRatio) {
+                                it.fillMaxWidth().aspectRatio(
+                                    media.aspectRatio,
+                                    matchHeightConstraintsFirst = media.aspectRatio > 1f,
+                                )
+                            } else {
+                                it.fillMaxSize()
+                            }
+                        },
+            )
+        }
+
+        is UiMedia.Video -> {
+            val wifiState = LocalWifiState.current
+            val shouldPlay = rememberEffectiveAutoplay(appearanceSettings.videoAutoplay, wifiState)
+            if (shouldPlay) {
+                PlatformVideoPlayer(
+                    contentScale = contentScale,
+                    uri = media.url,
+                    customHeaders = media.customHeaders,
+                    muted = true,
+                    previewUri = media.thumbnailUrl,
+                    contentDescription = accessibleDescription,
+                    modifier =
+                        modifier
+                            .let {
+                                if (keepAspectRatio) {
+                                    it.fillMaxWidth().aspectRatio(
+                                        media.aspectRatio,
+                                        matchHeightConstraintsFirst = media.aspectRatio > 1f,
+                                    )
+                                } else {
+                                    it.fillMaxSize()
+                                }
+                            },
+                    loadingPlaceholder = {
+                        Box(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth(),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            NetworkImage(
+                                contentScale = contentScale,
+                                model = media.thumbnailUrl,
+                                customHeaders = media.customHeaders,
+                                contentDescription = accessibleDescription,
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth(),
+                            )
+                        }
+                        Box(
+                            modifier =
+                                Modifier
+                                    .padding(16.dp)
+                                    .background(
+                                        Color.Black.copy(alpha = 0.5f),
+                                        shape = PlatformTheme.shapes.medium,
+                                    ).padding(horizontal = 8.dp, vertical = 4.dp)
+                                    .align(Alignment.BottomStart),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            PlatformCircularProgressIndicator(
+                                modifier =
+                                    Modifier
+                                        .align(Alignment.BottomStart)
+                                        .size(16.dp),
+                                color = Color.White,
+                            )
+                        }
+                    },
+                    errorContent = {
+                        Box(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth(),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            NetworkImage(
+                                contentScale = contentScale,
+                                model = media.thumbnailUrl,
+                                customHeaders = media.customHeaders,
+                                contentDescription = accessibleDescription,
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth(),
+                            )
+                        }
+                        Box(
+                            modifier =
+                                Modifier
+                                    .padding(12.dp)
+                                    .align(Alignment.BottomStart)
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(Color.Black.copy(alpha = 0.65f))
+                                    .border(0.8.dp, Color.White.copy(alpha = 0.25f), RoundedCornerShape(20.dp))
+                                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                FAIcon(
+                                    FontAwesomeIcons.Solid.CirclePlay,
+                                    contentDescription = stringResource(Res.string.media_play_video),
+                                    modifier =
+                                        Modifier
+                                            .size(13.dp),
+                                    tint = Color.White,
+                                )
+                                PlatformText(
+                                    text = "Video",
+                                    color = Color.White,
+                                    style = PlatformTheme.typography.caption,
+                                )
+                            }
+                        }
+                    },
+                    remainingTimeContent =
+                        if (showCountdown) {
+                            { remainingMs ->
+                                Box(
+                                    modifier =
+                                        Modifier
+                                            .padding(12.dp)
+                                            .align(Alignment.BottomStart)
+                                            .clip(RoundedCornerShape(20.dp))
+                                            .background(Color.Black.copy(alpha = 0.65f))
+                                            .border(0.8.dp, Color.White.copy(alpha = 0.25f), RoundedCornerShape(20.dp))
+                                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        PlatformText(
+                                            text = remainingMs.milliseconds.humanize(),
+                                            color = Color.White,
+                                            style = PlatformTheme.typography.caption,
+                                        )
+                                    }
+                                }
+                            }
+                        } else {
+                            null
+                        },
+                )
+            } else {
+                Box(
+                    modifier = modifier,
+                ) {
+                    NetworkImage(
+                        contentScale = contentScale,
+                        model = media.thumbnailUrl,
+                        customHeaders = media.customHeaders,
+                        contentDescription = accessibleDescription,
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .let {
+                                    if (keepAspectRatio) {
+                                        it.aspectRatio(
+                                            media.aspectRatio,
+                                            matchHeightConstraintsFirst = media.aspectRatio > 1f,
+                                        )
+                                    } else {
+                                        it
+                                    }
+                                },
+                    )
+                    Box(
+                        modifier =
+                            Modifier
+                                .padding(12.dp)
+                                .align(Alignment.BottomStart)
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(Color.Black.copy(alpha = 0.65f))
+                                .border(0.8.dp, Color.White.copy(alpha = 0.25f), RoundedCornerShape(20.dp))
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            FAIcon(
+                                FontAwesomeIcons.Solid.CirclePlay,
+                                contentDescription = stringResource(Res.string.media_play_video),
+                                modifier =
+                                    Modifier
+                                        .size(13.dp),
+                                tint = Color.White,
+                            )
+                            PlatformText(
+                                text = "Video",
+                                color = Color.White,
+                                style = PlatformTheme.typography.caption,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        is UiMedia.Audio -> {
+            AudioPlayer(
+                uri = media.url,
+                previewUri = media.previewUrl,
+                contentDescription = accessibleDescription,
+                modifier = modifier,
+            )
+        }
+
+        is UiMedia.Gif -> {
+            NetworkImage(
+                model = media.url,
+                contentDescription = accessibleDescription,
+                contentScale = contentScale,
+                customHeaders = media.customHeaders,
+                modifier =
+                    modifier
+                        .fillMaxWidth()
+                        .let {
+                            if (keepAspectRatio) {
+                                it.aspectRatio(
+                                    media.aspectRatio,
+                                    matchHeightConstraintsFirst = media.aspectRatio > 1f,
+                                )
+                            } else {
+                                it
+                            }
+                        },
+            )
+        }
+    }
+}

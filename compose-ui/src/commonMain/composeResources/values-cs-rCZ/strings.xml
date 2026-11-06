@@ -70,7 +70,7 @@
     <string name="mastodon_visibility_private_description">Pouze sledující mohou vidět tento příspěvek</string>
     <string name="mastodon_visibility_direct_description">Pouze zmínění uživatelé mohou vidět tento příspěvek</string>
     <string name="settings_notifications_title">Oznámení</string>
-    <string name="settings_notifications_subtitle">Přizpůsobte si, jak vás Flare informuje</string>
+    <string name="settings_notifications_subtitle">Přizpůsobte si, jak vás Crux informuje</string>
     <string name="status_loadmore_end">Žádné další příspěvky</string>
     <string name="status_loadmore_error">Chyba při načítání dalších příspěvků</string>
     <string name="status_loadmore_error_retry">Zkusit znovu</string>
@@ -351,9 +351,8 @@
     <string name="mastodon_trending_statuses">Trendující statusy</string>
     <string name="mastodon_federated_timeline">Federovaná osa</string>
     <string name="mastodon_local_timeline">Místní osa</string>
-    <string name="service_select_welcome_title">Vítejte ve Flare</string>
+    <string name="service_select_welcome_title">Vítejte ve Crux</string>
     <string name="service_select_welcome_message">Zadejte server a začněte.</string>
-    <string name="service_select_welcome_hint">Flare podporuje Mastodon, Misskey, Bluesky, Nostr a X.</string>
     <string name="service_select_welcome_list_hint">Nebo si vyberte z těchto serverů</string>
     <string name="bluesky_login_username_hint">Uživatelské jméno</string>
     <string name="bluesky_login_password_hint">Heslo</string>
@@ -381,7 +380,7 @@
     <string name="service_select_instance_input_placeholder">URL instance</string>
     <string name="service_select_next_button">Další</string>
     <string name="service_select_empty_message">Nenalezeny žádné instance</string>
-    <string name="service_select_compatibility_warning">Tento server používá %1$s, Flare poběží v režimu kompatibility. Některé funkce nemusí fungovat správně.</string>
+    <string name="service_select_compatibility_warning">Tento server používá %1$s, Crux poběží v režimu kompatibility. Některé funkce nemusí fungovat správně.</string>
     <string name="login_agreement">Přihlášením souhlasíte s %1$s.</string>
     <string name="eula_privacy_policy">EULA a Zásady ochrany osobních údajů</string>
     <string name="home_tab_home_title">Domů</string>
@@ -418,7 +417,7 @@
     <string name="pixiv_ranking_day_manga_title">Manga Ranking</string>
     <string name="illustrations_title">Ilustrace</string>
     <string name="manga_title">Manga</string>
-    <string name="app_name" translatable="false">Prism</string>
+    <string name="app_name" translatable="false">Crux</string>
     <string name="media_menu_download">Stáhnout</string>
     <string name="media_menu_download_all">Stáhnout vše</string>
     <string name="media_menu_share_image">Sdílet obrázek</string>

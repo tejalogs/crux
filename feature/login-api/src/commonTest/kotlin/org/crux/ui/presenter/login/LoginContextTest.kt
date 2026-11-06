@@ -1,0 +1,58 @@
+package org.crux.ui.presenter.login
+
+import org.crux.model.MicroBlogKey
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+
+class LoginContextTest {
+    @Test
+    fun reloginAccountMatchIsAllowed() {
+        val accountKey = MicroBlogKey(id = "user-a", host = "example.com")
+        val context =
+            loginContext(
+                ReloginTarget(
+                    accountKey = accountKey,
+                    platformId = "Mastodon",
+                ),
+            )
+
+        context.requireReloginAccount(accountKey)
+    }
+
+    @Test
+    fun reloginAccountMismatchFails() {
+        val expected = MicroBlogKey(id = "user-a", host = "example.com")
+        val actual = MicroBlogKey(id = "user-b", host = "example.com")
+        val context =
+            loginContext(
+                ReloginTarget(
+                    accountKey = expected,
+                    platformId = "Mastodon",
+                ),
+            )
+
+        val error =
+            assertFailsWith<ReloginAccountMismatchException> {
+                context.requireReloginAccount(actual)
+            }
+
+        assertEquals(expected, error.expected)
+        assertEquals(actual, error.actual)
+    }
+
+    @Test
+    fun normalLoginDoesNotRestrictAccount() {
+        val context = loginContext(reloginTarget = null)
+
+        context.requireReloginAccount(MicroBlogKey(id = "any-user", host = "example.com"))
+    }
+
+    private fun loginContext(reloginTarget: ReloginTarget?): LoginContext =
+        LoginContext(
+            host = "example.com",
+            methodType = LoginMethodType.OAuth,
+            onSuccess = {},
+            reloginTarget = reloginTarget,
+        )
+}
