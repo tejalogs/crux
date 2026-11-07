@@ -32,8 +32,50 @@ public object DefaultRssFeeds {
     public val categories: List<Category> =
         listOf(
             Category(
-                name = "Tech & Open Source",
-                description = "Computing breakthroughs, software engineering, and open infrastructure",
+                name = "Artificial Intelligence & Frontier Research",
+                description = "LLMs, reasoning systems, autonomous agents, and AI safety breakthroughs",
+                feeds =
+                    listOf(
+                        FeedItem(
+                            title = "OpenAI Research & News",
+                            url = "https://openai.com/news/rss.xml",
+                            description = "Official announcements, GPT releases, and frontier alignment",
+                        ),
+                        FeedItem(
+                            title = "Google DeepMind",
+                            url = "https://deepmind.google/blog/rss.xml",
+                            description = "Breakthroughs in Gemini, AlphaFold, agentic systems, and science",
+                        ),
+                        FeedItem(
+                            title = "MIT Technology Review - AI",
+                            url = "https://www.technologyreview.com/topic/artificial-intelligence/feed",
+                            description = "Authoritative journalism on machine learning and emerging technologies",
+                        ),
+                        FeedItem(
+                            title = "Import AI",
+                            url = "https://importai.substack.com/feed",
+                            description = "Jack Clark’s definitive weekly newsletter on AI research and compute",
+                        ),
+                        FeedItem(
+                            title = "Latent Space",
+                            url = "https://www.latent.space/feed",
+                            description = "The AI engineer newsletter covering foundations, agents, and open models",
+                        ),
+                        FeedItem(
+                            title = "The Gradient",
+                            url = "https://thegradient.pub/rss/",
+                            description = "Deep dives into AI research written by practicing researchers",
+                        ),
+                        FeedItem(
+                            title = "Simon Willison’s Weblog",
+                            url = "https://simonwillison.net/atom/entries/",
+                            description = "AI engineering, local LLMs, prompt experiments, and Python",
+                        ),
+                    ),
+            ),
+            Category(
+                name = "Tech & Engineering",
+                description = "Computing breakthroughs, startup technology, and digital architecture",
                 feeds =
                     listOf(
                         FeedItem(
@@ -52,14 +94,29 @@ public object DefaultRssFeeds {
                             description = "Technology reporting, creative culture, and computing platforms",
                         ),
                         FeedItem(
+                            title = "TechCrunch",
+                            url = "https://techcrunch.com/feed/",
+                            description = "Breaking startup funding, venture, and software innovation news",
+                        ),
+                        FeedItem(
+                            title = "Wired",
+                            url = "https://www.wired.com/feed/rss",
+                            description = "Essential reporting on technology, science, and culture",
+                        ),
+                        FeedItem(
+                            title = "404 Media",
+                            url = "https://www.404media.co/rss/",
+                            description = "Hard-hitting investigative tech reporting on cybersecurity and AI",
+                        ),
+                        FeedItem(
+                            title = "Stratechery",
+                            url = "https://stratechery.com/feed/",
+                            description = "Ben Thompson’s macro analysis of tech strategy and AI platform dynamics",
+                        ),
+                        FeedItem(
                             title = "LWN.net",
                             url = "https://lwn.net/headlines/rss",
                             description = "Authoritative news from Linux and free software development",
-                        ),
-                        FeedItem(
-                            title = "Simon Willison’s Weblog",
-                            url = "https://simonwillison.net/atom/entries/",
-                            description = "AI engineering, LLMs, open-source software, and Python",
                         ),
                     ),
             ),

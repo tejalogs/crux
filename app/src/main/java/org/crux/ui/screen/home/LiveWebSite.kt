@@ -21,6 +21,12 @@ private val LINKEDIN_ALLOWED_HOSTS =
         "licdn.com",
         "accounts.google.com",
         "appleid.apple.com",
+        "google.com",
+        "gstatic.com",
+        "recaptcha.net",
+        "arkoselabs.com",
+        "funcaptcha.com",
+        "arkose.com",
     )
 
 private val INSTAGRAM_ALLOWED_HOSTS =

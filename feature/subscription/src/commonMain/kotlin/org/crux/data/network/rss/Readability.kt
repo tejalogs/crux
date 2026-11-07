@@ -64,7 +64,9 @@ internal class Readability(
             return withContext(parserDispatcher) { embeddedDocument(descriptionHtml, title) } ?: throw ArticleExtractionException()
         }
         return try {
-            extract(url)
+            val doc = extract(url)
+            val resolvedTitle = title?.takeIf { it.isNotBlank() } ?: doc.title
+            doc.copy(title = resolvedTitle)
         } catch (exception: CancellationException) {
             throw exception
         } catch (exception: Exception) {

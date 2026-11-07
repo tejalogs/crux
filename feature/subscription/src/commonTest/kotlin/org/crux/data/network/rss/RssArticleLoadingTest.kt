@@ -62,6 +62,27 @@ class RssArticleLoadingTest {
         }
 
     @Test
+    fun providedFeedTitleOverridesExtractedStrippedTitle() =
+        runTest {
+            val client = mockClient { respond(ARTICLE) }
+            try {
+                val result =
+                    Readability(
+                        client,
+                        StandardTestDispatcher(testScheduler),
+                    ).load(
+                        "https://example.com/a",
+                        title = "Full Canonical Feed Title: Subtitle",
+                        fallbackHtml = "<p>Feed content</p>",
+                    )
+                assertEquals("Full Canonical Feed Title: Subtitle", result.title)
+                assertTrue(result.textContent.contains("Actual article"))
+            } finally {
+                client.close()
+            }
+        }
+
+    @Test
     fun descriptionModeDoesNotFetchAndImageOnlyFeedIsUsable() =
         runTest {
             val client = mockClient { error("Description mode must not fetch") }

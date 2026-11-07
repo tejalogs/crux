@@ -13,6 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import org.crux.compose.ui.Res
 import org.crux.compose.ui.feed_open_article
@@ -60,7 +61,8 @@ internal fun FeedComponent(
             }
             PlatformText(
                 text = data.source.name,
-                style = PlatformTheme.typography.caption,
+                style = PlatformTheme.typography.caption.copy(fontWeight = FontWeight.SemiBold),
+                color = PlatformTheme.colorScheme.onCard,
                 modifier = Modifier.weight(1f),
                 maxLines = 1,
             )
@@ -80,7 +82,8 @@ internal fun FeedComponent(
         data.title?.let { title ->
             PlatformText(
                 text = title,
-                style = PlatformTheme.typography.title,
+                style = PlatformTheme.typography.title.copy(fontWeight = FontWeight.SemiBold),
+                color = PlatformTheme.colorScheme.onCard,
             )
         }
         Row(
@@ -89,8 +92,8 @@ internal fun FeedComponent(
             data.description?.let {
                 PlatformText(
                     text = it,
-                    style = PlatformTheme.typography.caption,
-                    maxLines = 5,
+                    style = PlatformTheme.typography.body,
+                    maxLines = 4,
                     color = PlatformTheme.colorScheme.caption,
                     modifier =
                         Modifier.let {

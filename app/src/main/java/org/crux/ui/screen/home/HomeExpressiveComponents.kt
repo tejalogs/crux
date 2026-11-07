@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -56,26 +57,36 @@ internal fun ExpressiveHomeTabStrip(
     onTabSelected: (Int) -> Unit,
     modifier: Modifier = Modifier,
     selectedLabelOnly: Boolean = false,
+    iconOnly: Boolean = false,
     uncheckedContainerColor: Color = MaterialTheme.colorScheme.surfaceContainerHigh,
     trailing: (@Composable () -> Unit)? = null,
 ) {
     val listState = rememberLazyListState()
-    LaunchedEffect(selectedTabIndex) {
+    LaunchedEffect(selectedTabIndex, iconOnly, tabs.size) {
+        if (iconOnly && tabs.size <= 6) {
+            listState.animateScrollToItem(0)
+            return@LaunchedEffect
+        }
+        val visible = listState.layoutInfo.visibleItemsInfo
+        if (visible.isNotEmpty() && visible.any { it.index == selectedTabIndex }) {
+            return@LaunchedEffect
+        }
         listState.animateScrollToItem((selectedTabIndex - 1).coerceAtLeast(0))
     }
     LazyRow(
         state = listState,
         modifier = modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(horizontal = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        contentPadding = PaddingValues(horizontal = if (iconOnly) 2.dp else 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(if (iconOnly) 2.dp else 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         itemsIndexed(tabs, key = { _, tab -> tab.id }) { index, tab ->
             val isSelected = index == selectedTabIndex
-            val showLabel = isSelected || (!selectedLabelOnly && tabs.size <= COMPACT_LABEL_THRESHOLD)
+            val showLabel = !iconOnly && (isSelected || (!selectedLabelOnly && tabs.size <= COMPACT_LABEL_THRESHOLD))
             ToggleButton(
                 checked = isSelected,
                 onCheckedChange = { onTabSelected(index) },
+                modifier = Modifier.defaultMinSize(minWidth = if (iconOnly) 36.dp else 48.dp, minHeight = 36.dp),
                 colors =
                     ToggleButtonDefaults.colors(
                         containerColor = uncheckedContainerColor,
@@ -83,7 +94,7 @@ internal fun ExpressiveHomeTabStrip(
                         checkedContainerColor = MaterialTheme.colorScheme.primary,
                         checkedContentColor = MaterialTheme.colorScheme.onPrimary,
                     ),
-                contentPadding = PaddingValues(horizontal = if (showLabel) 12.dp else 8.dp),
+                contentPadding = PaddingValues(horizontal = if (showLabel) 12.dp else 6.dp),
             ) {
                 TabIcon(
                     tabItem = tab,
@@ -242,6 +253,7 @@ internal fun ExpressiveHomeDockTabs(
                 }
             },
             selectedLabelOnly = true,
+            iconOnly = tabs.size > 3,
             uncheckedContainerColor = Color.Transparent,
             modifier = Modifier.weight(1f),
         )

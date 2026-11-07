@@ -238,6 +238,7 @@ public fun ServiceSelectionScreenContent(
                             FAIcon(
                                 imageVector = FontAwesomeIcons.Brands.Instagram,
                                 contentDescription = "Instagram",
+                                tint = Color(0xFFE1306C),
                                 modifier = Modifier.size(32.dp),
                             )
                             PlatformText(
@@ -319,6 +320,7 @@ public fun ServiceSelectionScreenContent(
                             FAIcon(
                                 imageVector = FontAwesomeIcons.Brands.Instagram,
                                 contentDescription = "Instagram",
+                                tint = Color(0xFFE1306C),
                                 modifier = Modifier.size(28.dp),
                             )
                             Column(modifier = Modifier.weight(1f)) {

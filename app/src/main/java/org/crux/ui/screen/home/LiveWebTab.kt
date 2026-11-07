@@ -5,9 +5,15 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
+import android.util.Log
+import android.view.MotionEvent
+import android.view.ViewConfiguration
 import android.view.ViewGroup
+import android.webkit.ConsoleMessage
+import android.webkit.CookieManager
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
@@ -16,11 +22,21 @@ import android.widget.FrameLayout
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -34,6 +50,9 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.net.toUri
@@ -41,14 +60,19 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import androidx.webkit.WebSettingsCompat
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
+import compose.icons.FontAwesomeIcons
+import compose.icons.fontawesomeicons.Solid
+import compose.icons.fontawesomeicons.solid.RotateRight
+import org.crux.BuildConfig
+import org.crux.R
 import org.crux.data.model.tab.TimelineSpecIds
 import org.crux.data.model.tab.UiTimelineTabItem
+import org.crux.ui.component.FAIcon
 import org.crux.ui.component.LocalBottomBarAccessory
+import org.crux.ui.screen.crux.CruxPlatform
+import org.crux.ui.screen.crux.PlatformBadge
 import java.io.ByteArrayInputStream
-
-// Modern Chrome Mobile User-Agent to avoid Google OAuth 403 disallowed_useragent and webview friction.
-private const val CHROME_MOBILE_USER_AGENT =
-    "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36"
+import kotlin.math.abs
 
 internal fun UiTimelineTabItem.liveWebSite(): LiveWebSite? = liveWebSiteForTabId(id)
 
@@ -140,6 +164,8 @@ internal class LiveWebPage(
 
     var canGoBack by mutableStateOf(false)
         private set
+    var loadError by mutableStateOf<String?>(null)
+        private set
     var onFileChooser: ((ValueCallback<Array<Uri>>) -> Unit)? = null
     var onPageLoaded: (() -> Unit)? = null
     var onSiteLoaded: (() -> Unit)? = null
@@ -149,14 +175,23 @@ internal class LiveWebPage(
             useProfileOf(site)
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
-            settings.userAgentString = CHROME_MOBILE_USER_AGENT
+            settings.databaseEnabled = true
+            // The WebView's real identity: a spoofed one disagrees with its other signals, and that
+            // mismatch is a common automation tell (it was part of the Instagram flag in Oct 2026).
             // Without these WebView ignores the page's mobile viewport, and wide layouts get cropped.
             settings.useWideViewPort = true
             settings.loadWithOverviewMode = true
             settings.setSupportMultipleWindows(true)
             settings.javaScriptCanOpenWindowsAutomatically = true
             settings.mediaPlaybackRequiresUserGesture = config.blockAutoplay
-            site.cookieManager().setAcceptThirdPartyCookies(this, true)
+            runCatching {
+                val globalCookieManager = CookieManager.getInstance()
+                globalCookieManager.setAcceptCookie(true)
+                globalCookieManager.setAcceptThirdPartyCookies(this, true)
+            }
+            val cookieManager = site.cookieManager()
+            cookieManager.setAcceptCookie(true)
+            cookieManager.setAcceptThirdPartyCookies(this, true)
             val documentStartScripts = config.documentStartScripts(site)
             if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
                 documentStartScripts.forEach { script ->
@@ -169,6 +204,29 @@ internal class LiveWebPage(
             }
             webViewClient =
                 object : WebViewClient() {
+                    override fun onPageStarted(
+                        view: WebView,
+                        url: String?,
+                        favicon: Bitmap?,
+                    ) {
+                        super.onPageStarted(view, url, favicon)
+                        if (url != null && url != "about:blank") {
+                            loadError = null
+                        }
+                    }
+
+                    override fun onReceivedError(
+                        view: WebView,
+                        request: WebResourceRequest,
+                        error: WebResourceError,
+                    ) {
+                        super.onReceivedError(view, request, error)
+                        if (request.isForMainFrame) {
+                            loadError = error.description?.toString() ?: "Failed to connect"
+                            onPageLoaded?.invoke()
+                        }
+                    }
+
                     override fun shouldInterceptRequest(
                         view: WebView,
                         request: WebResourceRequest,
@@ -183,6 +241,7 @@ internal class LiveWebPage(
                         view: WebView,
                         request: WebResourceRequest,
                     ): Boolean {
+                        if (!request.isForMainFrame) return false
                         val url = request.url
                         val cleaned = outgoing(url.toString())
                         val isRedirect = cleaned.substringBefore("?") != url.toString().substringBefore("?")
@@ -240,7 +299,6 @@ internal class LiveWebPage(
                                 useProfileOf(site)
                                 settings.javaScriptEnabled = true
                                 settings.domStorageEnabled = true
-                                settings.userAgentString = CHROME_MOBILE_USER_AGENT
                                 webViewClient =
                                     object : WebViewClient() {
                                         private var handled = false
@@ -289,6 +347,16 @@ internal class LiveWebPage(
                         return true
                     }
 
+                    override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
+                        // Page messages can carry URLs and data from a signed-in session: debug builds only.
+                        if (BuildConfig.DEBUG) {
+                            consoleMessage?.let {
+                                Log.d("CruxWeb", "[${site.name}] ${it.message()} (line ${it.lineNumber()} of ${it.sourceId()})")
+                            }
+                        }
+                        return super.onConsoleMessage(consoleMessage)
+                    }
+
                     override fun onShowFileChooser(
                         webView: WebView,
                         filePathCallback: ValueCallback<Array<Uri>>,
@@ -322,6 +390,34 @@ internal class LiveWebPage(
     fun destroy() {
         (webView.parent as? ViewGroup)?.removeView(webView)
         webView.destroy()
+    }
+}
+
+private class HorizontalFriendlySwipeRefreshLayout(
+    context: Context,
+) : SwipeRefreshLayout(context) {
+    private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
+    private var startX = 0f
+    private var isDisallowed = false
+
+    override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
+        when (ev.action) {
+            MotionEvent.ACTION_DOWN -> {
+                startX = ev.x
+                isDisallowed = false
+            }
+
+            MotionEvent.ACTION_MOVE -> {
+                val dx = abs(ev.x - startX)
+                if (dx > touchSlop) {
+                    isDisallowed = true
+                }
+            }
+        }
+        if (isDisallowed) {
+            return false
+        }
+        return super.onInterceptTouchEvent(ev)
     }
 }
 
@@ -400,7 +496,7 @@ internal fun LiveWebTab(
                 factory = { viewContext ->
                     val container =
                         if (site.pullToRefresh) {
-                            SwipeRefreshLayout(viewContext).apply {
+                            HorizontalFriendlySwipeRefreshLayout(viewContext).apply {
                                 setOnRefreshListener { page.webView.reload() }
                                 page.onPageLoaded = { isRefreshing = false }
                             }
@@ -419,6 +515,47 @@ internal fun LiveWebTab(
                     it.removeAllViews()
                 },
             )
+            val error = page.loadError
+            if (error != null) {
+                Surface(
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .padding(contentPadding),
+                    color = MaterialTheme.colorScheme.background,
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxSize().padding(24.dp),
+                        verticalArrangement = Arrangement.Center,
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        PlatformBadge(platform = CruxPlatform.forSite(site), size = 56.dp)
+                        Spacer(Modifier.height(16.dp))
+                        Text(
+                            text = stringResource(R.string.crux_web_error_title, site.label),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            text = stringResource(R.string.crux_web_error_subtitle),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                        )
+                        Spacer(Modifier.height(20.dp))
+                        FilledTonalButton(onClick = { page.webView.reload() }) {
+                            FAIcon(
+                                FontAwesomeIcons.Solid.RotateRight,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp),
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(stringResource(R.string.crux_web_error_retry))
+                        }
+                    }
+                }
+            }
         }
     }
 }

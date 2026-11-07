@@ -135,7 +135,7 @@ import kotlin.math.roundToInt
 private const val PAGE_TURN_MILLIS = 160
 private const val PAGE_ZONE = 0.3f
 private const val PAGE_SWIPE = 0.12f
-private val PAGE_HEADER_HEIGHT = 64.dp
+private val PAGE_HEADER_HEIGHT = 72.dp
 private val PAGE_FOOTER_HEIGHT = 36.dp
 private val PAGE_EDGE_FADE = 28.dp
 
@@ -250,8 +250,9 @@ internal fun RssDetailScreen(
                             } else {
                                 val doc = (state.data as? UiState.Success)?.data ?: return@launch
                                 val itemTitle =
-                                    doc.title.takeIf { it.isNotBlank() }
-                                        ?: descriptionTitle.orEmpty().ifBlank { "RSS Article" }
+                                    descriptionTitle?.takeIf { it.isNotBlank() }
+                                        ?: doc.title.takeIf { it.isNotBlank() }
+                                        ?: "RSS Article"
                                 val itemContent =
                                     doc.textContent.takeIf { it.isNotBlank() } ?: doc.content.takeIf { it.isNotBlank() } ?: itemTitle
                                 val itemAuthor =
@@ -335,8 +336,8 @@ internal fun RssDetailScreen(
                             onClick = {
                                 showMoreMenu = false
                                 val title =
-                                    (state.data as? UiState.Success)?.data?.title?.takeIf { it.isNotBlank() }
-                                        ?: descriptionTitle?.takeIf { it.isNotBlank() }
+                                    descriptionTitle?.takeIf { it.isNotBlank() }
+                                        ?: (state.data as? UiState.Success)?.data?.title?.takeIf { it.isNotBlank() }
                                 val sendIntent =
                                     Intent().apply {
                                         action = Intent.ACTION_SEND
@@ -448,13 +449,14 @@ internal fun RssDetailScreen(
                         state.data
                             .onSuccess { documentData ->
                                 // Show translated title if available, otherwise original
+                                val rawTitle = descriptionTitle?.takeIf { it.isNotBlank() } ?: documentData.title
                                 val displayTitle =
                                     state.translateState?.translatedTitle?.let { titleState ->
                                         when (titleState) {
                                             is UiState.Success -> titleState.data
-                                            else -> documentData.title
+                                            else -> rawTitle
                                         }
-                                    } ?: documentData.title
+                                    } ?: rawTitle
                                 MaybeSelectable(enabled = !paged) {
                                     Text(
                                         text = displayTitle,

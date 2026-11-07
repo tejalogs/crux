@@ -1090,6 +1090,9 @@
     <string name="crux_compose_post">Post</string>
     <string name="crux_compose_post_count">Post to %1$d</string>
     <string name="live_share_instagram_hint">Caption copied. Tap + in Instagram, pick a photo and paste.</string>
+    <string name="crux_web_error_title">Unable to connect to %1$s</string>
+    <string name="crux_web_error_subtitle">Check your internet connection and try again.</string>
+    <string name="crux_web_error_retry">Retry</string>
 
     <!-- Crux: onboarding -->
     <string name="crux_onboarding_skip">Skip</string>

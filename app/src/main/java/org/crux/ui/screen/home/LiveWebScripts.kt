@@ -31,6 +31,8 @@ internal data class SiteScriptProfile(
     /** Complete CSS rules always applied (layout fixes, not hiding). */
     val baseRules: List<String> = emptyList(),
     val baseJs: String = "",
+    /** Script that runs immediately at document start before anything else. */
+    val initJs: String = "",
 )
 
 // Instagram: the page is a React app with hashed class names, so selectors use hrefs, roles and
@@ -354,6 +356,9 @@ private val ENGINE_JS =
     (function(){
       if(window.__cruxTweaks)return;
       window.__cruxTweaks=true;
+      try{
+    __INIT_JS__
+      }catch(e){}
       var css=__CSS__;
       var postSel=__POSTSEL__,cellSel=__CELLSEL__,moduleSel=__MODULESEL__,excludeSel=__EXCLUDESEL__;
       var rx=function(s){return s?new RegExp(s,'i'):null};
@@ -468,9 +473,10 @@ internal fun buildSiteScript(
     val js = (listOf(profile.baseJs) + rules.map { it.js }).filter { it.isNotBlank() }.joinToString("\n")
     val nothingToDo =
         css.isBlank() && postLabels.isEmpty() && headingLabels.isEmpty() && tabLabels.isEmpty() &&
-            promptLabels.isEmpty() && js.isBlank()
+            promptLabels.isEmpty() && js.isBlank() && profile.initJs.isBlank()
     if (nothingToDo) return null
     return ENGINE_JS
+        .replace("__INIT_JS__", profile.initJs)
         .replace("__CSS__", escapeJs(css))
         .replace("__POSTSEL__", escapeJs(profile.postSelector))
         .replace("__CELLSEL__", profile.cellSelector?.let(::escapeJs) ?: "null")

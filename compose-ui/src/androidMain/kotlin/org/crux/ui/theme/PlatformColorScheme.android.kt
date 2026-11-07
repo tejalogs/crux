@@ -29,7 +29,7 @@ internal actual object PlatformColorScheme {
     actual val caption: Color
         @Composable
         @ReadOnlyComposable
-        get() = MaterialTheme.colorScheme.outline
+        get() = MaterialTheme.colorScheme.onSurfaceVariant
     actual val outline: Color
         @Composable
         @ReadOnlyComposable

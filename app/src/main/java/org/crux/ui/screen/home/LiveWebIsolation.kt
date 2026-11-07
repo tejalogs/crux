@@ -40,6 +40,8 @@ internal fun WebView.suspendWebSession() {
     runCatching {
         onPause()
         evaluateJavascript(FREEZE_MEDIA_SCRIPT, null)
+        // Each site keeps its cookies in its own profile, so flush that store, not the shared one.
+        (if (isSupported) WebViewCompat.getProfile(this).cookieManager else CookieManager.getInstance()).flush()
     }
 }
 

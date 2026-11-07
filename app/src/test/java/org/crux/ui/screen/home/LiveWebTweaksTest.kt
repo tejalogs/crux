@@ -296,4 +296,15 @@ class LiveWebTweaksTest {
         assertTrue(script.contains("querySelectorAll(clickable).length<=1"))
         assertTrue(script.contains("HEADER|NAV"))
     }
+
+    @Test
+    fun noSiteScriptRewritesBrowserFunctions() {
+        // Rewriting page APIs on a signed-in site is an automation tell; tweaks only hide things.
+        LiveWebSite.entries.forEach { site ->
+            val script = buildSiteScript(site, SiteTweak.forSite(site).toSet()).orEmpty()
+            assertTrue("${site.name} patches a prototype", ".prototype." !in script)
+            assertTrue("${site.name} fakes storage access", "requestStorageAccess" !in script)
+            assertTrue("${site.name} fakes permissions", "permissions.query" !in script)
+        }
+    }
 }

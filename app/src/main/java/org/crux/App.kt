@@ -34,6 +34,9 @@ class App :
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             WebView.setDataDirectorySuffix("cruxbrowser")
         }
+        if (BuildConfig.DEBUG) {
+            WebView.setWebContentsDebuggingEnabled(true)
+        }
         val koinApplication =
             startKoin<AndroidKoinApplication> {
                 androidContext(this@App)
