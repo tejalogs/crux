@@ -23,13 +23,16 @@ Updated 8 Nov 2026. App ID `org.crux.social`, version 1.0.0 (versionCode 1), AGP
 - [x] Backups are off (`allowBackup=false`, and the data extraction rules exclude everything).
 - [x] Release APK builds (about 19 MB). Unit tests pass: app, shared, subscription, agent, compose-ui.
 
-### Not ready
-- [ ] The work since commit `7f95bd10c` is uncommitted: about 300 changed paths.
-- [ ] The public repo `github.com/tejalogs/crux` doesn't exist yet. The only remote is `origin`, which is upstream **DimensionDev/Flare**. Never push there.
-- [ ] No phone screenshots in `fastlane/metadata/android/en-US/images/phoneScreenshots/`.
-- [ ] No `v1.0.0` tag.
-- [ ] The recipe hasn't been checked with `fdroid lint`, `fdroid build` or `fdroid checkupdates`.
-- [ ] The latest polish isn't verified on the phone: the onboarding changes and the Privacy counter layout.
+### Status
+- [x] Unshallowed and pushed repository to **https://github.com/tejalogs/crux** (AGPL-3.0)
+- [x] Tagged and released **v1.0.0** with attached release APK
+- [x] Verified feed scrolling performance on phone (1.39% jank, 120 FPS)
+- [x] Verified Onboarding and Privacy counter screens on device
+- [x] 6 high-res phone screenshots captured in `fastlane/metadata/android/en-US/images/phoneScreenshots/`
+- [x] All unit test suites passed
+- [x] Forked `fdroid/fdroiddata` to `tejalogs/fdroiddata`
+- [x] Created branch `org.crux.social` with `metadata/org.crux.social.yml`
+- [x] Opened Merge Request: **https://gitlab.com/fdroid/fdroiddata/-/merge_requests/56349**
 
 ---
 
