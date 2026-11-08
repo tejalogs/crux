@@ -30,7 +30,7 @@ class CacheDatabaseDestructiveMigrationTest {
         }
 
     private suspend fun assertCacheIsRebuilt(fromVersion: Int) {
-        val databasePath = Files.createTempFile("flare-cache-v$fromVersion", ".db")
+        val databasePath = Files.createTempFile("crux-cache-v$fromVersion", ".db")
         val path = databasePath.toAbsolutePath().toString()
         try {
             BundledSQLiteDriver().open(path).use { connection ->

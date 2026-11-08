@@ -30,7 +30,8 @@ public fun ComposeInitialTextContext.resolveReplyParticipantInitialText(): Initi
 
                 is RenderRun.Text -> {
                     val href = run.style.link ?: return@mapNotNull null
-                    if (!href.startsWith("flare://ProfileWithNameAndHost")) {
+                    val isMentionScheme = href.startsWith("crux://ProfileWithNameAndHost") || href.startsWith("flare://ProfileWithNameAndHost")
+                    if (!isMentionScheme) {
                         return@mapNotNull null
                     }
                     MentionLink(
@@ -40,9 +41,10 @@ public fun ComposeInitialTextContext.resolveReplyParticipantInitialText(): Initi
                 }
             }
         }.filterNot { mention ->
+            val schemePrefix = if (mention.href.startsWith("crux://")) "crux://ProfileWithNameAndHost/" else "flare://ProfileWithNameAndHost/"
             val params =
                 mention.href
-                    .substringAfter("flare://ProfileWithNameAndHost/")
+                    .substringAfter(schemePrefix)
                     .substringBefore("?accountKey=")
                     .split('/')
             val userName = params.getOrNull(0)

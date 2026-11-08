@@ -14,9 +14,9 @@ public actual class DriverFactory {
     ): RoomDatabase.Builder<T> {
         val dbFolder =
             if (isCache) {
-                FileSystemUtilsExt.flareCacheDirectory()
+                FileSystemUtilsExt.cruxCacheDirectory()
             } else {
-                FileSystemUtilsExt.flareDirectory()
+                FileSystemUtilsExt.cruxDirectory()
             }
         val dbFile = File(dbFolder, name)
         return Room.databaseBuilder<T>(
@@ -30,9 +30,9 @@ public actual class DriverFactory {
     ) {
         val dbFolder =
             if (isCache) {
-                FileSystemUtilsExt.flareCacheDirectory()
+                FileSystemUtilsExt.cruxCacheDirectory()
             } else {
-                FileSystemUtilsExt.flareDirectory()
+                FileSystemUtilsExt.cruxDirectory()
             }
         val dbFile = File(dbFolder, name)
         if (dbFile.exists()) {

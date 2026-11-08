@@ -71,7 +71,7 @@ class CruxAndroidApplicationSpec internal constructor(
 
     internal fun apply(configure: ApplicationExtension.() -> Unit = {}) {
         val androidNamespace = requireNotNull(namespace) {
-            "flare { namespace = ... } is required for Android applications."
+            "crux { namespace = ... } is required for Android applications."
         }
         val androidApplicationId = applicationId ?: androidNamespace
 
@@ -160,7 +160,7 @@ class CruxModuleSpec internal constructor(
     @OptIn(ExperimentalKotlinGradlePluginApi::class, ExperimentalWasmDsl::class)
     internal fun apply() {
         require(configuredPlatforms.isNotEmpty()) {
-            "flare { } requires at least one platform."
+            "crux { } requires at least one platform."
         }
 
         kotlin.explicitApi()
@@ -262,13 +262,17 @@ class CruxModuleSpec internal constructor(
     }
 }
 
-fun KotlinMultiplatformExtension.flare(configure: CruxModuleSpec.() -> Unit) {
+fun KotlinMultiplatformExtension.crux(configure: CruxModuleSpec.() -> Unit) {
     CruxModuleSpec(this).apply(configure).apply()
 }
 
-fun Project.flare(configure: CruxAndroidApplicationSpec.() -> Unit) {
+fun Project.crux(configure: CruxAndroidApplicationSpec.() -> Unit) {
     CruxAndroidApplicationSpec(this).apply(configure).apply()
 }
+
+fun KotlinMultiplatformExtension.flare(configure: CruxModuleSpec.() -> Unit) = crux(configure)
+
+fun Project.flare(configure: CruxAndroidApplicationSpec.() -> Unit) = crux(configure)
 
 private fun Project.intVersion(name: String): Int {
     return versionCatalog().findVersion(name).get().requiredVersion.toInt()

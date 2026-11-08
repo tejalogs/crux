@@ -21,7 +21,10 @@ public interface CruxHapticFeedback {
  * lets the preference be flipped without recomposing every action button.
  */
 @Composable
-public fun rememberFlareHapticFeedback(enabled: Boolean): CruxHapticFeedback = rememberFlareHapticFeedbackInternal(enabled)
+public fun rememberCruxHapticFeedback(enabled: Boolean): CruxHapticFeedback = rememberFlareHapticFeedbackInternal(enabled)
+
+@Composable
+public fun rememberFlareHapticFeedback(enabled: Boolean): CruxHapticFeedback = rememberCruxHapticFeedback(enabled)
 
 @Composable
 internal expect fun rememberFlareHapticFeedbackInternal(enabled: Boolean): CruxHapticFeedback

@@ -21,7 +21,7 @@ class RssSourceDaoTest {
     ) = DbRssSources(id = id, url = url, title = url, icon = null, lastUpdate = 0, type = type)
 
     private fun <T> withDatabase(block: suspend (AppDatabase) -> T): T {
-        val file = Files.createTempFile("flare-rss-dao", ".db")
+        val file = Files.createTempFile("crux-rss-dao", ".db")
         val database =
             Room
                 .databaseBuilder<AppDatabase>(name = file.toAbsolutePath().toString())

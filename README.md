@@ -13,7 +13,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-AGPL%20v3-blue.svg" alt="License: AGPL v3" /></a>
   <img src="https://img.shields.io/badge/Platform-Android%208.0+-3DDC84?logo=android&logoColor=white" alt="Android 8.0+" />
   <a href="https://github.com/tejalogs/crux/releases/latest"><img src="https://img.shields.io/badge/Release-v1.0.0-7952b3?logo=github&logoColor=white" alt="Latest Release" /></a>
-  <a href="https://gitlab.com/fdroid/fdroiddata/-/merge_requests/56349"><img src="https://img.shields.io/badge/F--Droid-MR%20%2356349-1976D2?logo=f-droid&logoColor=white" alt="F-Droid MR" /></a>
+  <a href="https://github.com/tejalogs/crux/releases/latest"><img src="https://img.shields.io/badge/Download-APK-brightgreen?logo=android&logoColor=white" alt="Download APK" /></a>
   <img src="https://img.shields.io/badge/Telemetry-Zero-success" alt="Zero Telemetry" />
 </p>
 
@@ -60,10 +60,9 @@ Crux supports **Android 8.0 (API 26)** and newer.
 Directly download the signed APK:
 👉 **[Download Crux v1.0.0 APK](https://github.com/tejalogs/crux/releases/tag/v1.0.0)**
 
-### F-Droid
-Crux has been submitted to the official F-Droid repository and is currently in community review:
-👉 **[F-Droid Inclusion Merge Request #56349](https://gitlab.com/fdroid/fdroiddata/-/merge_requests/56349)**
-
+### F-Droid & Repositories
+- **Direct APK**: Download the signed release APK from [GitHub Releases](https://github.com/tejalogs/crux/releases/tag/v1.0.0).
+- **F-Droid Main Repo**: Official inclusion in the primary `fdroiddata` catalog requires 3 months of repository maturity per F-Droid intake policy. Submission to the IzzyOnDroid community repository and automated release feeds is prepared.
 *(Note: Crux carries the F-Droid `NonFreeNet` anti-feature flag because it connects to proprietary social networks via web tabs).*
 
 ---

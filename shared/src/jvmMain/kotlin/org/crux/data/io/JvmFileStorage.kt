@@ -10,5 +10,5 @@ import org.koin.core.annotation.Single
 internal class JvmFileStorage :
     OkioFileStorage(
         fileSystem = FileSystem.SYSTEM,
-        root = FileSystemUtilsExt.flareDirectory().toOkioPath(),
+        root = FileSystemUtilsExt.cruxDirectory().toOkioPath(),
     )

@@ -18,15 +18,15 @@ dependencies {
 
 gradlePlugin {
     plugins {
-        create("flareMultiplatformLibrary") {
+        create("cruxMultiplatformLibrary") {
             id = "org.crux.multiplatform-library"
             implementationClass = "org.crux.buildlogic.CruxMultiplatformLibraryPlugin"
         }
-        create("flareAndroidApplication") {
+        create("cruxAndroidApplication") {
             id = "org.crux.android-application"
             implementationClass = "org.crux.buildlogic.CruxAndroidApplicationPlugin"
         }
-        create("flareRootConventions") {
+        create("cruxRootConventions") {
             id = "org.crux.root-conventions"
             implementationClass = "org.crux.buildlogic.CruxRootConventionsPlugin"
         }

@@ -15,7 +15,7 @@ class AppDatabaseMigration11To12Test {
     @Test
     fun migrationPreservesEveryExistingPlatformAccountField() =
         runTest {
-            val databasePath = Files.createTempFile("flare-app-v11", ".db")
+            val databasePath = Files.createTempFile("crux-app-v11", ".db")
             val path = databasePath.toAbsolutePath().toString()
             val platformIds = listOf("Mastodon", "Misskey", "Bluesky", "Pixiv", "xQt", "VVo", "Nostr", "Fanbox")
             try {

@@ -14,9 +14,9 @@ internal actual object AppleDataDirectories {
             legacyPersistentDirectory()
         }
 
-    private fun legacyPersistentDirectory(): String = createDirectory(NSHomeDirectory().appendPath(".flare"))
+    private fun legacyPersistentDirectory(): String = createDirectory(NSHomeDirectory().appendPath(".crux"))
 
-    private fun legacyTemporaryDirectory(): String = createDirectory(NSHomeDirectory().appendPath("tmp").appendPath(".flare"))
+    private fun legacyTemporaryDirectory(): String = createDirectory(NSHomeDirectory().appendPath("tmp").appendPath(".crux"))
 
     @OptIn(ExperimentalForeignApi::class)
     private fun createDirectory(path: String): String {

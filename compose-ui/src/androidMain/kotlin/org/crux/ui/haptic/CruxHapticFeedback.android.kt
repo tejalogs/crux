@@ -11,15 +11,15 @@ internal actual fun rememberFlareHapticFeedbackInternal(enabled: Boolean): CruxH
     val delegate = LocalHapticFeedback.current
     return remember(enabled, delegate) {
         if (enabled) {
-            AndroidFlareHapticFeedback(delegate)
+            AndroidCruxHapticFeedback(delegate)
         } else {
-            NoOpFlareHapticFeedback
+            NoOpCruxHapticFeedback
         }
     }
 }
 
 @Immutable
-private class AndroidFlareHapticFeedback(
+private class AndroidCruxHapticFeedback(
     private val delegate: androidx.compose.ui.hapticfeedback.HapticFeedback,
 ) : CruxHapticFeedback {
     override fun perform(event: CruxHapticEvent) {

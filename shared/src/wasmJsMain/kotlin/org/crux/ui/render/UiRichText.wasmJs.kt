@@ -154,6 +154,7 @@ private fun String.safeHref(): String? {
         lower.startsWith("https://") -> value
         lower.startsWith("mailto:") -> value
         lower.startsWith("acct:") -> value
+        lower.startsWith("crux://") -> value.toWebHref()
         lower.startsWith("flare://") -> value.toWebHref()
         lower.startsWith("nostr:") -> value
         lower.matches(Regex("""web\+[a-z0-9.+-]+:.*""")) -> value

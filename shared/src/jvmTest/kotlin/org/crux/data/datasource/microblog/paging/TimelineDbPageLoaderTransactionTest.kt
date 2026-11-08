@@ -24,7 +24,7 @@ class TimelineDbPageLoaderTransactionTest {
     @Test
     fun fileBackedPageLoadDoesNotUpgradeReaderToWriter() =
         runTest {
-            val databasePath = Files.createTempFile("flare-page-loader", ".db")
+            val databasePath = Files.createTempFile("crux-page-loader", ".db")
             val path = databasePath.toAbsolutePath().toString()
             val database =
                 Room
