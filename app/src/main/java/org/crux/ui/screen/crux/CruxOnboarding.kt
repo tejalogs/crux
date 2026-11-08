@@ -11,6 +11,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -58,9 +59,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -72,9 +75,11 @@ import compose.icons.fontawesomeicons.solid.Feather
 import compose.icons.fontawesomeicons.solid.LayerGroup
 import compose.icons.fontawesomeicons.solid.Leaf
 import compose.icons.fontawesomeicons.solid.ShieldHalved
+import compose.icons.fontawesomeicons.solid.WandMagicSparkles
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.crux.R
+import org.crux.data.model.Theme
 import org.crux.data.model.appearance.AppearanceKeys
 import org.crux.data.repository.DefaultRssFeeds
 import org.crux.data.repository.SettingsRepository
@@ -269,6 +274,7 @@ private fun StepScaffold(
     primaryLabel: String,
     onPrimary: () -> Unit,
     primaryEnabled: Boolean = true,
+    secondaryAction: (@Composable () -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
@@ -291,17 +297,28 @@ private fun StepScaffold(
             content()
             Spacer(Modifier.height(8.dp))
         }
-        Button(
-            onClick = onPrimary,
-            enabled = primaryEnabled,
-            shape = RoundedCornerShape(18.dp),
+        Column(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 16.dp)
-                    .heightIn(min = 56.dp),
+                    .padding(horizontal = 24.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text(text = primaryLabel, style = MaterialTheme.typography.titleMedium)
+            Button(
+                onClick = onPrimary,
+                enabled = primaryEnabled,
+                shape = RoundedCornerShape(18.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 56.dp),
+            ) {
+                Text(text = primaryLabel, style = MaterialTheme.typography.titleMedium)
+            }
+            if (secondaryAction != null) {
+                secondaryAction()
+            }
         }
     }
 }
@@ -318,8 +335,16 @@ private fun WelcomeStep(onContinue: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
             Spacer(Modifier.height(16.dp))
-            PlatformConstellation()
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.ic_crux_mark),
+                    contentDescription = stringResource(R.string.app_name),
+                    modifier = Modifier.size(64.dp),
+                )
                 Text(
                     text = stringResource(R.string.app_name),
                     style =
@@ -335,6 +360,7 @@ private fun WelcomeStep(onContinue: () -> Unit) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            PlatformConstellation()
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 ValueCard(
                     icon = FontAwesomeIcons.Solid.LayerGroup,
@@ -347,7 +373,7 @@ private fun WelcomeStep(onContinue: () -> Unit) {
                     body = stringResource(R.string.crux_onboarding_value_two_body),
                 )
                 ValueCard(
-                    icon = FontAwesomeIcons.Solid.Feather,
+                    icon = FontAwesomeIcons.Solid.WandMagicSparkles,
                     title = stringResource(R.string.crux_onboarding_value_three_title),
                     body = stringResource(R.string.crux_onboarding_value_three_body),
                 )
@@ -524,7 +550,7 @@ private fun LiveDockPreview(selected: List<CruxPlatform>) {
                 ) {
                     if (selected.isEmpty()) {
                         Text(
-                            text = "No platforms selected",
+                            text = stringResource(R.string.crux_onboarding_dock_empty_hint),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(vertical = 4.dp),
@@ -682,6 +708,41 @@ private fun RssStarterFeedsSelector(
                 }
             }
 
+            AnimatedVisibility(visible = !expanded && selectedFeeds.isNotEmpty()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    selectedFeeds.take(4).forEach { feed ->
+                        Surface(
+                            shape = RoundedCornerShape(100.dp),
+                            color = MaterialTheme.colorScheme.surface,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
+                        ) {
+                            Text(
+                                text = feed.title,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            )
+                        }
+                    }
+                    if (selectedFeeds.size > 4) {
+                        Surface(
+                            shape = RoundedCornerShape(100.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        ) {
+                            Text(
+                                text = "+${selectedFeeds.size - 4} more",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            )
+                        }
+                    }
+                }
+            }
+
             AnimatedVisibility(visible = expanded) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(
@@ -790,8 +851,20 @@ private fun SignInStep(
     StepScaffold(
         title = stringResource(R.string.crux_onboarding_signin_title),
         subtitle = stringResource(R.string.crux_onboarding_signin_subtitle),
-        primaryLabel = stringResource(R.string.crux_onboarding_continue),
+        primaryLabel = stringResource(R.string.crux_onboarding_continue_to_calm),
         onPrimary = onContinue,
+        secondaryAction = {
+            TextButton(
+                onClick = onContinue,
+                modifier = Modifier.heightIn(min = 44.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.crux_onboarding_signin_later),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Surface(
@@ -955,8 +1028,41 @@ private fun LiveCalmSamplePreview(grayscale: Boolean, paperTint: Boolean) {
             ) {
                 Column(
                     modifier = Modifier.padding(14.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Box(
+                            modifier =
+                                Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF3B82F6)),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = "CR",
+                                color = Color.White,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
+                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(
+                                text = "Crux Editorial",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            Text(
+                                text = "Calm Reader • 2 min read",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
                     Text(
                         text = stringResource(R.string.crux_onboarding_calm_sample_headline),
                         style =
@@ -990,6 +1096,52 @@ private fun CalmStep(onFinish: () -> Unit) {
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             LiveCalmSamplePreview(grayscale = appearance.grayscale, paperTint = appearance.paperTint)
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.settings_appearance_theme_group_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        val themes =
+                            listOf(
+                                Theme.SYSTEM to stringResource(R.string.settings_appearance_theme_auto),
+                                Theme.DARK to stringResource(R.string.settings_appearance_theme_dark),
+                                Theme.LIGHT to stringResource(R.string.settings_appearance_theme_light),
+                            )
+                        themes.forEach { (themeOption, label) ->
+                            val isThemeSelected = appearance.theme == themeOption
+                            FilterChip(
+                                selected = isThemeSelected,
+                                onClick = {
+                                    scope.launch {
+                                        settingsRepository.updateAppearance(AppearanceKeys.Theme, themeOption)
+                                    }
+                                },
+                                label = {
+                                    Text(
+                                        text = label,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        textAlign = TextAlign.Center,
+                                    )
+                                },
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                    }
+                }
+            }
             CalmToggle(
                 icon = FontAwesomeIcons.Solid.Leaf,
                 title = stringResource(R.string.crux_grayscale_title),
