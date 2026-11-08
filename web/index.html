@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Crux — Every feed you follow. One calm place.</title>
+  <meta name="description" content="Private, isolated web tabs for Instagram, X, LinkedIn, and Reddit, plus a native distraction-free RSS reader. 100% on-device AI, zero tracking.">
+  <link rel="icon" type="image/png" href="images/icon.png">
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --surface-border: #30363d;
+      --text: #f0f6fc;
+      --text-muted: #8b949e;
+      --primary: #388bfd;
+      --primary-hover: #58a6ff;
+      --accent-green: #238636;
+      --accent-green-hover: #2ea043;
+      --card-bg: rgba(22, 27, 34, 0.7);
+      --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: var(--font-family);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* Hero */
+    header {
+      padding: 72px 0 48px;
+      text-align: center;
+    }
+
+    .logo {
+      width: 104px;
+      height: 104px;
+      border-radius: 24px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      margin-bottom: 24px;
+    }
+
+    h1 {
+      font-size: 3rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin-bottom: 12px;
+      background: linear-gradient(135deg, #ffffff 40%, #8b949e 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .tagline {
+      font-size: 1.35rem;
+      color: var(--text-muted);
+      max-width: 640px;
+      margin: 0 auto 32px;
+      font-weight: 400;
+    }
+
+    .badges {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 36px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--surface);
+      border: 1px solid var(--surface-border);
+      border-radius: 20px;
+      padding: 6px 14px;
+      font-size: 0.85rem;
+      color: var(--text);
+      text-decoration: none;
+    }
+
+    .cta-group {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 28px;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 1rem;
+      text-decoration: none;
+      transition: all 0.2s ease;
+    }
+
+    .btn-primary {
+      background: var(--accent-green);
+      color: #ffffff;
+      box-shadow: 0 4px 16px rgba(35, 134, 54, 0.35);
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-green-hover);
+      transform: translateY(-2px);
+    }
+
+    .btn-secondary {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--surface-border);
+    }
+
+    .btn-secondary:hover {
+      background: #21262d;
+      border-color: #8b949e;
+      transform: translateY(-2px);
+    }
+
+    /* Screenshots */
+    .screenshots-section {
+      padding: 48px 0;
+    }
+
+    .section-title {
+      font-size: 1.8rem;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 36px;
+      letter-spacing: -0.02em;
+    }
+
+    .screenshot-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 18px;
+    }
+
+    .screenshot-card {
+      background: var(--surface);
+      border: 1px solid var(--surface-border);
+      border-radius: 16px;
+      overflow: hidden;
+      transition: transform 0.2s ease, border-color 0.2s ease;
+      text-align: center;
+    }
+
+    .screenshot-card:hover {
+      transform: translateY(-4px);
+      border-color: var(--primary);
+    }
+
+    .screenshot-card img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    .screenshot-label {
+      padding: 10px 8px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text-muted);
+    }
+
+    /* Features */
+    .features-section {
+      padding: 64px 0;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 24px;
+    }
+
+    .feature-card {
+      background: var(--surface);
+      border: 1px solid var(--surface-border);
+      border-radius: 16px;
+      padding: 28px;
+    }
+
+    .feature-icon {
+      font-size: 2rem;
+      margin-bottom: 16px;
+    }
+
+    .feature-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+
+    .feature-desc {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      line-height: 1.55;
+    }
+
+    /* Privacy Banner */
+    .privacy-banner {
+      background: linear-gradient(135deg, rgba(56, 139, 253, 0.1) 0%, rgba(35, 134, 54, 0.1) 100%);
+      border: 1px solid rgba(56, 139, 253, 0.3);
+      border-radius: 20px;
+      padding: 40px;
+      margin: 48px 0;
+      text-align: center;
+    }
+
+    .privacy-banner h2 {
+      font-size: 1.8rem;
+      margin-bottom: 12px;
+    }
+
+    .privacy-banner p {
+      color: var(--text-muted);
+      max-width: 720px;
+      margin: 0 auto 20px;
+      font-size: 1.05rem;
+    }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid var(--surface-border);
+      padding: 48px 0;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+
+    footer a {
+      color: var(--primary-hover);
+      text-decoration: none;
+    }
+
+    footer a:hover {
+      text-decoration: underline;
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+      margin-bottom: 16px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="container">
+      <img src="images/icon.png" alt="Crux App Icon" class="logo">
+      <h1>Crux</h1>
+      <p class="tagline">Every feed you follow. One calm place.<br>Isolated web tabs for social networks and a native RSS reader.</p>
+      
+      <div class="badges">
+        <span class="badge">🛡️ AGPL-3.0 Free Software</span>
+        <span class="badge">🤖 Android 8.0+</span>
+        <span class="badge">🔒 Zero Telemetry</span>
+        <span class="badge">⚡ 100% On-Device AI</span>
+      </div>
+
+      <div class="cta-group">
+        <a href="https://github.com/tejalogs/crux/releases/download/v1.0.0/app-release.apk" class="btn btn-primary">
+          <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
+          Download APK (v1.0.0 &bull; 18.2 MB)
+        </a>
+        <a href="https://github.com/tejalogs/crux" class="btn btn-secondary">
+          <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+          View on GitHub
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    
+    <section class="screenshots-section">
+      <h2 class="section-title">Clean, Focused, Sovereign</h2>
+      <div class="screenshot-grid">
+        <div class="screenshot-card">
+          <img src="images/1.png" alt="Private Web Tabs">
+          <div class="screenshot-label">Isolated Web Tabs</div>
+        </div>
+        <div class="screenshot-card">
+          <img src="images/2.png" alt="RSS Timeline">
+          <div class="screenshot-label">Chronological Feeds</div>
+        </div>
+        <div class="screenshot-card">
+          <img src="images/3.png" alt="Paged Reader">
+          <div class="screenshot-label">Paged Article Reader</div>
+        </div>
+        <div class="screenshot-card">
+          <img src="images/4.png" alt="Privacy Tweaks">
+          <div class="screenshot-label">Privacy & Tweaks</div>
+        </div>
+        <div class="screenshot-card">
+          <img src="images/5.png" alt="On-Device AI">
+          <div class="screenshot-label">On-Device AI Drafts</div>
+        </div>
+        <div class="screenshot-card">
+          <img src="images/6.png" alt="Navigation Drawer">
+          <div class="screenshot-label">Custom Controls</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="features-section">
+      <h2 class="section-title">Why Crux?</h2>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">🛡️</div>
+          <h3 class="feature-title">Isolated Web Profiles</h3>
+          <p class="feature-desc">Instagram, X, LinkedIn, and Reddit each run in independent, sandboxed WebView data containers. Cookies, sessions, local storage, and trackers never touch one another.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🧘</div>
+          <h3 class="feature-title">Focus & Ad Tweaks</h3>
+          <p class="feature-desc">Display-level cleanups: hide Reels and Explore, "Who to follow" sections, promoted posts, and app-install banners. Block autoplay videos across every tab.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📰</div>
+          <h3 class="feature-title">Native RSS Reader</h3>
+          <p class="feature-desc">Import OPML collections, follow your favorite blogs, and read articles with a distraction-free paged reader that remembers your exact reading position.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🔒</div>
+          <h3 class="feature-title">100% On-Device AI</h3>
+          <p class="feature-desc">Smart replies, rephrasing, and article summaries execute entirely on your phone hardware. Zero token costs, zero cloud data transfer, zero telemetry.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🧼</div>
+          <h3 class="feature-title">Tracking Stripper</h3>
+          <p class="feature-desc">Links opening from posts and articles are sanitized with all tracking parameters (utm_*, fbclid, etc.) removed, respecting your Global Privacy Control (GPC).</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🚫</div>
+          <h3 class="feature-title">Zero Server Footprint</h3>
+          <p class="feature-desc">No accounts, no Crux server, no ads, no crashlytics, and Android cloud backup is disabled to guarantee your session tokens remain solely on your device.</p>
+        </div>
+      </div>
+    </section>
+
+    <div class="privacy-banner">
+      <h2>Sovereign Architecture</h2>
+      <p>Crux does not store your passwords. Sessions live inside the isolated WebViews on your phone. When you close or wipe a site in Crux, all traces disappear.</p>
+      <a href="https://github.com/tejalogs/crux/blob/main/docs/PRIVACY.md" class="btn btn-secondary">Read Privacy Architecture</a>
+    </div>
+
+  </main>
+
+  <footer>
+    <div class="container">
+      <div class="footer-links">
+        <a href="https://github.com/tejalogs/crux">GitHub Source</a>
+        <a href="https://github.com/tejalogs/crux/releases">Releases</a>
+        <a href="https://github.com/tejalogs/crux/blob/main/docs/PRIVACY.md">Privacy Policy</a>
+        <a href="https://github.com/tejalogs/crux/blob/main/LICENSE">AGPL-3.0 License</a>
+      </div>
+      <p>Crux is free and open source software under the GNU AGPL-3.0.<br>Built upon Flare by DimensionDev.</p>
+    </div>
+  </footer>
+
+</body>
+</html>
