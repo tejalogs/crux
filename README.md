@@ -56,14 +56,11 @@
 
 Crux supports **Android 8.0 (API 26)** and newer.
 
-### GitHub Releases
+### Official Downloads
 Directly download the signed APK:
-👉 **[Download Crux v1.0.0 APK](https://github.com/tejalogs/crux/releases/tag/v1.0.0)**
+👉 **[Download Crux v1.0.0 APK](https://github.com/tejalogs/crux/releases/tag/v1.0.0)** (18.2 MB)
 
-### F-Droid & Repositories
-- **Direct APK**: Download the signed release APK from [GitHub Releases](https://github.com/tejalogs/crux/releases/tag/v1.0.0).
-- **F-Droid Main Repo**: Official inclusion in the primary `fdroiddata` catalog requires 3 months of repository maturity per F-Droid intake policy. Submission to the IzzyOnDroid community repository and automated release feeds is prepared.
-*(Note: Crux carries the F-Droid `NonFreeNet` anti-feature flag because it connects to proprietary social networks via web tabs).*
+You can also visit the web showcase at **[tejalogs.github.io/crux](https://tejalogs.github.io/crux/)**.
 
 ---
 
