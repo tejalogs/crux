@@ -1,5 +1,8 @@
 package org.crux.feature.agent.common
 
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.persistentListOf
+import kotlinx.coroutines.test.runTest
 import org.crux.data.database.app.model.RssDisplayMode
 import org.crux.data.database.app.model.SubscriptionType
 import org.crux.data.datasource.microblog.ActionMenu
@@ -54,9 +57,6 @@ import org.crux.ui.presenter.compose.ComposeStatus
 import org.crux.ui.render.toUi
 import org.crux.ui.render.toUiPlainText
 import org.crux.ui.route.DeeplinkRoute
-import kotlinx.collections.immutable.ImmutableList
-import kotlinx.collections.immutable.persistentListOf
-import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

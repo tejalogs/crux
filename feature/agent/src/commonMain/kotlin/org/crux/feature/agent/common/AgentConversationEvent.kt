@@ -1,9 +1,9 @@
 package org.crux.feature.agent.common
 
+import kotlinx.serialization.Serializable
 import org.crux.feature.agent.presenter.AgentMessagePart
 import org.crux.ui.model.UiProfile
 import org.crux.ui.model.UiTimelineV2
-import kotlinx.serialization.Serializable
 
 internal sealed interface AgentConversationEvent<out Content, out Trace> {
     data class ContentLoaded<Content>(

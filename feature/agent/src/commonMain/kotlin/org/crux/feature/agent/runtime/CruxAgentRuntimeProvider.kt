@@ -2,12 +2,12 @@ package org.crux.feature.agent.runtime
 
 import ai.koog.http.client.KoogHttpClient
 import ai.koog.http.client.ktor.KtorKoogHttpClient
-import org.crux.data.network.ktorClient
-import org.crux.data.repository.SettingsRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import org.crux.data.network.ktorClient
+import org.crux.data.repository.SettingsRepository
 import org.koin.core.annotation.Single
 
 @Single

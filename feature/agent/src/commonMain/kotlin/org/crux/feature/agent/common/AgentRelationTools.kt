@@ -3,13 +3,13 @@ package org.crux.feature.agent.common
 import ai.koog.agents.core.tools.SimpleTool
 import ai.koog.agents.core.tools.annotations.LLMDescription
 import ai.koog.serialization.typeToken
+import kotlinx.serialization.Serializable
 import org.crux.data.datasource.microblog.datasource.RelationDataSource
 import org.crux.data.datasource.microblog.loader.RelationActionType
 import org.crux.feature.agent.presenter.AgentMessagePart
 import org.crux.model.MicroBlogKey
 import org.crux.ui.model.UiProfile
 import org.crux.ui.model.UiRelation
-import kotlinx.serialization.Serializable
 
 internal class LoadUserRelationTool(
     private val session: AgentToolSession,

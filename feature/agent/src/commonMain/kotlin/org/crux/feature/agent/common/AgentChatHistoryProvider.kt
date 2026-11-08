@@ -4,6 +4,13 @@ import ai.koog.agents.chatMemory.feature.ChatHistoryProvider
 import ai.koog.prompt.message.Message
 import ai.koog.prompt.message.MessagePart
 import androidx.compose.runtime.Immutable
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import org.crux.feature.agent.database.AgentDatabase
 import org.crux.feature.agent.database.connect
 import org.crux.feature.agent.database.model.DbAgentConversation
@@ -13,13 +20,6 @@ import org.crux.feature.agent.presenter.buildAgentMessageParts
 import org.crux.feature.agent.presenter.markAgentInputRequestSelected
 import org.crux.feature.agent.presenter.toAgentTextParts
 import org.crux.ui.model.UiProfile
-import kotlinx.collections.immutable.ImmutableList
-import kotlinx.collections.immutable.toImmutableList
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
-import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import org.koin.core.annotation.Single
 import kotlin.time.Clock
 

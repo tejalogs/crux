@@ -4,14 +4,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import org.crux.di.koinInject
-import org.crux.feature.agent.common.AgentChatHistoryProvider
-import org.crux.feature.agent.common.AgentChatRoom
-import org.crux.ui.presenter.PresenterBase
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import org.crux.di.koinInject
+import org.crux.feature.agent.common.AgentChatHistoryProvider
+import org.crux.feature.agent.common.AgentChatRoom
+import org.crux.ui.presenter.PresenterBase
 
 public class AgentChatHistoryPresenter : PresenterBase<AgentChatHistoryPresenter.State>() {
     private val historyProvider: AgentChatHistoryProvider by koinInject()

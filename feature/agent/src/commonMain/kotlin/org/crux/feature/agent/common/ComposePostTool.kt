@@ -3,6 +3,10 @@ package org.crux.feature.agent.common
 import ai.koog.agents.core.tools.SimpleTool
 import ai.koog.agents.core.tools.annotations.LLMDescription
 import ai.koog.serialization.typeToken
+import kotlinx.collections.immutable.persistentListOf
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.serialization.Serializable
 import org.crux.data.datasource.microblog.ComposeData
 import org.crux.data.datasource.microblog.ComposeType
 import org.crux.feature.agent.presenter.AgentMessagePart
@@ -15,10 +19,6 @@ import org.crux.ui.model.UiTranslatableText
 import org.crux.ui.presenter.compose.ComposeStatus
 import org.crux.ui.render.toUi
 import org.crux.ui.render.toUiPlainText
-import kotlinx.collections.immutable.persistentListOf
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.firstOrNull
-import kotlinx.serialization.Serializable
 import kotlin.time.Clock
 
 internal class ComposePostTool(

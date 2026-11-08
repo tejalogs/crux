@@ -79,8 +79,7 @@ class CatchMeUpDigestEngineTest {
         val digest = CatchMeUpDigestEngine.generateDigest(posts)
         assertNotNull(digest)
         assertEquals("Catch Me Up", digest.title)
-        assertTrue(digest.subtitle.contains("Gemma 4 Edge"), "Subtitle should mention Gemma 4 Edge")
-        assertTrue(digest.subtitle.contains("Zero Egress"), "Subtitle should guarantee zero egress")
+        assertTrue(digest.subtitle.contains("on this device"), "Subtitle should say where the summary was made")
         assertEquals(4, digest.postCount)
 
         assertTrue(digest.topTopics.isNotEmpty(), "Top topics should be populated")

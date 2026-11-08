@@ -11,6 +11,7 @@ import ai.koog.agents.core.tools.ToolRegistry
 import ai.koog.http.client.ktor.KtorKoogHttpClient
 import ai.koog.prompt.Prompt
 import ai.koog.prompt.message.Message
+import kotlinx.coroutines.test.runTest
 import org.crux.data.database.app.model.RssDisplayMode
 import org.crux.data.database.app.model.SubscriptionType
 import org.crux.data.datasource.microblog.paging.CacheableRemoteLoader
@@ -25,7 +26,6 @@ import org.crux.feature.agent.runtime.AiConfigKoogBridge
 import org.crux.ui.model.UiRssSource
 import org.crux.ui.model.UiTimelineV2
 import org.crux.ui.render.toUi
-import kotlinx.coroutines.test.runTest
 import java.io.File
 import java.util.Properties
 import kotlin.test.Test

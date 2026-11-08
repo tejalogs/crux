@@ -9,15 +9,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import org.crux.common.PagingState
-import org.crux.common.collectPagingState
-import org.crux.di.koinInject
-import org.crux.feature.agent.common.AgentChatHistoryMessage
-import org.crux.feature.agent.common.AgentChatHistoryProvider
-import org.crux.feature.agent.common.AgentChatRoom
-import org.crux.feature.agent.common.AgentConversationEvent
-import org.crux.feature.agent.common.AgentInputRequest
-import org.crux.feature.agent.common.AgentTrace
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
@@ -33,6 +24,15 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.crux.common.PagingState
+import org.crux.common.collectPagingState
+import org.crux.di.koinInject
+import org.crux.feature.agent.common.AgentChatHistoryMessage
+import org.crux.feature.agent.common.AgentChatHistoryProvider
+import org.crux.feature.agent.common.AgentChatRoom
+import org.crux.feature.agent.common.AgentConversationEvent
+import org.crux.feature.agent.common.AgentInputRequest
+import org.crux.feature.agent.common.AgentTrace
 
 @Immutable
 internal data class AgentChatPresenterController<Content : Any, Context : Any>(

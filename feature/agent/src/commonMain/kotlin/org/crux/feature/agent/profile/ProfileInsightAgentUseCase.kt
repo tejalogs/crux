@@ -2,6 +2,15 @@ package org.crux.feature.agent.profile
 
 import ai.koog.prompt.Prompt
 import androidx.paging.LoadState
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.channels.SendChannel
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import org.crux.common.CacheState
 import org.crux.common.Locale
 import org.crux.data.datasource.microblog.datasource.UserDataSource
@@ -21,15 +30,6 @@ import org.crux.feature.agent.presenter.distinctAgentMessageParts
 import org.crux.feature.agent.runtime.AgentAvailability
 import org.crux.model.MicroBlogKey
 import org.crux.ui.model.UiProfile
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.async
-import kotlinx.coroutines.channels.SendChannel
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.channelFlow
-import kotlinx.coroutines.flow.filterIsInstance
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
 import org.koin.core.annotation.Single
 
 @Single

@@ -5,6 +5,8 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import org.crux.common.PagingState
 import org.crux.data.datasource.microblog.datasource.UserDataSource
 import org.crux.data.repository.AccountMicroblogDataSource
@@ -21,8 +23,6 @@ import org.crux.model.AccountType
 import org.crux.model.MicroBlogKey
 import org.crux.ui.model.UiProfile
 import org.crux.ui.presenter.PresenterBase
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.distinctUntilChanged
 
 public class ProfileInsightPresenter(
     private val accountType: AccountType,

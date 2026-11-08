@@ -4,6 +4,15 @@ import ai.koog.prompt.Prompt
 import ai.koog.prompt.message.AttachmentContent
 import ai.koog.prompt.message.AttachmentSource
 import androidx.paging.LoadState
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.channels.SendChannel
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.mapNotNull
 import org.crux.common.CacheState
 import org.crux.common.Locale
 import org.crux.data.datasource.microblog.ActionMenu
@@ -27,15 +36,6 @@ import org.crux.model.MicroBlogKey
 import org.crux.ui.model.UiMedia
 import org.crux.ui.model.UiTimelineV2
 import org.crux.ui.model.contentPostOrNull
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.async
-import kotlinx.coroutines.channels.SendChannel
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.channelFlow
-import kotlinx.coroutines.flow.filterIsInstance
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.mapNotNull
 import org.koin.core.annotation.Single
 
 @Single

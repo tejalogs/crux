@@ -1,6 +1,11 @@
 package org.crux.feature.agent.localhistory
 
 import ai.koog.prompt.Prompt
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.channels.SendChannel
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.channelFlow
+import kotlinx.serialization.Serializable
 import org.crux.common.Locale
 import org.crux.data.repository.AccountMicroblogDataSource
 import org.crux.feature.agent.common.AgentChatHistoryProvider
@@ -14,11 +19,6 @@ import org.crux.feature.agent.common.CruxAgentUnavailableException
 import org.crux.feature.agent.common.resolveAgentVisibleResult
 import org.crux.feature.agent.presenter.distinctAgentMessageParts
 import org.crux.feature.agent.runtime.AgentAvailability
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.channels.SendChannel
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.channelFlow
-import kotlinx.serialization.Serializable
 import org.koin.core.annotation.Single
 
 @Serializable

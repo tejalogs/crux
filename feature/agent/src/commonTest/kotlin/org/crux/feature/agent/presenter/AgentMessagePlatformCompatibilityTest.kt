@@ -1,5 +1,6 @@
 package org.crux.feature.agent.presenter
 
+import kotlinx.collections.immutable.persistentListOf
 import org.crux.common.decodeJson
 import org.crux.common.encodeJson
 import org.crux.model.AccountType
@@ -9,7 +10,6 @@ import org.crux.ui.model.UiTimelineV2
 import org.crux.ui.model.UiTranslatableText
 import org.crux.ui.render.toUi
 import org.crux.ui.render.toUiPlainText
-import kotlinx.collections.immutable.persistentListOf
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

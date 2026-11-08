@@ -27,7 +27,12 @@ internal object SovereignEdgeEngine {
         tools: List<ToolDescriptor>,
     ): Message.Assistant {
         val messages = prompt.messages
-        val latestUserMessage = messages.lastOrNull { it.role == Message.Role.User }?.textContent().orEmpty().trim()
+        val latestUserMessage =
+            messages
+                .lastOrNull { it.role == Message.Role.User }
+                ?.textContent()
+                .orEmpty()
+                .trim()
         val systemPrompt = messages.firstOrNull { it.role == Message.Role.System }?.textContent().orEmpty()
 
         // 1. Tool Call Evaluation
@@ -76,7 +81,9 @@ internal object SovereignEdgeEngine {
                         )
                     }
 
-                    else -> Unit
+                    else -> {
+                        // Other part types have no streaming representation.
+                    }
                 }
             }
             emit(StreamFrame.End(finishReason = assistantMessage.finishReason))
@@ -93,9 +100,10 @@ internal object SovereignEdgeEngine {
         val toolMap = tools.associateBy { it.name }
 
         // Check if latest message is a tool result confirming previous step
-        val hasToolResults = history.any { msg ->
-            msg.parts.any { it is MessagePart.Tool.Result }
-        }
+        val hasToolResults =
+            history.any { msg ->
+                msg.parts.any { it is MessagePart.Tool.Result }
+            }
 
         // If tool results already exist and user didn't ask another question, don't re-dispatch same tool
         if (hasToolResults && !userInput.contains("http://") && !userInput.contains("https://")) {
@@ -105,15 +113,24 @@ internal object SovereignEdgeEngine {
         // A. Subscription Saving / Adding
         if (toolMap.containsKey("save_subscription_source") || toolMap.containsKey("detect_subscription_source")) {
             val url = URL_REGEX.find(userInput)?.value
-            val isAddRequest = userInput.contains("订阅") ||
-                userInput.contains("subscribe", ignoreCase = true) ||
-                userInput.contains("add", ignoreCase = true) ||
-                userInput.contains("保存", ignoreCase = true)
+            val isAddRequest =
+                userInput.contains("订阅") ||
+                    userInput.contains("subscribe", ignoreCase = true) ||
+                    userInput.contains("add", ignoreCase = true) ||
+                    userInput.contains("保存", ignoreCase = true)
 
             if (url != null && isAddRequest) {
                 // If user explicitly confirms in prompt (e.g. "确认" or "confirm"), confirmed = true
                 val confirmed = userInput.contains("确认") || userInput.contains("confirm", ignoreCase = true)
-                val targetTool = if (toolMap.containsKey("save_subscription_source")) "save_subscription_source" else "detect_subscription_source"
+                val targetTool =
+                    if (toolMap.containsKey(
+                            "save_subscription_source",
+                        )
+                    ) {
+                        "save_subscription_source"
+                    } else {
+                        "detect_subscription_source"
+                    }
                 val argsJson = """{"url":"$url","confirmed":$confirmed}"""
 
                 return MessagePart.Tool.Call(
@@ -126,15 +143,17 @@ internal object SovereignEdgeEngine {
 
         // B. Timeline / Local History search
         if (toolMap.containsKey("search_timeline_posts")) {
-            val isSearchRequest = userInput.contains("搜索") ||
-                userInput.contains("search", ignoreCase = true) ||
-                userInput.contains("find", ignoreCase = true) ||
-                userInput.contains("查找", ignoreCase = true)
+            val isSearchRequest =
+                userInput.contains("搜索") ||
+                    userInput.contains("search", ignoreCase = true) ||
+                    userInput.contains("find", ignoreCase = true) ||
+                    userInput.contains("查找", ignoreCase = true)
 
             if (isSearchRequest) {
-                val queryClean = userInput
-                    .replace(Regex("(搜索|search|find|查找|帮我|请问)", RegexOption.IGNORE_CASE), "")
-                    .trim()
+                val queryClean =
+                    userInput
+                        .replace(Regex("(搜索|search|find|查找|帮我|请问)", RegexOption.IGNORE_CASE), "")
+                        .trim()
                 if (queryClean.isNotBlank()) {
                     return MessagePart.Tool.Call(
                         id = "call_${Uuid.random().toString().take(8)}",
@@ -154,9 +173,10 @@ internal object SovereignEdgeEngine {
         history: List<Message>,
     ): String {
         // Extract any tool results to synthesize a confirmation or summary
-        val toolResultTexts: List<String> = history.flatMap { msg ->
-            msg.parts.filterIsInstance<MessagePart.Tool.Result>().map { it.output }
-        }
+        val toolResultTexts: List<String> =
+            history.flatMap { msg ->
+                msg.parts.filterIsInstance<MessagePart.Tool.Result>().map { it.output }
+            }
 
         if (toolResultTexts.isNotEmpty()) {
             val lastResult = toolResultTexts.last().trim()
@@ -165,12 +185,15 @@ internal object SovereignEdgeEngine {
             }
         }
 
-        val isChinese = systemPrompt.contains("Chinese", ignoreCase = true) ||
-            userInput.any { it.code in 0x4E00..0x9FFF }
+        val isChinese =
+            systemPrompt.contains("Chinese", ignoreCase = true) ||
+                userInput.any { it.code in 0x4E00..0x9FFF }
 
         // Context-aware response templates for on-device assistant
         return when {
-            userInput.contains("总结") || userInput.contains("tldr", ignoreCase = true) || userInput.contains("summarize", ignoreCase = true) -> {
+            userInput.contains(
+                "总结",
+            ) || userInput.contains("tldr", ignoreCase = true) || userInput.contains("summarize", ignoreCase = true) -> {
                 if (isChinese) {
                     "【Gemma 4 Edge 端侧摘要】\n根据时间线最新动态，主要内容涵盖分布式社交网络进展与去中心化交互实践。"
                 } else {
@@ -178,7 +201,8 @@ internal object SovereignEdgeEngine {
                 }
             }
 
-            userInput.contains("分析") || userInput.contains("insight", ignoreCase = true) || userInput.contains("sentiment", ignoreCase = true) -> {
+            userInput.contains("分析") || userInput.contains("insight", ignoreCase = true) ||
+                userInput.contains("sentiment", ignoreCase = true) -> {
                 if (isChinese) {
                     "【Gemma 4 Edge 洞察分析】\n- 情感倾向：整体积极平稳\n- 核心话题：去中心化网络、个人主权数据与端侧隐私计算\n- 互动强度：高参与度"
                 } else {

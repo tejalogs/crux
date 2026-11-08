@@ -89,6 +89,8 @@ public class AiTranslationTestPresenter : PresenterBase<AiTranslationTestPresent
                                     sourceJson = sourceJson,
                                     targetLanguage = targetLanguage,
                                     prompt = prompt,
+                                    // The settings test sends a fixed built-in sample, never the person's content.
+                                    enforceDisclosure = false,
                                 )
                             require(!translatedContent.isNullOrBlank()) { "Translation returned empty response" }
                             toUiRichText(

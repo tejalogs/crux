@@ -180,42 +180,6 @@ public class AiConfigPresenter : PresenterBase<AiConfigPresenter.State>() {
                 )
             }
 
-        LaunchedEffect(Unit) {
-            supportedTypes =
-                buildList {
-                    if (onDeviceAI.isAvailable()) {
-                        add(AiTypeOption.OnDevice)
-                    }
-                    add(AiTypeOption.OpenAI)
-                }.toImmutableList()
-        }
-
-        LaunchedEffect(Unit) {
-            snapshotFlow { appSettings.aiConfig.type as? AppSettings.AiConfig.Type.OpenAI }
-                .map { (it?.serverUrl ?: "") to (it?.apiKey ?: "") }
-                .distinctUntilChanged()
-                .debounce(666L)
-                .collectLatest { (serverUrl, apiKey) ->
-                    if (serverUrl.isBlank()) {
-                        openAIModels = UiState.Success(persistentListOf())
-                    } else {
-                        openAIModels = UiState.Loading()
-                        openAIModels =
-                            runCatching {
-                                UiState.Success(
-                                    openAIService
-                                        .models(
-                                            serverUrl = serverUrl,
-                                            apiKey = apiKey,
-                                        ).toImmutableList(),
-                                )
-                            }.getOrElse {
-                                UiState.Error(it)
-                            }
-                    }
-                }
-        }
-
         fun update(block: AppSettings.AiConfig.() -> AppSettings.AiConfig) {
             scope.launch {
                 withContext(Dispatchers.Main) {
@@ -246,6 +210,13 @@ public class AiConfigPresenter : PresenterBase<AiConfigPresenter.State>() {
             }
         }
 
+        LaunchedEffect(Unit) {
+            if (appSettings.aiConfig.type !is AppSettings.AiConfig.Type.OnDevice) {
+                update { copy(type = AppSettings.AiConfig.Type.OnDevice()) }
+            }
+            supportedTypes = persistentListOf(AiTypeOption.OnDevice)
+        }
+
         return object : State {
             override val openAIModels: UiState<ImmutableList<String>> = openAIModels
             override val supportedTypes: ImmutableList<AiTypeOption> = supportedTypes
@@ -257,7 +228,7 @@ public class AiConfigPresenter : PresenterBase<AiConfigPresenter.State>() {
             override val aiType: AiTypeOption =
                 when (appSettings.aiConfig.type) {
                     is AppSettings.AiConfig.Type.OnDevice -> AiTypeOption.OnDevice
-                    is AppSettings.AiConfig.Type.OpenAI -> AiTypeOption.OpenAI
+                    is AppSettings.AiConfig.Type.OpenAI -> AiTypeOption.OnDevice
                 }
             override val onDeviceModel: String =
                 (appSettings.aiConfig.type as? AppSettings.AiConfig.Type.OnDevice)?.model
@@ -391,22 +362,7 @@ public class AiConfigPresenter : PresenterBase<AiConfigPresenter.State>() {
             override fun setAIType(value: AiTypeOption) {
                 update {
                     copy(
-                        type =
-                            when (value) {
-                                AiTypeOption.OnDevice -> {
-                                    AppSettings.AiConfig.Type.OnDevice()
-                                }
-
-                                AiTypeOption.OpenAI -> {
-                                    AppSettings.AiConfig.Type.OpenAI(
-                                        serverUrl = "",
-                                        apiKey = "",
-                                        model = "",
-                                        reasoningEffort = "",
-                                        extraBody = "",
-                                    )
-                                }
-                            },
+                        type = (type as? AppSettings.AiConfig.Type.OnDevice) ?: AppSettings.AiConfig.Type.OnDevice(),
                     )
                 }
             }
@@ -598,26 +554,7 @@ public class AiConfigPresenter : PresenterBase<AiConfigPresenter.State>() {
 
             override fun selectType(type: AiTypeOption) {
                 update {
-                    when (type) {
-                        AiTypeOption.OnDevice -> {
-                            copy(type = AppSettings.AiConfig.Type.OnDevice())
-                        }
-
-                        AiTypeOption.OpenAI -> {
-                            val currentType = this.type as? AppSettings.AiConfig.Type.OpenAI
-                            copy(
-                                type =
-                                    currentType
-                                        ?: AppSettings.AiConfig.Type.OpenAI(
-                                            serverUrl = "",
-                                            apiKey = "",
-                                            model = "",
-                                            reasoningEffort = "",
-                                            extraBody = "",
-                                        ),
-                            )
-                        }
-                    }
+                    copy(type = (this.type as? AppSettings.AiConfig.Type.OnDevice) ?: AppSettings.AiConfig.Type.OnDevice())
                 }
             }
 

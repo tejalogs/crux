@@ -20,7 +20,6 @@ kotlin {
             CruxPlatform.JVM,
             CruxPlatform.IOS,
             CruxPlatform.WEB,
-            CruxPlatform.MACOS,
         )
         ksp(
             libs.room.compiler,

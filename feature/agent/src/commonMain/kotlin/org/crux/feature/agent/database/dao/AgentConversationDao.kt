@@ -4,9 +4,9 @@ import androidx.room3.Dao
 import androidx.room3.Insert
 import androidx.room3.OnConflictStrategy
 import androidx.room3.Query
+import kotlinx.coroutines.flow.Flow
 import org.crux.feature.agent.database.model.DbAgentConversation
 import org.crux.feature.agent.database.model.DbAgentMessage
-import kotlinx.coroutines.flow.Flow
 
 @Dao
 internal interface AgentConversationDao {

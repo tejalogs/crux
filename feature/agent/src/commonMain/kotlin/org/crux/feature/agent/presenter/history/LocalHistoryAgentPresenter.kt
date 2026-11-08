@@ -5,6 +5,8 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import org.crux.common.PagingState
 import org.crux.data.repository.AccountMicroblogDataSource
 import org.crux.data.repository.AccountService
@@ -17,8 +19,6 @@ import org.crux.feature.agent.localhistory.LocalHistoryAgentTarget
 import org.crux.feature.agent.localhistory.LocalHistoryAgentUseCase
 import org.crux.feature.agent.presenter.rememberAgentChatPresenterController
 import org.crux.ui.presenter.PresenterBase
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
 
 public class LocalHistoryAgentPresenter(
     private val conversationId: String,

@@ -1,16 +1,16 @@
 package org.crux.feature.agent.presenter
 
 import androidx.compose.runtime.Immutable
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.toImmutableList
+import kotlinx.serialization.Serializable
 import org.crux.feature.agent.common.AgentInputRequest
 import org.crux.feature.agent.common.agentAttachmentRef
 import org.crux.feature.agent.common.agentDisplayPost
 import org.crux.model.MicroBlogKey
 import org.crux.ui.model.UiProfile
 import org.crux.ui.model.UiTimelineV2
-import kotlinx.collections.immutable.ImmutableList
-import kotlinx.collections.immutable.persistentListOf
-import kotlinx.collections.immutable.toImmutableList
-import kotlinx.serialization.Serializable
 
 @Serializable
 @Immutable

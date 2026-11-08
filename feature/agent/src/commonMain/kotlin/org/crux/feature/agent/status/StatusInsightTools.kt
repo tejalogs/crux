@@ -3,6 +3,10 @@ package org.crux.feature.agent.status
 import ai.koog.agents.core.tools.SimpleTool
 import ai.koog.agents.core.tools.annotations.LLMDescription
 import ai.koog.serialization.typeToken
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.serialization.Serializable
 import org.crux.data.datasource.microblog.MicroblogDataSource
 import org.crux.data.datasource.microblog.ProfileTab
 import org.crux.data.datasource.microblog.paging.PagingRequest
@@ -24,10 +28,6 @@ import org.crux.ui.model.UiMedia
 import org.crux.ui.model.UiProfile
 import org.crux.ui.model.UiTimelineV2
 import org.crux.ui.model.contentPostOrNull
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
-import kotlinx.serialization.Serializable
 
 internal class LoadStatusContextTool(
     private val session: AgentToolSession,

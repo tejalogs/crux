@@ -388,7 +388,7 @@ public object CatchMeUpDigestEngine {
         }
 
         val totalPosts = eligiblePosts.size
-        val subtitle = "Distilled $totalPosts posts offline • Gemma 4 Edge • Zero Egress"
+        val subtitle = "Summarized $totalPosts posts on this device"
 
         return FeedDigest(
             title = "Catch Me Up",

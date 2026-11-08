@@ -102,28 +102,10 @@ internal fun AiConfigScreen(onBack: () -> Unit) {
                     .padding(horizontal = screenHorizontalPadding),
             verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
         ) {
-            val serverTitle = stringResource(id = R.string.settings_ai_config_server)
-            val serverHint = stringResource(id = R.string.settings_ai_config_server_hint)
-            val serverRequirementHint = stringResource(id = R.string.settings_ai_config_server_url_requirement)
-            val apiKeyTitle = stringResource(id = R.string.settings_ai_config_api_key)
-            val apiKeyHint = stringResource(id = R.string.settings_ai_config_api_key_hint)
-            val extraBodyTitle = stringResource(id = R.string.settings_ai_config_extra_body)
-            val extraBodyHint = """{"thinking": {"type": "enabled"}}"""
-            val modelTitle = stringResource(id = R.string.settings_ai_config_model)
-            val modelPlaceholder = stringResource(id = R.string.settings_ai_config_model_select)
             val tldrPromptTitle = stringResource(id = R.string.settings_ai_config_tldr_prompt)
             val onDeviceOllamaTitle = stringResource(id = R.string.settings_ai_config_on_device_ollama)
             val onDeviceOllamaDesc = stringResource(id = R.string.settings_ai_config_on_device_ollama_desc)
             val onDeviceOllamaHint = stringResource(id = R.string.settings_ai_config_on_device_ollama_hint)
-            val shouldShowManualModelInput =
-                when (val openAIModels = state.openAIModels) {
-                    is UiState.Error -> true
-                    is UiState.Success -> openAIModels.data.isEmpty()
-                    is UiState.Loading -> false
-                }
-            val shouldShowAiAgentSwitch =
-                (state.aiType == AiTypeOption.OpenAI && state.openAIModel.isNotBlank()) ||
-                    (state.aiType == AiTypeOption.OnDevice)
 
             Text(
                 text = stringResource(id = R.string.settings_ai_section_provider),
@@ -134,501 +116,160 @@ internal fun AiConfigScreen(onBack: () -> Unit) {
             )
 
             SegmentedListItem(
-                checked = state.showTypeDropdown,
-                onCheckedChange = {
-                    state.setShowTypeDropdown(it)
-                },
-                shapes =
-                    if (state.aiType == AiTypeOption.OpenAI || state.aiType == AiTypeOption.OnDevice) {
-                        ListItemDefaults.first()
-                    } else {
-                        ListItemDefaults.single()
-                    },
+                shapes = ListItemDefaults.first(),
                 content = {
-                    Text(
-                        text = stringResource(id = R.string.settings_ai_config_type),
-                    )
+                    Text(text = stringResource(id = R.string.settings_ai_config_on_device_privacy))
                 },
                 supportingContent = {
                     Text(
-                        text = stringResource(id = R.string.settings_ai_config_type_description),
+                        text = stringResource(id = R.string.settings_ai_config_on_device_privacy_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                },
+            )
+
+            val currentSpec =
+                OnDeviceModelSpec.SupportedModels.firstOrNull {
+                    it.displayName.equals(state.onDeviceModel, ignoreCase = true) ||
+                        it.modelId.equals(state.onDeviceModel, ignoreCase = true)
+                } ?: OnDeviceModelSpec.Gemma4E2B
+            SegmentedListItem(
+                checked = state.showOnDeviceModelDropdown,
+                onCheckedChange = { state.setShowOnDeviceModelDropdown(it) },
+                shapes = ListItemDefaults.item(),
+                content = {
+                    Text(text = stringResource(id = R.string.settings_ai_config_on_device_model))
+                },
+                supportingContent = {
+                    Text(
+                        text =
+                            "${currentSpec.displayName} • LiteRT-LM " +
+                                "(${currentSpec.parameterCount}, ~${currentSpec.memoryFootprintMb}MB RAM)",
                         style = MaterialTheme.typography.bodySmall,
                     )
                 },
                 trailingContent = {
-                    androidx.compose.foundation.layout.Box {
-                        TextButton(
-                            onClick = {
-                                state.setShowTypeDropdown(true)
-                            },
-                        ) {
-                            Text(
-                                text =
-                                    stringResource(
-                                        id =
-                                            when (state.aiType) {
-                                                AiTypeOption.OnDevice -> R.string.settings_ai_config_type_on_device
-                                                AiTypeOption.OpenAI -> R.string.settings_ai_config_type_openai
-                                            },
-                                    ),
-                            )
+                    Box {
+                        TextButton(onClick = { state.setShowOnDeviceModelDropdown(true) }) {
+                            Text(text = currentSpec.displayName)
                         }
                         CruxDropdownMenu(
-                            expanded = state.showTypeDropdown,
-                            onDismissRequest = {
-                                state.setShowTypeDropdown(false)
-                            },
+                            expanded = state.showOnDeviceModelDropdown,
+                            onDismissRequest = { state.setShowOnDeviceModelDropdown(false) },
                         ) {
-                            state.supportedTypes
-                                .forEach { type ->
-                                    DropdownMenuItem(
-                                        text = {
+                            OnDeviceModelSpec.SupportedModels.forEach { spec ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Column {
+                                            Text(text = spec.displayName)
                                             Text(
-                                                text =
-                                                    stringResource(
-                                                        id =
-                                                            when (type) {
-                                                                AiTypeOption.OnDevice -> R.string.settings_ai_config_type_on_device
-                                                                AiTypeOption.OpenAI -> R.string.settings_ai_config_type_openai
-                                                            },
-                                                    ),
+                                                text = "${spec.parameterCount} params • ~${spec.memoryFootprintMb}MB RAM",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             )
-                                        },
-                                        onClick = {
-                                            state.setShowTypeDropdown(false)
-                                            state.selectType(type)
-                                        },
-                                    )
-                                }
+                                        }
+                                    },
+                                    onClick = {
+                                        state.setShowOnDeviceModelDropdown(false)
+                                        state.setOnDeviceModel(spec.displayName)
+                                    },
+                                )
+                            }
                         }
                     }
                 },
             )
-            AnimatedVisibility(visible = state.aiType == AiTypeOption.OpenAI) {
-                SegmentedListItem(
-                    checked = state.textEditDialog?.field == AiConfigEditField.ServerUrl,
-                    onCheckedChange = { checked ->
-                        if (checked) {
-                            state.setTextEditDialog(
-                                TextEditDialogState(
-                                    field = AiConfigEditField.ServerUrl,
-                                    title = serverTitle,
-                                    placeholder = serverHint,
-                                    value = state.openAIServerUrl,
-                                    suggestions = state.serverSuggestions,
-                                    hint = serverRequirementHint,
-                                    onConfirm = { newValue ->
-                                        state.setOpenAIServerUrl(newValue)
-                                    },
-                                ),
-                            )
-                        } else if (state.textEditDialog?.field == AiConfigEditField.ServerUrl) {
-                            state.setTextEditDialog(null)
+
+            SegmentedListItem(
+                checked = state.showOnDeviceBackendDropdown,
+                onCheckedChange = { state.setShowOnDeviceBackendDropdown(it) },
+                shapes = ListItemDefaults.item(),
+                content = {
+                    Text(text = stringResource(id = R.string.settings_ai_config_on_device_backend))
+                },
+                supportingContent = {
+                    Text(
+                        text = OnDeviceHardwareBackend.fromId(state.onDeviceHardwareBackend).label,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                },
+                trailingContent = {
+                    Box {
+                        TextButton(onClick = { state.setShowOnDeviceBackendDropdown(true) }) {
+                            Text(text = OnDeviceHardwareBackend.fromId(state.onDeviceHardwareBackend).name)
                         }
-                    },
-                    shapes = ListItemDefaults.item(),
-                    content = {
-                        Text(text = serverTitle)
-                    },
-                    supportingContent = {
-                        Text(
-                            text =
-                                state.openAIServerUrl.ifBlank {
-                                    stringResource(id = R.string.settings_ai_config_value_empty_placeholder)
-                                },
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    },
-                )
-            }
-            AnimatedVisibility(visible = state.aiType == AiTypeOption.OpenAI) {
-                SegmentedListItem(
-                    checked = state.textEditDialog?.field == AiConfigEditField.ApiKey,
-                    onCheckedChange = { checked ->
-                        if (checked) {
-                            state.setTextEditDialog(
-                                TextEditDialogState(
-                                    field = AiConfigEditField.ApiKey,
-                                    title = apiKeyTitle,
-                                    placeholder = apiKeyHint,
-                                    value = state.openAIApiKey,
-                                    onConfirm = { newValue ->
-                                        state.setOpenAIApiKey(newValue)
+                        CruxDropdownMenu(
+                            expanded = state.showOnDeviceBackendDropdown,
+                            onDismissRequest = { state.setShowOnDeviceBackendDropdown(false) },
+                        ) {
+                            OnDeviceHardwareBackend.entries.forEach { backend ->
+                                DropdownMenuItem(
+                                    text = { Text(text = backend.label) },
+                                    onClick = {
+                                        state.setShowOnDeviceBackendDropdown(false)
+                                        state.setOnDeviceHardwareBackend(backend.id)
                                     },
-                                ),
-                            )
-                        } else if (state.textEditDialog?.field == AiConfigEditField.ApiKey) {
-                            state.setTextEditDialog(null)
-                        }
-                    },
-                    shapes = ListItemDefaults.item(),
-                    content = {
-                        Text(text = apiKeyTitle)
-                    },
-                    supportingContent = {
-                        Text(
-                            text =
-                                state.openAIApiKey.ifBlank {
-                                    stringResource(id = R.string.settings_ai_config_value_empty_placeholder)
-                                },
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    },
-                )
-            }
-            AnimatedVisibility(visible = state.aiType == AiTypeOption.OpenAI) {
-                SegmentedListItem(
-                    checked = state.showReasoningEffortDropdown,
-                    onCheckedChange = { checked ->
-                        state.setShowReasoningEffortDropdown(checked)
-                    },
-                    shapes = ListItemDefaults.item(),
-                    content = {
-                        Text(text = stringResource(id = R.string.settings_ai_config_reasoning_effort))
-                    },
-                    supportingContent = {
-                        Text(
-                            text = stringResource(id = R.string.settings_ai_config_reasoning_effort_description),
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    },
-                    trailingContent = {
-                        Box {
-                            TextButton(
-                                onClick = {
-                                    state.setShowReasoningEffortDropdown(true)
-                                },
-                            ) {
-                                Text(
-                                    text = openAIReasoningEffortLabel(state.openAIReasoningEffort),
                                 )
                             }
-                            CruxDropdownMenu(
-                                expanded = state.showReasoningEffortDropdown,
-                                onDismissRequest = {
-                                    state.setShowReasoningEffortDropdown(false)
+                        }
+                    }
+                },
+            )
+
+            SegmentedListItem(
+                onClick = { state.setOnDeviceMtpEnabled(!state.onDeviceMtpEnabled) },
+                shapes = ListItemDefaults.item(),
+                content = {
+                    Text(text = stringResource(id = R.string.settings_ai_config_on_device_mtp))
+                },
+                supportingContent = {
+                    Text(
+                        text = stringResource(id = R.string.settings_ai_config_on_device_mtp_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                },
+                trailingContent = {
+                    Switch(
+                        checked = state.onDeviceMtpEnabled,
+                        onCheckedChange = { state.setOnDeviceMtpEnabled(it) },
+                    )
+                },
+            )
+
+            SegmentedListItem(
+                checked = state.textEditDialog?.field == AiConfigEditField.OnDeviceEndpoint,
+                onCheckedChange = { checked ->
+                    if (checked) {
+                        state.setTextEditDialog(
+                            TextEditDialogState(
+                                field = AiConfigEditField.OnDeviceEndpoint,
+                                title = onDeviceOllamaTitle,
+                                placeholder = onDeviceOllamaHint,
+                                value = state.onDeviceLocalhostEndpoint,
+                                hint = onDeviceOllamaDesc,
+                                onConfirm = { newValue ->
+                                    state.setOnDeviceLocalhostEndpoint(newValue)
                                 },
-                            ) {
-                                state.supportedOpenAIReasoningEfforts.forEach { effort ->
-                                    DropdownMenuItem(
-                                        text = { Text(openAIReasoningEffortLabel(effort)) },
-                                        onClick = {
-                                            state.setShowReasoningEffortDropdown(false)
-                                            state.setOpenAIReasoningEffort(value = effort)
-                                        },
-                                    )
-                                }
-                            }
-                        }
-                    },
-                )
-            }
-            AnimatedVisibility(visible = state.aiType == AiTypeOption.OpenAI) {
-                SegmentedListItem(
-                    checked = state.textEditDialog?.field == AiConfigEditField.ExtraBody,
-                    onCheckedChange = { checked ->
-                        if (checked) {
-                            state.setTextEditDialog(
-                                TextEditDialogState(
-                                    field = AiConfigEditField.ExtraBody,
-                                    title = extraBodyTitle,
-                                    placeholder = extraBodyHint,
-                                    value = state.openAIExtraBody,
-                                    onConfirm = { newValue ->
-                                        state.setOpenAIExtraBody(newValue)
-                                    },
-                                ),
-                            )
-                        } else if (state.textEditDialog?.field == AiConfigEditField.ExtraBody) {
-                            state.setTextEditDialog(null)
-                        }
-                    },
-                    shapes = ListItemDefaults.item(),
-                    content = {
-                        Text(text = extraBodyTitle)
-                    },
-                    supportingContent =
-                        if (state.openAIExtraBody.isBlank()) {
-                            null
-                        } else {
-                            {
-                                Text(
-                                    text = state.openAIExtraBody,
-                                    style = MaterialTheme.typography.bodySmall,
-                                )
-                            }
-                        },
-                )
-            }
-            AnimatedVisibility(visible = state.aiType == AiTypeOption.OpenAI && !shouldShowManualModelInput) {
-                SegmentedListItem(
-                    checked = state.showModelDropdown,
-                    onCheckedChange = { checked ->
-                        state.setShowModelDropdown(checked)
-                    },
-                    shapes = ListItemDefaults.last(),
-                    content = {
-                        Text(text = stringResource(id = R.string.settings_ai_config_model))
-                    },
-                    supportingContent = {
-                        Text(
-                            text = stringResource(id = R.string.settings_ai_config_model_description),
-                            style = MaterialTheme.typography.bodySmall,
+                            ),
                         )
-                    },
-                    trailingContent = {
-                        Box {
-                            TextButton(
-                                onClick = {
-                                    state.setShowModelDropdown(true)
-                                },
-                            ) {
-                                Text(
-                                    text =
-                                        state.openAIModel.ifBlank {
-                                            stringResource(id = R.string.settings_ai_config_model_select)
-                                        },
-                                )
-                            }
-                            CruxDropdownMenu(
-                                expanded = state.showModelDropdown,
-                                onDismissRequest = {
-                                    state.setShowModelDropdown(false)
-                                },
-                            ) {
-                                state.openAIModels
-                                    .onLoading {
-                                        DropdownMenuItem(
-                                            text = { Text(stringResource(id = R.string.settings_ai_config_model_loading)) },
-                                            onClick = {},
-                                            enabled = false,
-                                        )
-                                    }.onError {
-                                        DropdownMenuItem(
-                                            text = { Text(stringResource(id = R.string.settings_ai_config_model_error)) },
-                                            onClick = {},
-                                            enabled = false,
-                                        )
-                                    }.onSuccess { models ->
-                                        if (models.isEmpty()) {
-                                            DropdownMenuItem(
-                                                text = { Text(stringResource(id = R.string.settings_ai_config_model_no_models)) },
-                                                onClick = {},
-                                                enabled = false,
-                                            )
-                                        } else {
-                                            models.forEach { model ->
-                                                DropdownMenuItem(
-                                                    text = { Text(model) },
-                                                    onClick = {
-                                                        state.setShowModelDropdown(false)
-                                                        state.setOpenAIModel(model)
-                                                    },
-                                                )
-                                            }
-                                        }
-                                    }
-                            }
-                        }
-                    },
-                )
-            }
-            AnimatedVisibility(visible = state.aiType == AiTypeOption.OpenAI && shouldShowManualModelInput) {
-                SegmentedListItem(
-                    checked = state.textEditDialog?.field == AiConfigEditField.Model,
-                    onCheckedChange = { checked ->
-                        if (checked) {
-                            state.setTextEditDialog(
-                                TextEditDialogState(
-                                    field = AiConfigEditField.Model,
-                                    title = modelTitle,
-                                    placeholder = modelPlaceholder,
-                                    value = state.openAIModel,
-                                    onConfirm = { newValue ->
-                                        state.setOpenAIModel(newValue)
-                                    },
-                                ),
-                            )
-                        } else if (state.textEditDialog?.field == AiConfigEditField.Model) {
-                            state.setTextEditDialog(null)
-                        }
-                    },
-                    shapes = ListItemDefaults.last(),
-                    content = {
-                        Text(text = stringResource(id = R.string.settings_ai_config_model_manual_input))
-                    },
-                    supportingContent = {
-                        Text(
-                            text =
-                                state.openAIModel.ifBlank {
-                                    stringResource(id = R.string.settings_ai_config_value_empty_placeholder)
-                                },
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    },
-                )
-            }
-            AnimatedVisibility(visible = state.aiType == AiTypeOption.OnDevice) {
-                val currentSpec =
-                    OnDeviceModelSpec.SupportedModels.firstOrNull {
-                        it.displayName.equals(state.onDeviceModel, ignoreCase = true) ||
-                            it.modelId.equals(state.onDeviceModel, ignoreCase = true)
-                    } ?: OnDeviceModelSpec.Gemma4E2B
-                SegmentedListItem(
-                    checked = state.showOnDeviceModelDropdown,
-                    onCheckedChange = { state.setShowOnDeviceModelDropdown(it) },
-                    shapes = ListItemDefaults.item(),
-                    content = {
-                        Text(text = stringResource(id = R.string.settings_ai_config_on_device_model))
-                    },
-                    supportingContent = {
-                        Text(
-                            text =
-                                "${currentSpec.displayName} • LiteRT-LM " +
-                                    "(${currentSpec.parameterCount}, ~${currentSpec.memoryFootprintMb}MB RAM)",
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    },
-                    trailingContent = {
-                        Box {
-                            TextButton(onClick = { state.setShowOnDeviceModelDropdown(true) }) {
-                                Text(text = currentSpec.displayName)
-                            }
-                            CruxDropdownMenu(
-                                expanded = state.showOnDeviceModelDropdown,
-                                onDismissRequest = { state.setShowOnDeviceModelDropdown(false) },
-                            ) {
-                                OnDeviceModelSpec.SupportedModels.forEach { spec ->
-                                    DropdownMenuItem(
-                                        text = {
-                                            Column {
-                                                Text(text = spec.displayName)
-                                                Text(
-                                                    text = "${spec.parameterCount} params • ~${spec.memoryFootprintMb}MB RAM",
-                                                    style = MaterialTheme.typography.labelSmall,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                )
-                                            }
-                                        },
-                                        onClick = {
-                                            state.setShowOnDeviceModelDropdown(false)
-                                            state.setOnDeviceModel(spec.displayName)
-                                        },
-                                    )
-                                }
-                            }
-                        }
-                    },
-                )
-            }
-            AnimatedVisibility(visible = state.aiType == AiTypeOption.OnDevice) {
-                SegmentedListItem(
-                    checked = state.showOnDeviceBackendDropdown,
-                    onCheckedChange = { state.setShowOnDeviceBackendDropdown(it) },
-                    shapes = ListItemDefaults.item(),
-                    content = {
-                        Text(text = stringResource(id = R.string.settings_ai_config_on_device_backend))
-                    },
-                    supportingContent = {
-                        Text(
-                            text = OnDeviceHardwareBackend.fromId(state.onDeviceHardwareBackend).label,
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    },
-                    trailingContent = {
-                        Box {
-                            TextButton(onClick = { state.setShowOnDeviceBackendDropdown(true) }) {
-                                Text(text = OnDeviceHardwareBackend.fromId(state.onDeviceHardwareBackend).name)
-                            }
-                            CruxDropdownMenu(
-                                expanded = state.showOnDeviceBackendDropdown,
-                                onDismissRequest = { state.setShowOnDeviceBackendDropdown(false) },
-                            ) {
-                                OnDeviceHardwareBackend.entries.forEach { backend ->
-                                    DropdownMenuItem(
-                                        text = { Text(text = backend.label) },
-                                        onClick = {
-                                            state.setShowOnDeviceBackendDropdown(false)
-                                            state.setOnDeviceHardwareBackend(backend.id)
-                                        },
-                                    )
-                                }
-                            }
-                        }
-                    },
-                )
-            }
-            AnimatedVisibility(visible = state.aiType == AiTypeOption.OnDevice) {
-                SegmentedListItem(
-                    onClick = { state.setOnDeviceMtpEnabled(!state.onDeviceMtpEnabled) },
-                    shapes = ListItemDefaults.item(),
-                    content = {
-                        Text(text = stringResource(id = R.string.settings_ai_config_on_device_mtp))
-                    },
-                    supportingContent = {
-                        Text(
-                            text = stringResource(id = R.string.settings_ai_config_on_device_mtp_desc),
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    },
-                    trailingContent = {
-                        Switch(
-                            checked = state.onDeviceMtpEnabled,
-                            onCheckedChange = { state.setOnDeviceMtpEnabled(it) },
-                        )
-                    },
-                )
-            }
-            AnimatedVisibility(visible = state.aiType == AiTypeOption.OnDevice) {
-                SegmentedListItem(
-                    shapes = ListItemDefaults.item(),
-                    content = {
-                        Text(text = stringResource(id = R.string.settings_ai_config_on_device_privacy))
-                    },
-                    supportingContent = {
-                        Text(
-                            text = stringResource(id = R.string.settings_ai_config_on_device_privacy_desc),
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    },
-                )
-            }
-            AnimatedVisibility(visible = state.aiType == AiTypeOption.OnDevice) {
-                SegmentedListItem(
-                    checked = state.textEditDialog?.field == AiConfigEditField.OnDeviceEndpoint,
-                    onCheckedChange = { checked ->
-                        if (checked) {
-                            state.setTextEditDialog(
-                                TextEditDialogState(
-                                    field = AiConfigEditField.OnDeviceEndpoint,
-                                    title = onDeviceOllamaTitle,
-                                    placeholder = onDeviceOllamaHint,
-                                    value = state.onDeviceLocalhostEndpoint,
-                                    hint = onDeviceOllamaDesc,
-                                    onConfirm = { newValue ->
-                                        state.setOnDeviceLocalhostEndpoint(newValue)
-                                    },
-                                ),
-                            )
-                        } else if (state.textEditDialog?.field == AiConfigEditField.OnDeviceEndpoint) {
-                            state.setTextEditDialog(null)
-                        }
-                    },
-                    shapes = ListItemDefaults.last(),
-                    content = {
-                        Text(text = onDeviceOllamaTitle)
-                    },
-                    supportingContent = {
-                        Text(
-                            text =
-                                state.onDeviceLocalhostEndpoint.ifBlank {
-                                    onDeviceOllamaHint
-                                },
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    },
-                )
-            }
+                    } else if (state.textEditDialog?.field == AiConfigEditField.OnDeviceEndpoint) {
+                        state.setTextEditDialog(null)
+                    }
+                },
+                shapes = ListItemDefaults.last(),
+                content = {
+                    Text(text = onDeviceOllamaTitle)
+                },
+                supportingContent = {
+                    Text(
+                        text =
+                            state.onDeviceLocalhostEndpoint.ifBlank {
+                                onDeviceOllamaHint
+                            },
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                },
+            )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = stringResource(id = R.string.settings_ai_section_features),
@@ -637,33 +278,31 @@ internal fun AiConfigScreen(onBack: () -> Unit) {
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
             )
-            if (shouldShowAiAgentSwitch) {
-                Spacer(modifier = Modifier.height(12.dp))
-                SegmentedListItem(
-                    onClick = {
-                        state.setAIAgent(!state.aiAgent)
-                    },
-                    shapes = ListItemDefaults.single(),
-                    content = {
-                        Text(
-                            text = stringResource(id = R.string.settings_ai_config_enable_agent),
-                        )
-                    },
-                    supportingContent = {
-                        Text(
-                            text = stringResource(id = R.string.settings_ai_config_agent_description),
-                        )
-                    },
-                    trailingContent = {
-                        Switch(
-                            checked = state.aiAgent,
-                            onCheckedChange = {
-                                state.setAIAgent(it)
-                            },
-                        )
-                    },
-                )
-            }
+            Spacer(modifier = Modifier.height(12.dp))
+            SegmentedListItem(
+                onClick = {
+                    state.setAIAgent(!state.aiAgent)
+                },
+                shapes = ListItemDefaults.single(),
+                content = {
+                    Text(
+                        text = stringResource(id = R.string.settings_ai_config_enable_agent),
+                    )
+                },
+                supportingContent = {
+                    Text(
+                        text = stringResource(id = R.string.settings_ai_config_agent_description),
+                    )
+                },
+                trailingContent = {
+                    Switch(
+                        checked = state.aiAgent,
+                        onCheckedChange = {
+                            state.setAIAgent(it)
+                        },
+                    )
+                },
+            )
             Spacer(modifier = Modifier.height(12.dp))
             SegmentedListItem(
                 onClick = {
@@ -753,32 +392,14 @@ internal fun AiConfigScreen(onBack: () -> Unit) {
 private fun presenter() =
     run {
         val businessState = remember { AiConfigPresenter() }.invoke()
-        var showTypeDropdown by remember { mutableStateOf(false) }
-        var showModelDropdown by remember { mutableStateOf(false) }
-        var showReasoningEffortDropdown by remember { mutableStateOf(false) }
         var showOnDeviceModelDropdown by remember { mutableStateOf(false) }
         var showOnDeviceBackendDropdown by remember { mutableStateOf(false) }
         var textEditDialog by remember { mutableStateOf<TextEditDialogState?>(null) }
 
         object : AiConfigPresenter.State by businessState {
-            val showTypeDropdown = showTypeDropdown
-            val showModelDropdown = showModelDropdown
-            val showReasoningEffortDropdown = showReasoningEffortDropdown
             val showOnDeviceModelDropdown = showOnDeviceModelDropdown
             val showOnDeviceBackendDropdown = showOnDeviceBackendDropdown
             val textEditDialog = textEditDialog
-
-            fun setShowTypeDropdown(value: Boolean) {
-                showTypeDropdown = value
-            }
-
-            fun setShowModelDropdown(value: Boolean) {
-                showModelDropdown = value
-            }
-
-            fun setShowReasoningEffortDropdown(value: Boolean) {
-                showReasoningEffortDropdown = value
-            }
 
             fun setShowOnDeviceModelDropdown(value: Boolean) {
                 showOnDeviceModelDropdown = value
@@ -794,15 +415,6 @@ private fun presenter() =
         }
     }
 
-@Composable
-private fun openAIReasoningEffortLabel(option: AiReasoningEffortOption): String =
-    when (option) {
-        AiReasoningEffortOption.Default -> stringResource(id = R.string.settings_ai_config_reasoning_effort_default)
-        AiReasoningEffortOption.Low -> stringResource(id = R.string.settings_ai_config_reasoning_effort_low)
-        AiReasoningEffortOption.Medium -> stringResource(id = R.string.settings_ai_config_reasoning_effort_medium)
-        AiReasoningEffortOption.High -> stringResource(id = R.string.settings_ai_config_reasoning_effort_high)
-    }
-
 private data class TextEditDialogState(
     val field: AiConfigEditField,
     val title: String,
@@ -814,10 +426,6 @@ private data class TextEditDialogState(
 )
 
 private enum class AiConfigEditField {
-    ServerUrl,
-    ApiKey,
-    ExtraBody,
-    Model,
     TldrPrompt,
     OnDeviceEndpoint,
 }
@@ -1518,7 +1126,7 @@ private fun ExcludedLanguagesDialog(
                     onValueChange = { query = it },
                     modifier = Modifier.fillMaxWidth(),
                     placeholder = {
-                        Text(text = "Search language")
+                        Text(text = stringResource(id = R.string.settings_ai_config_search_language))
                     },
                     singleLine = true,
                 )

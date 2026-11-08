@@ -3,6 +3,9 @@ package org.crux.feature.agent.common
 import ai.koog.agents.core.tools.SimpleTool
 import ai.koog.agents.core.tools.annotations.LLMDescription
 import ai.koog.serialization.typeToken
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.Serializable
 import org.crux.data.database.app.model.RssDisplayMode
 import org.crux.data.database.app.model.SubscriptionType
 import org.crux.data.datasource.microblog.paging.PagingRequest
@@ -15,9 +18,6 @@ import org.crux.ui.model.UiRssSource
 import org.crux.ui.model.UiTimelineV2
 import org.crux.ui.model.contentPostOrNull
 import org.crux.ui.route.DeeplinkRoute
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
-import kotlinx.serialization.Serializable
 
 internal class ListSubscriptionSourcesTool(
     private val session: AgentToolSession,

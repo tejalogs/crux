@@ -3,6 +3,7 @@ package org.crux.feature.agent.common
 import ai.koog.agents.core.tools.SimpleTool
 import ai.koog.agents.core.tools.annotations.LLMDescription
 import ai.koog.serialization.typeToken
+import kotlinx.serialization.Serializable
 import org.crux.data.datasource.microblog.ActionMenu
 import org.crux.data.datasource.microblog.PostEvent
 import org.crux.data.datasource.microblog.datasource.PostDataSource
@@ -11,7 +12,6 @@ import org.crux.model.MicroBlogKey
 import org.crux.ui.model.ClickPostEvent
 import org.crux.ui.model.UiTimelineV2
 import org.crux.ui.model.postEventOrNull
-import kotlinx.serialization.Serializable
 
 internal class ListPostActionsTool(
     private val session: AgentToolSession,

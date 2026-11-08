@@ -1,6 +1,13 @@
 package org.crux.feature.agent.common
 
 import ai.koog.agents.core.tools.ToolRegistry
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.KSerializer
 import org.crux.data.datasource.microblog.AuthenticatedMicroblogDataSource
 import org.crux.data.datasource.microblog.ComposeDataSource
 import org.crux.data.datasource.microblog.MicroblogDataSource
@@ -42,13 +49,6 @@ import org.crux.ui.model.UiProfile
 import org.crux.ui.model.UiState
 import org.crux.ui.model.UiTimelineV2
 import org.crux.ui.model.toUi
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
-import kotlinx.serialization.KSerializer
 import org.koin.core.annotation.Single
 
 @Single

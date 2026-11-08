@@ -3,9 +3,9 @@ package org.crux.feature.agent.common
 import ai.koog.agents.core.tools.SimpleTool
 import ai.koog.agents.core.tools.annotations.LLMDescription
 import ai.koog.serialization.typeToken
+import kotlinx.serialization.Serializable
 import org.crux.ui.model.UiProfile
 import org.crux.ui.model.UiTimelineV2
-import kotlinx.serialization.Serializable
 
 internal class SearchCachedPostsTool(
     private val session: AgentToolSession,

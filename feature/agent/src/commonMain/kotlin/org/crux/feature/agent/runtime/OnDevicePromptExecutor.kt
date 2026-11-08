@@ -12,10 +12,10 @@ import ai.koog.prompt.llm.LLMProvider
 import ai.koog.prompt.llm.LLModel
 import ai.koog.prompt.message.Message
 import ai.koog.prompt.streaming.StreamFrame
-import org.crux.data.datastore.model.AppSettings
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.emitAll
+import org.crux.data.datastore.model.AppSettings
 
 /**
  * Sovereign On-Device Prompt Executor for Gemma 4 Edge.
@@ -23,7 +23,9 @@ import kotlinx.coroutines.flow.emitAll
  * Enforces a strict Zero-Egress Privacy Policy: only local loopback endpoints
  * (127.0.0.1, localhost) or fully offline sovereign engines are permitted.
  */
-public class SecurityException(message: String) : IllegalStateException(message)
+public class SecurityException(
+    message: String,
+) : IllegalStateException(message)
 
 internal class OnDevicePromptExecutor(
     private val config: AppSettings.AiConfig.Type.OnDevice,
@@ -127,20 +129,23 @@ internal class OnDevicePromptExecutor(
     override fun close() {
         try {
             ollamaExecutor?.close()
-        } catch (_: Throwable) {}
+        } catch (_: Throwable) {
+        }
         try {
             ollamaClient?.close()
-        } catch (_: Throwable) {}
+        } catch (_: Throwable) {
+        }
     }
 
     companion object {
         fun isLoopback(endpoint: String): Boolean {
             val clean = endpoint.trim().lowercase()
             if (clean.isBlank()) return false
-            val hostAndPort = clean
-                .removePrefix("http://")
-                .removePrefix("https://")
-                .substringBefore('/')
+            val hostAndPort =
+                clean
+                    .removePrefix("http://")
+                    .removePrefix("https://")
+                    .substringBefore('/')
 
             val host =
                 if (hostAndPort.startsWith('[')) {

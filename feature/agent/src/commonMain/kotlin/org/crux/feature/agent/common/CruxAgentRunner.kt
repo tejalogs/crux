@@ -14,12 +14,12 @@ import ai.koog.agents.core.utils.ConfigureAction
 import ai.koog.agents.features.eventHandler.feature.EventHandler
 import ai.koog.prompt.Prompt
 import ai.koog.prompt.message.Message
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import org.crux.feature.agent.presenter.AgentMessagePart
 import org.crux.feature.agent.runtime.AgentAvailability
 import org.crux.feature.agent.runtime.CruxAgentRuntime
 import org.crux.feature.agent.runtime.CruxAgentRuntimeProvider
-import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.withContext
 import org.koin.core.annotation.Single
 
 @Single

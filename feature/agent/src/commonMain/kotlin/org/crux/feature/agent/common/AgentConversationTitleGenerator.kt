@@ -1,11 +1,11 @@
 package org.crux.feature.agent.common
 
 import ai.koog.prompt.Prompt
-import org.crux.feature.agent.presenter.agentMessageText
-import org.crux.feature.agent.runtime.CruxAgentRuntimeProvider
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
+import org.crux.feature.agent.presenter.agentMessageText
+import org.crux.feature.agent.runtime.CruxAgentRuntimeProvider
 import org.koin.core.annotation.Single
 
 @Single
