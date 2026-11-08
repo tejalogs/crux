@@ -99,6 +99,18 @@ private const val IG_APP_PROMPT_JS =
         "d.style.setProperty('display','none','important');" +
         "if(document.body)document.body.style.overflow='';}});"
 
+/**
+ * Hides X's header "Subscribe" / "Get Premium" button by its own text. Only the link or button
+ * itself is hidden, never a wrapper, so a header that holds the menu or search stays.
+ */
+internal val X_PREMIUM_BUTTON_LABELS = listOf("Subscribe", "Get Premium", "Subscribe to Premium", "Try Premium")
+
+private val X_SUBSCRIBE_BUTTON_JS =
+    "(function(){var rx=new RegExp(" + escapeJs(labelPattern(X_PREMIUM_BUTTON_LABELS)) + ",'i');" +
+        "document.querySelectorAll('a,button,[role=button]').forEach(function(b){" +
+        "var t=(b.textContent||'').replace(/\\s+/g,' ').trim();" +
+        "if(t&&t.length<=24&&rx.test(t)&&!b.closest('article')){b.style.setProperty('display','none','important')}});})();"
+
 private val USE_APP_LABELS =
     listOf("Use the app", "Use app", "Open app", "Open in app", "Get the app", "Open the app", "Continue in app")
 
@@ -198,12 +210,21 @@ internal val SiteTweak.rule: TweakRule
                             "a[aria-label=\"Grok\"]",
                             "button[aria-label=\"Grok actions\"]",
                             "a[href=\"/i/premium_sign_up\"]",
+                            "a[href*=\"/i/premium\"]",
+                            "a[href*=\"premium_sign_up\"]",
+                            "a[href*=\"/i/verified\"]",
+                            "a[aria-label=\"Subscribe\"]",
+                            "button[aria-label=\"Subscribe\"]",
+                            "a[aria-label=\"Get Premium\"]",
+                            "[data-testid=\"premium-signup-tab\"]",
+                            "[data-testid=\"subscribe\"]",
                             "a[href*=\"/verified-orgs-signup\"]",
                             "a[href=\"/i/verified-choose\"]",
                             "aside[aria-label*=\"Subscribe to Premium\"]",
                             "div[data-testid=\"cellInnerDiv\"]:has(aside[aria-label*=\"Subscribe to Premium\"])",
                         ),
                     headingLabels = listOf("Subscribe to Premium"),
+                    js = X_SUBSCRIBE_BUTTON_JS,
                 )
             }
 
@@ -378,7 +399,7 @@ private val ENGINE_JS =
         // Climb only through wrappers that hold nothing else clickable: a site header that also has
         // the menu or search must stay, so stop at it.
         var clickable='a,button,input,select,textarea,[role=button],[role=search],[role=navigation]';
-        while(e.parentElement&&e.parentElement!==document.body&&e.parentElement.getBoundingClientRect().height<=120&&!/^(HEADER|NAV)$/.test(e.parentElement.tagName)&&!/header/i.test(e.parentElement.tagName)&&e.parentElement.querySelectorAll(clickable).length<=1){e=e.parentElement}
+        while(e.parentElement&&e.parentElement!==document.body&&(e.parentElement.clientHeight||0)<=120&&!/^(HEADER|NAV)$/.test(e.parentElement.tagName)&&!/header/i.test(e.parentElement.tagName)&&e.parentElement.querySelectorAll(clickable).length<=1){e=e.parentElement}
         return e;
       };
       var scan=function(){
@@ -442,14 +463,23 @@ private val ENGINE_JS =
         }catch(e){}
       };
       scan();
-      setTimeout(scan,300);
-      setTimeout(scan,1000);
-      setTimeout(scan,2500);
+      setTimeout(scan,400);
+      setTimeout(scan,1500);
       var timer=0;
-      var schedule=function(){if(!timer)timer=setTimeout(function(){timer=0;scan()},200)};
+      var schedule=function(){
+        if(timer)return;
+        timer=setTimeout(function(){
+          timer=0;
+          if(window.requestIdleCallback){
+            requestIdleCallback(scan,{timeout:500});
+          }else if(window.requestAnimationFrame){
+            requestAnimationFrame(scan);
+          }else{
+            scan();
+          }
+        },300);
+      };
       new MutationObserver(schedule).observe(document,{childList:true,subtree:true});
-      window.addEventListener('scroll',schedule,true);
-      setInterval(scan,1200);
     })();
     """.trimIndent()
 

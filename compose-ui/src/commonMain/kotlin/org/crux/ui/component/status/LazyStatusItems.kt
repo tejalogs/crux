@@ -92,7 +92,7 @@ public fun LazyStaggeredGridScope.status(
                             }
                         }
                         AdaptiveCard(
-                            modifier = Modifier.animateItem(),
+                            modifier = Modifier,
                             index = index,
                             totalCount = itemCount,
                             respectTimelineMode = true,

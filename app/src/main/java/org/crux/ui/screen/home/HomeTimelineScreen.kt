@@ -3,6 +3,7 @@ package org.crux.ui.screen.home
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
@@ -66,6 +67,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
@@ -95,8 +97,10 @@ import compose.icons.fontawesomeicons.solid.Bars
 import compose.icons.fontawesomeicons.solid.CaretDown
 import compose.icons.fontawesomeicons.solid.Check
 import compose.icons.fontawesomeicons.solid.Sliders
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import moe.tlaster.precompose.molecule.producePresenter
 import org.crux.R
 import org.crux.common.onSuccess
@@ -416,7 +420,7 @@ internal fun HomeTimelineScreen(
                     },
                 )
             },
-            modifier = Modifier.nestedScroll(topAppBarScrollBehavior.nestedScrollConnection),
+            modifier = if (useBottomTabs) Modifier else Modifier.nestedScroll(topAppBarScrollBehavior.nestedScrollConnection),
         ) { contentPadding ->
             Box(modifier = Modifier.fillMaxSize()) {
                 state.pagerState.onSuccess { pagerState ->
@@ -438,8 +442,8 @@ internal fun HomeTimelineScreen(
 
                         HorizontalPager(
                             state = pagerState,
-                            // Live sites have their own horizontal gestures; switch with the pills there.
-                            userScrollEnabled = tabState.getOrNull(pagerState.currentPage)?.liveWebSite() == null,
+                            // Live sites have their own horizontal gestures; dock tabs handle switching.
+                            userScrollEnabled = !useBottomTabs && tabState.getOrNull(pagerState.currentPage)?.liveWebSite() == null,
                             key = { index ->
                                 tabState.getOrNull(index)?.id ?: "timeline_$index"
                             },
@@ -578,6 +582,9 @@ private fun HomeTabDropdown(
 
 private const val MAX_SCROLLABLE_HOME_TABS = 10
 
+// Room for the 48dp refresh indicator above the first card.
+private val REFRESH_INDICATOR_CLEARANCE = 56.dp
+
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun TimelineItemContent(
@@ -640,14 +647,16 @@ internal fun TimelineItemContent(
                 uriHandler.openUri(digestUri)
             }
         }
-    val feedDigest =
-        remember(state.listState) {
+    val feedDigest by
+        produceState<FeedDigest?>(initialValue = null, state.listState) {
             val success = state.listState as? org.crux.common.PagingState.Success<org.crux.ui.model.UiTimelineV2>
             if (success != null && success.itemCount >= 3) {
                 val posts = (0 until minOf(25, success.itemCount)).mapNotNull { success.peek(it) }
-                CatchMeUpDigestEngine.generateDigest(posts)
+                value = withContext(Dispatchers.Default) {
+                    CatchMeUpDigestEngine.generateDigest(posts)
+                }
             } else {
-                null
+                value = null
             }
         }
     LaunchedEffect(isHomeTimeline, autoRefreshInterval, isCurrentlyVisible, lifecycleOwner) {
@@ -695,7 +704,13 @@ internal fun TimelineItemContent(
                     changeLogState.changeLog?.let { changelog ->
                         if (it) {
                             item {
-                                Column {
+                                // The pull/refresh indicator draws at the top of the list; keep the
+                                // card below it while a refresh is running instead of under it.
+                                val indicatorClearance by animateDpAsState(
+                                    targetValue = if (state.isRefreshing) REFRESH_INDICATOR_CLEARANCE else 0.dp,
+                                    label = "changelogIndicatorClearance",
+                                )
+                                Column(modifier = Modifier.padding(top = indicatorClearance)) {
                                     AdaptiveCard {
                                         Column(
                                             modifier =
@@ -709,10 +724,6 @@ internal fun TimelineItemContent(
                                             Text(
                                                 stringResource(R.string.changelog_title),
                                                 style = MaterialTheme.typography.titleMedium,
-                                            )
-                                            Text(
-                                                stringResource(R.string.changelog_message),
-                                                style = MaterialTheme.typography.bodySmall,
                                             )
                                             Text(changelog)
                                             Button(
@@ -735,10 +746,11 @@ internal fun TimelineItemContent(
                     }
                 }
 
-                if (isHomeTimeline && !isDigestDismissed && feedDigest != null) {
+                val activeDigest = feedDigest
+                if (isHomeTimeline && !isDigestDismissed && activeDigest != null) {
                     item(span = StaggeredGridItemSpan.FullLine) {
                         CatchMeUpDigestCard(
-                            digest = feedDigest,
+                            digest = activeDigest,
                             onDismiss = { isDigestDismissed = true },
                             onScrollToFeed = {
                                 scope.launch {
@@ -807,9 +819,10 @@ internal fun TimelineItemContent(
         },
     )
 
-    if (showFullscreenBriefing && feedDigest != null) {
+    val modalDigest = feedDigest
+    if (showFullscreenBriefing && modalDigest != null) {
         ExecutiveBriefingBottomSheet(
-            digest = feedDigest,
+            digest = modalDigest,
             onDismissRequest = { showFullscreenBriefing = false },
             onSynthesizeCarousel = onSynthesizeCarouselAction,
         )

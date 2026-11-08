@@ -7,6 +7,7 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.util.Log
 import android.view.MotionEvent
+import android.view.View
 import android.view.ViewConfiguration
 import android.view.ViewGroup
 import android.webkit.ConsoleMessage
@@ -16,6 +17,7 @@ import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
+import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.FrameLayout
@@ -173,9 +175,15 @@ internal class LiveWebPage(
     val webView: WebView =
         WebView(context).apply {
             useProfileOf(site)
+            setLayerType(View.LAYER_TYPE_HARDWARE, null)
+            isNestedScrollingEnabled = false
+            overScrollMode = View.OVER_SCROLL_NEVER
+            isVerticalScrollBarEnabled = false
+            isHorizontalScrollBarEnabled = false
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
             settings.databaseEnabled = true
+            settings.cacheMode = WebSettings.LOAD_DEFAULT
             // The WebView's real identity: a spoofed one disagrees with its other signals, and that
             // mismatch is a common automation tell (it was part of the Instagram flag in Oct 2026).
             // Without these WebView ignores the page's mobile viewport, and wide layouts get cropped.
@@ -232,6 +240,7 @@ internal class LiveWebPage(
                         request: WebResourceRequest,
                     ): WebResourceResponse? =
                         if (config.blocks(site, request.url.host)) {
+                            LiveWebPrivacyCounters.get(view.context).recordBlockedRequest()
                             WebResourceResponse("text/plain", "UTF-8", ByteArrayInputStream(ByteArray(0)))
                         } else {
                             super.shouldInterceptRequest(view, request)
@@ -399,6 +408,11 @@ private class HorizontalFriendlySwipeRefreshLayout(
     private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
     private var startX = 0f
     private var isDisallowed = false
+
+    override fun canChildScrollUp(): Boolean {
+        val child = getChildAt(0) as? WebView
+        return child?.canScrollVertically(-1) ?: super.canChildScrollUp()
+    }
 
     override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
         when (ev.action) {

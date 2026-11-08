@@ -4,9 +4,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.FlingBehavior
 import androidx.compose.foundation.gestures.ScrollableDefaults
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.staggeredgrid.LazyStaggeredGridScope
 import androidx.compose.foundation.lazy.staggeredgrid.LazyStaggeredGridState
 import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
@@ -96,93 +98,90 @@ public fun LazyStatusVerticalStaggeredGrid(
             }
     val layoutDirection = LocalLayoutDirection.current
     val density = LocalDensity.current
-    val viewportWidthPx by remember(state) {
-        snapshotFlow { state.layoutInfo.viewportSize.width }
-            .distinctUntilChanged()
-    }.collectAsState(0)
-    val isWideViewport = with(density) { viewportWidthPx.toDp() } >= 600.dp
-    val effectiveColumns =
-        if (effectiveMode == TimelineDisplayMode.Gallery) {
-            StaggeredGridCells.Adaptive(if (isWideViewport) 240.dp else 160.dp)
-        } else {
-            columns
-        }
-    val columnCount by remember(state, effectiveColumns) {
-        snapshotFlow { state.layoutInfo.viewportSize.width }
-            .distinctUntilChanged()
-            .map {
-                with(density) {
+
+    BoxWithConstraints(modifier = modifier) {
+        val isWideViewport = maxWidth >= 600.dp
+        val effectiveColumns =
+            if (effectiveMode == TimelineDisplayMode.Gallery) {
+                StaggeredGridCells.Adaptive(if (isWideViewport) 240.dp else 160.dp)
+            } else {
+                columns
+            }
+        val columnCount =
+            with(density) {
+                val availableWidth =
+                    maxWidth.roundToPx() - paddingForColumnCalc.calculateStartPadding(layoutDirection).roundToPx() -
+                        paddingForColumnCalc.calculateEndPadding(layoutDirection).roundToPx()
+                if (availableWidth > 0) {
                     with(effectiveColumns) {
-                        calculateCrossAxisCellSizes(
-                            it - paddingForColumnCalc.calculateStartPadding(layoutDirection).roundToPx() -
-                                paddingForColumnCalc.calculateEndPadding(layoutDirection).roundToPx(),
-                            8.dp.roundToPx(),
-                        )
+                        calculateCrossAxisCellSizes(availableWidth, 8.dp.roundToPx()).size
                     }
-                }.size
-            }.distinctUntilChanged()
-    }.collectAsState(1)
-    val bigScreen = effectiveMode != TimelineDisplayMode.Gallery && columnCount > 1
-    val plainTimeline = !bigScreen && effectiveMode == TimelineDisplayMode.Plain && !forceCardMode
-    val padding =
-        if (plainTimeline) {
-            contentPadding
-        } else {
-            paddingForColumnCalc
+                } else {
+                    1
+                }
+            }
+        val bigScreen = effectiveMode != TimelineDisplayMode.Gallery && columnCount > 1
+        val plainTimeline = !bigScreen && effectiveMode == TimelineDisplayMode.Plain && !forceCardMode
+        val padding =
+            if (plainTimeline) {
+                contentPadding
+            } else {
+                paddingForColumnCalc
+            }
+        val actualVerticalSpacing =
+            when {
+                effectiveMode == TimelineDisplayMode.Gallery -> 8.dp
+                bigScreen -> verticalItemSpacing
+                else -> 2.dp
+            }
+        val playbackScope = rememberCoroutineScope()
+        val playback = remember(state) { TimelinePlaybackCoordinator(playbackScope) }
+        SideEffect { playback.multipleColumns = columnCount > 1 }
+        DisposableEffect(playback) { onDispose { playback.close() } }
+        LaunchedEffect(state, playback) {
+            snapshotFlow { state.isScrollInProgress }.distinctUntilChanged().collect { scrolling ->
+                playback.setScrolling(source = state, scrolling = scrolling, vertical = true)
+            }
         }
-    val actualVerticalSpacing =
-        when {
-            effectiveMode == TimelineDisplayMode.Gallery -> 8.dp
-            bigScreen -> verticalItemSpacing
-            else -> 2.dp
+        val gridModifier =
+            if (plainTimeline && isLightTheme()) {
+                Modifier.fillMaxSize().background(PlatformTheme.colorScheme.card)
+            } else {
+                Modifier.fillMaxSize()
+            }
+        CompositionLocalProvider(
+            LocalIsScrollingInProgress provides state.isScrollInProgress,
+            LocalTimelinePlayback provides playback,
+            LocalMultipleColumns provides bigScreen,
+            LocalEffectiveTimelineDisplayMode provides effectiveMode,
+        ) {
+            LazyVerticalStaggeredGrid(
+                modifier =
+                    gridModifier.onGloballyPositioned {
+                        val bounds = Rect(it.positionInWindow(), it.size.toSize())
+                        // Scaffold/window padding reserves the area occupied by bars.
+                        val viewport =
+                            with(density) {
+                                Rect(
+                                    bounds.left + contentPadding.calculateLeftPadding(layoutDirection).toPx(),
+                                    bounds.top + contentPadding.calculateTopPadding().toPx(),
+                                    bounds.right - contentPadding.calculateRightPadding(layoutDirection).toPx(),
+                                    bounds.bottom - contentPadding.calculateBottomPadding().toPx(),
+                                )
+                            }
+                        playback.viewport = viewport.intersect(it.boundsInWindow())
+                    },
+                columns = effectiveColumns,
+                state = state,
+                contentPadding = padding,
+                reverseLayout = reverseLayout,
+                verticalItemSpacing = actualVerticalSpacing,
+                horizontalArrangement = horizontalArrangement,
+                flingBehavior = flingBehavior,
+                userScrollEnabled = userScrollEnabled,
+                content = content,
+            )
         }
-    val playbackScope = rememberCoroutineScope()
-    val playback = remember(state) { TimelinePlaybackCoordinator(playbackScope) }
-    SideEffect { playback.multipleColumns = columnCount > 1 }
-    DisposableEffect(playback) { onDispose { playback.close() } }
-    LaunchedEffect(state, playback) {
-        snapshotFlow { state.isScrollInProgress }.distinctUntilChanged().collect { scrolling ->
-            playback.setScrolling(source = state, scrolling = scrolling, vertical = true)
-        }
-    }
-    val gridModifier =
-        if (plainTimeline && isLightTheme()) {
-            modifier.background(PlatformTheme.colorScheme.card)
-        } else {
-            modifier
-        }
-    CompositionLocalProvider(
-        LocalIsScrollingInProgress provides state.isScrollInProgress,
-        LocalTimelinePlayback provides playback,
-        LocalMultipleColumns provides bigScreen,
-        LocalEffectiveTimelineDisplayMode provides effectiveMode,
-    ) {
-        LazyVerticalStaggeredGrid(
-            modifier =
-                gridModifier.onGloballyPositioned {
-                    val bounds = Rect(it.positionInWindow(), it.size.toSize())
-                    // Scaffold/window padding reserves the area occupied by bars.
-                    val viewport =
-                        with(density) {
-                            Rect(
-                                bounds.left + contentPadding.calculateLeftPadding(layoutDirection).toPx(),
-                                bounds.top + contentPadding.calculateTopPadding().toPx(),
-                                bounds.right - contentPadding.calculateRightPadding(layoutDirection).toPx(),
-                                bounds.bottom - contentPadding.calculateBottomPadding().toPx(),
-                            )
-                        }
-                    playback.viewport = viewport.intersect(it.boundsInWindow())
-                },
-            columns = effectiveColumns,
-            state = state,
-            contentPadding = padding,
-            reverseLayout = reverseLayout,
-            verticalItemSpacing = actualVerticalSpacing,
-            horizontalArrangement = horizontalArrangement,
-            flingBehavior = flingBehavior,
-            userScrollEnabled = userScrollEnabled,
-            content = content,
-        )
     }
 }
 
