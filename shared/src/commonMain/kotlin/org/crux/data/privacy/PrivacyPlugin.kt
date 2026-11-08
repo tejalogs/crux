@@ -9,8 +9,8 @@ import io.ktor.util.AttributeKey
 /**
  * Request-pipeline privacy policy, installed on every Crux HTTP client.
  *
- * Runs before the request is sent and applies four things in order: host blocking, endpoint
- * blocking, query-parameter scrubbing, and header policy. Everything it removes is recorded by
+ * Runs before the request is sent and applies two policies in order: the user's blocked hosts and
+ * query-parameter scrubbing, and records the request in the traffic log when that is on. Everything it removes is recorded by
  * name only in [PrivacyLog], so the user can audit the client without the audit itself becoming a
  * store of identifiers.
  */
@@ -41,8 +41,11 @@ internal val PrivacyPlugin =
                     method = request.method.value,
                     host = host,
                     path = path,
-                    blockTelemetry = settings.blockTelemetry,
-                    blockProfiling = settings.blockProfiling,
+                    // The telemetry and profiling lists name social-network endpoints. Crux no longer
+                    // talks to those, and the same words (/events, /stats, /suggest) appear in ordinary
+                    // feed and article URLs, so those switches no longer refuse anything.
+                    blockTelemetry = false,
+                    blockProfiling = false,
                 )
 
             if (verdict.blocked) {
@@ -56,10 +59,6 @@ internal val PrivacyPlugin =
                 } else {
                     emptyList()
                 }
-
-            if (settings.stripFingerprintHeaders) {
-                request.stripFingerprintHeaders()
-            }
 
             if (settings.loggingEnabled) {
                 // Recorded on the way out so the log reflects what was *attempted*, including
@@ -97,24 +96,6 @@ internal fun HttpRequestBuilder.removeTrackingParameters(): List<String> {
     if (doomed.isEmpty()) return emptyList()
     doomed.forEach { parameters.remove(it) }
     return doomed
-}
-
-/**
- * Removes client-fingerprint headers.
- *
- * Only meaningful where the header is not required for the request to be accepted; callers gate
- * this behind an explicit user preference for that reason.
- */
-internal fun HttpRequestBuilder.stripFingerprintHeaders() {
-    headers.remove("Sec-Ch-Ua")
-    headers.remove("Sec-Ch-Ua-Mobile")
-    headers.remove("Sec-Ch-Ua-Platform")
-    headers.remove("Sec-Ch-Ua-Arch")
-    headers.remove("Sec-Ch-Ua-Full-Version-List")
-    headers.remove("Sec-Ch-Ua-Platform-Version")
-    headers.remove("Sec-Ch-Ua-Model")
-    headers.remove("Sec-Ch-Ua-Bitness")
-    headers.remove("X-Requested-With")
 }
 
 /** Thrown to abort a request that privacy policy refused to send. */

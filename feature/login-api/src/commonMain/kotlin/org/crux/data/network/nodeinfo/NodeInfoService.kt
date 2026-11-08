@@ -1,15 +1,15 @@
 package org.crux.data.network.nodeinfo
 
+import io.ktor.client.call.body
+import io.ktor.client.request.get
+import io.ktor.http.URLBuilder
+import io.ktor.http.URLProtocol
 import org.crux.data.network.ktorClient
 import org.crux.data.network.nodeinfo.model.NodeInfo
 import org.crux.data.network.nodeinfo.model.Schema10
 import org.crux.data.network.nodeinfo.model.Schema11
 import org.crux.data.network.nodeinfo.model.Schema20
 import org.crux.data.network.nodeinfo.model.Schema21
-import io.ktor.client.call.body
-import io.ktor.client.request.get
-import io.ktor.http.URLBuilder
-import io.ktor.http.URLProtocol
 import kotlin.native.HiddenFromObjC
 
 @HiddenFromObjC

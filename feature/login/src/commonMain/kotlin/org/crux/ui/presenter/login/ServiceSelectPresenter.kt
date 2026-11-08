@@ -3,10 +3,10 @@ package org.crux.ui.presenter.login
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.remember
-import org.crux.di.koinInject
-import org.crux.ui.presenter.PresenterBase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.crux.di.koinInject
+import org.crux.ui.presenter.PresenterBase
 
 public class ServiceSelectPresenter(
     private val toHome: () -> Unit,

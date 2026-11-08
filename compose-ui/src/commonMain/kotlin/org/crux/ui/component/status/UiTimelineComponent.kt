@@ -33,33 +33,8 @@ import compose.icons.fontawesomeicons.Solid
 import compose.icons.fontawesomeicons.solid.Check
 import compose.icons.fontawesomeicons.solid.Xmark
 import org.crux.compose.ui.Res
-import org.crux.compose.ui.bluesky_notification_item_starterpack_joined
-import org.crux.compose.ui.mastodon_item_pinned
-import org.crux.compose.ui.mastodon_notification_item_favourited_your_status
-import org.crux.compose.ui.mastodon_notification_item_followed_you
-import org.crux.compose.ui.mastodon_notification_item_mentioned_you
-import org.crux.compose.ui.mastodon_notification_item_poll_ended
-import org.crux.compose.ui.mastodon_notification_item_posted_status
-import org.crux.compose.ui.mastodon_notification_item_reblogged_your_status
-import org.crux.compose.ui.mastodon_notification_item_requested_follow
-import org.crux.compose.ui.mastodon_notification_item_updated_status
-import org.crux.compose.ui.misskey_notification_item_achievement_earned
-import org.crux.compose.ui.misskey_notification_item_app
-import org.crux.compose.ui.misskey_notification_item_chat_room_invitation_received
-import org.crux.compose.ui.misskey_notification_item_create_token
-import org.crux.compose.ui.misskey_notification_item_export_completed
-import org.crux.compose.ui.misskey_notification_item_follow_request_accepted
-import org.crux.compose.ui.misskey_notification_item_login
-import org.crux.compose.ui.misskey_notification_item_quoted_your_status
-import org.crux.compose.ui.misskey_notification_item_reacted_to_your_status
-import org.crux.compose.ui.misskey_notification_item_replied_to_you
-import org.crux.compose.ui.misskey_notification_item_role_assigned
-import org.crux.compose.ui.misskey_notification_item_scheduled_note_post_failed
-import org.crux.compose.ui.misskey_notification_item_scheduled_note_posted
-import org.crux.compose.ui.misskey_notification_item_test
 import org.crux.compose.ui.notification_item_accept_follow_request
 import org.crux.compose.ui.notification_item_reject_follow_request
-import org.crux.compose.ui.vvo_notification_like
 import org.crux.data.datasource.microblog.ActionMenu
 import org.crux.data.model.PostActionStyle
 import org.crux.model.MicroBlogKey
@@ -488,112 +463,10 @@ private fun TopMessageComponent(
                 type.rawType.ifBlank { null }
             }
 
+            // These ids came from networks Crux no longer has. They stay in the model so cached
+            // items still load, but there is no text to show for them.
             is UiTimelineV2.Message.Type.Localized -> {
-                when (type.data) {
-                    UiTimelineV2.Message.Type.Localized.MessageId.Mention -> {
-                        stringResource(resource = Res.string.mastodon_notification_item_mentioned_you)
-                    }
-
-                    UiTimelineV2.Message.Type.Localized.MessageId.NewPost -> {
-                        stringResource(resource = Res.string.mastodon_notification_item_posted_status)
-                    }
-
-                    UiTimelineV2.Message.Type.Localized.MessageId.Repost -> {
-                        stringResource(resource = Res.string.mastodon_notification_item_reblogged_your_status)
-                    }
-
-                    UiTimelineV2.Message.Type.Localized.MessageId.Follow -> {
-                        stringResource(resource = Res.string.mastodon_notification_item_followed_you)
-                    }
-
-                    UiTimelineV2.Message.Type.Localized.MessageId.FollowRequest -> {
-                        stringResource(resource = Res.string.mastodon_notification_item_requested_follow)
-                    }
-
-                    UiTimelineV2.Message.Type.Localized.MessageId.Favourite -> {
-                        stringResource(resource = Res.string.mastodon_notification_item_favourited_your_status)
-                    }
-
-                    UiTimelineV2.Message.Type.Localized.MessageId.PollEnded -> {
-                        stringResource(resource = Res.string.mastodon_notification_item_poll_ended)
-                    }
-
-                    UiTimelineV2.Message.Type.Localized.MessageId.PostUpdated -> {
-                        stringResource(resource = Res.string.mastodon_notification_item_updated_status)
-                    }
-
-                    UiTimelineV2.Message.Type.Localized.MessageId.Reply -> {
-                        stringResource(resource = Res.string.misskey_notification_item_replied_to_you)
-                    }
-
-                    UiTimelineV2.Message.Type.Localized.MessageId.Quote -> {
-                        stringResource(resource = Res.string.misskey_notification_item_quoted_your_status)
-                    }
-
-                    UiTimelineV2.Message.Type.Localized.MessageId.Reaction -> {
-                        stringResource(resource = Res.string.misskey_notification_item_reacted_to_your_status)
-                    }
-
-                    UiTimelineV2.Message.Type.Localized.MessageId.FollowRequestAccepted -> {
-                        stringResource(resource = Res.string.misskey_notification_item_follow_request_accepted)
-                    }
-
-                    UiTimelineV2.Message.Type.Localized.MessageId.ScheduledNotePosted -> {
-                        stringResource(resource = Res.string.misskey_notification_item_scheduled_note_posted)
-                    }
-
-                    UiTimelineV2.Message.Type.Localized.MessageId.ScheduledNotePostFailed -> {
-                        stringResource(resource = Res.string.misskey_notification_item_scheduled_note_post_failed)
-                    }
-
-                    UiTimelineV2.Message.Type.Localized.MessageId.RoleAssigned -> {
-                        stringResource(resource = Res.string.misskey_notification_item_role_assigned)
-                    }
-
-                    UiTimelineV2.Message.Type.Localized.MessageId.ChatRoomInvitationReceived -> {
-                        stringResource(resource = Res.string.misskey_notification_item_chat_room_invitation_received)
-                    }
-
-                    UiTimelineV2.Message.Type.Localized.MessageId.AchievementEarned -> {
-                        stringResource(
-                            resource = Res.string.misskey_notification_item_achievement_earned,
-                            type.args.getOrNull(0).orEmpty(),
-                            "",
-                        )
-                    }
-
-                    UiTimelineV2.Message.Type.Localized.MessageId.App -> {
-                        stringResource(resource = Res.string.misskey_notification_item_app)
-                    }
-
-                    UiTimelineV2.Message.Type.Localized.MessageId.ExportCompleted -> {
-                        stringResource(resource = Res.string.misskey_notification_item_export_completed)
-                    }
-
-                    UiTimelineV2.Message.Type.Localized.MessageId.Test -> {
-                        stringResource(resource = Res.string.misskey_notification_item_test)
-                    }
-
-                    UiTimelineV2.Message.Type.Localized.MessageId.Login -> {
-                        stringResource(resource = Res.string.misskey_notification_item_login)
-                    }
-
-                    UiTimelineV2.Message.Type.Localized.MessageId.CreateToken -> {
-                        stringResource(resource = Res.string.misskey_notification_item_create_token)
-                    }
-
-                    UiTimelineV2.Message.Type.Localized.MessageId.StarterpackJoined -> {
-                        stringResource(resource = Res.string.bluesky_notification_item_starterpack_joined)
-                    }
-
-                    UiTimelineV2.Message.Type.Localized.MessageId.Pinned -> {
-                        stringResource(resource = Res.string.mastodon_item_pinned)
-                    }
-
-                    UiTimelineV2.Message.Type.Localized.MessageId.Like -> {
-                        stringResource(resource = Res.string.vvo_notification_like)
-                    }
-                }
+                null
             }
         }
 

@@ -1,17 +1,17 @@
 package org.crux.ui.presenter.login
 
-import org.crux.model.MicroBlogKey
-import org.crux.model.PlatformMetadata
-import org.crux.model.PlatformRegistry
-import org.crux.model.RecommendedInstance
-import org.crux.ui.model.UiInstanceMetadata
-import org.crux.ui.model.UiStrings
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withTimeoutOrNull
+import org.crux.model.MicroBlogKey
+import org.crux.model.PlatformMetadata
+import org.crux.model.PlatformRegistry
+import org.crux.model.RecommendedInstance
+import org.crux.ui.model.UiInstanceMetadata
+import org.crux.ui.model.UiStrings
 import org.koin.core.annotation.Provided
 import org.koin.core.annotation.Single
 import kotlin.native.HiddenFromObjC

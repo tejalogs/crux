@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.first
 import org.crux.common.encodeJson
 import org.crux.data.database.app.AppDatabase
 import org.crux.data.database.app.model.AppDatabaseExport
+import org.crux.data.database.app.model.redactedForExport
 import org.crux.di.koinInject
 import org.crux.ui.presenter.ExportState
 import org.crux.ui.presenter.PresenterBase
@@ -21,7 +22,12 @@ public class ExportAppDatabasePresenter : PresenterBase<ExportState>() {
     public suspend fun export(): String {
         val export =
             AppDatabaseExport(
-                accounts = appDatabase.accountDao().allAccounts().first(),
+                accounts =
+                    appDatabase
+                        .accountDao()
+                        .allAccounts()
+                        .first()
+                        .map { it.redactedForExport() },
                 keywordFilters = appDatabase.keywordFilterDao().selectAll().first(),
                 searchHistories = appDatabase.searchHistoryDao().select().first(),
                 rssSources = appDatabase.rssSourceDao().getAll().first(),

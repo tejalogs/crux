@@ -133,36 +133,6 @@ internal fun LocalFilterEditDialog(
                 )
                 SegmentedListItem(
                     onClick = {
-                        state.setForNotification(!state.forNotification)
-                    },
-                    shapes = ListItemDefaults.item(),
-                    content = {
-                        Text(text = stringResource(id = R.string.local_filter_for_notification))
-                    },
-                    trailingContent = {
-                        Switch(
-                            checked = state.forNotification,
-                            onCheckedChange = state::setForNotification,
-                        )
-                    },
-                )
-                SegmentedListItem(
-                    onClick = {
-                        state.setForSearch(!state.forSearch)
-                    },
-                    shapes = ListItemDefaults.item(),
-                    content = {
-                        Text(text = stringResource(id = R.string.local_filter_for_search))
-                    },
-                    trailingContent = {
-                        Switch(
-                            checked = state.forSearch,
-                            onCheckedChange = state::setForSearch,
-                        )
-                    },
-                )
-                SegmentedListItem(
-                    onClick = {
                         state.setIsRegex(!state.isRegex)
                     },
                     shapes = ListItemDefaults.last(),

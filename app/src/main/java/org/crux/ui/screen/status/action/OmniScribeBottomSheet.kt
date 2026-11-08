@@ -60,6 +60,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -332,9 +333,9 @@ internal fun OmniScribeBottomSheet(
                     Text(
                         text =
                             if (articleTitle.isNotBlank()) {
-                                "Article to social post • 4-slide carousel"
+                                stringResource(id = R.string.omni_scribe_header_article)
                             } else {
-                                "Standalone post • Context and carousel"
+                                stringResource(id = R.string.omni_scribe_header_standalone)
                             },
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -380,7 +381,7 @@ internal fun OmniScribeBottomSheet(
                         color = MaterialTheme.colorScheme.primary,
                     )
                     Text(
-                        text = "Standalone",
+                        text = stringResource(id = R.string.omni_scribe_standalone),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.primary,
                     )
@@ -494,7 +495,12 @@ internal fun OmniScribeBottomSheet(
                 ) {
                     Box(modifier = Modifier.padding(vertical = 10.dp), contentAlignment = Alignment.Center) {
                         Text(
-                            text = if (format == OmniScribeFormat.Micro) "Compact (<280 chars)" else "Full Story Essay",
+                            text =
+                                if (format == OmniScribeFormat.Micro) {
+                                    stringResource(id = R.string.omni_scribe_format_compact)
+                                } else {
+                                    stringResource(id = R.string.omni_scribe_format_full)
+                                },
                             style =
                                 MaterialTheme.typography.labelMedium.copy(
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
@@ -541,7 +547,7 @@ internal fun OmniScribeBottomSheet(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = "⚡ Synthesized in ${currentResult.latencyMs}ms • Zero Cloud Egress",
+                    text = stringResource(id = R.string.omni_scribe_generated_in, currentResult.latencyMs),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -633,12 +639,12 @@ internal fun OmniScribeBottomSheet(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Attach Carousel Posters (${editableSlides.size} images) to Post",
+                        text = stringResource(id = R.string.omni_scribe_attach_carousel, editableSlides.size),
                         style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                     Text(
-                        text = "Publishes both your rewritten text and the rendered 4:5 poster slides together",
+                        text = stringResource(id = R.string.omni_scribe_attach_carousel_desc),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -659,7 +665,7 @@ internal fun OmniScribeBottomSheet(
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    text = "Target Networks (${selectedAccountKeys.size} Selected)",
+                    text = stringResource(id = R.string.omni_scribe_targets, selectedAccountKeys.size),
                     style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -772,7 +778,7 @@ internal fun OmniScribeBottomSheet(
         if (selectedWebSites.isNotEmpty()) {
             val siteNames = selectedWebSites.joinToString(", ") { it.label }
             Text(
-                text = "Tapping Broadcast will dispatch to your accounts and stage post & slides in $siteNames.",
+                text = stringResource(id = R.string.omni_scribe_sites_note, siteNames),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.fillMaxWidth(),
@@ -882,7 +888,7 @@ internal fun OmniScribeBottomSheet(
                             val clipboard =
                                 context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
                             clipboard?.setPrimaryClip(
-                                ClipData.newPlainText("Crux Post", editedText),
+                                ClipData.newPlainText(context.getString(R.string.omni_scribe_clipboard_label), editedText),
                             )
                         }
 
@@ -900,7 +906,11 @@ internal fun OmniScribeBottomSheet(
                             renderedFiles.mapIndexed { idx, file ->
                                 ComposeData.Media(
                                     file = FileItem(context, Uri.fromFile(file)),
-                                    altText = activeDeck.slides.getOrNull(idx)?.body ?: "Carousel slide ${idx + 1}",
+                                    altText =
+                                        activeDeck.slides
+                                            .getOrNull(
+                                                idx,
+                                            )?.body ?: context.getString(R.string.omni_scribe_slide_alt, idx + 1),
                                 )
                             }
 
@@ -1006,7 +1016,7 @@ internal fun OmniScribeBottomSheet(
                         strokeWidth = 2.dp,
                     )
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text(text = "Broadcasting...")
+                    Text(text = stringResource(id = R.string.omni_scribe_posting))
                 } else if (publishDone) {
                     FAIcon(
                         imageVector = FontAwesomeIcons.Solid.Check,
@@ -1015,7 +1025,7 @@ internal fun OmniScribeBottomSheet(
                         modifier = Modifier.size(16.dp),
                     )
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text(text = "Dispatched!")
+                    Text(text = stringResource(id = R.string.omni_scribe_posted))
                 } else {
                     FAIcon(
                         imageVector = FontAwesomeIcons.Solid.PaperPlane,
@@ -1025,7 +1035,7 @@ internal fun OmniScribeBottomSheet(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = crossPostPlan.actionButtonLabel,
+                        text = crossPostActionLabel(crossPostPlan),
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
                     )
@@ -1110,12 +1120,12 @@ private fun InteractiveCarouselStudioWidget(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Carousel Poster Studio (${editableSlides.size} Slides • 1080×1350)",
+                    text = stringResource(id = R.string.omni_scribe_studio_title, editableSlides.size),
                     style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                     color = MaterialTheme.colorScheme.onSurface,
                 )
                 Text(
-                    text = "Swipe slides • Live-edit text • Export to LinkedIn or Gallery",
+                    text = stringResource(id = R.string.omni_scribe_studio_subtitle),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -1137,7 +1147,14 @@ private fun InteractiveCarouselStudioWidget(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = if (isExportingPdf) "Exporting…" else stringResource(id = R.string.omni_scribe_export_pdf),
+                        text =
+                            if (isExportingPdf) {
+                                stringResource(
+                                    id = R.string.omni_scribe_exporting,
+                                )
+                            } else {
+                                stringResource(id = R.string.omni_scribe_export_pdf)
+                            },
                         style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
                     )
                 }
@@ -1157,7 +1174,14 @@ private fun InteractiveCarouselStudioWidget(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = if (pngsSavedToast) "Saved" else stringResource(id = R.string.omni_scribe_save_pngs),
+                        text =
+                            if (pngsSavedToast) {
+                                stringResource(
+                                    id = R.string.omni_scribe_saved,
+                                )
+                            } else {
+                                stringResource(id = R.string.omni_scribe_save_pngs)
+                            },
                         style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
                     )
                 }
@@ -1363,7 +1387,12 @@ private fun InteractiveCarouselStudioWidget(
                                     modifier = Modifier.size(13.dp),
                                 )
                                 Text(
-                                    text = "Live Edit Slide 0${currentIndex + 1} of 0${editableSlides.size}",
+                                    text =
+                                        stringResource(
+                                            id = R.string.omni_scribe_live_edit_slide,
+                                            slideNumber(currentIndex + 1),
+                                            slideNumber(editableSlides.size),
+                                        ),
                                     style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
                                     color = MaterialTheme.colorScheme.onSurface,
                                 )
@@ -1391,7 +1420,7 @@ private fun InteractiveCarouselStudioWidget(
                             onValueChange = { newHeadline ->
                                 editableSlides[currentIndex] = currentSlide.copy(headline = newHeadline)
                             },
-                            label = { Text("Slide Headline") },
+                            label = { Text(stringResource(id = R.string.omni_scribe_slide_headline)) },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(10.dp),
                             textStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
@@ -1403,7 +1432,7 @@ private fun InteractiveCarouselStudioWidget(
                             onValueChange = { newBody ->
                                 editableSlides[currentIndex] = currentSlide.copy(body = newBody)
                             },
-                            label = { Text("Slide Body Content") },
+                            label = { Text(stringResource(id = R.string.omni_scribe_slide_body)) },
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
@@ -1510,7 +1539,7 @@ private fun CarouselSlidePreviewCard(
                             modifier = Modifier.weight(1f),
                         )
                         Text(
-                            text = "0${slide.index}/0${slide.totalSlides}",
+                            text = slideCounter(slide.index, slide.totalSlides),
                             style =
                                 MaterialTheme.typography.labelSmall.copy(
                                     fontFamily = FontFamily.Monospace,
@@ -1594,7 +1623,12 @@ private fun CarouselSlidePreviewCard(
                             }
                         }
                         Text(
-                            text = if (slide.isFinal) "SAVE & SHARE" else "SWIPE →",
+                            text =
+                                if (slide.isFinal) {
+                                    stringResource(id = R.string.omni_scribe_slide_save_share)
+                                } else {
+                                    stringResource(id = R.string.omni_scribe_slide_swipe)
+                                }.uppercase(),
                             style =
                                 MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = FontWeight.Bold,
@@ -1608,3 +1642,23 @@ private fun CarouselSlidePreviewCard(
         }
     }
 }
+
+@Composable
+private fun crossPostActionLabel(plan: CrossPostPlan): String =
+    when (plan.action) {
+        CrossPostAction.None -> {
+            stringResource(id = R.string.omni_scribe_action_none)
+        }
+
+        CrossPostAction.Both -> {
+            stringResource(id = R.string.omni_scribe_action_both, plan.totalTargetCount)
+        }
+
+        CrossPostAction.Sites -> {
+            pluralStringResource(id = R.plurals.omni_scribe_action_sites, count = plan.webSites.size, plan.webSites.size)
+        }
+
+        CrossPostAction.Accounts -> {
+            pluralStringResource(id = R.plurals.omni_scribe_action_accounts, count = plan.apiAccountKeys.size, plan.apiAccountKeys.size)
+        }
+    }

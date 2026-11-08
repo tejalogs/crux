@@ -130,10 +130,12 @@ private fun RichTextScope.RenderElement(
 
         "code" -> {
             with(context.builder) {
+                append(context.spacing.beforeInline())
                 withFormat(RichTextString.Format.Code) {
                     append(element.text())
                 }
             }
+            context.spacing.inlineAppended()
         }
 
         "blockquote" -> {
@@ -186,6 +188,7 @@ private fun RichTextScope.RenderElement(
 
         "br" -> {
             context.builder.append("\n")
+            context.spacing.lineBreak()
         }
 
         // Inline text cannot change size inside one rich string, so small text stays plain.
@@ -256,7 +259,10 @@ private fun RichTextScope.RenderElement(
                     customHeaders = context.imageHeader,
                 )
             } else {
-                context.builder.append(alt.orEmpty())
+                if (!alt.isNullOrBlank()) {
+                    context.builder.append(context.spacing.beforeInline() + alt)
+                    context.spacing.inlineAppended()
+                }
             }
         }
 
@@ -493,7 +499,7 @@ private fun RichTextScope.RenderNode(
         }
 
         is TextNode -> {
-            context.builder.append(node.text())
+            context.builder.append(context.spacing.text(node.text()))
         }
 
         else -> {}
@@ -510,10 +516,12 @@ private class RenderContext(
 ) {
     var builder = RichTextString.Builder()
         private set
+    val spacing = BlockTextSpacing()
 
     fun getTextAndReset(): RichTextString? {
         val result = builder.toRichTextString()
         builder = RichTextString.Builder()
+        spacing.reset()
         return result.takeIf { it.text.isNotEmpty() && it.text.isNotBlank() }
     }
 

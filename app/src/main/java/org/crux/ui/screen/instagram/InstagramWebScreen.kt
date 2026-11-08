@@ -268,11 +268,11 @@ internal fun InstagramWebScreen(
                 )
             },
             title = {
-                Text(text = "Clear Instagram Session?")
+                Text(text = stringResource(R.string.instagram_clear_title))
             },
             text = {
                 Text(
-                    text = "This will delete all saved Instagram cookies and local web storage. You will need to log in again.",
+                    text = stringResource(R.string.instagram_clear_message),
                     style = MaterialTheme.typography.bodyMedium,
                 )
             },
@@ -285,12 +285,12 @@ internal fun InstagramWebScreen(
                         webViewRef.value?.loadUrl(INSTAGRAM_HOME_URL)
                     },
                 ) {
-                    Text(text = "Clear & Reset", color = MaterialTheme.colorScheme.error)
+                    Text(text = stringResource(R.string.web_clear_confirm), color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showClearConfirmDialog = false }) {
-                    Text(text = "Cancel")
+                    Text(text = stringResource(android.R.string.cancel))
                 }
             },
         )
@@ -343,7 +343,7 @@ internal fun InstagramWebScreen(
                             ) {
                                 FAIcon(
                                     imageVector = FontAwesomeIcons.Solid.Rss,
-                                    contentDescription = "Subscribe via RSS",
+                                    contentDescription = stringResource(R.string.web_subscribe_feed),
                                     tint = MaterialTheme.colorScheme.tertiary,
                                     modifier = Modifier.size(18.dp),
                                 )
@@ -386,7 +386,7 @@ internal fun InstagramWebScreen(
                                     },
                                 )
                                 DropdownMenuItem(
-                                    text = { Text("Reload") },
+                                    text = { Text(stringResource(R.string.web_nav_reload)) },
                                     onClick = {
                                         showOverflowMenu = false
                                         webViewRef.value?.reload()
@@ -596,7 +596,7 @@ internal fun InstagramWebScreen(
                     ) {
                         FAIcon(
                             imageVector = FontAwesomeIcons.Solid.ShieldHalved,
-                            contentDescription = "Expand Navigation Controls",
+                            contentDescription = stringResource(R.string.web_nav_expand),
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(18.dp),
                         )
@@ -614,7 +614,7 @@ internal fun InstagramWebScreen(
                         ) {
                             FAIcon(
                                 imageVector = FontAwesomeIcons.Solid.ArrowLeft,
-                                contentDescription = "Back",
+                                contentDescription = stringResource(R.string.web_nav_back),
                                 modifier = Modifier.size(16.dp),
                                 tint =
                                     if (canGoBack) {
@@ -632,7 +632,7 @@ internal fun InstagramWebScreen(
                         ) {
                             FAIcon(
                                 imageVector = FontAwesomeIcons.Solid.ArrowRight,
-                                contentDescription = "Forward",
+                                contentDescription = stringResource(R.string.web_nav_forward),
                                 modifier = Modifier.size(16.dp),
                                 tint =
                                     if (canGoForward) {
@@ -649,7 +649,7 @@ internal fun InstagramWebScreen(
                         ) {
                             FAIcon(
                                 imageVector = FontAwesomeIcons.Solid.RotateRight,
-                                contentDescription = "Reload",
+                                contentDescription = stringResource(R.string.web_nav_reload),
                                 modifier = Modifier.size(16.dp),
                             )
                         }
@@ -660,7 +660,7 @@ internal fun InstagramWebScreen(
                         ) {
                             FAIcon(
                                 imageVector = FontAwesomeIcons.Solid.ShieldHalved,
-                                contentDescription = "Shield Settings",
+                                contentDescription = stringResource(R.string.web_nav_site_protection),
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(16.dp),
                             )
@@ -676,7 +676,7 @@ internal fun InstagramWebScreen(
                         ) {
                             FAIcon(
                                 imageVector = FontAwesomeIcons.Solid.ArrowUpRightFromSquare,
-                                contentDescription = "Open External",
+                                contentDescription = stringResource(R.string.web_open_in_browser),
                                 modifier = Modifier.size(16.dp),
                             )
                         }
@@ -687,7 +687,7 @@ internal fun InstagramWebScreen(
                         ) {
                             FAIcon(
                                 imageVector = FontAwesomeIcons.Solid.Xmark,
-                                contentDescription = "Collapse Dock",
+                                contentDescription = stringResource(R.string.web_nav_collapse),
                                 modifier = Modifier.size(16.dp),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             )

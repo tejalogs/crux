@@ -3,6 +3,9 @@ package org.crux.ui.screen.settings
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.remember
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.toImmutableList
 import org.crux.data.database.app.model.SubscriptionType
 import org.crux.data.model.IconType
 import org.crux.data.model.tab.AllRssTimelineData
@@ -26,9 +29,6 @@ import org.crux.ui.presenter.home.rss.RssSourcesPresenter
 import org.crux.ui.presenter.list.PinnableTimelineTabPresenter
 import org.crux.ui.presenter.settings.AccountsPresenter
 import org.crux.web.shared.WebPresenter
-import kotlinx.collections.immutable.ImmutableList
-import kotlinx.collections.immutable.persistentListOf
-import kotlinx.collections.immutable.toImmutableList
 
 @WebPresenter("allTabs")
 public class AllTabsPresenter : PresenterBase<AllTabsPresenter.State>() {

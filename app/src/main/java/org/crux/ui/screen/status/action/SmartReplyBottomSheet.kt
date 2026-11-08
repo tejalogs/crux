@@ -184,28 +184,7 @@ internal fun SmartReplyBottomSheet(
         if (!parsedOptions.isNullOrEmpty()) {
             val appContext = context.applicationContext
             val themeBadge =
-                when {
-                    !rawAiOutput.isNullOrBlank() && aiConfig.type is AppSettings.AiConfig.Type.OnDevice -> {
-                        appContext.getString(
-                            R.string.smart_reply_model_on_device_ai,
-                        )
-                    }
-
-                    !rawAiOutput.isNullOrBlank() && aiConfig.type is AppSettings.AiConfig.Type.OpenAI &&
-                        (aiConfig.type as AppSettings.AiConfig.Type.OpenAI).serverUrl.isNotBlank() -> {
-                        appContext.getString(
-                            R.string.smart_reply_model_openai,
-                        )
-                    }
-
-                    !rawAiOutput.isNullOrBlank() -> {
-                        appContext.getString(R.string.smart_reply_model_on_device_ai)
-                    }
-
-                    else -> {
-                        appContext.getString(R.string.smart_reply_model_on_device_ai)
-                    }
-                }
+                appContext.getString(R.string.smart_reply_model_on_device_ai)
             replyResult =
                 replyResult.copy(
                     options = parsedOptions,

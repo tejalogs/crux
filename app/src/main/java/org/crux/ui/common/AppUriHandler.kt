@@ -14,6 +14,7 @@ import org.crux.ui.screen.home.resolveLinkTarget
  */
 internal class AppUriHandler(
     private val fallback: UriHandler,
+    private val onLinkCleaned: (original: String, cleaned: String) -> Unit = { _, _ -> },
     private val onFailure: () -> Unit,
 ) : UriHandler {
     override fun openUri(uri: String) {
@@ -26,6 +27,8 @@ internal class AppUriHandler(
             }
         if (destination == null || !tryOpen { fallback.openUri(destination) }) {
             onFailure()
+        } else {
+            onLinkCleaned(uri.trim(), destination)
         }
     }
 

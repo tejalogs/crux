@@ -213,7 +213,6 @@ internal fun AccountsScreen(
                             onLongClick = {
                                 showMenu = true
                             },
-                            toLogin = {},
                             toRelogin = toRelogin,
                             trailingContent = { user ->
                                 Row(
@@ -352,9 +351,8 @@ internal fun AccountsScreen(
 fun AccountItem(
     userState: UiState<UiProfile>,
     onClick: (MicroBlogKey) -> Unit,
-    toLogin: () -> Unit,
     modifier: Modifier = Modifier,
-    toRelogin: (ReloginTarget) -> Unit = { toLogin() },
+    toRelogin: (ReloginTarget) -> Unit = {},
     trailingContent: @Composable (UiProfile) -> Unit = { },
     headlineContent: @Composable (UiProfile) -> Unit = {
         RichText(text = it.name, maxLines = 1)
@@ -416,7 +414,7 @@ fun AccountItem(
                     elevation = elevation,
                     shapes = shapes,
                     content = {
-                        Text(text = "Loading...", modifier = Modifier.placeholder(true))
+                        Text(text = stringResource(id = R.string.common_loading), modifier = Modifier.placeholder(true))
                     },
                     leadingContent = {
                         AvatarComponent(
@@ -426,7 +424,7 @@ fun AccountItem(
                         )
                     },
                     supportingContent = {
-                        Text(text = "Loading...", modifier = Modifier.placeholder(true))
+                        Text(text = stringResource(id = R.string.common_loading), modifier = Modifier.placeholder(true))
                     },
                     colors = colors,
                 )

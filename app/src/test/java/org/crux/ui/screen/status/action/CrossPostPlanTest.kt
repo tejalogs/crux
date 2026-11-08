@@ -22,7 +22,7 @@ class CrossPostPlanTest {
         assertTrue(plan.hasApiTargets)
         assertFalse(plan.hasWebTargets)
         assertEquals(2, plan.totalTargetCount)
-        assertEquals("Broadcast to 2 Accounts", plan.actionButtonLabel)
+        assertEquals(CrossPostAction.Accounts, plan.action)
     }
 
     @Test
@@ -36,7 +36,7 @@ class CrossPostPlanTest {
         assertFalse(plan.hasApiTargets)
         assertTrue(plan.hasWebTargets)
         assertEquals(2, plan.totalTargetCount)
-        assertEquals("Stage in 2 Web Sessions", plan.actionButtonLabel)
+        assertEquals(CrossPostAction.Sites, plan.action)
     }
 
     @Test
@@ -50,7 +50,7 @@ class CrossPostPlanTest {
         assertTrue(plan.hasApiTargets)
         assertTrue(plan.hasWebTargets)
         assertEquals(2, plan.totalTargetCount)
-        assertEquals("Broadcast & Cross-Post (2)", plan.actionButtonLabel)
+        assertEquals(CrossPostAction.Both, plan.action)
     }
 
     @Test
@@ -61,7 +61,7 @@ class CrossPostPlanTest {
                 webSites = emptyList<LiveWebSite>(),
                 attachCarousel = false,
             )
-        assertEquals("Broadcast to 1 Account", plan.actionButtonLabel)
+        assertEquals(CrossPostAction.Accounts, plan.action)
     }
 
     @Test
@@ -72,6 +72,12 @@ class CrossPostPlanTest {
                 webSites = listOf(LiveWebSite.LinkedIn),
                 attachCarousel = false,
             )
-        assertEquals("Stage in 1 Web Session", plan.actionButtonLabel)
+        assertEquals(CrossPostAction.Sites, plan.action)
+    }
+
+    @Test
+    fun planWithNoTargetsHasNoAction() {
+        val plan = CrossPostPlan(emptyList(), emptyList(), attachCarousel = false)
+        assertEquals(CrossPostAction.None, plan.action)
     }
 }

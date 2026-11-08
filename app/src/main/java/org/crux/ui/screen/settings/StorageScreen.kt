@@ -117,11 +117,42 @@ internal fun StorageScreen(
     var isPruningDatabase by remember { mutableStateOf(false) }
     var showImportConfirmation by remember { mutableStateOf(false) }
     var pendingImportUri by remember { mutableStateOf<android.net.Uri?>(null) }
+    var showExportWarning by remember { mutableStateOf(false) }
+    val exportLauncher =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.CreateDocument("application/json"),
+            onResult = { uri ->
+                uri?.let { state.export(it) }
+            },
+        )
+
+    if (showExportWarning) {
+        AlertDialog(
+            onDismissRequest = { showExportWarning = false },
+            title = { Text(text = stringResource(id = R.string.storage_export_warning_title)) },
+            text = { Text(text = stringResource(id = R.string.storage_export_warning_message)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showExportWarning = false
+                        exportLauncher.launch("crux_data_export.json")
+                    },
+                ) {
+                    Text(text = stringResource(id = R.string.storage_export_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showExportWarning = false }) {
+                    Text(text = stringResource(id = android.R.string.cancel))
+                }
+            },
+        )
+    }
 
     if (showCacheSizeDialog) {
         AlertDialog(
             onDismissRequest = { showCacheSizeDialog = false },
-            title = { Text(text = "Media Cache Limit") },
+            title = { Text(text = stringResource(id = R.string.storage_media_cache_limit)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     OfflineCacheConfig.ALLOWED_SIZES_MB.forEach { sizeMb ->
@@ -151,7 +182,7 @@ internal fun StorageScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showCacheSizeDialog = false }) {
-                    Text(text = "Done")
+                    Text(text = stringResource(id = R.string.action_done))
                 }
             },
         )
@@ -160,7 +191,7 @@ internal fun StorageScreen(
     if (showRetentionDaysDialog) {
         AlertDialog(
             onDismissRequest = { showRetentionDaysDialog = false },
-            title = { Text(text = "Timeline Cache Retention") },
+            title = { Text(text = stringResource(id = R.string.storage_feed_cache_retention)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     OfflineCacheConfig.ALLOWED_RETENTION_DAYS.forEach { days ->
@@ -182,14 +213,14 @@ internal fun StorageScreen(
                                 },
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text(text = "$days days")
+                            Text(text = stringResource(id = R.string.storage_retention_days, days))
                         }
                     }
                 }
             },
             confirmButton = {
                 TextButton(onClick = { showRetentionDaysDialog = false }) {
-                    Text(text = "Done")
+                    Text(text = stringResource(id = R.string.action_done))
                 }
             },
         )
@@ -337,17 +368,9 @@ internal fun StorageScreen(
                     },
                 )
 
-                val exportLauncher =
-                    rememberLauncherForActivityResult(
-                        contract = ActivityResultContracts.CreateDocument("application/json"),
-                        onResult = { uri ->
-                            uri?.let { state.export(it) }
-                        },
-                    )
-
                 SegmentedListItem(
                     onClick = {
-                        exportLauncher.launch("crux_data_export.json")
+                        showExportWarning = true
                     },
                     shapes = ListItemDefaults.item(),
                     content = {
@@ -416,7 +439,7 @@ internal fun StorageScreen(
                     onClick = { showCacheSizeDialog = true },
                     shapes = ListItemDefaults.first(),
                     content = {
-                        Text(text = "Media Cache Limit")
+                        Text(text = stringResource(id = R.string.storage_media_cache_limit))
                     },
                     supportingContent = {
                         val limitLabel =
@@ -425,12 +448,12 @@ internal fun StorageScreen(
                             } else {
                                 "${offlineConfig.maxMediaCacheSizeMb} MB"
                             }
-                        Text(text = "Limit: $limitLabel • Used: ${state.imageCacheSize} MB")
+                        Text(text = stringResource(id = R.string.storage_media_cache_summary, limitLabel, state.imageCacheSize))
                     },
                     leadingContent = {
                         ThemedIcon(
                             FontAwesomeIcons.Solid.HardDrive,
-                            contentDescription = "Media Cache Limit",
+                            contentDescription = stringResource(id = R.string.storage_media_cache_limit),
                             color = ThemeIconData.Color.ForestGreen,
                         )
                     },
@@ -444,10 +467,10 @@ internal fun StorageScreen(
                     },
                     shapes = ListItemDefaults.item(),
                     content = {
-                        Text(text = "Prefetch Media for Reading List")
+                        Text(text = stringResource(id = R.string.storage_prefetch_media))
                     },
                     supportingContent = {
-                        Text(text = "Download images automatically for offline reading")
+                        Text(text = stringResource(id = R.string.storage_prefetch_media_desc))
                     },
                     trailingContent = {
                         Switch(
@@ -462,7 +485,7 @@ internal fun StorageScreen(
                     leadingContent = {
                         ThemedIcon(
                             FontAwesomeIcons.Solid.CloudArrowDown,
-                            contentDescription = "Prefetch Media",
+                            contentDescription = stringResource(id = R.string.storage_prefetch_media),
                             color = ThemeIconData.Color.DeepTeal,
                         )
                     },
@@ -476,10 +499,10 @@ internal fun StorageScreen(
                     },
                     shapes = ListItemDefaults.item(),
                     content = {
-                        Text(text = "Wi-Fi Only Prefetch")
+                        Text(text = stringResource(id = R.string.storage_wifi_only))
                     },
                     supportingContent = {
-                        Text(text = "Prevent media prefetching on cellular data")
+                        Text(text = stringResource(id = R.string.storage_wifi_only_desc))
                     },
                     trailingContent = {
                         Switch(
@@ -494,7 +517,7 @@ internal fun StorageScreen(
                     leadingContent = {
                         ThemedIcon(
                             FontAwesomeIcons.Solid.Wifi,
-                            contentDescription = "Wi-Fi Only",
+                            contentDescription = stringResource(id = R.string.storage_wifi_only),
                             color = ThemeIconData.Color.SapphireBlue,
                         )
                     },
@@ -506,19 +529,26 @@ internal fun StorageScreen(
                     },
                     shapes = ListItemDefaults.last(),
                     content = {
-                        Text(text = "Reading List Cache")
+                        Text(text = stringResource(id = R.string.storage_reading_list_cache))
                     },
                     supportingContent = {
                         if (prefetchProgress.isPrefetching) {
-                            Text(text = "Caching media: ${prefetchProgress.completedCount}/${prefetchProgress.totalCount}...")
+                            Text(
+                                text =
+                                    stringResource(
+                                        id = R.string.storage_reading_list_caching,
+                                        prefetchProgress.completedCount,
+                                        prefetchProgress.totalCount,
+                                    ),
+                            )
                         } else {
-                            Text(text = "${readingListItems.size} items saved • Tap to prefetch all media")
+                            Text(text = stringResource(id = R.string.storage_reading_list_summary, readingListItems.size))
                         }
                     },
                     leadingContent = {
                         ThemedIcon(
                             FontAwesomeIcons.Solid.Bookmark,
-                            contentDescription = "Reading List Cache",
+                            contentDescription = stringResource(id = R.string.storage_reading_list_cache),
                             color = ThemeIconData.Color.ImperialMagenta,
                         )
                     },
@@ -538,15 +568,15 @@ internal fun StorageScreen(
                     onClick = { showRetentionDaysDialog = true },
                     shapes = ListItemDefaults.first(),
                     content = {
-                        Text(text = "Timeline Cache Retention")
+                        Text(text = stringResource(id = R.string.storage_feed_cache_retention))
                     },
                     supportingContent = {
-                        Text(text = "Keep unbookmarked posts for ${offlineConfig.timelineCacheRetentionDays} days")
+                        Text(text = stringResource(id = R.string.storage_retention_summary, offlineConfig.timelineCacheRetentionDays))
                     },
                     leadingContent = {
                         ThemedIcon(
                             FontAwesomeIcons.Solid.Database,
-                            contentDescription = "Retention Period",
+                            contentDescription = stringResource(id = R.string.storage_feed_cache_retention),
                             color = ThemeIconData.Color.DeepTeal,
                         )
                     },
@@ -560,10 +590,10 @@ internal fun StorageScreen(
                     },
                     shapes = ListItemDefaults.item(),
                     content = {
-                        Text(text = "Auto-Prune Expired Cache")
+                        Text(text = stringResource(id = R.string.storage_auto_prune))
                     },
                     supportingContent = {
-                        Text(text = "Clean expired posts older than retention period daily in background")
+                        Text(text = stringResource(id = R.string.storage_auto_prune_desc))
                     },
                     trailingContent = {
                         Switch(
@@ -578,7 +608,7 @@ internal fun StorageScreen(
                     leadingContent = {
                         ThemedIcon(
                             FontAwesomeIcons.Solid.HardDrive,
-                            contentDescription = "Auto-Prune",
+                            contentDescription = stringResource(id = R.string.storage_auto_prune),
                             color = ThemeIconData.Color.ForestGreen,
                         )
                     },
@@ -620,21 +650,32 @@ internal fun StorageScreen(
                     },
                     shapes = ListItemDefaults.last(),
                     content = {
-                        Text(text = "Prune Expired Cache Now")
+                        Text(text = stringResource(id = R.string.storage_prune_now))
                     },
                     supportingContent = {
                         if (isPruningDatabase) {
-                            Text(text = "Pruning cache...")
+                            Text(text = stringResource(id = R.string.storage_pruning))
                         } else {
                             val lastPrune = offlineConfig.lastDatabasePruneTimestamp
                             val lastPruneStr =
                                 if (lastPrune > 0) {
                                     val hoursAgo = (Clock.System.now().toEpochMilliseconds() - lastPrune) / 3600000
-                                    if (hoursAgo == 0L) "Just now" else "${hoursAgo}h ago"
+                                    if (hoursAgo == 0L) {
+                                        stringResource(id = R.string.storage_just_now)
+                                    } else {
+                                        stringResource(id = R.string.storage_hours_ago, hoursAgo)
+                                    }
                                 } else {
-                                    "Never"
+                                    stringResource(id = R.string.storage_never)
                                 }
-                            Text(text = "Purge posts older than ${offlineConfig.timelineCacheRetentionDays} days • Last run: $lastPruneStr")
+                            Text(
+                                text =
+                                    stringResource(
+                                        id = R.string.storage_prune_summary,
+                                        offlineConfig.timelineCacheRetentionDays,
+                                        lastPruneStr,
+                                    ),
+                            )
                         }
                     },
                     trailingContent = {
@@ -648,7 +689,7 @@ internal fun StorageScreen(
                     leadingContent = {
                         ThemedIcon(
                             FontAwesomeIcons.Solid.TrashCan,
-                            contentDescription = "Prune Expired Cache",
+                            contentDescription = stringResource(id = R.string.storage_prune_now),
                             color = ThemeIconData.Color.DarkAmber,
                         )
                     },

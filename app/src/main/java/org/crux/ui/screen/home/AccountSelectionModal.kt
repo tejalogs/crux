@@ -73,9 +73,6 @@ internal fun AccountSelectionModal(
                             state.setActiveAccount(it)
                             onBack.invoke()
                         },
-                        toLogin = {
-                            navigate(Route.Settings.Accounts)
-                        },
                         toRelogin = {
                             navigate(reloginRoute(it.platformId))
                         },

@@ -3,9 +3,24 @@ package org.crux.ui.screen.status.action
 import org.crux.model.MicroBlogKey
 import org.crux.ui.screen.home.LiveWebSite
 
+/** What the primary button of the post sheet does for the chosen targets. */
+internal enum class CrossPostAction {
+    /** Nothing is selected. */
+    None,
+
+    /** Post directly through connected accounts. */
+    Accounts,
+
+    /** Copy the text and open the chosen sites (Instagram, LinkedIn, X, Reddit) to paste it. */
+    Sites,
+
+    /** Both of the above. */
+    Both,
+}
+
 /**
- * Coordinates unified 1-tap broadcasting across both direct API-connected accounts
- * (none remain in Crux) and isolated Live Web sessions (LinkedIn, Instagram, X, Reddit).
+ * The chosen targets for one post: connected accounts (none remain in Crux) and the live web
+ * sessions of Instagram, LinkedIn, X and Reddit.
  */
 internal data class CrossPostPlan(
     val apiAccountKeys: List<MicroBlogKey>,
@@ -16,12 +31,12 @@ internal data class CrossPostPlan(
     val hasWebTargets: Boolean get() = webSites.isNotEmpty()
     val totalTargetCount: Int get() = apiAccountKeys.size + webSites.size
 
-    val actionButtonLabel: String
+    val action: CrossPostAction
         get() =
             when {
-                hasApiTargets && hasWebTargets -> "Broadcast & Cross-Post ($totalTargetCount)"
-                hasWebTargets -> "Stage in ${webSites.size} Web Session${if (webSites.size > 1) "s" else ""}"
-                hasApiTargets -> "Broadcast to ${apiAccountKeys.size} Account${if (apiAccountKeys.size > 1) "s" else ""}"
-                else -> "Broadcast"
+                hasApiTargets && hasWebTargets -> CrossPostAction.Both
+                hasWebTargets -> CrossPostAction.Sites
+                hasApiTargets -> CrossPostAction.Accounts
+                else -> CrossPostAction.None
             }
 }

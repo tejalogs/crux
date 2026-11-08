@@ -1,7 +1,7 @@
 package org.crux.data.network.nodeinfo
 
-import org.crux.data.network.nodeinfo.model.NodeInfo
 import kotlinx.serialization.json.Json
+import org.crux.data.network.nodeinfo.model.NodeInfo
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

@@ -109,8 +109,7 @@ import org.crux.compose.ui.show_media
 import org.crux.compose.ui.status_detail_tldr
 import org.crux.compose.ui.status_detail_translate
 import org.crux.compose.ui.status_open_post
-import org.crux.compose.ui.status_platform
-import org.crux.compose.ui.status_smart_reply_gemma
+import org.crux.compose.ui.status_smart_reply
 import org.crux.compose.ui.status_view_insight
 import org.crux.compose.ui.translation_badge_failed
 import org.crux.compose.ui.translation_badge_translated
@@ -141,6 +140,7 @@ import org.crux.ui.component.EmojiImage
 import org.crux.ui.component.FAIcon
 import org.crux.ui.component.HorizontalDivider
 import org.crux.ui.component.LocalTimelineAppearance
+import org.crux.ui.component.LocalTranslationDisclosure
 import org.crux.ui.component.PlatformProvenancePill
 import org.crux.ui.component.RichText
 import org.crux.ui.component.placeholder
@@ -897,6 +897,7 @@ private fun TranslationComponent(
         mutableStateOf(false)
     }
     val uriHandler = LocalUriHandler.current
+    val requestTranslation = LocalTranslationDisclosure.current
     Row(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -904,7 +905,9 @@ private fun TranslationComponent(
         PlatformTextButton(
             onClick = {
                 if (!enabledTranslate) {
-                    enabledTranslate = true
+                    // The one-time "where does translated text go" prompt comes first when it is due.
+                    val start = { enabledTranslate = true }
+                    if (requestTranslation != null) requestTranslation(start) else start()
                 }
             },
         ) {
@@ -966,7 +969,7 @@ private fun TranslationComponent(
                 )
                 Spacer(modifier = Modifier.width(5.dp))
                 PlatformText(
-                    text = stringResource(resource = Res.string.status_smart_reply_gemma),
+                    text = stringResource(resource = Res.string.status_smart_reply),
                     color = PlatformTheme.colorScheme.primary,
                 )
             }
@@ -1380,7 +1383,7 @@ private fun ActionMenu.Item.Text.asString(): String =
                     ActionMenu.Item.Text.Localized.Type.ShowOriginal -> Res.string.translation_show_original
                     ActionMenu.Item.Text.Localized.Type.Favorite -> Res.string.favourite
                     ActionMenu.Item.Text.Localized.Type.UnFavorite -> Res.string.unfavourite
-                    ActionMenu.Item.Text.Localized.Type.SmartReply -> Res.string.status_smart_reply_gemma
+                    ActionMenu.Item.Text.Localized.Type.SmartReply -> Res.string.status_smart_reply
                 }
             stringResource(resource, *parameters.toTypedArray())
         }

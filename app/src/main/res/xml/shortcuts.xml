@@ -18,6 +18,5 @@
     <share-target android:targetClass="org.crux.ui.screen.compose.ShortcutComposeActivity">
         <data android:mimeType="text/plain" />
         <category android:name="org.crux.social.sharingshortcuts.category.TEXT_SHARE_TARGET" />
-        <category android:name="org.crux.sharingshortcuts.category.TEXT_SHARE_TARGET" />
     </share-target>
 </shortcuts>

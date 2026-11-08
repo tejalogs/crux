@@ -30,6 +30,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -99,6 +100,7 @@ import org.crux.data.network.rss.DocumentData
 import org.crux.data.readinglist.ReadingListItem
 import org.crux.data.readinglist.ReadingListRepository
 import org.crux.data.repository.SettingsRepository
+import org.crux.data.translation.TranslationDisclosure
 import org.crux.model.AccountType
 import org.crux.model.MicroBlogKey
 import org.crux.ui.component.BackButton
@@ -147,9 +149,36 @@ internal fun RssDetailScreen(
     descriptionTitle: String? = null,
     fallbackHtml: String? = null,
     onBack: () -> Unit,
+    toTranslationSettings: () -> Unit = {},
 ) {
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
     val state by producePresenter(url) { presenter(url, descriptionHtml, descriptionTitle, fallbackHtml) }
+    val settingsRepository = koinInject<SettingsRepository>()
+    val disclosureScope = rememberCoroutineScope()
+    var disclosureDismissed by remember(url) { mutableStateOf(false) }
+    state.disclosureDestination?.let { destination ->
+        if (state.enableTranslate || (state.isAutoTranslate && !disclosureDismissed)) {
+            TranslationDisclosureDialog(
+                destination = destination,
+                onContinue = {
+                    disclosureScope.launch {
+                        settingsRepository.updateAppSettings {
+                            copy(translateConfig = TranslationDisclosure.acknowledge(translateConfig, destination))
+                        }
+                    }
+                },
+                onCancel = {
+                    state.setEnableTranslate(false)
+                    disclosureDismissed = true
+                },
+                onChangeProvider = {
+                    state.setEnableTranslate(false)
+                    disclosureDismissed = true
+                    toTranslationSettings()
+                },
+            )
+        }
+    }
     val uriHandler = LocalUriHandler.current
     val context = LocalContext.current
     val readingListRepo = koinInject<ReadingListRepository>()
@@ -252,7 +281,7 @@ internal fun RssDetailScreen(
                                 val itemTitle =
                                     descriptionTitle?.takeIf { it.isNotBlank() }
                                         ?: doc.title.takeIf { it.isNotBlank() }
-                                        ?: "RSS Article"
+                                        ?: context.getString(R.string.rss_detail_article_fallback_title)
                                 val itemContent =
                                     doc.textContent.takeIf { it.isNotBlank() } ?: doc.content.takeIf { it.isNotBlank() } ?: itemTitle
                                 val itemAuthor =
@@ -620,75 +649,77 @@ internal fun RssDetailScreen(
                                                 .clickable { state.refreshTranslate() },
                                     )
                                 }
-                                Surface(
-                                    onClick = {
-                                        val body = data.textContent.takeIf { it.isNotBlank() } ?: data.content
-                                        uriHandler.openUri(
-                                            DeeplinkRoute.Status
-                                                .OmniScribe(
-                                                    statusKey = MicroBlogKey(url.hashCode().toString(), "rss"),
-                                                    accountType = AccountType.Guest,
-                                                    initialText = body,
-                                                    authorName = data.byline ?: data.siteName.orEmpty(),
-                                                    authorHandle = "rss",
-                                                    articleTitle = data.title,
-                                                    sourceUrl = url,
-                                                ).toUri(),
-                                        )
-                                    },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(14.dp),
-                                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
-                                    border = BorderStroke(0.8.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
-                                ) {
-                                    Row(
-                                        modifier =
-                                            Modifier
-                                                .fillMaxWidth()
-                                                .padding(horizontal = 14.dp, vertical = 10.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                if (data.textContent.isNotBlank()) {
+                                    Surface(
+                                        onClick = {
+                                            val body = data.textContent
+                                            uriHandler.openUri(
+                                                DeeplinkRoute.Status
+                                                    .OmniScribe(
+                                                        statusKey = MicroBlogKey(url.hashCode().toString(), "rss"),
+                                                        accountType = AccountType.Guest,
+                                                        initialText = body,
+                                                        authorName = data.byline ?: data.siteName.orEmpty(),
+                                                        authorHandle = "rss",
+                                                        articleTitle = data.title,
+                                                        sourceUrl = url,
+                                                    ).toUri(),
+                                            )
+                                        },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(14.dp),
+                                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+                                        border = BorderStroke(0.8.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
                                     ) {
                                         Row(
+                                            modifier =
+                                                Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(horizontal = 14.dp, vertical = 10.dp),
                                             verticalAlignment = Alignment.CenterVertically,
-                                            modifier = Modifier.weight(1f),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
                                         ) {
-                                            Box(
-                                                modifier =
-                                                    Modifier
-                                                        .size(32.dp)
-                                                        .clip(CircleShape)
-                                                        .background(MaterialTheme.colorScheme.primary),
-                                                contentAlignment = Alignment.Center,
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                modifier = Modifier.weight(1f),
                                             ) {
-                                                FAIcon(
-                                                    FontAwesomeIcons.Solid.WandMagicSparkles,
-                                                    contentDescription = null,
-                                                    tint = MaterialTheme.colorScheme.onPrimary,
-                                                    modifier = Modifier.size(14.dp),
-                                                )
+                                                Box(
+                                                    modifier =
+                                                        Modifier
+                                                            .size(32.dp)
+                                                            .clip(CircleShape)
+                                                            .background(MaterialTheme.colorScheme.primary),
+                                                    contentAlignment = Alignment.Center,
+                                                ) {
+                                                    FAIcon(
+                                                        FontAwesomeIcons.Solid.WandMagicSparkles,
+                                                        contentDescription = null,
+                                                        tint = MaterialTheme.colorScheme.onPrimary,
+                                                        modifier = Modifier.size(14.dp),
+                                                    )
+                                                }
+                                                Spacer(modifier = Modifier.width(10.dp))
+                                                Column {
+                                                    Text(
+                                                        text = stringResource(R.string.rss_create_post_title),
+                                                        style = MaterialTheme.typography.titleSmall,
+                                                        fontWeight = FontWeight.Bold,
+                                                    )
+                                                    Text(
+                                                        text = stringResource(R.string.rss_create_post_description),
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        fontSize = 11.sp,
+                                                    )
+                                                }
                                             }
-                                            Spacer(modifier = Modifier.width(10.dp))
-                                            Column {
-                                                Text(
-                                                    text = "Synthesize Post & Carousel",
-                                                    style = MaterialTheme.typography.titleSmall,
-                                                    fontWeight = FontWeight.Bold,
-                                                )
-                                                Text(
-                                                    text = "Distill key thesis, evidence & 4:5 slides with on-device Gemma",
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                    fontSize = 11.sp,
-                                                )
-                                            }
+                                            FAIcon(
+                                                FontAwesomeIcons.Solid.ArrowRight,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(13.dp),
+                                            )
                                         }
-                                        FAIcon(
-                                            FontAwesomeIcons.Solid.ArrowRight,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(13.dp),
-                                        )
                                     }
                                 }
                             }.onLoading {
@@ -793,6 +824,14 @@ private fun presenter(
     val preTranslate by remember {
         settingsRepository.appSettings.map { it.translateConfig.preTranslate }
     }.collectAsUiState()
+    // Null until the settings are read; nothing is translated before the one-time disclosure is accepted.
+    val gate by remember {
+        settingsRepository.appSettings.map { settings ->
+            TranslationGate(
+                destination = TranslationDisclosure.destination(settings)?.takeIf { TranslationDisclosure.isRequired(settings) },
+            )
+        }
+    }.collectAsState(initial = null)
     var showTldr by remember { mutableStateOf(false) }
     var tldrRefreshKey by remember { mutableIntStateOf(0) }
     var enableTranslate by remember { mutableStateOf(false) }
@@ -813,7 +852,7 @@ private fun presenter(
     // Determine if translation should be active:
     // auto-translate (preTranslate=true) or manually triggered
     val isAutoTranslate = preTranslate is UiState.Success && (preTranslate as UiState.Success<Boolean>).data
-    val shouldTranslate = isAutoTranslate || enableTranslate
+    val shouldTranslate = (isAutoTranslate || enableTranslate) && gate?.destination == null && gate != null
     val translateState: RssDetailTranslatePresenter.State? =
         if (shouldTranslate) {
             when (val dataState = state.data) {
@@ -845,6 +884,7 @@ private fun presenter(
         val showTldr = showTldr
         val translateState = translateState
         val enableTranslate = enableTranslate
+        val disclosureDestination: TranslationDisclosure.Destination? = gate?.destination
 
         fun setShowTldr(value: Boolean) {
             showTldr = value
@@ -862,4 +902,56 @@ private fun presenter(
             translateRefreshKey++
         }
     }
+}
+
+private data class TranslationGate(
+    val destination: TranslationDisclosure.Destination?,
+)
+
+@Composable
+internal fun TranslationDisclosureDialog(
+    destination: TranslationDisclosure.Destination,
+    onContinue: () -> Unit,
+    onCancel: () -> Unit,
+    onChangeProvider: (() -> Unit)?,
+) {
+    val provider =
+        stringResource(
+            when (destination.kind) {
+                TranslationDisclosure.Kind.GoogleWeb -> R.string.translation_provider_google
+                TranslationDisclosure.Kind.DeepL -> R.string.translation_provider_deepl
+                TranslationDisclosure.Kind.GoogleCloud -> R.string.translation_provider_google_cloud
+                TranslationDisclosure.Kind.LibreTranslate -> R.string.translation_provider_libre
+                TranslationDisclosure.Kind.AiServer -> R.string.translation_provider_ai_server
+            },
+        )
+    val label =
+        destination.host
+            ?.takeIf { it.isNotEmpty() }
+            ?.let { stringResource(R.string.translation_destination_with_host, provider, it) }
+            ?: provider
+    AlertDialog(
+        onDismissRequest = onCancel,
+        title = { Text(text = stringResource(R.string.translation_disclosure_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(text = stringResource(R.string.translation_disclosure_message, label))
+                if (onChangeProvider != null) {
+                    TextButton(onClick = onChangeProvider) {
+                        Text(text = stringResource(R.string.translation_disclosure_change_provider))
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onContinue) {
+                Text(text = stringResource(R.string.translation_disclosure_continue))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onCancel) {
+                Text(text = stringResource(android.R.string.cancel))
+            }
+        },
+    )
 }

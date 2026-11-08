@@ -11,6 +11,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.ListItemShapes
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -55,6 +56,7 @@ import org.crux.ui.theme.single
 @Composable
 internal fun BehaviorScreen(
     toLinkOpenDefaults: () -> Unit,
+    toHardenedBrowser: () -> Unit,
     onBack: () -> Unit,
 ) {
     val topAppBarScrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -87,6 +89,39 @@ internal fun BehaviorScreen(
                     .padding(horizontal = screenHorizontalPadding),
             verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
         ) {
+            Text(
+                text = stringResource(id = R.string.settings_browser_links_info),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp),
+            )
+            SegmentedListItem(
+                onClick = toHardenedBrowser,
+                shapes = ListItemDefaults.first(),
+                content = {
+                    Text(text = stringResource(id = R.string.settings_hardened_browser_title))
+                },
+                supportingContent = {
+                    Text(text = stringResource(id = R.string.settings_hardened_browser_description))
+                },
+            )
+            SegmentedListItem(
+                onClick = toLinkOpenDefaults,
+                shapes = ListItemDefaults.last(),
+                content = {
+                    Text(text = stringResource(id = R.string.settings_link_open_defaults_title))
+                },
+                supportingContent = {
+                    Text(text = stringResource(id = R.string.settings_link_open_defaults_description))
+                },
+            )
+            Text(
+                text = stringResource(id = R.string.settings_browser_refresh_header),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                modifier = Modifier.padding(start = 4.dp, top = 16.dp, bottom = 4.dp),
+            )
             SegmentedListItem(
                 onClick = {
                     state.updateRefreshHomeTimelineOnLaunch(!appSettings.refreshHomeTimelineOnLaunch)
@@ -129,17 +164,7 @@ internal fun BehaviorScreen(
                     ),
                 selected = appSettings.homeTimelineAutoRefreshInterval,
                 onSelected = state::updateHomeTimelineAutoRefreshInterval,
-                shapes = ListItemDefaults.item(),
-            )
-            SegmentedListItem(
-                onClick = toLinkOpenDefaults,
                 shapes = ListItemDefaults.last(),
-                content = {
-                    Text(text = stringResource(id = R.string.settings_link_open_defaults_title))
-                },
-                supportingContent = {
-                    Text(text = stringResource(id = R.string.settings_link_open_defaults_description))
-                },
             )
         }
     }

@@ -1,5 +1,9 @@
 package org.crux.ui.presenter.login
 
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.persistentListOf
+import kotlinx.coroutines.flow.Flow
+import kotlinx.serialization.KSerializer
 import org.crux.data.datasource.microblog.MicroblogDataSource
 import org.crux.data.datasource.microblog.ProfileTab
 import org.crux.data.datasource.microblog.paging.RemoteLoader
@@ -19,10 +23,6 @@ import org.crux.ui.model.UiInstanceMetadata
 import org.crux.ui.model.UiProfile
 import org.crux.ui.model.UiStrings
 import org.crux.ui.model.UiTimelineV2
-import kotlinx.collections.immutable.ImmutableList
-import kotlinx.collections.immutable.persistentListOf
-import kotlinx.coroutines.flow.Flow
-import kotlinx.serialization.KSerializer
 import org.koin.core.annotation.Configuration
 import org.koin.core.annotation.KoinApplication
 import org.koin.core.annotation.Module

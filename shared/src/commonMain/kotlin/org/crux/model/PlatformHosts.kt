@@ -20,13 +20,5 @@ public val xqtHost: String =
     }
 
 @HiddenFromObjC
-public val ilink: String =
-    buildString {
-        append(Base64.decode("aHR0cHM6Ly90").decodeToString())
-        append(Base64.decode("Lm1lLytWWjYzZnFOUQ==").decodeToString())
-        append(Base64.decode("WElBME16Vmw=").decodeToString())
-    }
-
-@HiddenFromObjC
 @Suppress("ktlint:standard:property-naming")
 public const val instagramHost: String = "instagram.com"

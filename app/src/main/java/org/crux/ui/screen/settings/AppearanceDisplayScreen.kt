@@ -37,6 +37,7 @@ import org.crux.ui.theme.first
 import org.crux.ui.theme.item
 import org.crux.ui.theme.last
 import org.crux.ui.theme.screenHorizontalPadding
+import org.crux.ui.theme.single
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -79,30 +80,11 @@ internal fun AppearanceDisplayContent(state: AppearanceSettingsUpdater) {
     Column(
         verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
     ) {
-        state.sampleStatus.onSuccess { sample ->
-            SegmentedListItem(
-                onClick = {},
-                shapes = ListItemDefaults.first(),
-                contentPadding = PaddingValues(0.dp),
-            ) {
-                StatusItem(
-                    sample,
-                    modifier =
-                        Modifier
-                            .background(MaterialTheme.colorScheme.surface),
-                )
-            }
-        }
         SegmentedListItem(
             onClick = {
                 state.update(AppearanceKeys.AbsoluteTimestamp, !timelineAppearance.absoluteTimestamp)
             },
-            shapes =
-                if (state.sampleStatus.isSuccess) {
-                    ListItemDefaults.item()
-                } else {
-                    ListItemDefaults.first()
-                },
+            shapes = ListItemDefaults.single(),
             content = {
                 Text(text = stringResource(id = R.string.settings_appearance_absolute_timestamp))
             },
@@ -118,92 +100,5 @@ internal fun AppearanceDisplayContent(state: AppearanceSettingsUpdater) {
                 )
             },
         )
-        SegmentedListItem(
-            onClick = {
-                state.update(AppearanceKeys.ShowPlatformLogo, !timelineAppearance.showPlatformLogo)
-            },
-            shapes = ListItemDefaults.item(),
-            content = {
-                Text(text = stringResource(id = R.string.settings_appearance_show_platform_logo))
-            },
-            supportingContent = {
-                Text(text = stringResource(id = R.string.settings_appearance_show_platform_logo_description))
-            },
-            trailingContent = {
-                Switch(
-                    checked = timelineAppearance.showPlatformLogo,
-                    onCheckedChange = {
-                        state.update(AppearanceKeys.ShowPlatformLogo, it)
-                    },
-                )
-            },
-        )
-        SegmentedListItem(
-            onClick = {
-                state.update(AppearanceKeys.ShowEmojiReactions, !timelineAppearance.showEmojiReactions)
-            },
-            shapes = ListItemDefaults.item(),
-            content = {
-                Text(text = stringResource(id = R.string.settings_appearance_show_reactions))
-            },
-            supportingContent = {
-                Text(text = stringResource(id = R.string.settings_appearance_show_reactions_description))
-            },
-            trailingContent = {
-                Switch(
-                    checked = timelineAppearance.showEmojiReactions,
-                    onCheckedChange = {
-                        state.update(AppearanceKeys.ShowEmojiReactions, it)
-                    },
-                )
-            },
-        )
-        SegmentedListItem(
-            onClick = {
-                state.update(AppearanceKeys.ShowLinkPreview, !timelineAppearance.showLinkPreview)
-            },
-            shapes =
-                if (timelineAppearance.showLinkPreview) {
-                    ListItemDefaults.item()
-                } else {
-                    ListItemDefaults.last()
-                },
-            content = {
-                Text(text = stringResource(id = R.string.settings_appearance_show_link_previews))
-            },
-            supportingContent = {
-                Text(text = stringResource(id = R.string.settings_appearance_show_link_previews_description))
-            },
-            trailingContent = {
-                Switch(
-                    checked = timelineAppearance.showLinkPreview,
-                    onCheckedChange = {
-                        state.update(AppearanceKeys.ShowLinkPreview, it)
-                    },
-                )
-            },
-        )
-        AnimatedVisibility(visible = timelineAppearance.showLinkPreview) {
-            SegmentedListItem(
-                onClick = {
-                    state.update(AppearanceKeys.CompatLinkPreview, !timelineAppearance.compatLinkPreview)
-                },
-                shapes = ListItemDefaults.last(),
-                content = {
-                    Text(text = stringResource(id = R.string.settings_appearance_compat_link_previews))
-                },
-                supportingContent = {
-                    Text(text = stringResource(id = R.string.settings_appearance_compat_link_previews_description))
-                },
-                trailingContent = {
-                    Switch(
-                        checked = timelineAppearance.compatLinkPreview,
-                        onCheckedChange = {
-                            state.update(AppearanceKeys.CompatLinkPreview, it)
-                        },
-                    )
-                },
-            )
-        }
     }
 }

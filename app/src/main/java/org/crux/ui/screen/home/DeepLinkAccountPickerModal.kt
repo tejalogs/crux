@@ -84,7 +84,6 @@ internal fun DeepLinkAccountPickerModal(
                     onDismissRequest()
                     onNavigate(item.route)
                 },
-                toLogin = {},
                 toRelogin = {
                     onDismissRequest()
                     onNavigate(reloginRoute(it.platformId))

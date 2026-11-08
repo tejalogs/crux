@@ -280,7 +280,7 @@ internal fun LinkedInWebScreen(
                                     },
                                 )
                                 DropdownMenuItem(
-                                    text = { Text("Reload") },
+                                    text = { Text(stringResource(R.string.web_nav_reload)) },
                                     onClick = {
                                         showOverflowMenu = false
                                         webViewRef.value?.reload()
@@ -488,7 +488,7 @@ internal fun LinkedInWebScreen(
                         Box(contentAlignment = Alignment.Center) {
                             FAIcon(
                                 imageVector = FontAwesomeIcons.Solid.ShieldHalved,
-                                contentDescription = "Open Navigation Controls",
+                                contentDescription = stringResource(R.string.web_nav_expand),
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(20.dp),
                             )
@@ -516,7 +516,7 @@ internal fun LinkedInWebScreen(
                             ) {
                                 FAIcon(
                                     imageVector = FontAwesomeIcons.Solid.ArrowLeft,
-                                    contentDescription = "Back",
+                                    contentDescription = stringResource(R.string.web_nav_back),
                                     tint =
                                         if (canGoBack) {
                                             MaterialTheme.colorScheme.onSurface
@@ -535,7 +535,7 @@ internal fun LinkedInWebScreen(
                             ) {
                                 FAIcon(
                                     imageVector = FontAwesomeIcons.Solid.ArrowRight,
-                                    contentDescription = "Forward",
+                                    contentDescription = stringResource(R.string.web_nav_forward),
                                     tint =
                                         if (canGoForward) {
                                             MaterialTheme.colorScheme.onSurface
@@ -554,7 +554,7 @@ internal fun LinkedInWebScreen(
                             ) {
                                 FAIcon(
                                     imageVector = FontAwesomeIcons.Solid.RotateRight,
-                                    contentDescription = "Reload",
+                                    contentDescription = stringResource(R.string.web_nav_reload),
                                     modifier = Modifier.size(15.dp),
                                 )
                             }
@@ -566,7 +566,7 @@ internal fun LinkedInWebScreen(
                             ) {
                                 FAIcon(
                                     imageVector = FontAwesomeIcons.Solid.ArrowUpRightFromSquare,
-                                    contentDescription = "Open in External Browser",
+                                    contentDescription = stringResource(R.string.web_open_in_browser),
                                     modifier = Modifier.size(15.dp),
                                 )
                             }
@@ -576,7 +576,7 @@ internal fun LinkedInWebScreen(
                             ) {
                                 FAIcon(
                                     imageVector = FontAwesomeIcons.Solid.Xmark,
-                                    contentDescription = "Collapse Dock",
+                                    contentDescription = stringResource(R.string.web_nav_collapse),
                                     modifier = Modifier.size(15.dp),
                                 )
                             }

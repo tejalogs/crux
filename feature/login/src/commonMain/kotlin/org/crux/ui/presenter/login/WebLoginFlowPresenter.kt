@@ -8,11 +8,11 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import org.crux.di.koinInject
 import org.crux.ui.model.UiStrings
 import org.crux.ui.presenter.PresenterBase
 import org.crux.web.shared.WebPresenter
-import kotlinx.coroutines.launch
 
 @WebPresenter("loginFlow")
 public class WebLoginFlowPresenter(

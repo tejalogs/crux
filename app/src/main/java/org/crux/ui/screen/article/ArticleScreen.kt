@@ -294,7 +294,7 @@ internal fun ArticleScreen(
                         ) {
                             FAIcon(
                                 FontAwesomeIcons.Solid.WandMagicSparkles,
-                                contentDescription = "Synthesize Post & Carousel",
+                                contentDescription = stringResource(id = R.string.reading_list_create_post_long),
                                 tint = MaterialTheme.colorScheme.primary,
                             )
                         }

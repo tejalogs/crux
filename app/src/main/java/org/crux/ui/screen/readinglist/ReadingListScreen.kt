@@ -1,5 +1,6 @@
 package org.crux.ui.screen.readinglist
 
+import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -55,6 +56,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -75,6 +77,7 @@ import compose.icons.fontawesomeicons.solid.Rss
 import compose.icons.fontawesomeicons.solid.TrashCan
 import compose.icons.fontawesomeicons.solid.WandMagicSparkles
 import kotlinx.coroutines.launch
+import org.crux.R
 import org.crux.common.OfflineMediaPrefetcher
 import org.crux.data.readinglist.ReadingListItem
 import org.crux.data.readinglist.ReadingListRepository
@@ -137,12 +140,10 @@ internal fun ReadingListScreen(
     if (showClearConfirmation) {
         AlertDialog(
             onDismissRequest = { showClearConfirmation = false },
-            title = { Text(text = "Clear Reading List?") },
+            title = { Text(text = stringResource(id = R.string.reading_list_clear_title)) },
             text = {
                 Text(
-                    text =
-                        "This will remove all ${items.size} saved offline items. " +
-                            "Cached images can still be managed in Storage settings.",
+                    text = stringResource(id = R.string.reading_list_clear_message, items.size),
                 )
             },
             confirmButton = {
@@ -152,12 +153,12 @@ internal fun ReadingListScreen(
                         scope.launch { repository.clearAll() }
                     },
                 ) {
-                    Text(text = "Clear All", color = MaterialTheme.colorScheme.error)
+                    Text(text = stringResource(id = R.string.reading_list_clear_all), color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showClearConfirmation = false }) {
-                    Text(text = "Cancel")
+                    Text(text = stringResource(id = android.R.string.cancel))
                 }
             },
         )
@@ -186,7 +187,7 @@ internal fun ReadingListScreen(
                     title = {
                         Column {
                             Text(
-                                text = "Reading List",
+                                text = stringResource(id = R.string.reading_list_title),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                             )
@@ -218,7 +219,7 @@ internal fun ReadingListScreen(
                             ) {
                                 FAIcon(
                                     imageVector = FontAwesomeIcons.Solid.CloudArrowDown,
-                                    contentDescription = "Prefetch Media for Offline",
+                                    contentDescription = stringResource(id = R.string.reading_list_prefetch),
                                     tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(20.dp),
                                 )
@@ -227,7 +228,7 @@ internal fun ReadingListScreen(
                         IconButton(onClick = toStorageSettings) {
                             FAIcon(
                                 imageVector = FontAwesomeIcons.Solid.Database,
-                                contentDescription = "Cache & Storage Settings",
+                                contentDescription = stringResource(id = R.string.reading_list_storage_settings),
                                 modifier = Modifier.size(18.dp),
                             )
                         }
@@ -235,7 +236,7 @@ internal fun ReadingListScreen(
                             IconButton(onClick = { showClearConfirmation = true }) {
                                 FAIcon(
                                     imageVector = FontAwesomeIcons.Solid.TrashCan,
-                                    contentDescription = "Clear All",
+                                    contentDescription = stringResource(id = R.string.reading_list_clear_all),
                                     tint = MaterialTheme.colorScheme.error,
                                     modifier = Modifier.size(17.dp),
                                 )
@@ -267,7 +268,7 @@ internal fun ReadingListScreen(
                     Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 6.dp),
-                placeholder = { Text("Search offline bookmarks...") },
+                placeholder = { Text(stringResource(id = R.string.reading_list_search_hint)) },
                 singleLine = true,
                 shape = RoundedCornerShape(12.dp),
             )
@@ -291,7 +292,7 @@ internal fun ReadingListScreen(
                     FilterChip(
                         selected = selectedFilter == filter,
                         onClick = { selectedFilter = filter },
-                        label = { Text("${filter.label} ($count)") },
+                        label = { Text("${stringResource(id = filter.labelRes)} ($count)") },
                         colors = FilterChipDefaults.filterChipColors(),
                     )
                 }
@@ -316,12 +317,17 @@ internal fun ReadingListScreen(
                             modifier = Modifier.size(48.dp),
                         )
                         Text(
-                            text = if (searchQuery.isNotBlank()) "No matching saved items" else "No saved items for offline reading",
+                            text =
+                                if (searchQuery.isNotBlank()) {
+                                    stringResource(id = R.string.reading_list_empty_no_match)
+                                } else {
+                                    stringResource(id = R.string.reading_list_empty)
+                                },
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold,
                         )
                         Text(
-                            text = "Save any post, article, or photo bookmark to access it anytime offline without network.",
+                            text = stringResource(id = R.string.reading_list_empty_hint),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
@@ -414,7 +420,7 @@ private fun ReadingListItemCard(
                         color = MaterialTheme.colorScheme.surfaceVariant,
                     ) {
                         Text(
-                            text = "Read",
+                            text = stringResource(id = R.string.reading_list_read),
                             style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -462,7 +468,7 @@ private fun ReadingListItemCard(
                     items(item.mediaUrls) { mediaUrl ->
                         AsyncImage(
                             model = mediaUrl,
-                            contentDescription = "Saved media",
+                            contentDescription = stringResource(id = R.string.reading_list_saved_media),
                             modifier =
                                 Modifier
                                     .size(72.dp)
@@ -504,7 +510,7 @@ private fun ReadingListItemCard(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "Synthesize",
+                        text = stringResource(id = R.string.reading_list_create_post),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.SemiBold,
@@ -518,13 +524,16 @@ private fun ReadingListItemCard(
                         modifier = Modifier.size(13.dp),
                     )
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text(text = if (item.isRead) "Mark Unread" else "Mark Read", style = MaterialTheme.typography.labelSmall)
+                    Text(
+                        text = stringResource(id = if (item.isRead) R.string.reading_list_mark_unread else R.string.reading_list_mark_read),
+                        style = MaterialTheme.typography.labelSmall,
+                    )
                 }
 
                 IconButton(onClick = onDelete) {
                     FAIcon(
                         imageVector = FontAwesomeIcons.Solid.TrashCan,
-                        contentDescription = "Delete",
+                        contentDescription = stringResource(id = R.string.reading_list_delete),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(14.dp),
                     )
@@ -622,7 +631,7 @@ private fun ReadingListDetailSheet(
                 ) {
                     FAIcon(
                         imageVector = FontAwesomeIcons.Solid.ArrowUpRightFromSquare,
-                        contentDescription = "Open Source Link",
+                        contentDescription = stringResource(id = R.string.reading_list_open_source),
                         modifier = Modifier.size(18.dp),
                     )
                 }
@@ -654,7 +663,7 @@ private fun ReadingListDetailSheet(
                     item.mediaUrls.forEach { mediaUrl ->
                         AsyncImage(
                             model = mediaUrl,
-                            contentDescription = "Full photo",
+                            contentDescription = stringResource(id = R.string.reading_list_full_photo),
                             modifier =
                                 Modifier
                                     .size(140.dp)
@@ -692,7 +701,7 @@ private fun ReadingListDetailSheet(
                     modifier = Modifier.size(15.dp),
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Synthesize Post & Carousel", fontWeight = FontWeight.Bold)
+                Text(stringResource(id = R.string.reading_list_create_post_long), fontWeight = FontWeight.Bold)
             }
 
             Spacer(modifier = Modifier.height(4.dp))
@@ -711,7 +720,7 @@ private fun ReadingListDetailSheet(
                         modifier = Modifier.size(14.dp),
                     )
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(id = R.string.reading_list_delete), color = MaterialTheme.colorScheme.error)
                 }
 
                 TextButton(onClick = onToggleRead) {
@@ -721,7 +730,7 @@ private fun ReadingListDetailSheet(
                         modifier = Modifier.size(14.dp),
                     )
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text(if (item.isRead) "Mark as Unread" else "Mark as Read")
+                    Text(stringResource(id = if (item.isRead) R.string.reading_list_mark_as_unread else R.string.reading_list_mark_as_read))
                 }
             }
         }
@@ -729,12 +738,12 @@ private fun ReadingListDetailSheet(
 }
 
 private enum class ReadingListFilter(
-    val label: String,
+    @StringRes val labelRes: Int,
 ) {
-    ALL("All"),
-    UNREAD("Unread"),
-    READ("Read"),
-    HAS_MEDIA("Media"),
-    RSS("RSS"),
-    INSTAGRAM("Instagram"),
+    ALL(R.string.reading_list_filter_all),
+    UNREAD(R.string.reading_list_filter_unread),
+    READ(R.string.reading_list_filter_read),
+    HAS_MEDIA(R.string.reading_list_filter_media),
+    RSS(R.string.reading_list_filter_feeds),
+    INSTAGRAM(R.string.reading_list_filter_instagram),
 }

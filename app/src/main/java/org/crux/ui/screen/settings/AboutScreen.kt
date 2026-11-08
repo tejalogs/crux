@@ -1,5 +1,6 @@
 package org.crux.ui.screen.settings
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -24,6 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
@@ -33,14 +35,14 @@ import androidx.compose.ui.unit.dp
 import compose.icons.FontAwesomeIcons
 import compose.icons.fontawesomeicons.Brands
 import compose.icons.fontawesomeicons.Solid
-import compose.icons.fontawesomeicons.brands.Discord
 import compose.icons.fontawesomeicons.brands.Github
-import compose.icons.fontawesomeicons.brands.Telegram
-import compose.icons.fontawesomeicons.solid.Language
+import compose.icons.fontawesomeicons.solid.Book
+import compose.icons.fontawesomeicons.solid.Bug
+import compose.icons.fontawesomeicons.solid.FileContract
 import compose.icons.fontawesomeicons.solid.Lock
 import org.crux.BuildConfig
+import org.crux.CruxLinks
 import org.crux.R
-import org.crux.model.ilink
 import org.crux.ui.component.BackButton
 import org.crux.ui.component.CruxLargeFlexibleTopAppBar
 import org.crux.ui.component.CruxScaffold
@@ -49,7 +51,10 @@ import org.crux.ui.theme.segmentedShapes2
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun AboutScreen(onBack: () -> Unit) {
+internal fun AboutScreen(
+    onBack: () -> Unit,
+    toOpenSourceLicenses: () -> Unit,
+) {
     val topAppBarScrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val uriHandler = LocalUriHandler.current
     CruxScaffold(
@@ -105,118 +110,87 @@ internal fun AboutScreen(onBack: () -> Unit) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(16.dp))
+            Text(
+                text = stringResource(id = R.string.settings_about_credit),
+                textAlign = TextAlign.Center,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(horizontal = 16.dp),
+            )
+            Spacer(Modifier.height(16.dp))
+            val rows =
+                listOf(
+                    AboutRow(
+                        icon = FontAwesomeIcons.Brands.Github,
+                        title = R.string.settings_about_source_code,
+                        supporting = CruxLinks.REPOSITORY,
+                        onClick = { uriHandler.openUri(CruxLinks.REPOSITORY) },
+                    ),
+                    AboutRow(
+                        icon = FontAwesomeIcons.Brands.Github,
+                        title = R.string.settings_about_upstream,
+                        supporting = CruxLinks.UPSTREAM,
+                        onClick = { uriHandler.openUri(CruxLinks.UPSTREAM) },
+                    ),
+                    AboutRow(
+                        icon = FontAwesomeIcons.Solid.FileContract,
+                        title = R.string.settings_about_license,
+                        supportingRes = R.string.settings_about_license_description,
+                        onClick = { uriHandler.openUri(CruxLinks.LICENSE) },
+                    ),
+                    AboutRow(
+                        icon = FontAwesomeIcons.Solid.Book,
+                        title = R.string.settings_about_open_source_licenses,
+                        supportingRes = R.string.settings_about_open_source_licenses_description,
+                        onClick = toOpenSourceLicenses,
+                    ),
+                    AboutRow(
+                        icon = FontAwesomeIcons.Solid.Lock,
+                        title = R.string.settings_privacy_policy,
+                        supportingRes = R.string.settings_about_privacy_policy_description,
+                        onClick = { uriHandler.openUri(CruxLinks.PRIVACY) },
+                    ),
+                    AboutRow(
+                        icon = FontAwesomeIcons.Solid.Bug,
+                        title = R.string.settings_about_report_issue,
+                        supporting = CruxLinks.ISSUES,
+                        onClick = { uriHandler.openUri(CruxLinks.ISSUES) },
+                    ),
+                )
             Column(
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
-                SegmentedListItem(
-                    content = {
-                        Text(text = stringResource(id = R.string.settings_about_source_code))
-                    },
-                    supportingContent = {
-                        Text(
-                            text = "https://github.com/prism-social/prism",
-                        )
-                    },
-                    onClick = {
-                        uriHandler.openUri("https://github.com/prism-social/prism")
-                    },
-                    shapes = ListItemDefaults.segmentedShapes2(0, 5),
-                    leadingContent = {
-                        Icon(
-                            imageVector = FontAwesomeIcons.Brands.Github,
-                            contentDescription = "GitHub",
-                            modifier = Modifier.size(24.dp),
-                        )
-                    },
-                )
-                SegmentedListItem(
-                    content = {
-                        Text(text = stringResource(id = R.string.settings_about_upstream))
-                    },
-                    supportingContent = {
-                        Text(
-                            text = stringResource(id = R.string.settings_about_upstream_description),
-                        )
-                    },
-                    onClick = {
-                        uriHandler.openUri("https://github.com/DimensionDev/Flare")
-                    },
-                    shapes = ListItemDefaults.segmentedShapes2(1, 5),
-                    leadingContent = {
-                        Icon(
-                            imageVector = FontAwesomeIcons.Brands.Github,
-                            contentDescription = stringResource(id = R.string.settings_about_upstream),
-                            modifier = Modifier.size(24.dp),
-                        )
-                    },
-                )
-                SegmentedListItem(
-                    content = {
-                        Text(text = stringResource(id = R.string.settings_about_discord))
-                    },
-                    supportingContent = {
-                        Text(
-                            text = stringResource(id = R.string.settings_about_discord_description),
-                        )
-                    },
-                    onClick = {
-                        uriHandler.openUri("https://discord.gg/De9NhXBryT")
-                    },
-                    shapes = ListItemDefaults.segmentedShapes2(2, 5),
-                    leadingContent = {
-                        Icon(
-                            imageVector = FontAwesomeIcons.Brands.Discord,
-                            contentDescription = stringResource(id = R.string.settings_about_discord),
-                            modifier = Modifier.size(24.dp),
-                        )
-                    },
-                )
-                SegmentedListItem(
-                    content = {
-                        Text(text = stringResource(id = R.string.settings_about_localization))
-                    },
-                    supportingContent = {
-                        Text(
-                            text = stringResource(id = R.string.settings_about_localization_description),
-                        )
-                    },
-                    onClick = {
-                        uriHandler.openUri("https://crowdin.com/project/flareapp")
-                    },
-                    shapes = ListItemDefaults.segmentedShapes2(3, 5),
-                    leadingContent = {
-                        Icon(
-                            imageVector = FontAwesomeIcons.Solid.Language,
-                            contentDescription = stringResource(id = R.string.settings_about_localization),
-                            modifier = Modifier.size(24.dp),
-                        )
-                    },
-                )
-                SegmentedListItem(
-                    content = {
-                        Text(text = stringResource(id = R.string.settings_privacy_policy))
-                    },
-                    supportingContent = {
-                        Text(
-                            text = "https://github.com/prism-social/prism#privacy",
-                        )
-                    },
-                    onClick = {
-                        uriHandler.openUri("https://github.com/prism-social/prism#privacy")
-                    },
-                    shapes = ListItemDefaults.segmentedShapes2(4, 5),
-                    leadingContent = {
-                        Icon(
-                            imageVector = FontAwesomeIcons.Solid.Lock,
-                            contentDescription = stringResource(id = R.string.settings_privacy_policy),
-                            modifier = Modifier.size(24.dp),
-                        )
-                    },
-                )
+                rows.forEachIndexed { index, row ->
+                    SegmentedListItem(
+                        content = {
+                            Text(text = stringResource(id = row.title))
+                        },
+                        supportingContent = {
+                            Text(text = row.supporting ?: stringResource(id = requireNotNull(row.supportingRes)))
+                        },
+                        onClick = row.onClick,
+                        shapes = ListItemDefaults.segmentedShapes2(index, rows.size),
+                        leadingContent = {
+                            Icon(
+                                imageVector = row.icon,
+                                contentDescription = null,
+                                modifier = Modifier.size(24.dp),
+                            )
+                        },
+                    )
+                }
             }
+            Spacer(Modifier.height(24.dp))
         }
     }
 }
+
+private data class AboutRow(
+    val icon: ImageVector,
+    @StringRes val title: Int,
+    val supporting: String? = null,
+    @StringRes val supportingRes: Int? = null,
+    val onClick: () -> Unit,
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -277,7 +251,7 @@ internal fun ColorSpaceScreen(onBack: () -> Unit) {
         topBar = {
             CruxLargeFlexibleTopAppBar(
                 title = {
-                    Text(text = "Color Space")
+                    Text(text = stringResource(id = R.string.settings_color_space_title))
                 },
                 navigationIcon = {
                     BackButton(onBack = onBack)

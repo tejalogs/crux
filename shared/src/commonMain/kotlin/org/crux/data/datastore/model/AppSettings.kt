@@ -71,6 +71,8 @@ public data class AppSettings(
         val autoTranslateExcludedLanguages: List<String> = emptyList(),
         val preferPlatformTranslation: Boolean = false,
         val showOriginalWithTranslation: Boolean = false,
+        // Key of the translation destination the person accepted in the one-time disclosure (new fields go last).
+        val disclosureAcknowledged: String? = null,
     ) {
         @Serializable
         public sealed interface Provider {
@@ -109,7 +111,7 @@ public data class AppSettings(
         )
         val translation: Boolean = false,
         val tldr: Boolean = false,
-        val type: Type = Type.OpenAI("", "", ""),
+        val type: Type = Type.OnDevice(),
         val translatePrompt: String = AiPromptDefaults.TRANSLATE_PROMPT,
         val tldrPrompt: String = AiPromptDefaults.TLDR_PROMPT,
         @Deprecated(

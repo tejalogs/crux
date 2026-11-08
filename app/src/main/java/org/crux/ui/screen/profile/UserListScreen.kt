@@ -159,7 +159,6 @@ internal fun UserListScreen(
                                         ),
                                 userState = UiState.Loading(),
                                 onClick = { onUserClick(it) },
-                                toLogin = {},
                             )
                         },
                     ) { index, itemCount, it ->
@@ -172,7 +171,6 @@ internal fun UserListScreen(
                                     ),
                             userState = UiState.Success(it),
                             onClick = { onUserClick(it) },
-                            toLogin = {},
                         )
                     }
                 }

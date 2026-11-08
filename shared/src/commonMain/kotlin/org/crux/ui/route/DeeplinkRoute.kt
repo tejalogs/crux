@@ -10,10 +10,6 @@ import org.crux.model.AccountType
 import org.crux.model.MicroBlogKey
 
 public const val APPSCHEMA: String = "crux"
-public const val LEGACY_APPSCHEMA: String = "flare"
-
-// Scheme used while the app was called Prism; still accepted so older links keep working.
-public const val LEGACY_PRISM_APPSCHEMA: String = "prism"
 
 @Serializable
 public sealed class DeeplinkRoute {
@@ -267,17 +263,12 @@ public sealed class DeeplinkRoute {
                 val hex =
                     when {
                         uri.startsWith("$APPSCHEMA://") -> uri.removePrefix("$APPSCHEMA://")
-                        uri.startsWith("$LEGACY_APPSCHEMA://") -> uri.removePrefix("$LEGACY_APPSCHEMA://")
-                        uri.startsWith("$LEGACY_PRISM_APPSCHEMA://") -> uri.removePrefix("$LEGACY_PRISM_APPSCHEMA://")
                         else -> return null
                     }
                 ProtoBuf.decodeFromHexString<RoutePackage>(hex).route
             }.getOrNull()
 
-        public fun isDeeplink(uri: String): Boolean =
-            uri.startsWith("$APPSCHEMA://") ||
-                uri.startsWith("$LEGACY_APPSCHEMA://") ||
-                uri.startsWith("$LEGACY_PRISM_APPSCHEMA://")
+        public fun isDeeplink(uri: String): Boolean = uri.startsWith("$APPSCHEMA://")
     }
 }
 

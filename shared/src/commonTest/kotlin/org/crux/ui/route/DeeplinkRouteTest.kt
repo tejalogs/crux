@@ -276,20 +276,21 @@ class DeeplinkRouteTest {
     fun testInvalidUri() {
         assertNull(DeeplinkRoute.parse("invalid://uri"))
         assertNull(DeeplinkRoute.parse("crux://invalid_hex"))
-        assertNull(DeeplinkRoute.parse("prism://invalid_hex"))
-        assertNull(DeeplinkRoute.parse("flare://invalid_hex"))
     }
 
     @Test
-    fun testLegacySchemeParsing() {
+    fun testOnlyCruxSchemeIsAccepted() {
         val route = DeeplinkRoute.Login
         val cruxUri = route.toUri()
         assertEquals(true, cruxUri.startsWith("crux://"))
         val prismUri = cruxUri.replace("crux://", "prism://")
         val flareUri = cruxUri.replace("crux://", "flare://")
         assertEquals(route, DeeplinkRoute.parse(cruxUri))
-        assertEquals(route, DeeplinkRoute.parse(prismUri))
-        assertEquals(route, DeeplinkRoute.parse(flareUri))
+        assertNull(DeeplinkRoute.parse(prismUri))
+        assertNull(DeeplinkRoute.parse(flareUri))
+        assertEquals(true, DeeplinkRoute.isDeeplink(cruxUri))
+        assertEquals(false, DeeplinkRoute.isDeeplink(prismUri))
+        assertEquals(false, DeeplinkRoute.isDeeplink(flareUri))
     }
 
     @Test

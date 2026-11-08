@@ -89,9 +89,6 @@ internal sealed interface Route : NavKey {
         data object AppearanceLayout : Settings
 
         @Serializable
-        data object PostActionLayout : Settings
-
-        @Serializable
         data object AppearanceDisplay : Settings
 
         @Serializable
@@ -117,6 +114,9 @@ internal sealed interface Route : NavKey {
 
         @Serializable
         data object About : Settings
+
+        @Serializable
+        data object OpenSourceLicenses : Settings
 
         @Serializable
         data object LocalFilter : Settings

@@ -93,7 +93,6 @@ internal fun AppearanceMediaScreen(onBack: () -> Unit) {
 @Composable
 internal fun AppearanceMediaContent(state: AppearanceSettingsUpdater) {
     val globalAppearance = LocalGlobalAppearance.current
-    val timelineAppearance = LocalTimelineAppearance.current
     val mediaSaveLocationRepository = koinInject<AndroidMediaSaveLocationRepository>()
     val mediaSaveLocation by mediaSaveLocationRepository.state.collectAsState()
     var showMediaSaveLocationMenu by remember { mutableStateOf(false) }
@@ -107,20 +106,6 @@ internal fun AppearanceMediaContent(state: AppearanceSettingsUpdater) {
     Column(
         verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
     ) {
-        state.sampleStatus.onSuccess { sample ->
-            SegmentedListItem(
-                onClick = {},
-                shapes = ListItemDefaults.first(),
-                contentPadding = PaddingValues(0.dp),
-            ) {
-                StatusItem(
-                    sample,
-                    modifier =
-                        Modifier
-                            .background(MaterialTheme.colorScheme.surface),
-                )
-            }
-        }
         SingleChoiceSettingsItem(
             headline = { Text(text = stringResource(id = R.string.settings_lite_mode_title)) },
             supporting = { Text(text = stringResource(id = R.string.settings_lite_mode_description)) },
@@ -139,176 +124,6 @@ internal fun AppearanceMediaContent(state: AppearanceSettingsUpdater) {
             },
             shapes = ListItemDefaults.first(),
         )
-        SegmentedListItem(
-            onClick = {
-                state.update(AppearanceKeys.ShowMedia, !timelineAppearance.showMedia)
-            },
-            shapes =
-                if (!state.sampleStatus.isSuccess) {
-                    ListItemDefaults.first()
-                } else {
-                    ListItemDefaults.item()
-                },
-            content = {
-                Text(text = stringResource(id = R.string.settings_appearance_show_media))
-            },
-            supportingContent = {
-                Text(text = stringResource(id = R.string.settings_appearance_show_media_description))
-            },
-            trailingContent = {
-                Switch(
-                    checked = timelineAppearance.showMedia,
-                    onCheckedChange = {
-                        state.update(AppearanceKeys.ShowMedia, it)
-                    },
-                )
-            },
-        )
-        SegmentedListItem(
-            onClick = {
-                state.update(AppearanceKeys.ShowPostInMediaViewer, !globalAppearance.showPostInMediaViewer)
-            },
-            shapes = ListItemDefaults.item(),
-            content = {
-                Text(text = stringResource(R.string.settings_appearance_show_post_in_media_viewer))
-            },
-            supportingContent = {
-                Text(text = stringResource(R.string.settings_appearance_show_post_in_media_viewer_description))
-            },
-            trailingContent = {
-                Switch(
-                    checked = globalAppearance.showPostInMediaViewer,
-                    onCheckedChange = { state.update(AppearanceKeys.ShowPostInMediaViewer, it) },
-                )
-            },
-        )
-        AnimatedVisibility(timelineAppearance.showMedia) {
-            SegmentedListItem(
-                onClick = {
-                    state.update(AppearanceKeys.ShowSensitiveContent, !timelineAppearance.showSensitiveContent)
-                },
-                shapes = ListItemDefaults.item(),
-                content = {
-                    Text(text = stringResource(id = R.string.settings_appearance_show_cw_img))
-                },
-                supportingContent = {
-                    Text(text = stringResource(id = R.string.settings_appearance_show_cw_img_description))
-                },
-                trailingContent = {
-                    Switch(
-                        checked = timelineAppearance.showSensitiveContent,
-                        onCheckedChange = {
-                            state.update(AppearanceKeys.ShowSensitiveContent, it)
-                        },
-                    )
-                },
-            )
-        }
-        AnimatedVisibility(timelineAppearance.showMedia) {
-            SegmentedListItem(
-                onClick = {
-                    state.update(AppearanceKeys.ExpandContentWarning, !timelineAppearance.expandContentWarning)
-                },
-                shapes = ListItemDefaults.item(),
-                content = {
-                    Text(text = stringResource(id = R.string.settings_appearance_expand_content_warning))
-                },
-                supportingContent = {
-                    Text(text = stringResource(id = R.string.settings_appearance_expand_content_warning_description))
-                },
-                trailingContent = {
-                    Switch(
-                        checked = timelineAppearance.expandContentWarning,
-                        onCheckedChange = {
-                            state.update(AppearanceKeys.ExpandContentWarning, it)
-                        },
-                    )
-                },
-            )
-        }
-        AnimatedVisibility(timelineAppearance.showMedia) {
-            SingleChoiceSettingsItem(
-                headline = { Text(text = stringResource(id = R.string.settings_appearance_media_layout)) },
-                supporting = { Text(text = stringResource(id = R.string.settings_appearance_media_layout_description)) },
-                items =
-                    persistentMapOf(
-                        TimelineMediaLayout.Grid to stringResource(id = R.string.settings_appearance_media_layout_grid),
-                        TimelineMediaLayout.Carousel to stringResource(id = R.string.settings_appearance_media_layout_carousel),
-                        TimelineMediaLayout.Stack to stringResource(id = R.string.settings_appearance_media_layout_stack),
-                    ),
-                selected = timelineAppearance.mediaLayout,
-                onSelected = {
-                    state.update(AppearanceKeys.MediaLayout, it)
-                },
-                shapes = ListItemDefaults.item(),
-            )
-        }
-        AnimatedVisibility(
-            timelineAppearance.showMedia && timelineAppearance.mediaLayout == TimelineMediaLayout.Grid,
-        ) {
-            SegmentedListItem(
-                onClick = {
-                    state.update(
-                        AppearanceKeys.LimitMediaGridToNine,
-                        !timelineAppearance.limitMediaGridToNine,
-                    )
-                },
-                shapes = ListItemDefaults.item(),
-                content = {
-                    Text(text = stringResource(id = R.string.settings_appearance_limit_media_grid_to_nine))
-                },
-                supportingContent = {
-                    Text(text = stringResource(id = R.string.settings_appearance_limit_media_grid_to_nine_description))
-                },
-                trailingContent = {
-                    Switch(
-                        checked = timelineAppearance.limitMediaGridToNine,
-                        onCheckedChange = {
-                            state.update(AppearanceKeys.LimitMediaGridToNine, it)
-                        },
-                    )
-                },
-            )
-        }
-        AnimatedVisibility(timelineAppearance.showMedia) {
-            SegmentedListItem(
-                onClick = {
-                    state.update(AppearanceKeys.ExpandMediaSize, !timelineAppearance.expandMediaSize)
-                },
-                shapes = ListItemDefaults.item(),
-                content = {
-                    Text(text = stringResource(id = R.string.settings_appearance_expand_media))
-                },
-                supportingContent = {
-                    Text(text = stringResource(id = R.string.settings_appearance_expand_media_description))
-                },
-                trailingContent = {
-                    Switch(
-                        checked = timelineAppearance.expandMediaSize,
-                        onCheckedChange = {
-                            state.update(AppearanceKeys.ExpandMediaSize, it)
-                        },
-                    )
-                },
-            )
-        }
-        AnimatedVisibility(timelineAppearance.showMedia) {
-            SingleChoiceSettingsItem(
-                headline = { Text(text = stringResource(id = R.string.settings_appearance_video_autoplay)) },
-                supporting = { Text(text = stringResource(id = R.string.settings_appearance_video_autoplay_description)) },
-                items =
-                    persistentMapOf(
-                        VideoAutoplay.WIFI to stringResource(id = R.string.settings_appearance_video_autoplay_wifi),
-                        VideoAutoplay.ALWAYS to stringResource(id = R.string.settings_appearance_video_autoplay_always),
-                        VideoAutoplay.NEVER to stringResource(id = R.string.settings_appearance_video_autoplay_never),
-                    ),
-                selected = timelineAppearance.videoAutoplay,
-                onSelected = {
-                    state.update(AppearanceKeys.VideoAutoplay, it)
-                },
-                shapes = ListItemDefaults.item(),
-            )
-        }
         val mediaSaveLocationText =
             when (mediaSaveLocation.mode) {
                 MediaSaveLocationMode.DefaultDownloads -> {

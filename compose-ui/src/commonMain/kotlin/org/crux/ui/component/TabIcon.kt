@@ -22,12 +22,6 @@ import moe.tlaster.precompose.molecule.producePresenter
 import org.crux.compose.ui.Res
 import org.crux.compose.ui.all_rss_feeds_title
 import org.crux.compose.ui.antenna_title
-import org.crux.compose.ui.bluesky_login_auth_factor_token_hint
-import org.crux.compose.ui.bluesky_login_fix_delegation_scopes_button
-import org.crux.compose.ui.bluesky_login_oauth_button
-import org.crux.compose.ui.bluesky_login_password_hint
-import org.crux.compose.ui.bluesky_login_use_password_button
-import org.crux.compose.ui.bluesky_login_username_hint
 import org.crux.compose.ui.cancel_button
 import org.crux.compose.ui.channel_title
 import org.crux.compose.ui.dm_list_title
@@ -49,14 +43,8 @@ import org.crux.compose.ui.illustrations_title
 import org.crux.compose.ui.liked_title
 import org.crux.compose.ui.login_button
 import org.crux.compose.ui.manga_title
-import org.crux.compose.ui.mastodon_tab_local_title
-import org.crux.compose.ui.mastodon_tab_public_title
 import org.crux.compose.ui.media_title
 import org.crux.compose.ui.mixed_timeline_title
-import org.crux.compose.ui.nostr_login_account_hint
-import org.crux.compose.ui.nostr_login_amber_button
-import org.crux.compose.ui.nostr_login_qr_button
-import org.crux.compose.ui.nostr_login_title
 import org.crux.compose.ui.pixiv_private_favourites_title
 import org.crux.compose.ui.pixiv_private_following_title
 import org.crux.compose.ui.pixiv_ranking_day_female_title
@@ -301,10 +289,6 @@ internal val UiStrings.res: StringResource
 
             UiStrings.Settings -> Res.string.settings_title
 
-            UiStrings.MastodonLocal -> Res.string.mastodon_tab_local_title
-
-            UiStrings.MastodonPublic -> Res.string.mastodon_tab_public_title
-
             UiStrings.Featured -> Res.string.home_tab_featured_title
 
             UiStrings.ForYou -> Res.string.home_tab_for_you_title
@@ -357,25 +341,23 @@ internal val UiStrings.res: StringResource
 
             UiStrings.Next -> Res.string.service_select_next_button
 
-            UiStrings.Username -> Res.string.bluesky_login_username_hint
+            // Values kept only so saved tabs still deserialize; nothing shows them any more.
+            UiStrings.MastodonLocal,
+            UiStrings.MastodonPublic,
+            -> Res.string.tab_settings_default
 
-            UiStrings.Password -> Res.string.bluesky_login_password_hint
-
-            UiStrings.Otp -> Res.string.bluesky_login_auth_factor_token_hint
-
-            UiStrings.OAuthLogin -> Res.string.bluesky_login_oauth_button
-
-            UiStrings.PasswordLogin -> Res.string.bluesky_login_use_password_button
-
-            UiStrings.QrConnect -> Res.string.nostr_login_qr_button
-
-            UiStrings.CredentialImport -> Res.string.nostr_login_title
-
-            UiStrings.ExternalSigner -> Res.string.nostr_login_amber_button
-
-            UiStrings.WebCookieLogin -> Res.string.login_button
-
-            UiStrings.NostrLoginAccount -> Res.string.nostr_login_account_hint
+            UiStrings.Username,
+            UiStrings.Password,
+            UiStrings.Otp,
+            UiStrings.OAuthLogin,
+            UiStrings.PasswordLogin,
+            UiStrings.QrConnect,
+            UiStrings.CredentialImport,
+            UiStrings.ExternalSigner,
+            UiStrings.NostrLoginAccount,
+            UiStrings.BlueskyFixDelegationScopes,
+            UiStrings.WebCookieLogin,
+            -> Res.string.login_button
 
             UiStrings.PixivRankingWeek -> Res.string.pixiv_ranking_week_title
 
@@ -404,6 +386,4 @@ internal val UiStrings.res: StringResource
             UiStrings.PixivPrivateBookmarks,
             UiStrings.PixivPrivateFavourites,
             -> Res.string.pixiv_private_favourites_title
-
-            UiStrings.BlueskyFixDelegationScopes -> Res.string.bluesky_login_fix_delegation_scopes_button
         }

@@ -15,6 +15,7 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -23,6 +24,7 @@ import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -61,12 +63,32 @@ internal fun ExpressiveHomeTabStrip(
     uncheckedContainerColor: Color = MaterialTheme.colorScheme.surfaceContainerHigh,
     trailing: (@Composable () -> Unit)? = null,
 ) {
+    if (fitsWithoutScrolling(iconOnly, tabs.size) && trailing == null) {
+        // Few enough pills to share the width equally, so none can end up behind a neighbouring button.
+        CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+            Row(
+                modifier = modifier.fillMaxWidth().padding(horizontal = 2.dp),
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                tabs.forEachIndexed { index, tab ->
+                    HomeTabPill(
+                        tab = tab,
+                        isSelected = index == selectedTabIndex,
+                        showLabel = false,
+                        uncheckedContainerColor = uncheckedContainerColor,
+                        onClick = { onTabSelected(index) },
+                        modifier = Modifier.weight(1f),
+                        horizontalPadding = 2.dp,
+                        minWidth = 0.dp,
+                    )
+                }
+            }
+        }
+        return
+    }
     val listState = rememberLazyListState()
     LaunchedEffect(selectedTabIndex, iconOnly, tabs.size) {
-        if (iconOnly && tabs.size <= 6) {
-            listState.animateScrollToItem(0)
-            return@LaunchedEffect
-        }
         val visible = listState.layoutInfo.visibleItemsInfo
         if (visible.isNotEmpty() && visible.any { it.index == selectedTabIndex }) {
             return@LaunchedEffect
@@ -82,41 +104,72 @@ internal fun ExpressiveHomeTabStrip(
     ) {
         itemsIndexed(tabs, key = { _, tab -> tab.id }) { index, tab ->
             val isSelected = index == selectedTabIndex
-            val showLabel = !iconOnly && (isSelected || (!selectedLabelOnly && tabs.size <= COMPACT_LABEL_THRESHOLD))
-            ToggleButton(
-                checked = isSelected,
-                onCheckedChange = { onTabSelected(index) },
-                modifier = Modifier.defaultMinSize(minWidth = if (iconOnly) 36.dp else 48.dp, minHeight = 36.dp),
-                colors =
-                    ToggleButtonDefaults.colors(
-                        containerColor = uncheckedContainerColor,
-                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        checkedContainerColor = MaterialTheme.colorScheme.primary,
-                        checkedContentColor = MaterialTheme.colorScheme.onPrimary,
-                    ),
-                contentPadding = PaddingValues(horizontal = if (showLabel) 12.dp else 6.dp),
-            ) {
-                TabIcon(
-                    tabItem = tab,
-                    size = 18.dp,
-                    color = LocalContentColor.current,
-                )
-                if (showLabel) {
-                    CruxText(
-                        text = tab.title,
-                        style =
-                            MaterialTheme.typography.labelLarge.copy(
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            ),
-                        modifier = Modifier.padding(start = 6.dp),
-                    )
-                }
-            }
+            HomeTabPill(
+                tab = tab,
+                isSelected = isSelected,
+                showLabel = !iconOnly && (isSelected || (!selectedLabelOnly && tabs.size <= COMPACT_LABEL_THRESHOLD)),
+                uncheckedContainerColor = uncheckedContainerColor,
+                onClick = { onTabSelected(index) },
+                modifier = Modifier,
+                horizontalPadding = if (iconOnly) 6.dp else 12.dp,
+                minWidth = if (iconOnly) 36.dp else 48.dp,
+            )
         }
         if (trailing != null) {
             item(key = "trailing") {
                 trailing()
             }
+        }
+    }
+}
+
+/** The most pills that share the dock width equally on a narrow phone; beyond this the strip scrolls. */
+internal const val MAX_EQUAL_WIDTH_PILLS = 7
+
+internal fun fitsWithoutScrolling(
+    iconOnly: Boolean,
+    tabCount: Int,
+): Boolean = iconOnly && tabCount in 1..MAX_EQUAL_WIDTH_PILLS
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun HomeTabPill(
+    tab: UiTimelineTabItem,
+    isSelected: Boolean,
+    showLabel: Boolean,
+    uncheckedContainerColor: Color,
+    onClick: () -> Unit,
+    modifier: Modifier,
+    horizontalPadding: Dp,
+    minWidth: Dp,
+) {
+    ToggleButton(
+        checked = isSelected,
+        onCheckedChange = { onClick() },
+        modifier = modifier.defaultMinSize(minWidth = minWidth, minHeight = 36.dp),
+        colors =
+            ToggleButtonDefaults.colors(
+                containerColor = uncheckedContainerColor,
+                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                checkedContainerColor = MaterialTheme.colorScheme.primary,
+                checkedContentColor = MaterialTheme.colorScheme.onPrimary,
+            ),
+        contentPadding = PaddingValues(horizontal = horizontalPadding),
+    ) {
+        TabIcon(
+            tabItem = tab,
+            size = 18.dp,
+            color = LocalContentColor.current,
+        )
+        if (showLabel) {
+            CruxText(
+                text = tab.title,
+                style =
+                    MaterialTheme.typography.labelLarge.copy(
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                    ),
+                modifier = Modifier.padding(start = 6.dp),
+            )
         }
     }
 }
@@ -259,30 +312,37 @@ internal fun ExpressiveHomeDockTabs(
         )
         // Outside the scrolling strip so it stays reachable however many feeds there are.
         loginButton?.invoke()
-        if (smartReplyAction != null) {
+        CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+            if (smartReplyAction != null) {
+                IconButton(
+                    onClick = smartReplyAction,
+                    modifier = Modifier.size(DOCK_ACTION_SIZE),
+                    shapes = IconButtonDefaults.shapes(),
+                ) {
+                    FAIcon(
+                        imageVector = FontAwesomeIcons.Solid.WandMagicSparkles,
+                        contentDescription = stringResource(R.string.live_web_smart_reply),
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
+            }
             IconButton(
-                onClick = smartReplyAction,
+                onClick = onEditTabs,
+                modifier = Modifier.size(DOCK_ACTION_SIZE),
                 shapes = IconButtonDefaults.shapes(),
             ) {
                 FAIcon(
-                    imageVector = FontAwesomeIcons.Solid.WandMagicSparkles,
-                    contentDescription = stringResource(R.string.live_web_smart_reply),
+                    imageVector = FontAwesomeIcons.Solid.Sliders,
+                    contentDescription = stringResource(R.string.edit_tab_title),
                     modifier = Modifier.size(16.dp),
                 )
             }
         }
-        IconButton(
-            onClick = onEditTabs,
-            shapes = IconButtonDefaults.shapes(),
-        ) {
-            FAIcon(
-                imageVector = FontAwesomeIcons.Solid.Sliders,
-                contentDescription = stringResource(R.string.edit_tab_title),
-                modifier = Modifier.size(16.dp),
-            )
-        }
     }
 }
+
+// Trailing wand and settings buttons stay compact so the pills keep the width.
+private val DOCK_ACTION_SIZE = 40.dp
 
 // Above this many tabs, unselected tabs collapse to icon-only so the strip stays scannable.
 private const val COMPACT_LABEL_THRESHOLD = 4

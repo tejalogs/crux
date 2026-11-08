@@ -45,10 +45,7 @@ import org.crux.ui.theme.screenHorizontalPadding
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-internal fun AppearanceLayoutScreen(
-    onBack: () -> Unit,
-    toPostActionLayout: () -> Unit,
-) {
+internal fun AppearanceLayoutScreen(onBack: () -> Unit) {
     val topAppBarScrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val state by producePresenter { appearancePresenter() }
     CruxScaffold(
@@ -77,7 +74,6 @@ internal fun AppearanceLayoutScreen(
         ) {
             AppearanceLayoutContent(
                 state = state,
-                toPostActionLayout = toPostActionLayout,
             )
         }
     }
@@ -85,10 +81,7 @@ internal fun AppearanceLayoutScreen(
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-internal fun AppearanceLayoutContent(
-    state: AppearanceSettingsUpdater,
-    toPostActionLayout: () -> Unit,
-) {
+internal fun AppearanceLayoutContent(state: AppearanceSettingsUpdater) {
     val globalAppearance = LocalGlobalAppearance.current
     val timelineAppearance = LocalTimelineAppearance.current
     Column(
@@ -170,26 +163,6 @@ internal fun AppearanceLayoutContent(
             )
             SegmentedListItem(
                 onClick = {
-                    state.update(AppearanceKeys.SwipeToActEnabled, !globalAppearance.swipeToActEnabled)
-                },
-                shapes = ListItemDefaults.item(),
-                content = {
-                    Text(text = stringResource(id = R.string.settings_appearance_swipe_to_act))
-                },
-                supportingContent = {
-                    Text(text = stringResource(id = R.string.settings_appearance_swipe_to_act_description))
-                },
-                trailingContent = {
-                    Switch(
-                        checked = globalAppearance.swipeToActEnabled,
-                        onCheckedChange = {
-                            state.update(AppearanceKeys.SwipeToActEnabled, it)
-                        },
-                    )
-                },
-            )
-            SegmentedListItem(
-                onClick = {
                     state.update(AppearanceKeys.DeckMode, !globalAppearance.deckMode)
                 },
                 shapes = ListItemDefaults.item(),
@@ -223,132 +196,6 @@ internal fun AppearanceLayoutContent(
                 },
                 shapes = ListItemDefaults.last(),
             )
-        }
-
-        Column(
-            verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
-        ) {
-            state.sampleStatus.onSuccess { sample ->
-                SegmentedListItem(
-                    onClick = {},
-                    shapes = ListItemDefaults.first(),
-                    contentPadding = PaddingValues(0.dp),
-                ) {
-                    StatusItem(
-                        sample,
-                        modifier =
-                            Modifier
-                                .background(MaterialTheme.colorScheme.surface),
-                    )
-                }
-            }
-            SegmentedListItem(
-                onClick = {
-                    state.update(AppearanceKeys.FullWidthPost, !timelineAppearance.fullWidthPost)
-                },
-                shapes =
-                    if (state.sampleStatus.isSuccess) {
-                        ListItemDefaults.item()
-                    } else {
-                        ListItemDefaults.first()
-                    },
-                content = {
-                    Text(text = stringResource(id = R.string.settings_appearance_full_width_post))
-                },
-                supportingContent = {
-                    Text(text = stringResource(id = R.string.settings_appearance_full_width_post_description))
-                },
-                trailingContent = {
-                    Switch(
-                        checked = timelineAppearance.fullWidthPost,
-                        onCheckedChange = {
-                            state.update(AppearanceKeys.FullWidthPost, it)
-                        },
-                    )
-                },
-            )
-            SingleChoiceSettingsItem(
-                headline = { Text(text = stringResource(id = R.string.settings_appearance_post_action_style)) },
-                supporting = { Text(text = stringResource(id = R.string.settings_appearance_post_action_style_description)) },
-                items =
-                    persistentMapOf(
-                        PostActionStyle.Hidden to stringResource(id = R.string.settings_appearance_post_action_style_hidden),
-                        PostActionStyle.LeftAligned to
-                            stringResource(id = R.string.settings_appearance_post_action_style_left_aligned),
-                        PostActionStyle.RightAligned to
-                            stringResource(id = R.string.settings_appearance_post_action_style_right_aligned),
-                        PostActionStyle.Stretch to stringResource(id = R.string.settings_appearance_post_action_style_stretch),
-                    ),
-                selected = timelineAppearance.postActionStyle,
-                onSelected = {
-                    state.update(AppearanceKeys.PostActionStyle, it)
-                },
-                shapes =
-                    if (timelineAppearance.postActionStyle != PostActionStyle.Hidden) {
-                        ListItemDefaults.item()
-                    } else {
-                        ListItemDefaults.last()
-                    },
-            )
-            AnimatedVisibility(timelineAppearance.postActionStyle != PostActionStyle.Hidden) {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
-                ) {
-                    SegmentedListItem(
-                        onClick = {
-                            state.update(AppearanceKeys.ShowNumbers, !timelineAppearance.showNumbers)
-                        },
-                        shapes = ListItemDefaults.item(),
-                        content = {
-                            Text(text = stringResource(id = R.string.settings_appearance_show_numbers))
-                        },
-                        supportingContent = {
-                            Text(text = stringResource(id = R.string.settings_appearance_show_numbers_description))
-                        },
-                        trailingContent = {
-                            Switch(
-                                checked = timelineAppearance.showNumbers,
-                                onCheckedChange = {
-                                    state.update(AppearanceKeys.ShowNumbers, it)
-                                },
-                            )
-                        },
-                    )
-                    SegmentedListItem(
-                        onClick = {
-                            state.update(
-                                AppearanceKeys.PostActionFixedWidth,
-                                !timelineAppearance.postActionFixedWidth,
-                            )
-                        },
-                        shapes = ListItemDefaults.item(),
-                        content = {
-                            Text(text = stringResource(id = R.string.settings_post_action_fixed_width))
-                        },
-                        supportingContent = {
-                            Text(text = stringResource(id = R.string.settings_post_action_fixed_width_description))
-                        },
-                        trailingContent = {
-                            Switch(
-                                checked = timelineAppearance.postActionFixedWidth,
-                                onCheckedChange = {
-                                    state.update(AppearanceKeys.PostActionFixedWidth, it)
-                                },
-                            )
-                        },
-                    )
-                    SegmentedListItem(
-                        onClick = toPostActionLayout,
-                        shapes = ListItemDefaults.last(),
-                        content = {
-                            Text(text = stringResource(id = R.string.settings_appearance_post_action_layout))
-                        },
-                        supportingContent = {
-                            Text(text = stringResource(id = R.string.settings_appearance_post_action_layout_description))
-                        },
-                    )
-                }
-            }
         }
     }
 }

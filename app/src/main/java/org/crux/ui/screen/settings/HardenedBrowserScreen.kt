@@ -101,7 +101,7 @@ internal fun HardenedBrowserScreen(onBack: () -> Unit) {
                         load(inputUrlState.value)
                     },
                 ) {
-                    Text(text = "Go")
+                    Text(text = stringResource(id = R.string.browser_go))
                 }
             }
             Row(
@@ -113,21 +113,21 @@ internal fun HardenedBrowserScreen(onBack: () -> Unit) {
                         webViewRef.value?.goBack()
                     },
                 ) {
-                    Text(text = "Back")
+                    Text(text = stringResource(id = R.string.browser_back))
                 }
                 TextButton(
                     onClick = {
                         webViewRef.value?.reload()
                     },
                 ) {
-                    Text(text = "Reload")
+                    Text(text = stringResource(id = R.string.browser_reload))
                 }
                 TextButton(
                     onClick = {
                         currentUrlState.value.takeIf { it.isNotEmpty() }?.let { uriHandler.openUri(it) }
                     },
                 ) {
-                    Text(text = "Open external")
+                    Text(text = stringResource(id = R.string.browser_open_external))
                 }
             }
             WebView(

@@ -214,7 +214,7 @@ internal fun StatusScreen(
                     ) {
                         FAIcon(
                             imageVector = FontAwesomeIcons.Solid.WandMagicSparkles,
-                            contentDescription = "Gemma Smart Reply",
+                            contentDescription = stringResource(id = R.string.smart_reply_studio_title),
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(16.dp),
                         )

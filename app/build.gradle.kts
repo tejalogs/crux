@@ -1,8 +1,3 @@
-// START Non-FOSS component
-import com.google.firebase.crashlytics.buildtools.gradle.CrashlyticsExtension
-import com.google.firebase.crashlytics.buildtools.gradle.CrashlyticsPlugin
-// END Non-FOSS component
-import com.google.gms.googleservices.GoogleServicesPlugin
 import org.crux.buildlogic.flare
 import java.util.Properties
 
@@ -12,11 +7,8 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ktorfit)
     alias(libs.plugins.koin.compiler)
-    alias(libs.plugins.google.services) apply false
-    // START Non-FOSS component
-    alias(libs.plugins.firebase.crashlytics) apply false
-    // END Non-FOSS component
     alias(libs.plugins.compose.compiler)
+    alias(libs.plugins.aboutlibraries)
     id("kotlin-parcelize")
 }
 
@@ -24,13 +16,6 @@ flare {
     namespace = "org.crux"
     applicationId = "org.crux.social"
 }
-
-// START Non-FOSS component
-if (project.file("google-services.json").exists()) {
-    apply<GoogleServicesPlugin>()
-    apply<CrashlyticsPlugin>()
-}
-// END Non-FOSS component
 
 kotlin {
     compilerOptions {
@@ -83,14 +68,6 @@ android {
             optimization {
                 enable = true
             }
-            // START Non-FOSS component
-            if (project.file("google-services.json").exists()) {
-                configure<CrashlyticsExtension> {
-                    // Crashlytics 3.0.8 still detects the legacy minify flag.
-                    mappingFileUploadEnabled = true
-                }
-            }
-            // END Non-FOSS component
             if (hasSigningProps) {
                 signingConfig = signingConfigs.getByName("crux")
             } else {
@@ -111,13 +88,10 @@ android {
         }
     }
 
-    // START Non-FOSS component
-    if (project.file("google-services.json").exists()) {
-        sourceSets.getByName("main").kotlin.directories.add("src/play/java")
-    }
-    // END Non-FOSS component
-    if (!project.file("google-services.json").exists()){
-        sourceSets.getByName("main").kotlin.directories.add("src/foss/java")
+    // Reproducible, F-Droid friendly: no signing-block dependency metadata.
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = false
     }
 }
 
@@ -170,17 +144,6 @@ dependencies {
     implementation(libs.androidx.browser)
     implementation("net.java.dev.jna:jna:${libs.versions.jna.get()}@aar")
 
-    // START Non-FOSS component
-    if (project.file("google-services.json").exists()) {
-        implementation(platform(libs.firebase.bom))
-        implementation(libs.firebase.crashlytics.ktx)
-        implementation(libs.firebase.analytics.ktx)
-        implementation(libs.kotlinx.coroutines.play.services)
-        implementation("com.google.mlkit:genai-prompt:1.0.0-beta4")
-        implementation("com.google.mlkit:genai-summarization:1.0.0-beta1")
-    }
-    // END Non-FOSS component
-
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
     testImplementation(libs.kotlinx.coroutines.test)
@@ -191,69 +154,6 @@ dependencies {
     debugImplementation(libs.ui.tooling)
     debugImplementation(libs.ui.test.manifest)
 }
-
-// START Non-FOSS component
-if (project.file("google-services.json").exists()) {
-    afterEvaluate {
-        val uploadCrashlyticsMappingFileRelease by tasks
-        val processDebugGoogleServices by tasks
-        uploadCrashlyticsMappingFileRelease.dependsOn(processDebugGoogleServices)
-    }
-}
-// END Non-FOSS component
-
-abstract class GenerateDeepLinkManifestTask : DefaultTask() {
-    @get:InputFile
-    @get:PathSensitive(PathSensitivity.RELATIVE)
-    abstract val hostsFile: RegularFileProperty
-    @get:OutputFile
-    abstract val manifest: RegularFileProperty
-
-    @TaskAction
-    fun run() {
-        val hosts = hostsFile.get().asFile.readLines()
-            .map { it.trim() }
-            .filter { it.isNotEmpty() && !it.startsWith("#") }
-            .distinct()
-        val dataTags = hosts.joinToString("\n") { host ->
-            """<data android:host="$host" />"""
-        }
-
-        manifest.get().asFile.writeText(
-            """
-<?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
-  <application>
-    <activity android:name="org.crux.MainActivity" android:exported="true">
-      <intent-filter android:autoVerify="false">
-        <action android:name="android.intent.action.VIEW"/>
-        <category android:name="android.intent.category.DEFAULT"/>
-        <category android:name="android.intent.category.BROWSABLE"/>
-         <data android:scheme="https" />
-         $dataTags
-      </intent-filter>
-    </activity>
-  </application>
-</manifest>
-      """.trimIndent()
-        )
-    }
-}
-
-extensions.getByType(com.android.build.api.variant.AndroidComponentsExtension::class.java)
-    .onVariants { variant: com.android.build.api.variant.Variant ->
-        val t = tasks.register(
-            "generate${variant.name.replaceFirstChar { it.uppercase() }}DeepLinkManifest",
-            GenerateDeepLinkManifestTask::class.java
-        ) {
-            hostsFile = project.layout.projectDirectory.file("deeplink.txt")
-        }
-
-        variant.sources.manifests.addGeneratedManifestFile(
-            t,
-            GenerateDeepLinkManifestTask::manifest
-        )
-    }
 
 kotlin {
     sourceSets {

@@ -6,9 +6,9 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
-import org.crux.ui.presenter.PresenterBase
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
+import org.crux.ui.presenter.PresenterBase
 
 public class LoginFlowPresenter(
     private val handler: LoginMethodHandler,

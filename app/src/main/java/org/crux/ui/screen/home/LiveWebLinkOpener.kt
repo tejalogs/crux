@@ -38,6 +38,7 @@ internal fun openLinkOutsideWebView(
     intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     try {
         context.startActivity(intent)
+        if (clean) LiveWebPrivacyCounters.get(context).recordLinkCleaned(url.trim(), cleanOutgoingLink(url.trim()))
     } catch (_: ActivityNotFoundException) {
         Toast.makeText(context, R.string.unable_to_open_link, Toast.LENGTH_SHORT).show()
     } catch (_: SecurityException) {
@@ -61,6 +62,7 @@ internal fun openInSystemBrowser(
     val link = cleanOutgoingLink(url.trim())
     try {
         context.startActivity(Intent(Intent.ACTION_VIEW, link.toUri()).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        LiveWebPrivacyCounters.get(context).recordLinkCleaned(url.trim(), link)
     } catch (_: ActivityNotFoundException) {
         Toast.makeText(context, R.string.unable_to_open_link, Toast.LENGTH_SHORT).show()
     } catch (_: SecurityException) {

@@ -181,10 +181,6 @@ private val UiStrings.androidStringRes: Int
 
             UiStrings.Settings -> R.string.settings_title
 
-            UiStrings.MastodonLocal -> R.string.mastodon_tab_local_title
-
-            UiStrings.MastodonPublic -> R.string.mastodon_tab_public_title
-
             UiStrings.Featured -> R.string.home_tab_featured_title
 
             UiStrings.ForYou -> R.string.home_tab_for_you_title
@@ -235,27 +231,23 @@ private val UiStrings.androidStringRes: Int
 
             UiStrings.Next -> R.string.service_select_next_button
 
-            UiStrings.Username -> R.string.bluesky_login_username_hint
+            // Values kept only so saved tabs still deserialize; nothing shows them any more.
+            UiStrings.MastodonLocal,
+            UiStrings.MastodonPublic,
+            -> R.string.tab_settings_default
 
-            UiStrings.Password -> R.string.bluesky_login_password_hint
-
-            UiStrings.Otp -> R.string.bluesky_login_auth_factor_token_hint
-
-            UiStrings.OAuthLogin -> R.string.bluesky_login_oauth_button
-
-            UiStrings.BlueskyFixDelegationScopes -> R.string.bluesky_login_fix_delegation_scopes_button
-
-            UiStrings.PasswordLogin -> R.string.bluesky_login_use_password_button
-
-            UiStrings.QrConnect -> R.string.login_button
-
-            UiStrings.CredentialImport -> R.string.login_button
-
-            UiStrings.ExternalSigner -> R.string.login_button
-
-            UiStrings.WebCookieLogin -> R.string.login_button
-
-            UiStrings.NostrLoginAccount -> R.string.login_button
+            UiStrings.Username,
+            UiStrings.Password,
+            UiStrings.Otp,
+            UiStrings.OAuthLogin,
+            UiStrings.PasswordLogin,
+            UiStrings.QrConnect,
+            UiStrings.CredentialImport,
+            UiStrings.ExternalSigner,
+            UiStrings.WebCookieLogin,
+            UiStrings.NostrLoginAccount,
+            UiStrings.BlueskyFixDelegationScopes,
+            -> R.string.login_button
 
             UiStrings.Following -> R.string.following_title
 

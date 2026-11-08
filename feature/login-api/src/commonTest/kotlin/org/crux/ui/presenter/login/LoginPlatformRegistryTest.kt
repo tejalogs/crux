@@ -1,5 +1,12 @@
 package org.crux.ui.presenter.login
 
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.persistentListOf
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeout
 import org.crux.data.datasource.microblog.MicroblogDataSource
 import org.crux.data.model.tab.TimelineSpec
 import org.crux.model.MicroBlogKey
@@ -13,13 +20,6 @@ import org.crux.model.RecommendedInstance
 import org.crux.ui.model.UiIcon
 import org.crux.ui.model.UiInstanceMetadata
 import org.crux.ui.model.UiStrings
-import kotlinx.collections.immutable.ImmutableList
-import kotlinx.collections.immutable.persistentListOf
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.awaitCancellation
-import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.withTimeout
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith

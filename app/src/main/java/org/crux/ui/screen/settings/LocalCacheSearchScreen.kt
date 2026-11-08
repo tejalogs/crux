@@ -245,7 +245,7 @@ internal fun LocalCacheSearchScreen(
                             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
                         ) {
                             Text(
-                                "✦ Semantic (Gemma AI)",
+                                stringResource(id = R.string.local_history_mode_semantic),
                                 style =
                                     MaterialTheme.typography.labelLarge.copy(
                                         fontWeight = if (isSemSelected) FontWeight.Bold else FontWeight.Medium,
@@ -275,15 +275,10 @@ internal fun LocalCacheSearchScreen(
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                         ) {
                             Text(
-                                text = "✦ On-Device Gemma 4 Semantic Ranking",
+                                text = stringResource(id = R.string.local_history_semantic_ranking),
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary,
-                            )
-                            Text(
-                                text = "• Zero Cloud Egress",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
@@ -315,7 +310,6 @@ internal fun LocalCacheSearchScreen(
                                 AccountItem(
                                     userState = UiState.Success(user),
                                     onClick = { user.onClicked.invoke(ClickContext(uriHandler::openUri)) },
-                                    toLogin = {},
                                 )
                             },
                         )

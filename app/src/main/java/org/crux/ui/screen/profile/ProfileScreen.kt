@@ -194,7 +194,7 @@ private fun ProfileErrorScreen(onBack: () -> Unit) {
         topBar = {
             CruxTopAppBar(
                 title = {
-                    Text(text = "Error")
+                    Text(text = stringResource(id = R.string.account_item_error_title))
                 },
                 navigationIcon = {
                     BackButton(onBack = onBack)
@@ -209,7 +209,7 @@ private fun ProfileErrorScreen(onBack: () -> Unit) {
                     .padding(it),
             contentAlignment = Alignment.Center,
         ) {
-            Text(text = "Error")
+            Text(text = stringResource(id = R.string.account_item_error_title))
         }
     }
 }

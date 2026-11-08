@@ -3,6 +3,7 @@ package org.crux.ui.screen.settings
 import android.content.Intent
 import android.os.Build
 import android.provider.Settings
+import androidx.annotation.StringRes
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -102,12 +103,14 @@ import org.crux.ui.theme.screenHorizontalPadding
 import org.crux.ui.theme.single
 
 internal enum class SettingsCategory(
-    val title: String,
+    @StringRes val titleRes: Int,
+    /** Fixed words matched by the settings search, independent of the display language. */
+    val searchName: String,
 ) {
-    SocialAndWeb("Social & Live Web"),
-    AppearanceAndReader("Appearance & Reader"),
-    Intelligence("Intelligence & Language"),
-    PrivacyAndData("Privacy, Storage & System"),
+    SocialAndWeb(R.string.settings_category_platforms, "platforms browser links"),
+    AppearanceAndReader(R.string.settings_category_appearance, "appearance reader"),
+    Intelligence(R.string.settings_category_smart, "smart ai translation language"),
+    PrivacyAndData(R.string.settings_category_privacy, "privacy storage about"),
 }
 
 internal data class SettingsHubItem(
@@ -131,7 +134,7 @@ internal fun filterSettingsItems(
             buildString {
                 append(item.title.lowercase()).append(' ')
                 append(item.subtitle.lowercase()).append(' ')
-                append(item.category.title.lowercase()).append(' ')
+                append(item.category.searchName).append(' ')
                 item.badge?.let { append(it.lowercase()).append(' ') }
                 item.keywords.forEach { append(it.lowercase()).append(' ') }
             }
@@ -177,12 +180,7 @@ internal fun SettingsDetailPlaceholder(modifier: Modifier = Modifier) {
 internal fun SettingsScreen(
     toAccounts: () -> Unit,
     toAppearanceTheme: () -> Unit,
-    toAppearanceLayout: () -> Unit,
-    toAppearanceDisplay: () -> Unit,
-    toAppearanceMedia: () -> Unit,
     toBehavior: () -> Unit,
-    toHardenedBrowser: () -> Unit,
-    toPrivacyTweaks: () -> Unit,
     toPrivacy: () -> Unit,
     toStorage: () -> Unit,
     toAbout: () -> Unit,
@@ -204,30 +202,24 @@ internal fun SettingsScreen(
     val blockedTrackersCount = privacyLogEntries.count { it.blocked }
 
     var searchQuery by rememberSaveable { mutableStateOf("") }
-    var showLiveWebSheet by rememberSaveable { mutableStateOf(false) }
-
-    val webPlatformCount = connections.enabled.count { it.site != null }
-    val activeWebSessionsCount = connections.enabled.count { it.site != null && connections.isSignedIn(it) }
 
     val themeSummaryLabel =
         when (globalAppearance.theme) {
             Theme.LIGHT -> stringResource(R.string.settings_appearance_theme_light)
             Theme.SYSTEM -> stringResource(R.string.settings_appearance_theme_auto)
             Theme.DARK -> stringResource(R.string.settings_appearance_theme_dark)
-        } + if (globalAppearance.pureColorMode) " • OLED" else ""
+        }
 
-    val readerSummaryLabel = "${reader.mode.name} • ${reader.theme.name} • ${reader.font.name}"
-
-    val accountsTitle = stringResource(id = R.string.settings_accounts_title)
-    val accountsSubtitle = stringResource(id = R.string.settings_accounts_subtitle)
+    val platformsTitle = stringResource(id = R.string.settings_accounts_title)
+    val platformsSubtitle = stringResource(id = R.string.settings_accounts_subtitle)
+    val platformsBadge =
+        if (connectedAccountsCount > 0) stringResource(id = R.string.settings_platforms_in_use, connectedAccountsCount) else null
     val behaviorTitle = stringResource(id = R.string.settings_behavior_title)
     val behaviorSubtitle = stringResource(id = R.string.settings_behavior_description)
     val localFilterTitle = stringResource(id = R.string.settings_local_filter_title)
     val localFilterSubtitle = stringResource(id = R.string.settings_local_filter_description)
-    val themeTitle = stringResource(id = R.string.settings_appearance_theme_group_title)
-    val layoutTitle = stringResource(id = R.string.settings_appearance_layout_group_title)
-    val displayTitle = stringResource(id = R.string.settings_appearance_display_group_title)
-    val mediaTitle = stringResource(id = R.string.settings_appearance_media_group_title)
+    val appearanceTitle = stringResource(id = R.string.settings_appearance_hub_title)
+    val appearanceSubtitle = stringResource(id = R.string.settings_appearance_hub_subtitle)
     val languageTitle = stringResource(id = R.string.settings_language_title)
     val languageSubtitle = stringResource(id = R.string.settings_language_description)
     val aiTitle = stringResource(id = R.string.settings_ai_config_title)
@@ -236,34 +228,47 @@ internal fun SettingsScreen(
     val translationSubtitle = stringResource(id = R.string.settings_translation_description)
     val privacyTitle = stringResource(id = R.string.privacy_hub_title)
     val privacySubtitle = stringResource(id = R.string.privacy_hub_subtitle)
-    val hardenedBrowserTitle = stringResource(id = R.string.settings_hardened_browser_title)
-    val hardenedBrowserSubtitle = stringResource(id = R.string.settings_hardened_browser_description)
-    val privacyTweaksTitle = stringResource(id = R.string.web_tweaks_title)
-    val privacyTweaksSubtitle = stringResource(id = R.string.web_tweaks_subtitle)
+    val privacyBadge =
+        if (blockedTrackersCount > 0) stringResource(id = R.string.settings_privacy_blocked_badge, blockedTrackersCount) else null
     val storageTitle = stringResource(id = R.string.settings_storage_title)
     val storageSubtitle = stringResource(id = R.string.settings_storage_subtitle)
+    val colorSpaceTitle = stringResource(id = R.string.settings_color_space_title)
+    val colorSpaceSubtitle = stringResource(id = R.string.settings_color_space_subtitle)
+    val debugBadge = stringResource(id = R.string.settings_badge_debug)
     val aboutTitle = stringResource(id = R.string.settings_about_title)
     val aboutSubtitle = stringResource(id = R.string.settings_about_subtitle)
 
     val allEntries =
         remember(
-            connectedAccountsCount,
-            activeWebSessionsCount,
+            platformsBadge,
             themeSummaryLabel,
-            readerSummaryLabel,
-            blockedTrackersCount,
+            privacyBadge,
+            platformsTitle,
+            aiTitle,
         ) {
             buildList {
                 add(
                     SettingsDestinationEntry(
                         hubItem =
                             SettingsHubItem(
-                                id = "accounts",
+                                id = "platforms",
                                 category = SettingsCategory.SocialAndWeb,
-                                title = accountsTitle,
-                                subtitle = accountsSubtitle,
-                                badge = if (connectedAccountsCount > 0) "$connectedAccountsCount platforms" else "Manage",
-                                keywords = listOf("rss", "login", "profile", "sync"),
+                                title = platformsTitle,
+                                subtitle = platformsSubtitle,
+                                badge = platformsBadge,
+                                keywords =
+                                    listOf(
+                                        "rss",
+                                        "feeds",
+                                        "login",
+                                        "sign in",
+                                        "instagram",
+                                        "linkedin",
+                                        "x",
+                                        "twitter",
+                                        "reddit",
+                                        "sessions",
+                                    ),
                             ),
                         icon = FontAwesomeIcons.Solid.CircleUser,
                         iconColor = ThemeIconData.Color.ImperialMagenta,
@@ -274,38 +279,11 @@ internal fun SettingsScreen(
                     SettingsDestinationEntry(
                         hubItem =
                             SettingsHubItem(
-                                id = "live_web_sessions",
-                                category = SettingsCategory.SocialAndWeb,
-                                title = "Live Web Profiles & Sessions",
-                                subtitle = "Isolated WebView sandboxes for X, Instagram, LinkedIn & Reddit",
-                                badge = "$activeWebSessionsCount/$webPlatformCount signed in",
-                                keywords =
-                                    listOf(
-                                        "instagram",
-                                        "linkedin",
-                                        "x",
-                                        "twitter",
-                                        "reddit",
-                                        "cookies",
-                                        "logout",
-                                        "clear session",
-                                        "webview",
-                                    ),
-                            ),
-                        icon = FontAwesomeIcons.Solid.Globe,
-                        iconColor = ThemeIconData.Color.SapphireBlue,
-                        onClick = { showLiveWebSheet = true },
-                    ),
-                )
-                add(
-                    SettingsDestinationEntry(
-                        hubItem =
-                            SettingsHubItem(
                                 id = "behavior",
                                 category = SettingsCategory.SocialAndWeb,
                                 title = behaviorTitle,
                                 subtitle = behaviorSubtitle,
-                                keywords = listOf("auto refresh", "launch", "links", "in-app browser", "timeline"),
+                                keywords = listOf("browser", "links", "private browser", "auto refresh", "launch", "default browser"),
                             ),
                         icon = FontAwesomeIcons.Solid.Sliders,
                         iconColor = ThemeIconData.Color.SapphireBlue,
@@ -327,16 +305,14 @@ internal fun SettingsScreen(
                         onClick = toLocalFilter,
                     ),
                 )
-
-                // Appearance & Reader consolidated studio + direct tab jumps
                 add(
                     SettingsDestinationEntry(
                         hubItem =
                             SettingsHubItem(
-                                id = "appearance_studio",
+                                id = "appearance",
                                 category = SettingsCategory.AppearanceAndReader,
-                                title = "Appearance & Reader Studio",
-                                subtitle = "Unified studio for $themeTitle, $layoutTitle, $displayTitle, $mediaTitle & Kindle Reader",
+                                title = appearanceTitle,
+                                subtitle = appearanceSubtitle,
                                 badge = themeSummaryLabel,
                                 keywords =
                                     listOf(
@@ -346,67 +322,19 @@ internal fun SettingsScreen(
                                         "pure black",
                                         "dynamic color",
                                         "font size",
-                                        "avatar",
                                         "reader",
-                                        "kindle",
                                         "sepia",
                                         "serif",
                                         "pages",
+                                        "dock",
+                                        "haptics",
+                                        "media",
+                                        "timestamps",
                                     ),
                             ),
                         icon = FontAwesomeIcons.Solid.Palette,
                         iconColor = ThemeIconData.Color.RoyalPurple,
                         onClick = toAppearanceTheme,
-                    ),
-                )
-                add(
-                    SettingsDestinationEntry(
-                        hubItem =
-                            SettingsHubItem(
-                                id = "appearance_layout",
-                                category = SettingsCategory.AppearanceAndReader,
-                                title = layoutTitle,
-                                subtitle = "Navigation dock style, scroll behavior, haptics, swipe actions & post action buttons",
-                                keywords =
-                                    listOf(
-                                        "bottom bar",
-                                        "dock",
-                                        "floating",
-                                        "minimize",
-                                        "hide on scroll",
-                                        "haptics",
-                                        "swipe",
-                                        "deck",
-                                    ),
-                            ),
-                        icon = FontAwesomeIcons.Solid.TableList,
-                        iconColor = ThemeIconData.Color.SapphireBlue,
-                        onClick = toAppearanceLayout,
-                    ),
-                )
-                add(
-                    SettingsDestinationEntry(
-                        hubItem =
-                            SettingsHubItem(
-                                id = "appearance_display_media",
-                                category = SettingsCategory.AppearanceAndReader,
-                                title = "$displayTitle & $mediaTitle",
-                                subtitle = "Timestamps, platform logos, link previews, lite mode, video autoplay & download folder",
-                                keywords =
-                                    listOf(
-                                        "media",
-                                        "video",
-                                        "autoplay",
-                                        "lite mode",
-                                        "downloads",
-                                        "link preview",
-                                        "timestamp",
-                                        "sensitive",
-                                    ),
-                            ),
-                        icon = FontAwesomeIcons.Solid.PhotoFilm,
-                        iconColor = ThemeIconData.Color.ForestGreen,
-                        onClick = toAppearanceMedia,
                     ),
                 )
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -434,8 +362,6 @@ internal fun SettingsScreen(
                         ),
                     )
                 }
-
-                // Intelligence & Language
                 add(
                     SettingsDestinationEntry(
                         hubItem =
@@ -444,8 +370,7 @@ internal fun SettingsScreen(
                                 category = SettingsCategory.Intelligence,
                                 title = aiTitle,
                                 subtitle = aiSubtitle,
-                                badge = "Gemma On-Device",
-                                keywords = listOf("gemma", "ai", "smart reply", "omni scribe", "tldr", "summary", "carousel", "llm"),
+                                keywords = listOf("ai", "smart reply", "tldr", "summary", "carousel", "llm", "server", "api key"),
                             ),
                         icon = FontAwesomeIcons.Solid.Robot,
                         iconColor = ThemeIconData.Color.ForestGreen,
@@ -460,15 +385,13 @@ internal fun SettingsScreen(
                                 category = SettingsCategory.Intelligence,
                                 title = translationTitle,
                                 subtitle = translationSubtitle,
-                                keywords = listOf("translate", "language", "auto translate", "rss translate"),
+                                keywords = listOf("translate", "language", "auto translate", "deepl", "google", "libretranslate"),
                             ),
                         icon = FontAwesomeIcons.Solid.Language,
                         iconColor = ThemeIconData.Color.SapphireBlue,
                         onClick = toTranslationConfig,
                     ),
                 )
-
-                // Privacy, Storage & System
                 add(
                     SettingsDestinationEntry(
                         hubItem =
@@ -477,7 +400,7 @@ internal fun SettingsScreen(
                                 category = SettingsCategory.PrivacyAndData,
                                 title = privacyTitle,
                                 subtitle = privacySubtitle,
-                                badge = if (blockedTrackersCount > 0) "$blockedTrackersCount blocked" else "Zero-Trust",
+                                badge = privacyBadge,
                                 keywords =
                                     listOf(
                                         "privacy",
@@ -487,7 +410,12 @@ internal fun SettingsScreen(
                                         "traffic log",
                                         "app lock",
                                         "fingerprint",
-                                        "benchmark",
+                                        "tweaks",
+                                        "protection",
+                                        "cookies",
+                                        "clear session",
+                                        "screenshot",
+                                        "clean links",
                                     ),
                             ),
                         icon = FontAwesomeIcons.Solid.Lock,
@@ -499,41 +427,21 @@ internal fun SettingsScreen(
                     SettingsDestinationEntry(
                         hubItem =
                             SettingsHubItem(
-                                id = "hardened_browser",
-                                category = SettingsCategory.PrivacyAndData,
-                                title = hardenedBrowserTitle,
-                                subtitle = hardenedBrowserSubtitle,
-                                keywords = listOf("browser", "sandbox", "webview", "ephemeral"),
-                            ),
-                        icon = FontAwesomeIcons.Solid.Newspaper,
-                        iconColor = ThemeIconData.Color.SapphireBlue,
-                        onClick = toHardenedBrowser,
-                    ),
-                )
-                add(
-                    SettingsDestinationEntry(
-                        hubItem =
-                            SettingsHubItem(
-                                id = "web_tweaks",
-                                category = SettingsCategory.PrivacyAndData,
-                                title = privacyTweaksTitle,
-                                subtitle = privacyTweaksSubtitle,
-                                keywords = listOf("tweaks", "ads", "trackers", "strict", "autoplay", "gpc", "screenshot", "clean links"),
-                            ),
-                        icon = FontAwesomeIcons.Solid.ShieldHalved,
-                        iconColor = ThemeIconData.Color.ForestGreen,
-                        onClick = toPrivacyTweaks,
-                    ),
-                )
-                add(
-                    SettingsDestinationEntry(
-                        hubItem =
-                            SettingsHubItem(
                                 id = "storage",
                                 category = SettingsCategory.PrivacyAndData,
                                 title = storageTitle,
                                 subtitle = storageSubtitle,
-                                keywords = listOf("cache", "storage", "database", "clear cache", "logs", "offline", "reading list"),
+                                keywords =
+                                    listOf(
+                                        "cache",
+                                        "storage",
+                                        "database",
+                                        "clear cache",
+                                        "logs",
+                                        "offline",
+                                        "reading list",
+                                        "export",
+                                    ),
                             ),
                         icon = FontAwesomeIcons.Solid.Database,
                         iconColor = ThemeIconData.Color.DarkAmber,
@@ -547,9 +455,9 @@ internal fun SettingsScreen(
                                 SettingsHubItem(
                                     id = "color_space",
                                     category = SettingsCategory.PrivacyAndData,
-                                    title = "Color Space Diagnostics",
-                                    subtitle = "Inspect active Material 3 color tokens and palette roles",
-                                    badge = "Debug",
+                                    title = colorSpaceTitle,
+                                    subtitle = colorSpaceSubtitle,
+                                    badge = debugBadge,
                                     keywords = listOf("debug", "palette", "color space", "tokens"),
                                 ),
                             icon = FontAwesomeIcons.Solid.CircleInfo,
@@ -567,7 +475,7 @@ internal fun SettingsScreen(
                                 title = aboutTitle,
                                 subtitle = aboutSubtitle,
                                 badge = "v${BuildConfig.VERSION_NAME}",
-                                keywords = listOf("version", "about", "crux", "licenses", "build"),
+                                keywords = listOf("version", "about", "crux", "licenses", "license", "source", "build", "report issue"),
                             ),
                         icon = FontAwesomeIcons.Solid.CircleInfo,
                         iconColor = ThemeIconData.Color.CharcoalGrey,
@@ -588,35 +496,11 @@ internal fun SettingsScreen(
             allEntries.filter { it.hubItem.id in matchingHubIds }
         }
 
-    if (showLiveWebSheet) {
-        ModalBottomSheet(
-            onDismissRequest = { showLiveWebSheet = false },
-        ) {
-            Column(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = screenHorizontalPadding)
-                        .padding(bottom = 28.dp),
-            ) {
-                LiveWebProfilesSandboxCard(
-                    onOpenHardenedBrowser = {
-                        showLiveWebSheet = false
-                        toHardenedBrowser()
-                    },
-                )
-            }
-        }
-    }
-
     CruxScaffold(
         topBar = {
             CruxLargeFlexibleTopAppBar(
                 title = {
                     Text(text = stringResource(id = R.string.settings_title))
-                },
-                subtitle = {
-                    Text(text = "Crux Personal Social & Reading Command Center")
                 },
                 scrollBehavior = topAppBarScrollBehavior,
                 navigationIcon = {
@@ -638,7 +522,6 @@ internal fun SettingsScreen(
                     .padding(bottom = 28.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
-            // 1. Instant Search Bar
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
@@ -647,7 +530,7 @@ internal fun SettingsScreen(
                 shape = RoundedCornerShape(18.dp),
                 placeholder = {
                     Text(
-                        text = "Search theme, reader, AI, web sessions, privacy…",
+                        text = stringResource(id = R.string.settings_search_hint),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -665,7 +548,7 @@ internal fun SettingsScreen(
                         IconButton(onClick = { searchQuery = "" }) {
                             FAIcon(
                                 imageVector = FontAwesomeIcons.Solid.Xmark,
-                                contentDescription = "Clear search",
+                                contentDescription = stringResource(id = R.string.settings_search_clear),
                                 modifier = Modifier.size(16.dp),
                             )
                         }
@@ -681,56 +564,6 @@ internal fun SettingsScreen(
             )
 
             if (searchQuery.isBlank()) {
-                // 2. 2x2 Command Center Hero Bento Grid
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        CommandCenterBentoCard(
-                            title = "Platforms",
-                            metric = "$connectedAccountsCount in use",
-                            caption = "X, Instagram, LinkedIn, Reddit, RSS",
-                            icon = FontAwesomeIcons.Solid.CircleUser,
-                            iconColor = ThemeIconData.Color.ImperialMagenta,
-                            onClick = toAccounts,
-                            modifier = Modifier.weight(1f),
-                        )
-                        CommandCenterBentoCard(
-                            title = "Live Web Tabs",
-                            metric = "$activeWebSessionsCount/$webPlatformCount Signed In",
-                            caption = "Isolated • 3P cookies off",
-                            icon = FontAwesomeIcons.Solid.Globe,
-                            iconColor = ThemeIconData.Color.SapphireBlue,
-                            onClick = { showLiveWebSheet = true },
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        CommandCenterBentoCard(
-                            title = "Studio & Reader",
-                            metric = themeSummaryLabel,
-                            caption = readerSummaryLabel,
-                            icon = FontAwesomeIcons.Solid.BookOpen,
-                            iconColor = ThemeIconData.Color.RoyalPurple,
-                            onClick = toAppearanceTheme,
-                            modifier = Modifier.weight(1f),
-                        )
-                        CommandCenterBentoCard(
-                            title = "AI & Shield",
-                            metric = "On-Device Gemma",
-                            caption = "$blockedTrackersCount trackers blocked",
-                            icon = FontAwesomeIcons.Solid.Robot,
-                            iconColor = ThemeIconData.Color.ForestGreen,
-                            onClick = toAiConfig,
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
-                }
-
                 // Calm mode: the paper-like reading look that makes feeds less compelling.
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     CalmToggle(
@@ -752,7 +585,6 @@ internal fun SettingsScreen(
                     }
                 }
 
-                // 3. Inline Quick Controls Card (1-Tap Everyday Adjustments)
                 QuickControlsCard(
                     selectedTheme = globalAppearance.theme,
                     pureColorMode = globalAppearance.pureColorMode,
@@ -777,7 +609,6 @@ internal fun SettingsScreen(
                 )
             }
 
-            // 4. Categorized Settings Sections (or Filtered Search Results)
             if (filteredEntries.isEmpty()) {
                 Surface(
                     shape = RoundedCornerShape(18.dp),
@@ -793,16 +624,16 @@ internal fun SettingsScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         Text(
-                            text = "No settings matched \"$searchQuery\"",
+                            text = stringResource(id = R.string.settings_search_empty, searchQuery),
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                         )
                         Text(
-                            text = "Try searching for theme, reader, sepia, cookies, gemma, or cache.",
+                            text = stringResource(id = R.string.settings_search_empty_hint),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         TextButton(onClick = { searchQuery = "" }) {
-                            Text(text = "Reset search")
+                            Text(text = stringResource(id = R.string.settings_search_reset))
                         }
                     }
                 }
@@ -816,70 +647,6 @@ internal fun SettingsScreen(
                         )
                     }
                 }
-            }
-        }
-    }
-}
-
-@Composable
-private fun CommandCenterBentoCard(
-    title: String,
-    metric: String,
-    caption: String,
-    icon: ImageVector,
-    iconColor: ThemeIconData.Color,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Surface(
-        onClick = onClick,
-        modifier = modifier,
-        shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        border = BorderStroke(0.8.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)),
-    ) {
-        Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                ThemedIcon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    color = iconColor,
-                )
-                FAIcon(
-                    imageVector = FontAwesomeIcons.Solid.ChevronRight,
-                    contentDescription = null,
-                    modifier = Modifier.size(12.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                )
-                Text(
-                    text = metric,
-                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = caption,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
             }
         }
     }
@@ -918,12 +685,12 @@ private fun QuickControlsCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = "Quick Controls",
+                    text = stringResource(id = R.string.settings_quick_controls),
                     style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                     color = MaterialTheme.colorScheme.onSurface,
                 )
                 Text(
-                    text = "1-tap adjustments",
+                    text = stringResource(id = R.string.settings_quick_controls_hint),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -932,7 +699,7 @@ private fun QuickControlsCard(
             // Row 1: App Theme & OLED
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
-                    text = "App Theme",
+                    text = stringResource(id = R.string.settings_quick_app_theme),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -958,13 +725,13 @@ private fun QuickControlsCard(
                     FilterChip(
                         selected = pureColorMode,
                         onClick = onTogglePureColor,
-                        label = { Text("OLED Black") },
+                        label = { Text(stringResource(id = R.string.settings_quick_oled)) },
                     )
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                         FilterChip(
                             selected = dynamicTheme,
                             onClick = onToggleDynamicTheme,
-                            label = { Text("Dynamic") },
+                            label = { Text(stringResource(id = R.string.settings_quick_dynamic)) },
                         )
                     }
                 }
@@ -973,7 +740,7 @@ private fun QuickControlsCard(
             // Row 2: Kindle Reader Defaults
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
-                    text = "Kindle Reader Defaults",
+                    text = stringResource(id = R.string.settings_quick_reader),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -1008,7 +775,7 @@ private fun QuickControlsCard(
             // Row 3: Navigation Dock Behavior
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
-                    text = "Navigation Dock",
+                    text = stringResource(id = R.string.settings_quick_dock),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -1047,7 +814,7 @@ private fun SettingsCategoryGroup(
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Text(
-            text = category.title.uppercase(),
+            text = stringResource(id = category.titleRes).uppercase(),
             style =
                 MaterialTheme.typography.labelMedium.copy(
                     fontWeight = FontWeight.Bold,

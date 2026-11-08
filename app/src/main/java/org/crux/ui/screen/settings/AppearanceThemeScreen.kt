@@ -1,6 +1,7 @@
 package org.crux.ui.screen.settings
 
 import android.os.Build
+import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -71,13 +72,13 @@ import org.crux.ui.theme.screenHorizontalPadding
 import kotlin.math.roundToInt
 
 internal enum class AppearanceStudioTab(
-    val label: String,
+    @StringRes val labelRes: Int,
 ) {
-    Theme("Theme & Colors"),
-    Layout("Layout & Dock"),
-    Display("Feed Cards"),
-    Media("Media & Video"),
-    Reader("Kindle Reader"),
+    Theme(R.string.appearance_tab_theme),
+    Layout(R.string.appearance_tab_layout),
+    Display(R.string.appearance_tab_feeds),
+    Media(R.string.appearance_tab_media),
+    Reader(R.string.appearance_tab_reader),
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
@@ -85,7 +86,6 @@ internal enum class AppearanceStudioTab(
 internal fun AppearanceThemeScreen(
     onBack: () -> Unit,
     toColorPicker: () -> Unit,
-    toPostActionLayout: () -> Unit = {},
     initialTab: AppearanceStudioTab = AppearanceStudioTab.Theme,
 ) {
     val topAppBarScrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -96,7 +96,7 @@ internal fun AppearanceThemeScreen(
         topBar = {
             CruxLargeFlexibleTopAppBar(
                 title = {
-                    Text(text = "Appearance & Reader Studio")
+                    Text(text = stringResource(id = R.string.appearance_studio_title))
                 },
                 navigationIcon = {
                     BackButton(onBack = onBack)
@@ -130,7 +130,7 @@ internal fun AppearanceThemeScreen(
                         onClick = { selectedTab = tab },
                         label = {
                             Text(
-                                text = tab.label,
+                                text = stringResource(id = tab.labelRes),
                                 fontWeight = if (selectedTab == tab) FontWeight.Bold else FontWeight.Medium,
                             )
                         },
@@ -147,10 +147,7 @@ internal fun AppearanceThemeScreen(
                 }
 
                 AppearanceStudioTab.Layout -> {
-                    AppearanceLayoutContent(
-                        state = state,
-                        toPostActionLayout = toPostActionLayout,
-                    )
+                    AppearanceLayoutContent(state = state)
                 }
 
                 AppearanceStudioTab.Display -> {
@@ -420,7 +417,7 @@ internal fun AppearanceReaderContent() {
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Text(
-                    text = "Kindle-Style Reader Preview",
+                    text = stringResource(id = R.string.appearance_reader_preview_title),
                     style =
                         MaterialTheme.typography.titleMedium.copy(
                             fontFamily = settings.font.family,
@@ -429,9 +426,7 @@ internal fun AppearanceReaderContent() {
                         ),
                 )
                 Text(
-                    text =
-                        "Long-form RSS essays and articles open in your chosen paper tone, typeface, and page-turn mode. " +
-                            "Tap the left or right margins to turn pages, or the center to toggle the top bar.",
+                    text = stringResource(id = R.string.appearance_reader_preview_body),
                     style = settings.bodyStyle(LocalTextStyle.current).copy(color = paperText),
                 )
             }

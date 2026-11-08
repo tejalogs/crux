@@ -97,6 +97,7 @@ internal fun EntryProviderScope<NavKey>.rssEntryBuilder(
             fallbackHtml = args.fallbackHtml,
             descriptionTitle = args.title,
             onBack = onBack,
+            toTranslationSettings = { navigate(Route.Settings.TranslationConfig) },
         )
     }
     entry<Route.Rss.Create>(

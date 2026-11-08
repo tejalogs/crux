@@ -101,8 +101,6 @@ internal fun PrivacyTrafficLogScreen(onBack: () -> Unit) {
                     .padding(paddingValues),
         ) {
             item(key = "summary") {
-                val telemetry = entries.count { it.category == PrivacyCategory.Telemetry }
-                val profiling = entries.count { it.category == PrivacyCategory.Profiling }
                 val blocked = entries.count { it.blocked }
                 val stripped = entries.sumOf { it.strippedParameters.size }
                 Column(
@@ -120,9 +118,7 @@ internal fun PrivacyTrafficLogScreen(onBack: () -> Unit) {
                     Text(
                         text =
                             stringResource(
-                                id = R.string.settings_privacy_traffic_log_summary_detail,
-                                telemetry,
-                                profiling,
+                                id = R.string.settings_privacy_traffic_log_counts,
                                 blocked,
                                 stripped,
                             ),

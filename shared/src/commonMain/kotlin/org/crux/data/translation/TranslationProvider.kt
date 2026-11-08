@@ -39,16 +39,21 @@ internal object TranslationProvider {
         sourceJson: String,
         targetLanguage: String,
         prompt: String,
+        enforceDisclosure: Boolean = true,
     ): String? =
-        engine(
-            settings = settings,
-            aiCompletionService = aiCompletionService,
-        ).translateDocumentJson(
-            sourceTemplate = sourceTemplate,
-            sourceJson = sourceJson,
-            targetLanguage = targetLanguage,
-            prompt = prompt,
-        )
+        if (enforceDisclosure && TranslationDisclosure.isRequired(settings)) {
+            null
+        } else {
+            engine(
+                settings = settings,
+                aiCompletionService = aiCompletionService,
+            ).translateDocumentJson(
+                sourceTemplate = sourceTemplate,
+                sourceJson = sourceJson,
+                targetLanguage = targetLanguage,
+                prompt = prompt,
+            )
+        }
 
     suspend fun translateBatchDocumentJson(
         settings: AppSettings,
@@ -58,15 +63,19 @@ internal object TranslationProvider {
         targetLanguage: String,
         prompt: String,
     ): String? =
-        engine(
-            settings = settings,
-            aiCompletionService = aiCompletionService,
-        ).translateBatchDocumentJson(
-            sourceJson = sourceJson,
-            sourceDocument = sourceDocument,
-            targetLanguage = targetLanguage,
-            prompt = prompt,
-        )
+        if (TranslationDisclosure.isRequired(settings)) {
+            null
+        } else {
+            engine(
+                settings = settings,
+                aiCompletionService = aiCompletionService,
+            ).translateBatchDocumentJson(
+                sourceJson = sourceJson,
+                sourceDocument = sourceDocument,
+                targetLanguage = targetLanguage,
+                prompt = prompt,
+            )
+        }
 
     private fun engine(
         settings: AppSettings,

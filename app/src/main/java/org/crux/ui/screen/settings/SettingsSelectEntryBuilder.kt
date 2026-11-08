@@ -30,23 +30,8 @@ internal fun EntryProviderScope<NavKey>.settingsSelectEntryBuilder(
             toAppearanceTheme = {
                 navigate(Route.Settings.AppearanceTheme)
             },
-            toAppearanceLayout = {
-                navigate(Route.Settings.AppearanceLayout)
-            },
-            toAppearanceDisplay = {
-                navigate(Route.Settings.AppearanceDisplay)
-            },
-            toAppearanceMedia = {
-                navigate(Route.Settings.AppearanceMedia)
-            },
             toBehavior = {
                 navigate(Route.Settings.Behavior)
-            },
-            toHardenedBrowser = {
-                navigate(Route.Settings.HardenedBrowser)
-            },
-            toPrivacyTweaks = {
-                navigate(Route.Settings.PrivacyTweaks)
             },
             toPrivacy = {
                 navigate(Route.Settings.Privacy)
@@ -97,9 +82,6 @@ internal fun EntryProviderScope<NavKey>.settingsSelectEntryBuilder(
             toColorPicker = {
                 navigate(Route.Settings.ColorPicker)
             },
-            toPostActionLayout = {
-                navigate(Route.Settings.PostActionLayout)
-            },
             initialTab = AppearanceStudioTab.Theme,
         )
     }
@@ -114,20 +96,7 @@ internal fun EntryProviderScope<NavKey>.settingsSelectEntryBuilder(
             toColorPicker = {
                 navigate(Route.Settings.ColorPicker)
             },
-            toPostActionLayout = {
-                navigate(Route.Settings.PostActionLayout)
-            },
             initialTab = AppearanceStudioTab.Layout,
-        )
-    }
-
-    entry<Route.Settings.PostActionLayout>(
-        metadata = ListDetailSceneStrategy.detailPane(
-            sceneKey = "Settings"
-        )
-    ) {
-        PostActionLayoutScreen(
-            onBack = onBack
         )
     }
 
@@ -140,9 +109,6 @@ internal fun EntryProviderScope<NavKey>.settingsSelectEntryBuilder(
             onBack = onBack,
             toColorPicker = {
                 navigate(Route.Settings.ColorPicker)
-            },
-            toPostActionLayout = {
-                navigate(Route.Settings.PostActionLayout)
             },
             initialTab = AppearanceStudioTab.Display,
         )
@@ -158,9 +124,6 @@ internal fun EntryProviderScope<NavKey>.settingsSelectEntryBuilder(
             toColorPicker = {
                 navigate(Route.Settings.ColorPicker)
             },
-            toPostActionLayout = {
-                navigate(Route.Settings.PostActionLayout)
-            },
             initialTab = AppearanceStudioTab.Media,
         )
     }
@@ -173,6 +136,9 @@ internal fun EntryProviderScope<NavKey>.settingsSelectEntryBuilder(
         BehaviorScreen(
             toLinkOpenDefaults = {
                 navigate(Route.Settings.LinkOpenDefaults)
+            },
+            toHardenedBrowser = {
+                navigate(Route.Settings.HardenedBrowser)
             },
             onBack = onBack,
         )
@@ -190,8 +156,8 @@ internal fun EntryProviderScope<NavKey>.settingsSelectEntryBuilder(
             toBlocklist = {
                 navigate(Route.Settings.PrivacyBlocklist)
             },
-            toHardenedBrowser = {
-                navigate(Route.Settings.HardenedBrowser)
+            toPrivacyTweaks = {
+                navigate(Route.Settings.PrivacyTweaks)
             },
             onBack = onBack,
         )
@@ -242,6 +208,19 @@ internal fun EntryProviderScope<NavKey>.settingsSelectEntryBuilder(
         )
     ) {
         AboutScreen(
+            onBack = onBack,
+            toOpenSourceLicenses = {
+                navigate(Route.Settings.OpenSourceLicenses)
+            },
+        )
+    }
+
+    entry<Route.Settings.OpenSourceLicenses>(
+        metadata = ListDetailSceneStrategy.detailPane(
+            sceneKey = "Settings"
+        )
+    ) {
+        OpenSourceLicensesScreen(
             onBack = onBack
         )
     }

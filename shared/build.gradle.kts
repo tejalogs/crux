@@ -17,6 +17,7 @@ plugins {
 }
 
 val generateGraphemeProperties by tasks.registering(GenerateGraphemePropertiesTask::class) {
+    ucdDirectory.set(rootProject.layout.projectDirectory.dir("third_party/unicode-ucd-16.0.0"))
     outputDirectory.set(layout.buildDirectory.dir("generated/sources/graphemeProperties/commonMain/kotlin"))
 }
 
