@@ -129,7 +129,7 @@
     <string name="settings_translation_ai_test_original">Prøvetekst</string>
     <string name="settings_translation_ai_test_result">Oversat tekst</string>
     <string name="settings_language_title">Sprog</string>
-    <string name="settings_language_description">Skift Flares app-sprog</string>
+    <string name="settings_language_description">Skift Crux\' app-sprog</string>
     <string name="login_expired">Login-session udløbet</string>
     <string name="login_expired_relogin">Log ind igen</string>
     <string name="status_title">Indlæg</string>

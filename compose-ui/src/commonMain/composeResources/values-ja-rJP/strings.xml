@@ -81,7 +81,7 @@
     <string name="delete_rss_source">購読を削除</string>
     <string name="rss_title">購読</string>
     <string name="empty_rss_sources">購読はありません</string>
-    <string name="service_select_welcome_title">Flareへようこそ</string>
+    <string name="service_select_welcome_title">Cruxへようこそ</string>
     <string name="service_select_welcome_message">サーバーを入力して始めましょう。</string>
     <string name="service_select_welcome_list_hint">または以下のサーバーから選択してください</string>
     <string name="login_button">ログイン</string>

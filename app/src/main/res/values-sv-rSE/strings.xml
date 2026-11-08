@@ -129,7 +129,7 @@
     <string name="settings_translation_ai_test_original">Exempeltext</string>
     <string name="settings_translation_ai_test_result">Översatt text</string>
     <string name="settings_language_title">Språk</string>
-    <string name="settings_language_description">Ändra Flares appspråk</string>
+    <string name="settings_language_description">Ändra Crux appspråk</string>
     <string name="login_expired">Inloggningssessionen har löpt ut</string>
     <string name="login_expired_relogin">Logga in igen</string>
     <string name="status_title">Inlägg</string>

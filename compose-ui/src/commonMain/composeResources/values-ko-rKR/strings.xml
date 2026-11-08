@@ -80,7 +80,7 @@
     <string name="delete_rss_source">구독 삭제</string>
     <string name="rss_title">구독</string>
     <string name="empty_rss_sources">구독 중인 항목이 없습니다</string>
-    <string name="service_select_welcome_title">Flare에 오신 것을 환영합니다</string>
+    <string name="service_select_welcome_title">Crux에 오신 것을 환영합니다</string>
     <string name="service_select_welcome_message">시작하려면 서버를 입력하세요.</string>
     <string name="service_select_welcome_list_hint">또는 다음 서버 중에서 선택하세요</string>
     <string name="login_button">로그인</string>
@@ -88,7 +88,7 @@
     <string name="service_select_instance_input_placeholder">인스턴스 URL</string>
     <string name="service_select_next_button">다음</string>
     <string name="service_select_empty_message">인스턴스를 찾을 수 없습니다</string>
-    <string name="service_select_compatibility_warning">이 서버는 %1$s을(를) 사용합니다. Flare는 호환 모드로 실행됩니다. 일부 기능이 올바르게 작동하지 않을 수 있습니다.</string>
+    <string name="service_select_compatibility_warning">이 서버는 %1$s을(를) 사용합니다. Crux는 호환 모드로 실행됩니다. 일부 기능이 올바르게 작동하지 않을 수 있습니다.</string>
     <string name="login_agreement">로그인하면 %1$s에 동의하게 됩니다.</string>
     <string name="eula_privacy_policy">최종 사용자 라이선스 계약(EULA) 및 개인정보 처리방침</string>
     <string name="home_tab_home_title">홈</string>

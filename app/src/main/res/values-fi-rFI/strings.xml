@@ -58,7 +58,7 @@
     <string name="settings_storage_title">Tallennustila</string>
     <string name="settings_storage_subtitle">Hallitse välimuistia, lokeja ja varmuuskopioita</string>
     <string name="settings_about_title">Tietoja</string>
-    <string name="settings_about_subtitle">Lue lisää Flaresta</string>
+    <string name="settings_about_subtitle">Lue lisää Cruxista</string>
     <string name="settings_about_source_code">Lähdekoodi</string>
     <string name="settings_local_filter_title">Paikalliset suodattimet</string>
     <string name="settings_local_history_title">Paikallinen historia</string>
@@ -122,7 +122,7 @@
     <string name="settings_translation_ai_test_original">Esimerkkiteksti</string>
     <string name="settings_translation_ai_test_result">Käännetty teksti</string>
     <string name="settings_language_title">Kieli</string>
-    <string name="settings_language_description">Vaihda Flaren sovelluskieltä</string>
+    <string name="settings_language_description">Vaihda Cruxin sovelluskieltä</string>
     <string name="login_expired">Kirjautumisistunto on vanhentunut</string>
     <string name="login_expired_relogin">Kirjaudu uudelleen</string>
     <string name="status_title">Julkaisu</string>

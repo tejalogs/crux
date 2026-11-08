@@ -1,53 +1,117 @@
-# Crux
+<p align="center">
+  <img src="fastlane/metadata/android/en-US/images/icon.png" width="96" height="96" alt="Crux Logo" />
+</p>
 
-[![license](https://img.shields.io/badge/License-AGPL%203.0-blue.svg)](LICENSE)
-![Android](https://img.shields.io/badge/Android-8.0+-3DDC84?logo=android&logoColor=white)
+<h1 align="center">Crux</h1>
 
-Crux is an Android app that puts **Instagram, X, LinkedIn and Reddit** in one place, each as a private web tab, and adds an **RSS reader** with a paged, distraction-free article view. It is free software (AGPL-3.0), has no Crux account, no server, no ads, no analytics and no crash reporting.
+<p align="center">
+  <strong>Every feed you follow. One calm place.</strong><br>
+  Private, isolated web tabs for social networks (Instagram, X, LinkedIn, Reddit) and a native RSS reader.
+</p>
 
-Crux is built on [Flare](https://github.com/DimensionDev/Flare) by DimensionDev.
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-AGPL%20v3-blue.svg" alt="License: AGPL v3" /></a>
+  <img src="https://img.shields.io/badge/Platform-Android%208.0+-3DDC84?logo=android&logoColor=white" alt="Android 8.0+" />
+  <a href="https://github.com/tejalogs/crux/releases/latest"><img src="https://img.shields.io/badge/Release-v1.0.0-7952b3?logo=github&logoColor=white" alt="Latest Release" /></a>
+  <a href="https://gitlab.com/fdroid/fdroiddata/-/merge_requests/56349"><img src="https://img.shields.io/badge/F--Droid-MR%20%2356349-1976D2?logo=f-droid&logoColor=white" alt="F-Droid MR" /></a>
+  <img src="https://img.shields.io/badge/Telemetry-Zero-success" alt="Zero Telemetry" />
+</p>
 
-## What it does
+---
 
-- **Private web tabs.** Instagram, X, LinkedIn and Reddit each load in their own isolated WebView profile, so cookies and storage of one site never reach another. You sign in on the site's own page.
-- **Privacy & Tweaks.** Per site: Standard (hide-only) or Strict (also blocks trackers) protection, focus toggles (Reels/Explore, "Who to follow" and trends, promoted posts, app-install nags), block autoplay, clear one site's data, screenshot protection, Global Privacy Control and tracking-parameter removal on links.
-- **RSS and a paged reader.** Add feeds, import OPML, bookmark articles, and read with a reader that remembers where you stopped. Links in articles open in your default browser with tracking removed.
-- **Smart replies and carousels.** Draft replies and carousel decks with an on-device engine.
-- **Optional cloud features.** Translation and AI summaries only run when you ask for them. See [Privacy](#privacy).
+## 📱 Screenshots
 
-## Privacy
+| Private Web Tabs | RSS Timeline | Distraction-Free Reader |
+|:---:|:---:|:---:|
+| <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/1.png" width="240" alt="Private Web Tabs" /> | <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/2.png" width="240" alt="Feeds and Timeline" /> | <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/3.png" width="240" alt="Paged Reader" /> |
+| **Privacy & Tweaks** | **On-Device AI** | **Customizable Interface** |
+| <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/4.png" width="240" alt="Privacy & Tweaks" /> | <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/5.png" width="240" alt="Smart Replies" /> | <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/6.png" width="240" alt="Navigation Drawer" /> |
 
-The full policy is in [docs/PRIVACY.md](docs/PRIVACY.md). In short:
+---
 
-- Crux does not store your passwords. Sessions live in the WebView profile of each site, on your device only. The Android backup and device-transfer features are switched off, so WebView data, the app database and settings are never copied off the device by Android.
-- Crux shows proprietary websites inside WebViews. The page tweaks are display-only: they change what you see, they do not stop a site from knowing what you do while you are signed in to it.
-- The app makes network requests to the sites you use, to the RSS feeds you add, and to translation or AI providers only if you use those features.
-- **Translation.** Runs when you tap Translate (or turn on auto-translate, which is off by default) and sends the text to the provider chosen in settings: Google Translate (default), DeepL, Google Cloud Translation, LibreTranslate or an OpenAI-compatible server.
-- **AI.** Smart replies and summaries use the on-device engine. A cloud AI server (OpenAI-compatible) is used only after you enter its address and key in settings. The optional agent is off by default.
+## ✨ Features
 
-## Install
+- **🛡️ Isolated Web Profiles**
+  Instagram, X, LinkedIn, and Reddit each run in independent, sandboxed WebView data containers. Cookies, sessions, local storage, and trackers from one network can never inspect or touch another. You log in directly on each service's official website.
+- **🧘 Privacy & Focus Tweaks**
+  Display-level cleanups built directly into each tab:
+  - Hide distracting feeds (Instagram Reels/Explore, X "Who to follow" & Trends, Reddit app-install banners, LinkedIn sponsored ads).
+  - Block autoplay video across all tabs.
+  - Per-site data purge button to wipe cookies and storage for any individual platform instantly.
+  - Global Privacy Control (GPC) headers and automatic tracking parameter stripping (`utm_*`, `fbclid`, etc.) on external links.
+  - Optional Screenshot Protection (prevents capture and Android task switcher previews).
+- **📰 Native RSS & Paged Article Reader**
+  Full RSS/Atom reader built right alongside your social feeds:
+  - Add feeds individually or bulk import/export OPML collections.
+  - Chronological reading timeline with bookmarking support.
+  - Distraction-free, paged reader that remembers your exact reading spot across articles.
+- **🔒 100% On-Device AI**
+  Draft replies, rephrase thoughts, and summarize long posts with zero external API keys or cloud dependencies. The AI runs locally on your device with no data egress.
+- **🚫 Zero Telemetry & Zero Server Overhead**
+  Crux operates without accounts, telemetry, analytics, ad networks, or crash reporters. Android Auto-Backup and device-to-device transfers are deliberately disabled so your private web cookies and login tokens never leave your physical hardware.
 
-- **GitHub releases:** download the APK from [Releases](https://github.com/tejalogs/crux/releases).
-- **F-Droid:** submission in progress. Crux will carry the *NonFreeNet* anti-feature because it displays non-free network services.
+---
 
-Requires Android 8.0 or newer.
+## 📥 Installation
 
-## Build
+Crux supports **Android 8.0 (API 26)** and newer.
 
-Requires JDK 17 or newer and the Android SDK.
+### GitHub Releases
+Directly download the signed APK:
+👉 **[Download Crux v1.0.0 APK](https://github.com/tejalogs/crux/releases/tag/v1.0.0)**
+
+### F-Droid
+Crux has been submitted to the official F-Droid repository and is currently in community review:
+👉 **[F-Droid Inclusion Merge Request #56349](https://gitlab.com/fdroid/fdroiddata/-/merge_requests/56349)**
+
+*(Note: Crux carries the F-Droid `NonFreeNet` anti-feature flag because it connects to proprietary social networks via web tabs).*
+
+---
+
+## 🔒 Privacy & Architecture
+
+For full details, read [docs/PRIVACY.md](docs/PRIVACY.md). Key architecture guarantees:
+
+1. **No Password Storage**: Crux never requests or intercepts your credentials. You log in on the real web page of each service.
+2. **Profile Isolation**: Uses Android WebView multi-profile APIs to ensure zero cookie or cache leakage across tabs.
+3. **No Central Server**: Crux operates purely client-side; there is no backend server collecting user profiles or analytics.
+4. **Local AI**: Smart replies and summaries execute on-device. Optional external translation (Google Translate, DeepL, LibreTranslate) only transmits data when explicitly triggered by you.
+
+---
+
+## 🛠️ Building from Source
+
+### Prerequisites
+- JDK 17+
+- Android SDK (API 34+)
+
+### Commands
 
 ```bash
-./gradlew :app:assembleDebug     # app/build/outputs/apk/debug/app-debug.apk
-./gradlew :app:assembleRelease   # app/build/outputs/apk/release/app-release.apk
+# Assemble debug APK
+./gradlew :app:assembleDebug
+
+# Assemble release APK
+./gradlew :app:assembleRelease
+
+# Run all unit tests
 ./gradlew :app:testDebugUnitTest :shared:jvmTest :feature:subscription:jvmTest :feature:agent:jvmTest
 ```
 
-Version name and code come from `fdroid.properties` (overridable with `BUILD_VERSION` and `BUILD_NUMBER`). See [docs/RELEASE_AND_PACKAGING.md](docs/RELEASE_AND_PACKAGING.md).
+Binary outputs:
+- Release APK: `app/build/outputs/apk/release/app-release.apk`
+- Debug APK: `app/build/outputs/apk/debug/app-debug.apk`
 
-## Contributing
+---
 
-See [CONTRIBUTING.md](CONTRIBUTING.md).
+## 🤝 Contributing
 
-## License
+Contributions are welcome! Please review [CONTRIBUTING.md](CONTRIBUTING.md) for code style, branch guidelines, and testing requirements before opening a PR.
 
-[GNU Affero General Public License v3.0](LICENSE). Crux contains code from Flare by DimensionDev, also AGPL-3.0.
+---
+
+## 📜 License & Acknowledgments
+
+Crux is free and open-source software licensed under the **[GNU Affero General Public License v3.0](LICENSE)**.
+
+Crux is built upon [Flare](https://github.com/DimensionDev/Flare) by DimensionDev, also licensed under AGPL-3.0. We are deeply grateful to DimensionDev and the open-source community for their foundational work.

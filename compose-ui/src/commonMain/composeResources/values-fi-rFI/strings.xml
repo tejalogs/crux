@@ -81,7 +81,7 @@
     <string name="delete_rss_source">Poista tilaus</string>
     <string name="rss_title">Tilaukset</string>
     <string name="empty_rss_sources">Ei tilauksia</string>
-    <string name="service_select_welcome_title">Tervetuloa Flareen</string>
+    <string name="service_select_welcome_title">Tervetuloa Cruxiin</string>
     <string name="service_select_welcome_message">Anna palvelin aloittaaksesi.</string>
     <string name="service_select_welcome_list_hint">Tai valitse näistä palvelimista</string>
     <string name="login_button">Kirjaudu sisään</string>

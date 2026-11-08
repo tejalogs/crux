@@ -22,7 +22,7 @@
     <string name="settings_storage_title">저장공간</string>
     <string name="settings_storage_subtitle">캐시된 파일, 로그 및 백업 관리</string>
     <string name="settings_about_title">정보</string>
-    <string name="settings_about_subtitle">Flare에 대해 자세히 알아보기</string>
+    <string name="settings_about_subtitle">Crux에 대해 자세히 알아보기</string>
     <string name="settings_about_source_code">소스 코드</string>
     <string name="settings_local_filter_title">로컬 필터</string>
     <string name="settings_local_history_title">로컬 기록</string>
@@ -35,7 +35,7 @@
     <string name="settings_ai_config_server_hint">기본 URL 입력</string>
     <string name="settings_ai_config_server_url_requirement">URL은 후행 슬래시(/)로 끝나야 하며 호환되는 v1/chat/completions API를 지원해야 합니다.</string>
     <string name="settings_ai_config_type">AI 유형</string>
-    <string name="settings_ai_config_type_description">Flare가 사용할 AI 백엔드 선택</string>
+    <string name="settings_ai_config_type_description">Crux가 사용할 AI 백엔드 선택</string>
     <string name="settings_ai_config_type_on_device">온디바이스 AI</string>
     <string name="settings_ai_config_type_openai">OpenAI 호환 API</string>
     <string name="settings_ai_config_value_empty_placeholder">설정되지 않음</string>
@@ -430,7 +430,7 @@
     <string name="settings_post_action_fixed_width">고정 버튼 너비</string>
     <string name="settings_post_action_fixed_width_description">개수가 표시된 작업 버튼의 너비를 일정하게 유지</string>
     <string name="settings_refresh_home_timeline_on_launch">시작할 때 홈 타임라인 새로 고침</string>
-    <string name="settings_refresh_home_timeline_on_launch_description">Flare가 열릴 때 새 게시물 가져오기</string>
+    <string name="settings_refresh_home_timeline_on_launch_description">Crux가 열릴 때 새 게시물 가져오기</string>
     <string name="settings_translation_prefer_platform">플랫폼 번역 우선</string>
     <string name="settings_translation_prefer_platform_description">자동 번역 중 플랫폼에서 제공하는 번역이 있으면 사용합니다.</string>
     <string name="settings_translation_show_original_with_translation">번역과 함께 원문 표시</string>
