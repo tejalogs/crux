@@ -12,7 +12,7 @@
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-AGPL%20v3-blue.svg" alt="License: AGPL v3" /></a>
   <img src="https://img.shields.io/badge/Platform-Android%208.0+-3DDC84?logo=android&logoColor=white" alt="Android 8.0+" />
-  <a href="https://github.com/tejalogs/crux/releases/latest"><img src="https://img.shields.io/badge/Release-v1.0.0-7952b3?logo=github&logoColor=white" alt="Latest Release" /></a>
+  <a href="https://github.com/tejalogs/crux/releases/latest"><img src="https://img.shields.io/badge/Release-v1.0.1-7952b3?logo=github&logoColor=white" alt="Latest Release" /></a>
   <a href="https://github.com/tejalogs/crux/releases/latest"><img src="https://img.shields.io/badge/Download-APK-brightgreen?logo=android&logoColor=white" alt="Download APK" /></a>
   <img src="https://img.shields.io/badge/Telemetry-Zero-success" alt="Zero Telemetry" />
 </p>
@@ -58,7 +58,7 @@ Crux supports **Android 8.0 (API 26)** and newer.
 
 ### Official Downloads
 Directly download the signed APK:
-👉 **[Download Crux v1.0.0 APK](https://github.com/tejalogs/crux/releases/tag/v1.0.0)** (18.2 MB)
+👉 **[Download Crux v1.0.1 APK](https://github.com/tejalogs/crux/releases/tag/v1.0.1)** (18.2 MB)
 
 You can also visit the web showcase at **[tejalogs.github.io/crux](https://tejalogs.github.io/crux/)**.
 

@@ -1,0 +1,6 @@
+Crux 1.0.1
+- Native in-app update checker and installer via GitHub Releases
+- Redesigned onboarding welcome step with official Crux mark
+- Curated starter feed preview chips and empty dock guidance
+- Dual-action sign in with "Sign in later" and "Continue to appearance"
+- Live Calm & Paper Tint preview with integrated theme picker
