@@ -3,9 +3,7 @@ name: F-Droid Non-FOSS Check
 on:
   pull_request:
     branches:
-      - master
-      - release
-      - develop
+      - main
     paths:
       - '**/*.gradle'
       - '**/*.gradle.kts'

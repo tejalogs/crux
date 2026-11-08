@@ -1,66 +1,37 @@
-# How To Contribute
+# Contributing to Crux
 
-First of all, I'd like to express my appreciation to you for contributing to this project.
-Below is the guidance for how to report issues, propose new features, and submit contributions via Pull Requests (PRs).
+Thanks for helping. Crux is an Android app built on [Flare](https://github.com/DimensionDev/Flare) by DimensionDev and licensed under AGPL-3.0, so contributions are accepted under the same license.
 
-## Before you start, use Flare
-You **MUST** be a user of Flare, otherwise your issue/PR will be treated as a spam.
+## Issues
 
-## File an issue
-If you have a question, think you've discovered an issue, would like to propose a new feature, etc., then find/file an issue **BEFORE** starting work to fix/implement it.
+Search open and closed issues first. If nothing matches, file a new one at https://github.com/tejalogs/crux/issues with your Android version, Crux version (Settings > About) and steps to reproduce. Please do not paste cookies, tokens or screenshots of private accounts.
 
-### Search existing issues first
+## Development environment
 
-Before filing a new issue, search existing open and closed issues first: It is likely someone else has found the problem you're seeing, and someone may be working on or have already contributed a fix!
+- JDK 17 or newer
+- Android SDK
 
-If no existing item describes your issue/feature, great - please file a new issue.
+## Code style
 
-## Contributing fixes / features
+Crux uses [ktlint](https://github.com/pinterest/ktlint). Run `./gradlew ktlintFormat` before opening a pull request.
 
-For those able & willing to help fix issues and/or implement features ...
+## Building and testing
 
-### Development environment
+```bash
+./gradlew :app:assembleDebug
+./gradlew :app:testDebugUnitTest :shared:jvmTest :feature:subscription:jvmTest :feature:agent:jvmTest
+```
 
-Make sure you have
- - JDK 25
- - Xcode 27 if you're building for iOS
+## Project structure
 
-### Code guidelines
-Flare uses [ktlint](https://github.com/pinterest/ktlint) to check the code style for Kotlin, so make sure run `./gradlew ktlintFormat` and fix the errors before you submit any PR.
+- `app`: the Android application (Jetpack Compose UI, WebView tabs, manifest).
+- `shared`: business logic, data sources, settings and presenters.
+- `compose-ui`: reusable Compose components.
+- `feature/subscription`: RSS sources and reader logic.
+- `feature/agent`: optional on-device or OpenAI-compatible assistant (off by default).
+- `feature/login`, `feature/login-api`, `feature/tab`: sign-in detection and tab models.
+- `build-logic`: Gradle convention plugins.
 
-### Building
-### Android
- - Make sure you have JDK 25 installed
- - Run `./gradlew installDebug` to build and install the debug version of the app
- - You can open the project in Android Studio or IntelliJ IDEA if you want
+## Free-software rules
 
-### iOS/macOS
- - Make sure you have JDK 25 installed
- - Make sure you have a Mac with Xcode 27 installed
- - run `xcodegen generate --spec ./appleApp/project.yml`
- - open `appleApp/Flare.xcodeproj` in Xcode
- - Build and run the app
-
-### Desktop
- - Make sure you have JDK 25 installed.
- - Run `./gradlew run` to build and run the debug version of the desktop app.
-
-### Project structure
-The project is split into theses parts:
- - `shared`: The common code, including bussiness logic.
- - `apple-shared`: The common code for Apple target.
- - `web-shared`: The common code for Web.
- - `web`: The Web app.
- - `compose-ui`: The Compose UI code that shared between Android, iOS, Desktop.
- - `app`: The Android app.
- - `appleApp`: The iOS and macOS apps.
- - `desktopApp`: The desktop app for Windows/macOS.  
-
-Most of the business logic is in `shared`, and the platform specific code and UI is in `app` and `appleApp`.
-Flare uses [Kotlin Multiplatform](https://kotlinlang.org/docs/multiplatform.html) to share code between platforms, [Jetpack Compose](https://developer.android.com/jetpack/compose) for the UI on Android, [SwiftUI](https://developer.apple.com/xcode/swiftui/) for the UI on iOS.
-
-### Business logic
-Flare leverages [Molecule](https://github.com/cashapp/molecule) to implement business logic, with most presenters extending from `PresenterBase`. Additionally, Flare employs the concept of a "single source of truth" to ensure consistency in its business logic implementation.
-
-### UI
-Since Flare uses Jetpack Compose and SwiftUI, both of which are declarative UI frameworks, ensure that the UI contains no business logic and is solely responsible for rendering the state provided by the presenter.
+Crux is built for F-Droid. Do not add proprietary SDKs (Firebase, Google Play services, ML Kit, analytics, ad or crash reporting libraries), snapshot dependencies or binary blobs. `.github/scripts/check_fdroid_nonfoss_pr.sh` checks Gradle files against the F-Droid scanner signatures.

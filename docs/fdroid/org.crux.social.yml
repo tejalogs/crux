@@ -1,0 +1,53 @@
+# DRAFT fdroiddata metadata for Crux. Copy to metadata/org.crux.social.yml in an
+# fdroiddata merge request once the v1.0.0 tag exists on GitHub. Not yet validated with
+# `fdroid lint` / `fdroid build`; see the notes at the bottom.
+
+Categories:
+  - Internet
+  - Reading
+License: AGPL-3.0-only
+AuthorName: tejalogs
+WebSite: https://github.com/tejalogs/crux
+SourceCode: https://github.com/tejalogs/crux
+IssueTracker: https://github.com/tejalogs/crux/issues
+Changelog: https://github.com/tejalogs/crux/releases
+
+AutoName: Crux
+
+RepoType: git
+Repo: https://github.com/tejalogs/crux.git
+
+Builds:
+  - versionName: 1.0.0
+    versionCode: 1
+    commit: v1.0.0
+    subdir: app
+    gradle:
+      - yes
+    prebuild:
+      - rm -f ../gradle/gradle-daemon-jvm.properties
+      - sed -i -e '/START Non-FOSS component/,/END Non-FOSS component/d' ../settings.gradle.kts
+
+AntiFeatures:
+  NonFreeNet:
+    en-US: Shows Instagram, X, LinkedIn and Reddit, which are proprietary network services, in WebViews; optional translation features can use third-party services.
+
+AutoUpdateMode: Version
+UpdateCheckMode: Tags ^v[0-9.]+$
+UpdateCheckData: fdroid.properties|versionCode=(\d+)|fdroid.properties|versionName=(.+)
+CurrentVersion: 1.0.0
+CurrentVersionCode: 1
+
+# Notes for whoever submits this:
+# - Release APK path produced by the build: app/build/outputs/apk/release/app-release.apk
+#   (unsigned-by-us; F-Droid signs its own build). `gradle: yes` lets fdroidserver locate it,
+#   so no explicit `output:` is set.
+# - versionName/versionCode live in fdroid.properties at the repo root, not in a Gradle file,
+#   hence UpdateCheckData. Verify the exact syntax with `fdroid checkupdates org.crux.social`.
+# - The build needs JDK 17 or newer (toolchain is 17). Check what the F-Droid build server provides and
+#   add a `sudo:` apt line for the JDK if needed; the prebuild above strips the foojay toolchain
+#   downloader and daemon-JVM download URLs so the build does not fetch a JDK itself.
+# - Unicode UCD files are vendored in third_party/unicode-ucd-16.0.0; the build needs no
+#   network access beyond Maven repositories.
+# - Add fastlane phoneScreenshots before submission; they are picked up automatically from
+#   fastlane/metadata/android/en-US/images/phoneScreenshots/.

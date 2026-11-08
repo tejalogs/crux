@@ -1,5 +1,5 @@
 # ==============================================================================
-# Flare (Prism) - Android ProGuard & R8 Optimization Rules
+# Crux - Android ProGuard & R8 Optimization Rules
 # ==============================================================================
 
 # General / Stack traces preservation
@@ -24,7 +24,7 @@
 }
 -keep class *$$serializer { *; }
 
-# Preserve Flare data models & dynamic payloads
+# Preserve Crux data models & dynamic payloads
 -keep class org.crux.data.model.** { *; }
 -keep class org.crux.data.datasource.linkedin.** { *; }
 -keep class org.crux.data.datasource.instagram.** { *; }

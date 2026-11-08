@@ -4,12 +4,6 @@ pluginManagement {
         google()
         mavenCentral()
         gradlePluginPortal()
-        maven("https://central.sonatype.com/repository/maven-snapshots/") {
-            content {
-                includeGroup("moe.tlaster.ozone")
-                includeGroup("moe.tlaster.ozone.generator")
-            }
-        }
     }
 }
 // START Non-FOSS component
@@ -22,7 +16,6 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        maven("https://central.sonatype.com/repository/maven-snapshots/")
         maven("https://jitpack.io")
     }
 }
