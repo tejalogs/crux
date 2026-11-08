@@ -1,0 +1,27 @@
+Crux puts Instagram, X, LinkedIn and Reddit in one calm app, each in its own private browser tab, and adds an RSS reader with a paged, distraction-free article view.
+
+<b>How it works</b>
+
+Crux does not reimplement these services. Each site runs in its own isolated WebView profile, so the cookies, logins and storage of one site never touch another. You sign in on the site's own page, and your session stays inside that WebView on your device. Crux does not keep your passwords, and it has no Crux account or server.
+
+<b>Privacy &amp; Tweaks</b>
+* Per-site protection level: Standard hides unwanted page elements; Strict also blocks known trackers.
+* Focus toggles: hide Reels and Explore, "Who to follow" and trends, promoted posts and app-install nags.
+* Block autoplay, clear one site's data, screenshot protection, Global Privacy Control, tracking-parameter removal on links.
+* Links open in your default browser with tracking removed first (links to the four supported sites open in their Crux tab).
+
+Important: the tweaks on logged-in sites are display-only. They change what you see on the page; they do not stop the site itself from seeing your activity. The sites you use are still proprietary services and still know who you are when you are signed in.
+
+<b>RSS reader</b>
+* Add feeds or import OPML, with bookmarks and a paged reader that remembers your position.
+* Share a feed link or OPML file from another app into Crux.
+
+<b>Writing help &amp; Summaries</b>
+* Smart replies, drafts, and article summaries run entirely on your device with zero data egress. No AI API keys or accounts required.
+
+<b>Translation is opt-in</b>
+Nothing is sent to a translation service unless you ask for it. Translation runs only when you tap Translate (or turn on auto-translate), and it uses the provider you pick in settings: Google Translate (the default), DeepL, Google Cloud Translation, or LibreTranslate. When you use one, the text being translated is sent to that provider.
+
+No ads, no analytics, no crash reporting, no Crux server.
+
+Crux is free software under the AGPL-3.0, built on Flare by DimensionDev. It is Android only.

@@ -1,0 +1,4 @@
+First release of Crux.
+- Instagram, X, LinkedIn and Reddit as private web tabs with Privacy & Tweaks
+- RSS reader with paged reading, OPML import and bookmarks
+- 100% on-device smart replies and carousel drafts; optional translation is opt-in
