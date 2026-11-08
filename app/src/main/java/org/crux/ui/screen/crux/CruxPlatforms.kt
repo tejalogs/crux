@@ -85,7 +85,7 @@ internal enum class CruxPlatform(
         worksSignedOut = true,
     ),
     Rss(
-        displayName = "RSS",
+        displayName = "Feeds",
         brandColor = Color(0xFFF26522),
         tagline = R.string.crux_platform_rss_tagline,
         site = null,

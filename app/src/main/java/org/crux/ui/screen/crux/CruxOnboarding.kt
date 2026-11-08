@@ -3,6 +3,7 @@ package org.crux.ui.screen.crux
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -43,9 +44,11 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -53,6 +56,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
@@ -68,6 +72,7 @@ import compose.icons.fontawesomeicons.solid.Feather
 import compose.icons.fontawesomeicons.solid.LayerGroup
 import compose.icons.fontawesomeicons.solid.Leaf
 import compose.icons.fontawesomeicons.solid.ShieldHalved
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.crux.R
 import org.crux.data.model.appearance.AppearanceKeys
@@ -99,18 +104,33 @@ internal fun CruxOnboardingScreen(connections: CruxConnectionsState) {
                 addAll(connections.enabled.ifEmpty { CruxPlatform.entries })
             }
         }
-    val selectedStarterFeeds =
-        remember {
-            mutableStateListOf<DefaultRssFeeds.FeedItem>().apply {
-                addAll(DefaultRssFeeds.allFeeds)
-            }
+    val selectedStarterFeeds = remember { mutableStateListOf<DefaultRssFeeds.FeedItem>() }
+    // Feeds already in the library. Null until loaded; on a replayed tour nothing is preselected,
+    // so feeds the user removed are not quietly added back.
+    val existingFeedUrls by produceState<Set<String>?>(initialValue = null) {
+        value =
+            subscriptionRepository
+                .observeAll()
+                .first()
+                .map { it.url }
+                .toSet()
+    }
+    var starterFeedsPrimed by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(existingFeedUrls) {
+        val existing = existingFeedUrls ?: return@LaunchedEffect
+        if (!starterFeedsPrimed) {
+            if (existing.isEmpty()) selectedStarterFeeds.addAll(starterFeedPicks())
+            starterFeedsPrimed = true
         }
+    }
     var signingIn by remember { mutableStateOf<CruxPlatform?>(null) }
 
     fun finish() {
-        if (CruxPlatform.Rss in selected && selectedStarterFeeds.isNotEmpty()) {
+        val existing = existingFeedUrls.orEmpty()
+        val newFeeds = selectedStarterFeeds.filter { it.url !in existing }
+        if (CruxPlatform.Rss in selected && newFeeds.isNotEmpty()) {
             scope.launch {
-                subscriptionRepository.upsertAll(selectedStarterFeeds.map { it.toSubscriptionSourceInput() })
+                subscriptionRepository.upsertAll(newFeeds.map { it.toSubscriptionSourceInput() })
             }
         }
         connections.completeOnboarding(selected.toList())
@@ -167,6 +187,7 @@ internal fun CruxOnboardingScreen(connections: CruxConnectionsState) {
                         PlatformsStep(
                             selected = selected,
                             selectedStarterFeeds = selectedStarterFeeds,
+                            existingFeedUrls = existingFeedUrls.orEmpty(),
                             onContinue = {
                                 step = if (selected.any { it.site != null }) OnboardingStep.SignIn else OnboardingStep.Calm
                             },
@@ -293,16 +314,16 @@ private fun WelcomeStep(onContinue: () -> Unit) {
                 Modifier
                     .weight(1f)
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 28.dp),
-            verticalArrangement = Arrangement.spacedBy(28.dp),
+                    .padding(horizontal = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(16.dp))
             PlatformConstellation()
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     text = stringResource(R.string.app_name),
                     style =
-                        MaterialTheme.typography.displayLarge.copy(
+                        MaterialTheme.typography.displayMedium.copy(
                             fontFamily = FontFamily.Serif,
                             fontWeight = FontWeight.Bold,
                             letterSpacing = (-1).sp,
@@ -310,22 +331,22 @@ private fun WelcomeStep(onContinue: () -> Unit) {
                 )
                 Text(
                     text = stringResource(R.string.crux_onboarding_tagline),
-                    style = MaterialTheme.typography.titleLarge,
+                    style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
-                ValueRow(
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                ValueCard(
                     icon = FontAwesomeIcons.Solid.LayerGroup,
                     title = stringResource(R.string.crux_onboarding_value_one_title),
                     body = stringResource(R.string.crux_onboarding_value_one_body),
                 )
-                ValueRow(
+                ValueCard(
                     icon = FontAwesomeIcons.Solid.ShieldHalved,
                     title = stringResource(R.string.crux_onboarding_value_two_title),
                     body = stringResource(R.string.crux_onboarding_value_two_body),
                 )
-                ValueRow(
+                ValueCard(
                     icon = FontAwesomeIcons.Solid.Feather,
                     title = stringResource(R.string.crux_onboarding_value_three_title),
                     body = stringResource(R.string.crux_onboarding_value_three_body),
@@ -346,42 +367,186 @@ private fun WelcomeStep(onContinue: () -> Unit) {
     }
 }
 
-/** The six platforms as overlapping marks: a quick picture of "many feeds, one place". */
+/** Converging hub: tactile pebble badges for every supported network & RSS. */
 @Composable
 private fun PlatformConstellation() {
-    Box(modifier = Modifier.height(56.dp).fillMaxWidth()) {
-        CruxPlatform.entries.forEachIndexed { index, platform ->
-            Surface(
-                shape = CircleShape,
-                border = BorderStroke(3.dp, MaterialTheme.colorScheme.background),
-                modifier = Modifier.offset(x = (index * 40).dp),
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Surface(
+            shape = RoundedCornerShape(100.dp),
+            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)),
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                PlatformBadge(platform = platform, size = 52.dp)
+                FAIcon(
+                    FontAwesomeIcons.Solid.ShieldHalved,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(13.dp),
+                )
+                Text(
+                    text = stringResource(R.string.crux_onboarding_sovereign_pill),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+            }
+        }
+
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(vertical = 4.dp),
+        ) {
+            CruxPlatform.entries.forEach { platform ->
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
+                    shadowElevation = 2.dp,
+                ) {
+                    Box(modifier = Modifier.padding(8.dp)) {
+                        PlatformBadge(platform = platform, size = 36.dp)
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-private fun ValueRow(
+private fun ValueCard(
     icon: ImageVector,
     title: String,
     body: String,
 ) {
-    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-        Box(
-            modifier =
-                Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(MaterialTheme.colorScheme.secondaryContainer),
-            contentAlignment = Alignment.Center,
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.Top,
         ) {
-            FAIcon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(18.dp))
+            Box(
+                modifier =
+                    Modifier
+                        .size(42.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(MaterialTheme.colorScheme.primaryContainer),
+                contentAlignment = Alignment.Center,
+            ) {
+                FAIcon(
+                    icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(text = title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text(
+                    text = body,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    lineHeight = 20.sp,
+                )
+            }
         }
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(text = title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            Text(text = body, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+private fun LiveDockPreview(selected: List<CruxPlatform>) {
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(R.string.crux_onboarding_dock_preview_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Surface(
+                    shape = RoundedCornerShape(100.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                ) {
+                    Text(
+                        text = "${selected.size} active",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                    )
+                }
+            }
+            Text(
+                text = stringResource(R.string.crux_onboarding_dock_preview_subtitle),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Surface(
+                shape = RoundedCornerShape(24.dp),
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+                shadowElevation = 2.dp,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Row(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 10.dp)
+                            .animateContentSize(),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterHorizontally),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    if (selected.isEmpty()) {
+                        Text(
+                            text = "No platforms selected",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(vertical = 4.dp),
+                        )
+                    } else {
+                        CruxPlatform.entries.filter { it in selected }.forEach { platform ->
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                PlatformBadge(platform = platform, size = 30.dp)
+                                Text(
+                                    text = platform.displayName,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -390,6 +555,7 @@ private fun ValueRow(
 private fun PlatformsStep(
     selected: MutableList<CruxPlatform>,
     selectedStarterFeeds: MutableList<DefaultRssFeeds.FeedItem>,
+    existingFeedUrls: Set<String>,
     onContinue: () -> Unit,
 ) {
     StepScaffold(
@@ -399,7 +565,9 @@ private fun PlatformsStep(
         onPrimary = onContinue,
         primaryEnabled = selected.isNotEmpty(),
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            LiveDockPreview(selected = selected)
+
             CruxPlatform.entries.forEach { platform ->
                 val isSelected = platform in selected
                 Surface(
@@ -455,7 +623,7 @@ private fun PlatformsStep(
                             }
                         }
                         AnimatedVisibility(visible = platform == CruxPlatform.Rss && isSelected) {
-                            RssStarterFeedsSelector(selectedFeeds = selectedStarterFeeds)
+                            RssStarterFeedsSelector(selectedFeeds = selectedStarterFeeds, existingFeedUrls = existingFeedUrls)
                         }
                     }
                 }
@@ -465,7 +633,10 @@ private fun PlatformsStep(
 }
 
 @Composable
-private fun RssStarterFeedsSelector(selectedFeeds: MutableList<DefaultRssFeeds.FeedItem>) {
+private fun RssStarterFeedsSelector(
+    selectedFeeds: MutableList<DefaultRssFeeds.FeedItem>,
+    existingFeedUrls: Set<String>,
+) {
     var expanded by rememberSaveable { mutableStateOf(false) }
     var selectedCategoryIndex by remember { mutableStateOf<Int?>(null) }
     val categories = remember { DefaultRssFeeds.categories }
@@ -501,7 +672,13 @@ private fun RssStarterFeedsSelector(selectedFeeds: MutableList<DefaultRssFeeds.F
                     )
                 }
                 TextButton(onClick = { expanded = !expanded }) {
-                    Text(if (expanded) "Hide" else "${selectedFeeds.size}/${DefaultRssFeeds.allFeeds.size}")
+                    Text(
+                        if (expanded) {
+                            stringResource(R.string.onboarding_hide)
+                        } else {
+                            stringResource(R.string.crux_onboarding_rss_selected_count, selectedFeeds.size)
+                        },
+                    )
                 }
             }
 
@@ -509,9 +686,17 @@ private fun RssStarterFeedsSelector(selectedFeeds: MutableList<DefaultRssFeeds.F
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
+                        TextButton(
+                            onClick = {
+                                selectedFeeds.clear()
+                                selectedFeeds.addAll(starterFeedPicks())
+                            },
+                        ) {
+                            Text(stringResource(R.string.crux_onboarding_rss_select_recommended), style = MaterialTheme.typography.labelMedium)
+                        }
                         TextButton(
                             onClick = {
                                 selectedFeeds.clear()
@@ -547,11 +732,13 @@ private fun RssStarterFeedsSelector(selectedFeeds: MutableList<DefaultRssFeeds.F
 
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         displayedFeeds.forEach { feed ->
-                            val isChecked = feed in selectedFeeds
+                            val alreadyAdded = feed.url in existingFeedUrls
+                            val isChecked = alreadyAdded || feed in selectedFeeds
                             Surface(
                                 onClick = {
                                     if (isChecked) selectedFeeds.remove(feed) else selectedFeeds.add(feed)
                                 },
+                                enabled = !alreadyAdded,
                                 shape = RoundedCornerShape(12.dp),
                                 color = MaterialTheme.colorScheme.surface,
                                 modifier = Modifier.fillMaxWidth(),
@@ -562,6 +749,7 @@ private fun RssStarterFeedsSelector(selectedFeeds: MutableList<DefaultRssFeeds.F
                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 ) {
                                     Checkbox(
+                                        enabled = !alreadyAdded,
                                         checked = isChecked,
                                         onCheckedChange = { checked ->
                                             if (checked) {
@@ -574,7 +762,7 @@ private fun RssStarterFeedsSelector(selectedFeeds: MutableList<DefaultRssFeeds.F
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(feed.title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
                                         Text(
-                                            feed.description,
+                                            if (alreadyAdded) stringResource(R.string.crux_onboarding_rss_added) else feed.description,
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             maxLines = 1,
@@ -606,6 +794,39 @@ private fun SignInStep(
         onPrimary = onContinue,
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Surface(
+                shape = RoundedCornerShape(18.dp),
+                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Row(
+                    modifier = Modifier.padding(14.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.Top,
+                ) {
+                    FAIcon(
+                        FontAwesomeIcons.Solid.ShieldHalved,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(18.dp).padding(top = 2.dp),
+                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(
+                            text = stringResource(R.string.crux_onboarding_signin_optional_banner_title),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        )
+                        Text(
+                            text = stringResource(R.string.crux_onboarding_signin_optional_banner_body),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+
             platforms.forEach { platform ->
                 val signedIn = connections.isSignedIn(platform)
                 Surface(
@@ -672,6 +893,91 @@ private fun SignInStep(
 }
 
 @Composable
+private fun LiveCalmSamplePreview(grayscale: Boolean, paperTint: Boolean) {
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(R.string.crux_onboarding_calm_preview_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    if (grayscale) {
+                        Surface(
+                            shape = RoundedCornerShape(100.dp),
+                            color = MaterialTheme.colorScheme.secondaryContainer,
+                        ) {
+                            Text(
+                                text = "B&W",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                            )
+                        }
+                    }
+                    if (paperTint) {
+                        Surface(
+                            shape = RoundedCornerShape(100.dp),
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                        ) {
+                            Text(
+                                text = "Paper",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                            )
+                        }
+                    }
+                }
+            }
+
+            Surface(
+                shape = RoundedCornerShape(14.dp),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.crux_onboarding_calm_sample_headline),
+                        style =
+                            MaterialTheme.typography.titleMedium.copy(
+                                fontFamily = FontFamily.Serif,
+                                fontWeight = FontWeight.Bold,
+                            ),
+                    )
+                    Text(
+                        text = stringResource(R.string.crux_onboarding_calm_sample_body),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        lineHeight = 20.sp,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun CalmStep(onFinish: () -> Unit) {
     val settingsRepository = koinInject<SettingsRepository>()
     val scope = rememberCoroutineScope()
@@ -683,6 +989,7 @@ private fun CalmStep(onFinish: () -> Unit) {
         onPrimary = onFinish,
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            LiveCalmSamplePreview(grayscale = appearance.grayscale, paperTint = appearance.paperTint)
             CalmToggle(
                 icon = FontAwesomeIcons.Solid.Leaf,
                 title = stringResource(R.string.crux_grayscale_title),
@@ -697,6 +1004,7 @@ private fun CalmStep(onFinish: () -> Unit) {
                 checked = appearance.paperTint,
                 onCheckedChange = { scope.launch { settingsRepository.updateAppearance(AppearanceKeys.PaperTint, it) } },
             )
+            ProtectionNote()
             Text(
                 text = stringResource(R.string.crux_onboarding_calm_footnote),
                 style = MaterialTheme.typography.bodySmall,
@@ -705,6 +1013,48 @@ private fun CalmStep(onFinish: () -> Unit) {
         }
     }
 }
+
+/** Tells new users the web tabs are already protected, without adding another decision. */
+@Composable
+private fun ProtectionNote() {
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            FAIcon(
+                FontAwesomeIcons.Solid.ShieldHalved,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(20.dp),
+            )
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = stringResource(R.string.crux_onboarding_protection_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = stringResource(R.string.crux_onboarding_protection_body),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+/** A small, varied starting set: the first two feeds of each category. */
+private fun starterFeedPicks(): List<DefaultRssFeeds.FeedItem> =
+    DefaultRssFeeds.categories.flatMap {
+        it.feeds.take(STARTER_FEEDS_PER_CATEGORY)
+    }
+
+private const val STARTER_FEEDS_PER_CATEGORY = 2
 
 @Composable
 internal fun CalmToggle(
