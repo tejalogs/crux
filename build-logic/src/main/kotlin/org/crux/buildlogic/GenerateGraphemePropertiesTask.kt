@@ -3,22 +3,19 @@ package org.crux.buildlogic
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.tasks.CacheableTask
-import org.gradle.api.tasks.Input
-import org.gradle.api.tasks.Internal
+import org.gradle.api.tasks.InputDirectory
 import org.gradle.api.tasks.OutputDirectory
+import org.gradle.api.tasks.PathSensitive
+import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
-import java.util.zip.ZipFile
+import java.security.MessageDigest
 
 @CacheableTask
 abstract class GenerateGraphemePropertiesTask : DefaultTask() {
-    @get:Input
-    val sourceUrl = "https://www.unicode.org/Public/16.0.0/ucd/UCD.zip"
-
-    @get:Internal
-    val archiveCache = project.gradle.gradleUserHomeDir.resolve("caches/flare-codegen")
-
-    @get:Internal
-    val offline = project.gradle.startParameter.isOffline
+    /** Vendored Unicode 16.0.0 UCD files (third_party/unicode-ucd-16.0.0); no network access is needed. */
+    @get:InputDirectory
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val ucdDirectory: DirectoryProperty
 
     @get:OutputDirectory
     abstract val outputDirectory: DirectoryProperty
@@ -43,8 +40,13 @@ abstract class GenerateGraphemePropertiesTask : DefaultTask() {
                 "LV",
                 "LVT",
             )
-        ZipFile(downloadArchive(sourceUrl, archiveCache, offline)).use { zip ->
-            fun read(name: String): String = zip.getInputStream(requireNotNull(zip.getEntry(name))).bufferedReader().use { it.readText() }
+        run {
+            fun read(name: String): String {
+                val file = ucdDirectory.file(name).get().asFile
+                val text = file.readText()
+                check(sha256(file.readBytes()) == checksums.getValue(name)) { "Unexpected checksum for vendored UCD file $name" }
+                return text
+            }
             val grapheme = read("auxiliary/GraphemeBreakProperty.txt")
             val core = read("DerivedCoreProperties.txt")
             val emoji = read("emoji/emoji-data.txt")
@@ -101,3 +103,12 @@ abstract class GenerateGraphemePropertiesTask : DefaultTask() {
         output.writeText(source)
     }
 }
+
+private val checksums =
+    mapOf(
+        "auxiliary/GraphemeBreakProperty.txt" to "c29360bd6f7132811d701d29069541e827eb44bfc4c8fbde8c370d6982689dc1",
+        "DerivedCoreProperties.txt" to "39d35161f2954497f69e08bdb9e701493f476a3d30222de20028feda36c1dabd",
+        "emoji/emoji-data.txt" to "f1365a5173eee18e1f98b240cdc492e84a25f1ce7e0c9d1094eb29c41a22696a",
+    )
+
+private fun sha256(bytes: ByteArray): String = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
