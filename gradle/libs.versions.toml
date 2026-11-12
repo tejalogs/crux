@@ -129,7 +129,7 @@ sqlite-bundled = { group = "androidx.sqlite", name = "sqlite-bundled", version.r
 sqlite-web = { group = "androidx.sqlite", name = "sqlite-web", version.ref = "sqlite" }
 nestedScrollView = { group = "com.github.Tlaster", name = "NestedScrollView", version = "1.0.3" }
 webkit = { group = "androidx.webkit", name = "webkit", version = "1.17.1" }
-swiperefreshlayout = { group = "androidx.swiperefreshlayout", name = "swiperefreshlayout", version = "1.1.0" }
+swiperefreshlayout = { group = "androidx.swiperefreshlayout", name = "swiperefreshlayout", version = "1.2.0" }
 
 media3-exoplayer = { group = "androidx.media3", name = "media3-exoplayer", version.ref = "media3" }
 media3-ui-compose = { group = "androidx.media3", name = "media3-ui-compose", version.ref = "media3" }
