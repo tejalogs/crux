@@ -10,6 +10,10 @@ import kotlinx.coroutines.flow.update
 
 private const val PREFS_NAME = "crux_web_privacy"
 private const val KEY_CLEAN_LINKS = "clean_outgoing_links"
+private const val KEY_OPEN_IN_READER = "open_links_in_reader"
+private const val KEY_BLOCK_THIRD_PARTY_COOKIES = "block_third_party_cookies"
+private const val KEY_REMEMBER_TAB_POSITION = "remember_tab_position"
+private const val KEY_HIDE_ENGAGEMENT_COUNTS = "hide_engagement_counts"
 private const val KEY_SECURE_WINDOW = "secure_window"
 private const val KEY_GPC = "send_gpc"
 
@@ -61,6 +65,10 @@ internal class LiveWebPrivacyStore private constructor(
         return WebPrivacySettings(
             sites = sites,
             cleanOutgoingLinks = prefs.getBoolean(KEY_CLEAN_LINKS, defaults.cleanOutgoingLinks),
+            openLinksInReader = prefs.getBoolean(KEY_OPEN_IN_READER, defaults.openLinksInReader),
+            blockThirdPartyCookies = prefs.getBoolean(KEY_BLOCK_THIRD_PARTY_COOKIES, defaults.blockThirdPartyCookies),
+            rememberTabPosition = prefs.getBoolean(KEY_REMEMBER_TAB_POSITION, defaults.rememberTabPosition),
+            hideEngagementCounts = prefs.getBoolean(KEY_HIDE_ENGAGEMENT_COUNTS, defaults.hideEngagementCounts),
             secureWindow = prefs.getBoolean(KEY_SECURE_WINDOW, defaults.secureWindow),
             sendGlobalPrivacyControl = prefs.getBoolean(KEY_GPC, defaults.sendGlobalPrivacyControl),
         )
@@ -75,9 +83,17 @@ internal class LiveWebPrivacyStore private constructor(
                 SiteTweak.forSite(site).forEach { putBoolean(tweakKey(it), value.isOn(it)) }
             }
             putBoolean(KEY_CLEAN_LINKS, settings.cleanOutgoingLinks)
+            putBoolean(KEY_OPEN_IN_READER, settings.openLinksInReader)
+            putBoolean(KEY_BLOCK_THIRD_PARTY_COOKIES, settings.blockThirdPartyCookies)
+            putBoolean(KEY_REMEMBER_TAB_POSITION, settings.rememberTabPosition)
+            putBoolean(KEY_HIDE_ENGAGEMENT_COUNTS, settings.hideEngagementCounts)
             putBoolean(KEY_SECURE_WINDOW, settings.secureWindow)
             putBoolean(KEY_GPC, settings.sendGlobalPrivacyControl)
         }
+    }
+
+    fun resetToDefaults() {
+        update { WebPrivacySettings.Default }
     }
 
     companion object {

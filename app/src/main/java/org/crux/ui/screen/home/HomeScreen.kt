@@ -8,10 +8,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.staggeredgrid.LazyStaggeredGridState
@@ -125,6 +128,7 @@ import org.crux.ui.screen.splash.SplashScreen
 import org.koin.compose.koinInject
 
 @OptIn(
+    ExperimentalLayoutApi::class,
     ExperimentalMaterial3AdaptiveNavigationSuiteApi::class,
     ExperimentalMaterial3Api::class,
     ExperimentalMaterial3ExpressiveApi::class,
@@ -204,6 +208,7 @@ internal fun HomeScreen(afterInit: () -> Unit) {
                 )
             // Home (its feed pills) is the only dock destination.
             val currentTopKey = state.topLevelBackStack.takeSuccess()?.currentKey
+            val isImeVisible = WindowInsets.isImeVisible
             val feedsAndSocialHeader = stringResource(id = R.string.drawer_section_feeds_and_social)
             val personalLibraryHeader = stringResource(id = R.string.drawer_section_personal_library)
             val connectedAccountsHeader = stringResource(id = R.string.drawer_section_connected_accounts)
@@ -217,7 +222,7 @@ internal fun HomeScreen(afterInit: () -> Unit) {
                     showFab =
                         state.topLevelBackStack.takeSuccess()?.currentKey is Route.Home &&
                             !homeBottomBarAccessory.keepVisible,
-                    bottomBarVisible = tabs.any { it.route == currentTopKey },
+                    bottomBarVisible = tabs.any { it.route == currentTopKey } && !isImeVisible,
                     keepBottomBarVisible = homeBottomBarAccessory.keepVisible,
                     onFabClicked = {
                         state.navigate(Route.CruxCompose())

@@ -26,6 +26,15 @@ internal val GLOBAL_TRACKER_HOSTS: Set<String> =
         "hotjar.com",
         "bat.bing.com",
         "clarity.ms",
+        "segment.io",
+        "segment.com",
+        "mixpanel.com",
+        "amplitude.com",
+        "branch.io",
+        "appsflyer.com",
+        "adjust.com",
+        "app-measurement.com",
+        "fullstory.com",
     )
 
 internal fun hostMatchesAny(

@@ -1,10 +1,15 @@
 package org.crux.ui.screen.home
 
 import android.annotation.SuppressLint
+import android.content.ClipData
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
+import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import android.os.Message
 import android.util.Log
 import android.view.MotionEvent
 import android.view.View
@@ -12,6 +17,8 @@ import android.view.ViewConfiguration
 import android.view.ViewGroup
 import android.webkit.ConsoleMessage
 import android.webkit.CookieManager
+import android.webkit.GeolocationPermissions
+import android.webkit.PermissionRequest
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
@@ -21,22 +28,36 @@ import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.FrameLayout
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.isImeVisible
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -45,34 +66,49 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.ClipEntry
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.net.toUri
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import androidx.webkit.WebSettingsCompat
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
 import compose.icons.FontAwesomeIcons
 import compose.icons.fontawesomeicons.Solid
+import compose.icons.fontawesomeicons.solid.Copy
+import compose.icons.fontawesomeicons.solid.Download
 import compose.icons.fontawesomeicons.solid.RotateRight
+import compose.icons.fontawesomeicons.solid.ShareNodes
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import org.crux.BuildConfig
 import org.crux.R
+import org.crux.common.AndroidDownloadManager
 import org.crux.data.model.tab.TimelineSpecIds
 import org.crux.data.model.tab.UiTimelineTabItem
 import org.crux.ui.component.FAIcon
 import org.crux.ui.component.LocalBottomBarAccessory
 import org.crux.ui.screen.crux.CruxPlatform
 import org.crux.ui.screen.crux.PlatformBadge
+import org.koin.compose.koinInject
 import java.io.ByteArrayInputStream
 import kotlin.math.abs
 
@@ -126,11 +162,25 @@ internal class LiveWebPages {
         context: Context,
         config: LiveWebConfig = LiveWebPrivacyStore.get(context).configFor(site),
     ): LiveWebPage =
-        pages[site]?.takeIf { it.startUrl == site.homeUrl && it.config == config }
+        pages[site]?.takeIf { it.config == config }
             ?: run {
                 pages.remove(site)?.destroy()
                 clearSharedWebDataOnce(context)
-                LiveWebPage(site, context, config = config).also {
+                val saved =
+                    if (config.rememberTabPosition) {
+                        LiveWebSessionState.restore(context, site)
+                    } else {
+                        LiveWebSessionState.clear(context, site)
+                        null
+                    }
+                LiveWebPage(
+                    site = site,
+                    context = context,
+                    startUrl = saved?.first ?: site.homeUrl,
+                    initialScrollY = saved?.second ?: 0,
+                    persistSession = config.rememberTabPosition,
+                    config = config,
+                ).also {
                     it.onSiteLoaded = { onPageFinished?.invoke() }
                     pages[site] = it
                 }
@@ -139,6 +189,11 @@ internal class LiveWebPages {
     /** Reloads a site's home tab, e.g. after signing in on a separate page. */
     fun reload(site: LiveWebSite) {
         pages[site]?.webView?.reload()
+    }
+
+    /** Clears an active site's in-memory cache, form data, and history, then loads its home URL. */
+    fun clearAndReload(site: LiveWebSite) {
+        pages[site]?.clearInMemoryAndReload()
     }
 
     fun destroy() {
@@ -151,24 +206,39 @@ internal val LocalLiveWebPages = staticCompositionLocalOf<LiveWebPages?> { null 
 
 @SuppressLint("SetJavaScriptEnabled")
 internal class LiveWebPage(
-    site: LiveWebSite,
+    private val site: LiveWebSite,
     context: Context,
     val startUrl: String = site.homeUrl,
+    initialScrollY: Int = 0,
+    private val persistSession: Boolean = false,
     val config: LiveWebConfig = LiveWebPrivacyStore.get(context).configFor(site),
 ) {
+    private val appContext = context.applicationContext
+    private var pendingRestoreScrollY = initialScrollY.coerceAtLeast(0)
+
     private fun outgoing(url: String): String = if (config.cleanLinks) cleanOutgoingLink(url) else url
 
-    /** Off-site links go to the default browser, or to Crux's own screen when they are another social site. */
+    /** Off-site links go to the Crux Reader or default browser, or to Crux's own screen for another social site. */
     private fun openOutside(
         context: Context,
         url: String,
-    ) = openLinkOutsideWebView(context, url, config.cleanLinks)
+    ) = openLinkOutsideWebView(
+        context = context,
+        url = url,
+        clean = config.cleanLinks,
+        openInReader = config.openInReader,
+    )
 
     var canGoBack by mutableStateOf(false)
         private set
     var loadError by mutableStateOf<String?>(null)
         private set
+    var isLoading by mutableStateOf(true)
+        private set
+    var loadProgress by mutableIntStateOf(10)
+        private set
     var onFileChooser: ((ValueCallback<Array<Uri>>) -> Unit)? = null
+    var onImageLongPress: ((String) -> Unit)? = null
     var onPageLoaded: (() -> Unit)? = null
     var onSiteLoaded: (() -> Unit)? = null
 
@@ -180,9 +250,6 @@ internal class LiveWebPage(
             overScrollMode = View.OVER_SCROLL_NEVER
             isVerticalScrollBarEnabled = false
             isHorizontalScrollBarEnabled = false
-            settings.javaScriptEnabled = true
-            settings.domStorageEnabled = true
-            settings.databaseEnabled = true
             settings.cacheMode = WebSettings.LOAD_DEFAULT
             // The WebView's real identity: a spoofed one disagrees with its other signals, and that
             // mismatch is a common automation tell (it was part of the Instagram flag in Oct 2026).
@@ -192,14 +259,7 @@ internal class LiveWebPage(
             settings.setSupportMultipleWindows(true)
             settings.javaScriptCanOpenWindowsAutomatically = true
             settings.mediaPlaybackRequiresUserGesture = config.blockAutoplay
-            runCatching {
-                val globalCookieManager = CookieManager.getInstance()
-                globalCookieManager.setAcceptCookie(true)
-                globalCookieManager.setAcceptThirdPartyCookies(this, true)
-            }
-            val cookieManager = site.cookieManager()
-            cookieManager.setAcceptCookie(true)
-            cookieManager.setAcceptThirdPartyCookies(this, true)
+            hardenWebSettings(site, config.blockThirdPartyCookies)
             val documentStartScripts = config.documentStartScripts(site)
             if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
                 documentStartScripts.forEach { script ->
@@ -209,6 +269,9 @@ internal class LiveWebPage(
             // Sites otherwise get the app's ID in a header on every request.
             if (WebViewFeature.isFeatureSupported(WebViewFeature.REQUESTED_WITH_HEADER_ALLOW_LIST)) {
                 WebSettingsCompat.setRequestedWithHeaderOriginAllowList(settings, emptySet())
+            }
+            if (WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING)) {
+                WebSettingsCompat.setAlgorithmicDarkeningAllowed(settings, true)
             }
             webViewClient =
                 object : WebViewClient() {
@@ -220,6 +283,8 @@ internal class LiveWebPage(
                         super.onPageStarted(view, url, favicon)
                         if (url != null && url != "about:blank") {
                             loadError = null
+                            isLoading = true
+                            loadProgress = 10
                         }
                     }
 
@@ -231,6 +296,8 @@ internal class LiveWebPage(
                         super.onReceivedError(view, request, error)
                         if (request.isForMainFrame) {
                             loadError = error.description?.toString() ?: "Failed to connect"
+                            isLoading = false
+                            loadProgress = 100
                             onPageLoaded?.invoke()
                         }
                     }
@@ -240,7 +307,7 @@ internal class LiveWebPage(
                         request: WebResourceRequest,
                     ): WebResourceResponse? =
                         if (config.blocks(site, request.url.host)) {
-                            LiveWebPrivacyCounters.get(view.context).recordBlockedRequest()
+                            LiveWebPrivacyCounters.get(view.context).recordBlockedRequest(site)
                             WebResourceResponse("text/plain", "UTF-8", ByteArrayInputStream(ByteArray(0)))
                         } else {
                             super.shouldInterceptRequest(view, request)
@@ -270,8 +337,24 @@ internal class LiveWebPage(
                         if (!WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
                             config.documentStartScripts(site).forEach { view.evaluateJavascript(it, null) }
                         }
+                        val scrollToRestore = pendingRestoreScrollY
+                        if (scrollToRestore > 0) {
+                            pendingRestoreScrollY = 0
+                            view.postDelayed(
+                                {
+                                    view.scrollTo(0, scrollToRestore)
+                                    view.evaluateJavascript("window.scrollTo(0,$scrollToRestore)", null)
+                                },
+                                350L,
+                            )
+                        }
+                        if (persistSession) {
+                            LiveWebSessionState.save(appContext, site, url, view.scrollY)
+                        }
                         onPageLoaded?.invoke()
                         onSiteLoaded?.invoke()
+                        isLoading = false
+                        loadProgress = 100
                     }
 
                     override fun doUpdateVisitedHistory(
@@ -280,10 +363,25 @@ internal class LiveWebPage(
                         isReload: Boolean,
                     ) {
                         canGoBack = view.canGoBack()
+                        if (persistSession) {
+                            LiveWebSessionState.save(appContext, site, url, view.scrollY)
+                        }
                     }
                 }
             webChromeClient =
                 object : WebChromeClient() {
+                    override fun onProgressChanged(
+                        view: WebView?,
+                        newProgress: Int,
+                    ) {
+                        loadProgress = newProgress
+                        if (newProgress >= 100) {
+                            isLoading = false
+                        } else if (newProgress in 1..99) {
+                            isLoading = true
+                        }
+                    }
+
                     override fun onCreateWindow(
                         view: WebView,
                         isDialog: Boolean,
@@ -306,8 +404,7 @@ internal class LiveWebPage(
                         val popupWebView =
                             WebView(view.context).apply {
                                 useProfileOf(site)
-                                settings.javaScriptEnabled = true
-                                settings.domStorageEnabled = true
+                                hardenWebSettings(site, config.blockThirdPartyCookies)
                                 webViewClient =
                                     object : WebViewClient() {
                                         private var handled = false
@@ -366,6 +463,17 @@ internal class LiveWebPage(
                         return super.onConsoleMessage(consoleMessage)
                     }
 
+                    override fun onGeolocationPermissionsShowPrompt(
+                        origin: String?,
+                        callback: GeolocationPermissions.Callback?,
+                    ) {
+                        callback?.invoke(origin, false, false)
+                    }
+
+                    override fun onPermissionRequest(request: PermissionRequest?) {
+                        request?.deny()
+                    }
+
                     override fun onShowFileChooser(
                         webView: WebView,
                         filePathCallback: ValueCallback<Array<Uri>>,
@@ -376,11 +484,73 @@ internal class LiveWebPage(
                         return true
                     }
                 }
+            setOnLongClickListener { view ->
+                val callback = onImageLongPress ?: return@setOnLongClickListener false
+                val targetWebView = view as? WebView ?: return@setOnLongClickListener false
+                val hit = targetWebView.hitTestResult
+                when (hit.type) {
+                    WebView.HitTestResult.IMAGE_TYPE -> {
+                        val src = hit.extra?.takeIf { it.startsWith("http", ignoreCase = true) }
+                        if (src != null) {
+                            callback(src)
+                            true
+                        } else {
+                            false
+                        }
+                    }
+
+                    WebView.HitTestResult.SRC_IMAGE_ANCHOR_TYPE -> {
+                        val src = hit.extra?.takeIf { it.startsWith("http", ignoreCase = true) }
+                        if (src != null) {
+                            callback(src)
+                            true
+                        } else {
+                            val msg =
+                                Message.obtain(
+                                    Handler(Looper.getMainLooper()) { result ->
+                                        val imgSrc =
+                                            result.data
+                                                .getString("src")
+                                                ?.takeIf { it.startsWith("http", ignoreCase = true) }
+                                        if (imgSrc != null) callback(imgSrc)
+                                        true
+                                    },
+                                )
+                            targetWebView.requestFocusNodeHref(msg)
+                            true
+                        }
+                    }
+
+                    else -> {
+                        false
+                    }
+                }
+            }
             loadUrl(startUrl)
         }
 
     fun goBack() {
         webView.goBack()
+    }
+
+    fun clearInMemoryAndReload() {
+        pendingRestoreScrollY = 0
+        runCatching {
+            webView.clearCache(true)
+            webView.clearFormData()
+            webView.clearHistory()
+        }
+        webView.loadUrl(site.homeUrl)
+    }
+
+    fun saveSessionState() {
+        if (!persistSession) return
+        val currentUrl = webView.url
+        val nativeY = webView.scrollY.coerceAtLeast(0)
+        webView.evaluateJavascript("Math.round(window.scrollY||document.documentElement.scrollTop||0)") { raw ->
+            val jsY = raw?.trim()?.toIntOrNull()?.coerceAtLeast(0) ?: 0
+            LiveWebSessionState.save(appContext, site, currentUrl, maxOf(nativeY, jsY))
+        }
     }
 
     /** Same as tapping a feed pill again: back to the top, or reload if already there. */
@@ -390,7 +560,8 @@ internal class LiveWebPage(
 
     fun scrollToTopOrReload() {
         if (webView.canScrollVertically(-1)) {
-            webView.pageUp(true)
+            webView.scrollTo(0, 0)
+            webView.evaluateJavascript("window.scrollTo({top:0,behavior:'smooth'})", null)
         } else {
             webView.reload()
         }
@@ -400,6 +571,30 @@ internal class LiveWebPage(
         (webView.parent as? ViewGroup)?.removeView(webView)
         webView.destroy()
     }
+}
+
+@SuppressLint("SetJavaScriptEnabled")
+private fun WebView.hardenWebSettings(
+    site: LiveWebSite,
+    blockThirdPartyCookies: Boolean,
+) {
+    settings.javaScriptEnabled = true
+    settings.domStorageEnabled = true
+    settings.databaseEnabled = true
+    settings.allowFileAccess = false
+    settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        settings.safeBrowsingEnabled = true
+    }
+    val acceptThirdParty = !blockThirdPartyCookies
+    runCatching {
+        val globalCookieManager = CookieManager.getInstance()
+        globalCookieManager.setAcceptCookie(true)
+        globalCookieManager.setAcceptThirdPartyCookies(this, acceptThirdParty)
+    }
+    val cookieManager = site.cookieManager()
+    cookieManager.setAcceptCookie(true)
+    cookieManager.setAcceptThirdPartyCookies(this, acceptThirdParty)
 }
 
 private class HorizontalFriendlySwipeRefreshLayout(
@@ -458,6 +653,7 @@ internal fun BindFileChooser(page: LiveWebPage) {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 internal fun LiveWebTab(
     site: LiveWebSite,
@@ -472,10 +668,42 @@ internal fun LiveWebTab(
     // A changed setting gives a new config, which makes the pages holder build a fresh page.
     val config = remember(allSettings, site) { allSettings.configFor(site) }
     val page = remember(site, pages, homeUrl, config) { pages.page(site, context, config) }
+    val isImeVisible = WindowInsets.isImeVisible
+    val clipboard = LocalClipboard.current
+    val scope = rememberCoroutineScope()
+    val downloadManager = koinInject<AndroidDownloadManager>()
+    var contextImageUrl by remember { mutableStateOf<String?>(null) }
     BindFileChooser(page)
+    DisposableEffect(page) {
+        page.onImageLongPress = { imageUrl -> contextImageUrl = imageUrl }
+        onDispose { page.onImageLongPress = null }
+    }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, page) {
+        val observer =
+            LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_PAUSE || event == Lifecycle.Event.ON_STOP) {
+                    page.saveSessionState()
+                }
+            }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            page.saveSessionState()
+        }
+    }
+    LaunchedEffect(isCurrentlyVisible, page) {
+        if (!isCurrentlyVisible) {
+            page.saveSessionState()
+        }
+    }
     val accessory = LocalBottomBarAccessory.current
-    DisposableEffect(accessory, isCurrentlyVisible, site) {
-        if (isCurrentlyVisible) accessory?.keepVisibleOwner = site
+    DisposableEffect(accessory, isCurrentlyVisible, site, isImeVisible) {
+        if (isCurrentlyVisible && !isImeVisible) {
+            accessory?.keepVisibleOwner = site
+        } else if (accessory?.keepVisibleOwner == site) {
+            accessory.keepVisibleOwner = null
+        }
         onDispose {
             if (accessory?.keepVisibleOwner == site) accessory.keepVisibleOwner = null
         }
@@ -505,8 +733,13 @@ internal fun LiveWebTab(
                 modifier =
                     Modifier
                         .fillMaxSize()
-                        .padding(contentPadding)
-                        .imePadding(),
+                        .padding(
+                            if (isImeVisible) {
+                                PaddingValues(top = contentPadding.calculateTopPadding())
+                            } else {
+                                contentPadding
+                            },
+                        ).imePadding(),
                 factory = { viewContext ->
                     val container =
                         if (site.pullToRefresh) {
@@ -529,6 +762,24 @@ internal fun LiveWebTab(
                     it.removeAllViews()
                 },
             )
+            AnimatedVisibility(
+                visible = page.isLoading && page.loadError == null,
+                enter = fadeIn(),
+                exit = fadeOut(),
+                modifier =
+                    Modifier
+                        .align(Alignment.TopCenter)
+                        .fillMaxWidth()
+                        .padding(top = contentPadding.calculateTopPadding()),
+            ) {
+                LinearProgressIndicator(
+                    progress = { (page.loadProgress / 100f).coerceIn(0.05f, 1f) },
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .height(2.dp),
+                )
+            }
             val error = page.loadError
             if (error != null) {
                 Surface(
@@ -572,4 +823,119 @@ internal fun LiveWebTab(
             }
         }
     }
+    val imageUrl = contextImageUrl
+    if (imageUrl != null) {
+        val copyLabel = stringResource(R.string.media_menu_copy_link)
+        val shareTitle = stringResource(R.string.media_menu_share_image)
+        ModalBottomSheet(
+            onDismissRequest = { contextImageUrl = null },
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(bottom = 12.dp),
+            ) {
+                Text(
+                    text = imageUrl.toUri().host ?: imageUrl,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+                )
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.media_menu_save)) },
+                    leadingContent = {
+                        FAIcon(
+                            FontAwesomeIcons.Solid.Download,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                    },
+                    modifier =
+                        Modifier.clickable {
+                            contextImageUrl = null
+                            val fileName = inferWebImageFileName(imageUrl)
+                            scope.launch {
+                                Toast
+                                    .makeText(context, context.getString(R.string.media_download_started), Toast.LENGTH_SHORT)
+                                    .show()
+                                downloadManager.downloadMedia(
+                                    uri = imageUrl,
+                                    fileName = fileName,
+                                    callback =
+                                        object : AndroidDownloadManager.DownloadCallback {
+                                            override fun onDownloadSuccess(downloadId: Long) {
+                                                scope.launch(Dispatchers.Main) {
+                                                    Toast
+                                                        .makeText(context, context.getString(R.string.media_save_success), Toast.LENGTH_SHORT)
+                                                        .show()
+                                                }
+                                            }
+
+                                            override fun onDownloadFailed(downloadId: Long) {
+                                                scope.launch(Dispatchers.Main) {
+                                                    Toast
+                                                        .makeText(context, context.getString(R.string.media_save_fail), Toast.LENGTH_SHORT)
+                                                        .show()
+                                                }
+                                            }
+                                        },
+                                )
+                            }
+                        },
+                )
+                ListItem(
+                    headlineContent = { Text(shareTitle) },
+                    leadingContent = {
+                        FAIcon(
+                            FontAwesomeIcons.Solid.ShareNodes,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                    },
+                    modifier =
+                        Modifier.clickable {
+                            contextImageUrl = null
+                            val shareIntent =
+                                Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_TEXT, imageUrl)
+                                }
+                            runCatching {
+                                context.startActivity(Intent.createChooser(shareIntent, shareTitle))
+                            }
+                        },
+                )
+                ListItem(
+                    headlineContent = { Text(copyLabel) },
+                    leadingContent = {
+                        FAIcon(
+                            FontAwesomeIcons.Solid.Copy,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                    },
+                    modifier =
+                        Modifier.clickable {
+                            contextImageUrl = null
+                            scope.launch {
+                                clipboard.setClipEntry(
+                                    ClipEntry(ClipData.newPlainText(copyLabel, imageUrl)),
+                                )
+                            }
+                        },
+                )
+            }
+        }
+    }
+}
+
+private fun inferWebImageFileName(imageUrl: String): String {
+    val uri = runCatching { imageUrl.toUri() }.getOrNull()
+    val rawSegment = uri?.lastPathSegment?.substringAfterLast('/')?.takeIf { it.isNotBlank() }
+    val sanitized = rawSegment?.replace(Regex("[^A-Za-z0-9._-]"), "_")?.take(48)
+    val formatExt = uri?.getQueryParameter("format")?.lowercase()?.takeIf { it in setOf("jpg", "jpeg", "png", "webp", "gif") }
+    val hasImageExt = sanitized?.substringAfterLast('.', "")?.lowercase() in setOf("jpg", "jpeg", "png", "webp", "gif")
+    val ext = formatExt ?: if (hasImageExt) null else "jpg"
+    val base = sanitized?.takeIf { it.isNotBlank() } ?: "crux_web_${System.currentTimeMillis()}"
+    return if (ext != null && !base.endsWith(".$ext", ignoreCase = true)) "$base.$ext" else base
 }

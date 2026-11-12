@@ -45,8 +45,10 @@ private val REDDIT_TRACKER_HOSTS =
         "alb.reddit.com",
         "pi.reddit.com",
         "w3-reporting.reddit.com",
+        "w3-reporting-nel.reddit.com",
         "events.reddit.com",
         "events.redditmedia.com",
+        "error-tracking.reddit.com",
         "rlcdn.com",
         "google.co.in",
     )
@@ -57,6 +59,7 @@ private val X_TRACKER_HOSTS =
         "analytics.x.com",
         "telemetry.twitter.com",
         "ads-twitter.com",
+        "ads-api.twitter.com",
         "ads-api.x.com",
         "scribe.twitter.com",
         "p.twitter.com",
@@ -88,6 +91,8 @@ private val INSTAGRAM_TRACKER_HOSTS =
  */
 internal enum class LiveWebSite(
     val homeUrl: String,
+    /** Direct link inside this site's own settings for AI model training / privacy opt-outs. */
+    val aiPrivacyUrl: String,
     val tabIdSuffix: String,
     val allowedHosts: Set<String>,
     val trackerHosts: Set<String>,
@@ -102,6 +107,7 @@ internal enum class LiveWebSite(
 ) {
     Instagram(
         homeUrl = "https://www.instagram.com/",
+        aiPrivacyUrl = "https://www.instagram.com/accounts/privacy_and_security/",
         tabIdSuffix = "@instagram.com",
         allowedHosts = INSTAGRAM_ALLOWED_HOSTS,
         trackerHosts = INSTAGRAM_TRACKER_HOSTS,
@@ -113,6 +119,7 @@ internal enum class LiveWebSite(
     ),
     LinkedIn(
         homeUrl = "https://www.linkedin.com/feed/",
+        aiPrivacyUrl = "https://www.linkedin.com/mypreferences/d/settings/data-for-ai-improvement",
         tabIdSuffix = "@linkedin.com",
         allowedHosts = LINKEDIN_ALLOWED_HOSTS,
         trackerHosts = LINKEDIN_TRACKER_HOSTS,
@@ -122,6 +129,7 @@ internal enum class LiveWebSite(
     ),
     X(
         homeUrl = "https://x.com/home",
+        aiPrivacyUrl = "https://x.com/settings/grok_settings",
         tabIdSuffix = "",
         allowedHosts = X_ALLOWED_HOSTS,
         trackerHosts = X_TRACKER_HOSTS,
@@ -132,6 +140,7 @@ internal enum class LiveWebSite(
     Reddit(
         // Newest first, not Reddit's ranked "Best".
         homeUrl = "https://www.reddit.com/new/",
+        aiPrivacyUrl = "https://www.reddit.com/settings/privacy",
         tabIdSuffix = "",
         allowedHosts = setOf("reddit.com", "redd.it"),
         trackerHosts = REDDIT_TRACKER_HOSTS,

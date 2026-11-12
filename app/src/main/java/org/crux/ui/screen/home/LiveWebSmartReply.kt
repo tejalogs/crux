@@ -40,11 +40,14 @@ internal const val READ_POST_SCRIPT = """
   if(!best)return '';
   // Reddit wraps each shreddit-post in an article; the details are on the inner element.
   var post=best.querySelector('shreddit-post')||best;
-  var body=post.querySelector('[data-testid=tweetText]');
+  var body=post.querySelector('[slot="text-body"],[data-testid=tweetText]');
   var name=post.querySelector('[data-testid=User-Name],a[href]');
   var title=post.getAttribute('post-title');
+  var bodyText=body?clean(body.innerText):'';
+  var headline=title?clean(title):'';
+  var combined=headline?(bodyText&&bodyText!==headline?headline+'\n'+bodyText:headline):(bodyText||clean(post.innerText));
   var author=post.getAttribute('author')||(name?name.innerText:'');
-  return JSON.stringify({text:clean(title||(body||post).innerText),author:clean(author).split('\n')[0]});
+  return JSON.stringify({text:combined,author:clean(author).split('\n')[0]});
 })()
 """
 
@@ -81,7 +84,11 @@ internal fun rememberSmartReplyAction(
                                 accountType = AccountType.Guest,
                                 initialText = post.text,
                                 authorName = post.author,
-                                authorHandle = site.name.lowercase(),
+                                authorHandle =
+                                    post.author
+                                        .trim()
+                                        .takeIf { it.startsWith("@") && !it.contains(" ") }
+                                        .orEmpty(),
                             ).toUri(),
                     )
                 }

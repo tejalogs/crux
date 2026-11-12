@@ -28,9 +28,16 @@ class LiveWebTweaksTest {
     }
 
     @Test
-    fun everyTweakIsOnByDefaultExceptHidingForYou() {
-        val off = SiteTweak.entries.filterNot { it in SiteWebSettings.defaultsFor(it.site).tweaks }
-        assertEquals(listOf(SiteTweak.XHideForYou), off)
+    fun everyTweakFollowsOptInDefaults() {
+        val off = SiteTweak.entries.filterNot { it in SiteWebSettings.defaultsFor(it.site).tweaks }.toSet()
+        assertEquals(
+            setOf(
+                SiteTweak.InstagramStories,
+                SiteTweak.XHideForYou,
+                SiteTweak.RedditUnblurNsfw,
+            ),
+            off,
+        )
     }
 
     @Test
@@ -295,6 +302,8 @@ class LiveWebTweaksTest {
         // The header around Reddit's "Open App" button also holds the menu and search.
         assertTrue(script.contains("querySelectorAll(clickable).length<=1"))
         assertTrue(script.contains("HEADER|NAV"))
+        assertTrue(script.contains("View in Reddit App"))
+        assertTrue(script.contains("shadowRoot"))
     }
 
     @Test
@@ -306,5 +315,80 @@ class LiveWebTweaksTest {
             assertTrue("${site.name} fakes storage access", "requestStorageAccess" !in script)
             assertTrue("${site.name} fakes permissions", "permissions.query" !in script)
         }
+    }
+
+    @Test
+    fun openLinksInReaderDefaultsOnAndFollowsToggle() {
+        assertTrue(WebPrivacySettings.Default.openLinksInReader)
+        assertTrue(WebPrivacySettings.Default.configFor(LiveWebSite.X).openInReader)
+        val disabled = WebPrivacySettings.Default.copy(openLinksInReader = false)
+        assertFalse(disabled.configFor(LiveWebSite.X).openInReader)
+    }
+
+    @Test
+    fun batchAPrivacyDefaultsAndConfigPropagation() {
+        val defaults = WebPrivacySettings.Default
+        assertFalse(defaults.blockThirdPartyCookies)
+        assertTrue(defaults.rememberTabPosition)
+        assertFalse(defaults.configFor(LiveWebSite.Reddit).blockThirdPartyCookies)
+        assertTrue(defaults.configFor(LiveWebSite.Reddit).rememberTabPosition)
+
+        val hardened =
+            defaults.copy(
+                blockThirdPartyCookies = true,
+                rememberTabPosition = false,
+            )
+        assertTrue(hardened.configFor(LiveWebSite.X).blockThirdPartyCookies)
+        assertFalse(hardened.configFor(LiveWebSite.X).rememberTabPosition)
+    }
+
+    @Test
+    fun redditAiTrendingAndNsfwFollowToggles() {
+        val defaults = defaultScript(LiveWebSite.Reddit)
+        assertTrue(defaults.contains("reddit-answers"))
+        assertTrue(defaults.contains("trending-carousel"))
+        assertFalse("NSFW unblur is opt-in", defaults.contains("removeAttribute('nsfw')"))
+
+        val withUnblur =
+            script(LiveWebSite.Reddit, SiteWebSettings.defaultsFor(LiveWebSite.Reddit).tweaks + SiteTweak.RedditUnblurNsfw)
+        assertTrue(withUnblur.contains("removeAttribute('nsfw')"))
+    }
+
+    @Test
+    fun aiTweaksCoverInstagramXAndLinkedInWithoutBreakingSafeRules() {
+        assertTrue(defaultScript(LiveWebSite.Instagram).contains("Meta AI"))
+        assertFalse(defaultScript(LiveWebSite.Instagram).contains("story_tray"))
+        assertTrue(defaultScript(LiveWebSite.X).contains("spacesBar"))
+        assertTrue(defaultScript(LiveWebSite.LinkedIn).contains("Rewrite with AI"))
+        assertTrue(defaultScript(LiveWebSite.LinkedIn).contains("/games/"))
+    }
+
+    @Test
+    fun calmMetricsHidesEngagementCountsOnlyWhenEnabled() {
+        assertFalse(WebPrivacySettings.Default.hideEngagementCounts)
+        val xDefault = WebPrivacySettings.Default.configFor(LiveWebSite.X).documentStartScripts(LiveWebSite.X).joinToString()
+        assertFalse(xDefault.contains("app-text-transition-container"))
+
+        val calm = WebPrivacySettings.Default.copy(hideEngagementCounts = true)
+        assertTrue(calm.configFor(LiveWebSite.X).documentStartScripts(LiveWebSite.X).joinToString().contains("app-text-transition-container"))
+        assertTrue(calm.configFor(LiveWebSite.LinkedIn).documentStartScripts(LiveWebSite.LinkedIn).joinToString().contains("social-details-social-counts"))
+        assertTrue(calm.configFor(LiveWebSite.Reddit).documentStartScripts(LiveWebSite.Reddit).joinToString().contains("vote-count"))
+        assertTrue(calm.configFor(LiveWebSite.Instagram).documentStartScripts(LiveWebSite.Instagram).joinToString().contains("/liked_by/"))
+    }
+
+    @Test
+    fun aiPrivacyUrlsStayWithinSiteAllowedHosts() {
+        LiveWebSite.entries.forEach { site ->
+            val uri = URI(site.aiPrivacyUrl)
+            assertEquals("https", uri.scheme)
+            assertTrue("${site.name} aiPrivacyUrl ${site.aiPrivacyUrl} must stay allowed", site.allows(uri.host))
+        }
+    }
+
+    @Test
+    fun strictBlocksExpandedTelemetryHosts() {
+        assertTrue(shouldBlockHost(LiveWebSite.Reddit, ProtectionLevel.Strict, "segment.io"))
+        assertTrue(shouldBlockHost(LiveWebSite.Reddit, ProtectionLevel.Strict, "w3-reporting-nel.reddit.com"))
+        assertTrue(shouldBlockHost(LiveWebSite.X, ProtectionLevel.Strict, "ads-api.twitter.com"))
     }
 }

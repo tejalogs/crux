@@ -11,6 +11,8 @@ private const val COUNTERS_PREFS = "crux_web_privacy_counters"
 private const val KEY_BLOCKED_REQUESTS = "blocked_requests"
 private const val KEY_LINK_PARAMETERS = "link_parameters_removed"
 
+private fun blockedBySiteKey(site: LiveWebSite): String = "blocked_requests.${site.name}"
+
 /**
  * Running totals shown on the Privacy screen. They only count what the web tabs actually did:
  * requests refused on sites set to Strict, and tracking redirects and parameters removed from
@@ -20,15 +22,29 @@ internal class LiveWebPrivacyCounters private constructor(
     private val prefs: SharedPreferences,
 ) {
     private val blocked = MutableStateFlow(prefs.getLong(KEY_BLOCKED_REQUESTS, 0L))
+    private val blockedPerSite =
+        MutableStateFlow(
+            LiveWebSite.entries.associateWith { site ->
+                prefs.getLong(blockedBySiteKey(site), 0L)
+            },
+        )
     private val removed = MutableStateFlow(prefs.getLong(KEY_LINK_PARAMETERS, 0L))
 
     val blockedRequests: StateFlow<Long> = blocked.asStateFlow()
+    val blockedRequestsBySite: StateFlow<Map<LiveWebSite, Long>> = blockedPerSite.asStateFlow()
     val parametersRemoved: StateFlow<Long> = removed.asStateFlow()
 
-    fun recordBlockedRequest() {
+    fun recordBlockedRequest(site: LiveWebSite? = null) {
         val next = blocked.value + 1
         blocked.value = next
-        prefs.edit().putLong(KEY_BLOCKED_REQUESTS, next).apply()
+        val editor = prefs.edit().putLong(KEY_BLOCKED_REQUESTS, next)
+        if (site != null) {
+            val current = blockedPerSite.value
+            val siteNext = (current[site] ?: 0L) + 1L
+            blockedPerSite.value = current + (site to siteNext)
+            editor.putLong(blockedBySiteKey(site), siteNext)
+        }
+        editor.apply()
     }
 
     /** Counts what cleaning took out of [original] to make [cleaned]; does nothing when they match. */

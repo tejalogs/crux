@@ -240,6 +240,9 @@ public object SmartReplyEngine {
         raw: String,
         tone: SmartReplyTone = SmartReplyTone.Practitioner,
         sourcePostText: String = "",
+        authorName: String = "",
+        mediaDescription: String = "",
+        parentDiscussionContext: String = "",
     ): List<SmartReplyOption>? {
         if (raw.isBlank()) return null
 
@@ -285,33 +288,34 @@ public object SmartReplyEngine {
         val fallbackRefined =
             generateGemmaRefinedOutput(
                 postText = sourcePostText.ifBlank { raw },
+                authorName = authorName,
+                mediaDescription = mediaDescription,
+                parentDiscussionContext = parentDiscussionContext,
                 tone = tone,
             )
         val fallbackLines = fallbackRefined.lines()
-        if (insight.isNullOrBlank()) {
-            insight =
-                fallbackLines.firstOrNull { it.startsWith("[INSIGHT]:") }?.substringAfter(":")?.trim()
-                    ?: "Interesting, hadn't thought about it that way."
-        }
-        if (question.isNullOrBlank()) {
-            question =
-                fallbackLines.firstOrNull { it.startsWith("[QUESTION]:") }?.substringAfter(":")?.trim()
-                    ?: "What made you go this direction?"
-        }
-        if (counterpoint.isNullOrBlank()) {
-            counterpoint =
-                fallbackLines.firstOrNull { it.startsWith("[COUNTERPOINT]:") }?.substringAfter(":")?.trim()
-                    ?: "Depends a lot on the situation, I think."
-        }
-        if (punchy.isNullOrBlank()) {
-            punchy = fallbackLines.firstOrNull { it.startsWith("[PUNCHY]:") }?.substringAfter(":")?.trim() ?: "Fair point."
-        }
+        val fallbackInsight =
+            fallbackLines.firstOrNull { it.startsWith("[INSIGHT]:") }?.substringAfter(":")?.trim()
+                ?: "Interesting, hadn't thought about it that way."
+        val fallbackQuestion =
+            fallbackLines.firstOrNull { it.startsWith("[QUESTION]:") }?.substringAfter(":")?.trim()
+                ?: "What made you go this direction?"
+        val fallbackCounterpoint =
+            fallbackLines.firstOrNull { it.startsWith("[COUNTERPOINT]:") }?.substringAfter(":")?.trim()
+                ?: "Depends a lot on the situation, I think."
+        val fallbackPunchy =
+            fallbackLines.firstOrNull { it.startsWith("[PUNCHY]:") }?.substringAfter(":")?.trim() ?: "Fair point."
+
+        val finalInsight = humanizeReply(insight ?: fallbackInsight).ifBlank { fallbackInsight }
+        val finalQuestion = humanizeReply(question ?: fallbackQuestion).ifBlank { fallbackQuestion }
+        val finalCounterpoint = humanizeReply(counterpoint ?: fallbackCounterpoint).ifBlank { fallbackCounterpoint }
+        val finalPunchy = humanizeReply(punchy ?: fallbackPunchy).ifBlank { fallbackPunchy }
 
         return listOf(
-            SmartReplyOption(SmartReplyAngle.Insight, "Thoughtful Nuance", humanizeReply(insight)),
-            SmartReplyOption(SmartReplyAngle.Question, "Spark Conversation", humanizeReply(question)),
-            SmartReplyOption(SmartReplyAngle.Counterpoint, "Alternative Angle", humanizeReply(counterpoint)),
-            SmartReplyOption(SmartReplyAngle.Punchy, "Crisp Synthesis", humanizeReply(punchy)),
+            SmartReplyOption(SmartReplyAngle.Insight, "Thoughtful Nuance", finalInsight),
+            SmartReplyOption(SmartReplyAngle.Question, "Spark Conversation", finalQuestion),
+            SmartReplyOption(SmartReplyAngle.Counterpoint, "Alternative Angle", finalCounterpoint),
+            SmartReplyOption(SmartReplyAngle.Punchy, "Crisp Synthesis", finalPunchy),
         )
     }
 
@@ -1329,14 +1333,19 @@ public object SmartReplyEngine {
     private val PostContext.namedSubject: String?
         get() = primarySubject.takeIf { subject -> keyEntities.any { it.equals(subject, ignoreCase = true) } }
 
-    /** Only numbers from the post: safe to react to in any tone ("85ms to 12ms is wild"). */
+    private val durationMetricRegex =
+        Regex("^\\d+(?:\\.\\d+)?\\s*(?:years?|hr|min|seconds?)$", RegexOption.IGNORE_CASE)
+
+    /** Only technical/scale numbers from the post: safe to frame as benchmarks ("85ms to 12ms"). */
     private val PostContext.metricHook: String?
-        get() =
-            when {
-                metrics.size >= 2 -> "${metrics[0]} to ${metrics[1]}"
-                metrics.isNotEmpty() -> metrics[0]
+        get() {
+            val nonDuration = metrics.filterNot { durationMetricRegex.matches(it) }
+            return when {
+                nonDuration.size >= 2 -> "${nonDuration[0]} to ${nonDuration[1]}"
+                nonDuration.isNotEmpty() -> nonDuration[0]
                 else -> null
             }
+        }
 
     // "Open source craft" also catches any software post (Rust, Postgres…); only talk about
     // open-sourcing when the post is actually a release.
@@ -1359,7 +1368,12 @@ public object SmartReplyEngine {
     private fun PostContext.isOpenSourceRelease(): Boolean = isOpenSourceRelease(cleanText.lowercase())
 
     private fun String.decapitalized(): String =
-        if (length > 1 && this[0].isUpperCase() && this[1].isLowerCase()) this[0].lowercase() + substring(1) else this
+        when {
+            isEmpty() -> this
+            this == "I" || startsWith("I'") -> this
+            length > 1 && this[0].isUpperCase() && this[1].isLowerCase() -> this[0].lowercase() + substring(1)
+            else -> this
+        }
 
     private fun PostContext.chip(fallback: String): String =
         keyEntities.firstOrNull { it.startsWith("ESP", true) || it.startsWith("STM", true) || it.equals("Arduino", true) } ?: fallback
@@ -1808,10 +1822,29 @@ public object SmartReplyEngine {
 
             SmartReplyTone.Casual -> {
                 when (angle) {
-                    SmartReplyAngle.Insight -> metric?.let { "Okay, $it is wild. Nice work." } ?: base
-                    SmartReplyAngle.Question -> "Genuinely curious, ${base.decapitalized()}"
-                    SmartReplyAngle.Counterpoint -> "Honestly, ${base.decapitalized()}"
-                    SmartReplyAngle.Punchy -> metric?.let { "$it. Nice." } ?: base
+                    SmartReplyAngle.Insight -> {
+                        metric?.let { "Okay, $it is wild. Nice work." } ?: base
+                    }
+
+                    SmartReplyAngle.Question -> {
+                        if (base.startsWith("Genuinely curious", ignoreCase = true)) {
+                            base
+                        } else {
+                            "Genuinely curious, ${base.decapitalized()}"
+                        }
+                    }
+
+                    SmartReplyAngle.Counterpoint -> {
+                        if (base.startsWith("Honestly", ignoreCase = true)) {
+                            base
+                        } else {
+                            "Honestly, ${base.decapitalized()}"
+                        }
+                    }
+
+                    SmartReplyAngle.Punchy -> {
+                        metric?.let { "$it. Nice." } ?: base
+                    }
                 }
             }
 
@@ -1826,7 +1859,8 @@ public object SmartReplyEngine {
                     }
 
                     SmartReplyAngle.Counterpoint -> {
-                        "Playing devil's advocate, ${base.decapitalized()}"
+                        val stripped = base.replace(Regex("(?i)^honestly[,\\s]+"), "").trimStart()
+                        "Playing devil's advocate, ${stripped.decapitalized()}"
                     }
 
                     SmartReplyAngle.Punchy -> {
@@ -1943,6 +1977,30 @@ public object SmartReplyEngine {
                 "Keeping ${ctx.primarySubject} simple is what gives you room to hear what customers actually need."
             }
 
+            PostModality.MediaCultureReview -> {
+                ctx.namedSubject?.let {
+                    "$it is one of those releases where the small craft choices stick with you afterward."
+                } ?: "When a piece lands like this, it's usually the small craft details doing the heavy lifting."
+            }
+
+            PostModality.ScienceNature -> {
+                ctx.namedSubject?.let {
+                    "Seeing $it play out in real data makes the theory click in a different way."
+                } ?: "Real-world measurements like this always turn up details clean models miss."
+            }
+
+            PostModality.SportsFitness -> {
+                "Consistency in the quiet sessions shows up way more than one heroic workout."
+            }
+
+            PostModality.HumorBanter -> {
+                "Pretty much everyone reading this has lived through a version of it this week."
+            }
+
+            PostModality.AuthorInquiry -> {
+                "Putting ${ctx.primarySubject} into words cleanly shows every gap in what you thought you knew."
+            }
+
             PostModality.HumanResilience -> {
                 buildInsightReply(ctx)
             }
@@ -2012,9 +2070,34 @@ public object SmartReplyEngine {
                 buildQuestionReply(ctx)
             }
 
+            PostModality.StartupMarket -> {
+                "What did customers push back on most before you narrowed down ${ctx.primarySubject}?"
+            }
+
+            PostModality.ScienceNature -> {
+                val target = ctx.namedSubject ?: "the observations"
+                "Did $target match what earlier models predicted, or was there a surprise?"
+            }
+
+            PostModality.SportsFitness -> {
+                "What changed most in your pacing or recovery routine leading up to this?"
+            }
+
+            PostModality.HumorBanter -> {
+                "Wait, is this based on something that actually happened today?"
+            }
+
+            PostModality.AuthorInquiry -> {
+                "What triggered this question while you were working through ${ctx.primarySubject}?"
+            }
+
+            PostModality.HumanResilience -> {
+                "What helped you stay steady through the hardest stretch of that?"
+            }
+
             else -> {
-                ctx.namedSubject?.let { "Where do you think $it goes in the next couple of years?" }
-                    ?: "Where do you think this goes in the next couple of years?"
+                ctx.namedSubject?.let { "What part of $it surprised you most once you dug in?" }
+                    ?: "What was the hardest part to get right here?"
             }
         }.let { humanizeReply(it) }
     }
@@ -2072,6 +2155,34 @@ public object SmartReplyEngine {
 
             PostModality.OpenSourceCraft -> {
                 buildCounterpointReply(ctx)
+            }
+
+            PostModality.MediaCultureReview -> {
+                "High production polish doesn't guarantee a story stays with you once the credits roll."
+            }
+
+            PostModality.StartupMarket -> {
+                "Shipping fast gets you started, though distribution usually decides whether ${ctx.primarySubject} survives."
+            }
+
+            PostModality.ScienceNature -> {
+                "The early result is encouraging, though replication under messier conditions will tell the real story."
+            }
+
+            PostModality.SportsFitness -> {
+                "Big numbers on race day are fun, though staying healthy across the whole training block is the real win."
+            }
+
+            PostModality.HumorBanter -> {
+                "Funny because it's true, even if nobody wants to admit it out loud."
+            }
+
+            PostModality.AuthorInquiry -> {
+                "Hard to give a clean answer without seeing the constraints you're working around."
+            }
+
+            PostModality.HumanResilience -> {
+                "Grit matters, though having even one reliable person in your corner changes the whole math."
             }
 
             else -> {
@@ -2132,6 +2243,34 @@ public object SmartReplyEngine {
                     ctx.metricHook?.let { "$it. Seriously nice work." }
                         ?: "Seriously nice work."
                 }
+            }
+
+            PostModality.MediaCultureReview -> {
+                ctx.namedSubject?.let { "Now I need to check out $it." } ?: "Now I want to check this out."
+            }
+
+            PostModality.StartupMarket -> {
+                "Ship simple, listen closely, adjust fast."
+            }
+
+            PostModality.ScienceNature -> {
+                "Nature still finds ways to surprise the models."
+            }
+
+            PostModality.SportsFitness -> {
+                "The quiet training days always show up later."
+            }
+
+            PostModality.HumorBanter -> {
+                "Too real for a weekday."
+            }
+
+            PostModality.AuthorInquiry -> {
+                "Good question. Curious what comes back."
+            }
+
+            PostModality.HumanResilience -> {
+                "Showing up anyway is half the battle."
             }
 
             else -> {

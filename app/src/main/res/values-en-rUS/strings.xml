@@ -512,6 +512,7 @@
     <string name="smart_reply_tone_professional">Professional</string>
     <string name="smart_reply_tone_direct">Direct</string>
     <string name="smart_reply_tone_skeptical">Skeptical</string>
+    <string name="smart_reply_tone_learner">Curious</string>
     <string name="smart_reply_humanized_badge">Humanized</string>
 
     <!-- Web Screen Toasts & Labels -->

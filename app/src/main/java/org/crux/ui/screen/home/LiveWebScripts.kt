@@ -80,7 +80,6 @@ private val REDDIT_PROFILE =
               var txt=(b.textContent||'').trim();
               if(/view more comments|show more comments|continue this thread/i.test(txt)){b.click()}
             });
-            document.querySelectorAll('shreddit-post[nsfw]').forEach(function(p){p.removeAttribute('nsfw')});
             if(document.documentElement.style.overflow==='hidden')document.documentElement.style.overflow='';
             """.trimIndent(),
     )
@@ -161,6 +160,30 @@ internal val SiteTweak.rule: TweakRule
                 )
             }
 
+            SiteTweak.InstagramAi -> {
+                TweakRule(
+                    css =
+                        listOf(
+                            "a[href*=\"meta.ai\"]",
+                            "[aria-label*=\"Meta AI\"]",
+                            "div[role=\"button\"]:has(svg[aria-label*=\"Meta AI\"])",
+                        ),
+                    promptLabels = listOf("Ask Meta AI", "Meta AI"),
+                )
+            }
+
+            SiteTweak.InstagramStories -> {
+                TweakRule(
+                    css =
+                        listOf(
+                            "[data-pagelet=\"story_tray\"]",
+                            "div[role=\"menu\"]:has(button[aria-label*=\"Story by\"])",
+                            "ul:has(button[aria-label*=\"Story by\"])",
+                            "[aria-label=\"Stories\"]",
+                        ),
+                )
+            }
+
             SiteTweak.XPromoted -> {
                 TweakRule(
                     css =
@@ -206,9 +229,12 @@ internal val SiteTweak.rule: TweakRule
                         listOf(
                             "[data-testid=\"GrokDrawer\"]",
                             "[data-testid=\"AppTabBar_Grok_Link\"]",
+                            "[data-testid=\"grokImgGen\"]",
                             "a[href=\"/i/grok\"]",
+                            "a[href*=\"/i/grok\"]",
                             "a[aria-label=\"Grok\"]",
-                            "button[aria-label=\"Grok actions\"]",
+                            "button[aria-label*=\"Grok\"]",
+                            "[aria-label*=\"Ask Grok\"]",
                             "a[href=\"/i/premium_sign_up\"]",
                             "a[href*=\"/i/premium\"]",
                             "a[href*=\"premium_sign_up\"]",
@@ -228,6 +254,17 @@ internal val SiteTweak.rule: TweakRule
                 )
             }
 
+            SiteTweak.XSpaces -> {
+                TweakRule(
+                    css =
+                        listOf(
+                            "[data-testid=\"spacesBar\"]",
+                            "a[href^=\"/i/spaces/\"]",
+                            "div[data-testid=\"cellInnerDiv\"]:has(a[href^=\"/i/spaces/\"])",
+                        ),
+                )
+            }
+
             SiteTweak.XAppPrompts -> {
                 TweakRule(
                     css =
@@ -241,8 +278,9 @@ internal val SiteTweak.rule: TweakRule
             }
 
             SiteTweak.XHideForYou -> {
-                // Hides the tab only. X remembers the tab last picked, so choose Following once.
-                TweakRule(tabLabels = listOf("For you"))
+                TweakRule(
+                    tabLabels = listOf("For you"),
+                )
             }
 
             SiteTweak.LinkedInPromoted -> {
@@ -288,7 +326,35 @@ internal val SiteTweak.rule: TweakRule
             SiteTweak.LinkedInNews -> {
                 TweakRule(
                     css = listOf(".feed-shared-news-module", "aside[aria-label*=\"LinkedIn News\"]"),
-                    headingLabels = listOf("LinkedIn News", "Today's news and views", "Add to your feed", "Today's puzzles"),
+                    headingLabels = listOf("LinkedIn News", "Today's news and views", "Add to your feed"),
+                )
+            }
+
+            SiteTweak.LinkedInAi -> {
+                TweakRule(
+                    css =
+                        listOf(
+                            "[data-view-name*=\"ai-coach\"]",
+                            "[data-view-name*=\"collaborative-article\"]",
+                            "button[aria-label*=\"Rewrite with AI\"]",
+                            "button[aria-label*=\"Draft with AI\"]",
+                            "button[aria-label*=\"Get key takeaways\"]",
+                            "a[href*=\"/advice/\"]",
+                        ),
+                    headingLabels = listOf("Collaborative articles", "Explore collaborative articles"),
+                    promptLabels = listOf("Rewrite with AI", "Draft with AI", "Get key takeaways", "Try Coach"),
+                )
+            }
+
+            SiteTweak.LinkedInJobsAndGames -> {
+                TweakRule(
+                    css =
+                        listOf(
+                            "a[href*=\"/games/\"]",
+                            "div:has(> a[href*=\"/games/\"])",
+                            "section:has(a[href*=\"/games/\"])",
+                        ),
+                    headingLabels = listOf("Today's puzzles", "Games", "Jobs recommended for you", "Recommended jobs for you"),
                 )
             }
 
@@ -313,9 +379,12 @@ internal val SiteTweak.rule: TweakRule
                             "[id^=configured-xpromo]",
                             "xpromo-app-selector",
                             "xpromo-bottom-sheet",
+                            "xpromo-floating-pill",
                             "xpromo-nsfw-blocking-container",
-                            "shreddit-async-loader[bundlename=\"xpromo_nsfw_blocking_modal\"]",
+                            "shreddit-async-loader[bundlename*=\"xpromo\"]",
                             "shreddit-async-loader[bundlename=\"bottom_sheet\"]",
+                            "faceplate-banner",
+                            "[slot=\"bottom-banner\"]",
                             "a[href*=onelink]",
                             "a[href*=\"reddit.app.link\"]",
                             "a[href*=\"apps.apple.com\"]",
@@ -327,7 +396,9 @@ internal val SiteTweak.rule: TweakRule
                             "a[href^=\"/register\"]",
                             "auth-flow-link",
                         ),
-                    promptLabels = USE_APP_LABELS + listOf("Open in Reddit", "View in app", "Join"),
+                    promptLabels =
+                        USE_APP_LABELS +
+                            listOf("Open in Reddit", "View in Reddit App", "Continue in Reddit App", "Use Reddit App", "View in app", "Join"),
                     js = "if(document.body&&document.body.style.overflow==='hidden')document.body.style.overflow='';",
                 )
             }
@@ -337,6 +408,38 @@ internal val SiteTweak.rule: TweakRule
                     css = listOf("shreddit-post[view-type=\"recommendation\"]", "community-recommendation"),
                     postLabels =
                         listOf("Recommended", "Popular near you", "Because you visited*", "Because you've shown interest*"),
+                )
+            }
+
+            SiteTweak.RedditAi -> {
+                TweakRule(
+                    css =
+                        listOf(
+                            "reddit-answers",
+                            "shreddit-ai-summary",
+                            "[data-testid*=\"reddit-answers\"]",
+                            "a[href^=\"/answers\"]",
+                            "[id*=\"reddit-answers\"]",
+                        ),
+                    headingLabels = listOf("Reddit Answers", "Ask Reddit Answers"),
+                )
+            }
+
+            SiteTweak.RedditTrending -> {
+                TweakRule(
+                    css =
+                        listOf(
+                            "trending-carousel",
+                            "[data-testid=\"trending-posts\"]",
+                            "aside[aria-label*=\"Trending\"]",
+                        ),
+                    headingLabels = listOf("Trending Today"),
+                )
+            }
+
+            SiteTweak.RedditUnblurNsfw -> {
+                TweakRule(
+                    js = "document.querySelectorAll('shreddit-post[nsfw]').forEach(function(p){p.removeAttribute('nsfw')});",
                 )
             }
         }
@@ -402,6 +505,29 @@ private val ENGINE_JS =
         while(e.parentElement&&e.parentElement!==document.body&&(e.parentElement.clientHeight||0)<=120&&!/^(HEADER|NAV)$/.test(e.parentElement.tagName)&&!/header/i.test(e.parentElement.tagName)&&e.parentElement.querySelectorAll(clickable).length<=1){e=e.parentElement}
         return e;
       };
+      var scanPromptsInRoot=function(root,host){
+        if(!prompts)return;
+        root.querySelectorAll('button,a,[role=button]').forEach(function(b){
+          if(b.getAttribute('data-cx-hidden'))return;
+          if(!prompts.test(clean(b.textContent)))return;
+          b.setAttribute('data-cx-hidden','1');
+          var d=b.closest('[role=dialog]');
+          if(d){hide(d);if(document.body)document.body.style.overflow=''}
+          else if(host&&bar(b)===b.getRootNode().firstElementChild){hide(host)}
+          else{hide(bar(b))}
+        });
+      };
+      var walkShadowRoots=function(root){
+        root.querySelectorAll('*').forEach(function(el){
+          if(el.tagName&&el.tagName.indexOf('-')!==-1&&el.shadowRoot){
+            if(css&&!el.shadowRoot.getElementById('cx-shadow-hide')){
+              try{var s=document.createElement('style');s.id='cx-shadow-hide';s.textContent=css;el.shadowRoot.appendChild(s)}catch(e){}
+            }
+            scanPromptsInRoot(el.shadowRoot,el);
+            walkShadowRoots(el.shadowRoot);
+          }
+        });
+      };
       var scan=function(){
         ensureStyle();
         try{
@@ -449,13 +575,8 @@ private val ENGINE_JS =
             });
           }
           if(prompts){
-            document.querySelectorAll('button,a,[role=button]').forEach(function(b){
-              if(b.getAttribute('data-cx-hidden'))return;
-              if(!prompts.test(clean(b.textContent)))return;
-              b.setAttribute('data-cx-hidden','1');
-              var d=b.closest('[role=dialog]');
-              if(d){hide(d);if(document.body)document.body.style.overflow=''}else{hide(bar(b))}
-            });
+            scanPromptsInRoot(document,null);
+            walkShadowRoots(document);
           }
         }catch(e){}
         try{
@@ -483,6 +604,31 @@ private val ENGINE_JS =
     })();
     """.trimIndent()
 
+private fun calmMetricsCss(site: LiveWebSite): List<String> =
+    when (site) {
+        LiveWebSite.Instagram -> {
+            listOf("a[href$=\"/liked_by/\"]", "section span:has(> a[href$=\"/liked_by/\"])")
+        }
+
+        LiveWebSite.X -> {
+            listOf(
+                "[data-testid=\"like\"] [data-testid=\"app-text-transition-container\"]",
+                "[data-testid=\"retweet\"] [data-testid=\"app-text-transition-container\"]",
+                "[data-testid=\"reply\"] [data-testid=\"app-text-transition-container\"]",
+                "[data-testid=\"bookmark\"] [data-testid=\"app-text-transition-container\"]",
+                "a[href$=\"/analytics\"]",
+            )
+        }
+
+        LiveWebSite.LinkedIn -> {
+            listOf(".social-details-social-counts")
+        }
+
+        LiveWebSite.Reddit -> {
+            listOf("[data-testid=\"vote-count\"]", "faceplate-number")
+        }
+    }
+
 /**
  * Builds the one page script for [site] from the tweaks that are on, or null when there is
  * nothing to do. Pure: the same inputs always give the same script.
@@ -490,11 +636,13 @@ private val ENGINE_JS =
 internal fun buildSiteScript(
     site: LiveWebSite,
     enabled: Set<SiteTweak>,
+    hideEngagementCounts: Boolean = false,
 ): String? {
     val profile = site.scriptProfile()
     val rules = SiteTweak.forSite(site).filter { it in enabled }.map { it.rule }
+    val metricRules = if (hideEngagementCounts) calmMetricsCss(site) else emptyList()
     val css =
-        (profile.baseRules + rules.flatMap { it.css }.distinct().map { "$it{display:none!important}" })
+        (profile.baseRules + (rules.flatMap { it.css } + metricRules).distinct().map { "$it{display:none!important}" })
             .joinToString(" ")
     val postLabels = rules.flatMap { it.postLabels }.distinct()
     val headingLabels = rules.flatMap { it.headingLabels }.distinct()

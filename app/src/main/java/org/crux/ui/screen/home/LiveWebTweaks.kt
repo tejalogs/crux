@@ -22,11 +22,14 @@ internal enum class SiteTweak(
     InstagramAppPrompts(LiveWebSite.Instagram),
     InstagramReels(LiveWebSite.Instagram),
     InstagramExplore(LiveWebSite.Instagram),
+    InstagramAi(LiveWebSite.Instagram),
+    InstagramStories(LiveWebSite.Instagram, defaultOn = false),
 
     XPromoted(LiveWebSite.X),
     XWhoToFollow(LiveWebSite.X),
     XTrends(LiveWebSite.X),
     XPremiumGrok(LiveWebSite.X),
+    XSpaces(LiveWebSite.X),
     XAppPrompts(LiveWebSite.X),
     XHideForYou(LiveWebSite.X, defaultOn = false),
 
@@ -35,10 +38,15 @@ internal enum class SiteTweak(
     LinkedInPremium(LiveWebSite.LinkedIn),
     LinkedInAppPrompts(LiveWebSite.LinkedIn),
     LinkedInNews(LiveWebSite.LinkedIn),
+    LinkedInAi(LiveWebSite.LinkedIn),
+    LinkedInJobsAndGames(LiveWebSite.LinkedIn),
 
     RedditPromoted(LiveWebSite.Reddit),
     RedditNags(LiveWebSite.Reddit),
     RedditRecommended(LiveWebSite.Reddit),
+    RedditAi(LiveWebSite.Reddit),
+    RedditTrending(LiveWebSite.Reddit),
+    RedditUnblurNsfw(LiveWebSite.Reddit, defaultOn = false),
     ;
 
     companion object {
@@ -79,6 +87,14 @@ internal data class WebPrivacySettings(
     val sites: Map<LiveWebSite, SiteWebSettings>,
     /** Unwrap tracking redirects and drop tracking parameters on links that leave a site. */
     val cleanOutgoingLinks: Boolean = true,
+    /** Open shared article links inside Crux's built-in reader instead of an external browser. */
+    val openLinksInReader: Boolean = true,
+    /** Refuses third-party cookies inside site WebViews. */
+    val blockThirdPartyCookies: Boolean = false,
+    /** Remembers each tab's last same-site URL and vertical scroll offset across process death. */
+    val rememberTabPosition: Boolean = true,
+    /** Hides like, repost, upvote, and view numbers across feeds. */
+    val hideEngagementCounts: Boolean = false,
     /** FLAG_SECURE on the main window: no screenshots and a blank recents thumbnail. */
     val secureWindow: Boolean = false,
     /** Sends navigator.globalPrivacyControl, but only on sites set to Strict. */
@@ -98,6 +114,10 @@ internal data class WebPrivacySettings(
             tweaks = settings.tweaks,
             blockAutoplay = settings.blockAutoplay,
             cleanLinks = cleanOutgoingLinks,
+            openInReader = openLinksInReader,
+            blockThirdPartyCookies = blockThirdPartyCookies,
+            rememberTabPosition = rememberTabPosition,
+            hideEngagementCounts = hideEngagementCounts,
             sendGpc = sendGlobalPrivacyControl,
         )
     }
@@ -117,6 +137,10 @@ internal data class LiveWebConfig(
     val tweaks: Set<SiteTweak>,
     val blockAutoplay: Boolean,
     val cleanLinks: Boolean,
+    val openInReader: Boolean = true,
+    val blockThirdPartyCookies: Boolean = false,
+    val rememberTabPosition: Boolean = true,
+    val hideEngagementCounts: Boolean = false,
     val sendGpc: Boolean,
 ) {
     fun blocks(
@@ -127,7 +151,7 @@ internal data class LiveWebConfig(
     /** Scripts to run at document start, in order. */
     fun documentStartScripts(site: LiveWebSite): List<String> =
         listOfNotNull(
-            buildSiteScript(site, tweaks),
+            buildSiteScript(site, tweaks, hideEngagementCounts),
             gpcScript().takeIf { protection == ProtectionLevel.Strict && sendGpc },
         )
 

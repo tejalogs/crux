@@ -171,16 +171,29 @@ internal fun SmartReplyBottomSheet(
 
         val effectiveOutput =
             rawAiOutput?.takeIf { it.isNotBlank() }
-                ?: SmartReplyEngine.generateGemmaRefinedOutput(
-                    postText = initialText,
-                    authorName = authorName,
-                    authorHandle = authorHandle,
-                    mediaDescription = mediaDescription,
-                    parentDiscussionContext = parentContext,
-                    tone = selectedTone,
-                )
+                ?: if (isManual) {
+                    SmartReplyEngine.generateGemmaRefinedOutput(
+                        postText = initialText,
+                        authorName = authorName,
+                        authorHandle = authorHandle,
+                        mediaDescription = mediaDescription,
+                        parentDiscussionContext = parentContext,
+                        tone = selectedTone,
+                    )
+                } else {
+                    isRefining = false
+                    return
+                }
 
-        val parsedOptions = SmartReplyEngine.parseGemmaReplies(effectiveOutput, tone = selectedTone, sourcePostText = initialText)
+        val parsedOptions =
+            SmartReplyEngine.parseGemmaReplies(
+                raw = effectiveOutput,
+                tone = selectedTone,
+                sourcePostText = initialText,
+                authorName = authorName,
+                mediaDescription = mediaDescription,
+                parentDiscussionContext = parentContext,
+            )
         if (!parsedOptions.isNullOrEmpty()) {
             val appContext = context.applicationContext
             val themeBadge =
@@ -226,6 +239,7 @@ internal fun SmartReplyBottomSheet(
                 SmartReplyTone.Practitioner to R.string.smart_reply_tone_professional,
                 SmartReplyTone.Executive to R.string.smart_reply_tone_direct,
                 SmartReplyTone.Socratic to R.string.smart_reply_tone_skeptical,
+                SmartReplyTone.HumbleLearner to R.string.smart_reply_tone_learner,
             )
         }
 
@@ -415,9 +429,6 @@ internal fun SmartReplyBottomSheet(
                             selectedTone = tone
                             isUserEdited = false
                             editedDrafts.clear()
-                            scope.launch {
-                                performRefinement(isManual = true)
-                            }
                         }
                     },
                     label = {

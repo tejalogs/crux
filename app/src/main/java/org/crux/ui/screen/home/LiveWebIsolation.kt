@@ -145,7 +145,8 @@ private fun cookieNames(header: String?): List<String> =
  * every site shares one jar, so wiping it would sign out the others: instead only the cookies of
  * this site's own domains are expired and only its origins' storage is forgotten.
  */
-internal fun LiveWebSite.clearSession() {
+internal fun LiveWebSite.clearSession(context: Context? = null) {
+    context?.let { LiveWebSessionState.clear(it, this) }
     runCatching {
         if (isSupported) {
             cookieManager().removeAllCookies(null)
@@ -221,4 +222,58 @@ internal fun cleanOutgoingLink(url: String): String {
     val base = url.substringBefore("?")
     val fragment = uri.rawFragment?.let { "#$it" }.orEmpty()
     return if (kept.isEmpty()) "$base$fragment" else "$base?${kept.joinToString("&")}$fragment"
+}
+
+/**
+ * Remembers each home live-web tab's last visited URL and vertical scroll offset across process
+ * death, scoped strictly to URLs hosted on that site.
+ */
+internal object LiveWebSessionState {
+    private const val PREFS_NAME = "crux_web_state"
+
+    private fun urlKey(site: LiveWebSite) = "url.${site.name}"
+
+    private fun scrollKey(site: LiveWebSite) = "scroll.${site.name}"
+
+    fun isRestorableUrl(
+        site: LiveWebSite,
+        url: String?,
+    ): Boolean {
+        val candidate = url?.trim() ?: return false
+        val uri = runCatching { URI(candidate) }.getOrNull() ?: return false
+        return uri.scheme.equals("https", ignoreCase = true) && site.allows(uri.host)
+    }
+
+    fun save(
+        context: Context,
+        site: LiveWebSite,
+        url: String?,
+        scrollY: Int,
+    ) {
+        if (!isRestorableUrl(site, url)) return
+        context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit {
+            putString(urlKey(site), url)
+            putInt(scrollKey(site), scrollY.coerceAtLeast(0))
+        }
+    }
+
+    fun restore(
+        context: Context,
+        site: LiveWebSite,
+    ): Pair<String, Int>? {
+        val prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val savedUrl = prefs.getString(urlKey(site), null) ?: return null
+        if (!isRestorableUrl(site, savedUrl)) return null
+        return savedUrl to prefs.getInt(scrollKey(site), 0).coerceAtLeast(0)
+    }
+
+    fun clear(
+        context: Context,
+        site: LiveWebSite,
+    ) {
+        context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit {
+            remove(urlKey(site))
+            remove(scrollKey(site))
+        }
+    }
 }

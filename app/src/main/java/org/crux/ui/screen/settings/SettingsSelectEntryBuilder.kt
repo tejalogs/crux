@@ -355,7 +355,10 @@ internal fun EntryProviderScope<NavKey>.settingsSelectEntryBuilder(
         )
     ) {
         PrivacyTweaksScreen(
-            onBack = onBack
+            onBack = onBack,
+            onOpenSiteUrl = { site, url ->
+                navigate(Route.LiveWeb(site = site.name, initialUrl = url))
+            },
         )
     }
 }

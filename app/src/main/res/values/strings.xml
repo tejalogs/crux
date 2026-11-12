@@ -579,6 +579,7 @@
     <string name="smart_reply_tone_professional">Professional</string>
     <string name="smart_reply_tone_direct">Direct</string>
     <string name="smart_reply_tone_skeptical">Skeptical</string>
+    <string name="smart_reply_tone_learner">Curious</string>
     <string name="smart_reply_humanized_badge">Humanized</string>
 
     <!-- Web Screen Toasts & Labels -->
@@ -779,21 +780,45 @@
     <string name="web_tweaks_cleared">Cleared %1$s data</string>
     <string name="web_tweaks_global_header">All sites</string>
     <string name="web_tweaks_clean_links">Clean outgoing links</string>
-    <string name="web_tweaks_clean_links_description">Follow tracking redirects and drop tracking parameters on links that leave a site.</string>
+    <string name="web_tweaks_clean_links_description">Follow tracking redirects and drop tracking parameters on links that leave a web tab.</string>
+    <string name="web_tweaks_open_in_reader">Open links in Crux Reader</string>
+    <string name="web_tweaks_open_in_reader_description">Read shared articles in Crux\'s distraction-free reader instead of leaving to your browser.</string>
+    <string name="web_tweaks_block_third_party_cookies">Block third-party cookies</string>
+    <string name="web_tweaks_block_third_party_cookies_description">Stops cross-site tracking cookies in web tabs. Turn off if Google or Apple sign-in popups fail.</string>
+    <string name="web_tweaks_remember_tab_position">Remember tab page &amp; scroll</string>
+    <string name="web_tweaks_remember_tab_position_description">Restores your last page and scroll position on each tab after Crux closes.</string>
     <string name="web_tweaks_secure_window">Hide Crux in screenshots and recents</string>
     <string name="web_tweaks_secure_window_description">Blocks screenshots and shows a blank card in the recent apps list.</string>
     <string name="web_tweaks_gpc">Send Global Privacy Control</string>
     <string name="web_tweaks_gpc_description">Tells Strict sites you opt out of data sale and sharing. Not sent on Standard sites.</string>
+    <string name="web_tweaks_calm_metrics">Hide engagement counts</string>
+    <string name="web_tweaks_calm_metrics_description">Hides like, repost, upvote, and view numbers across web feeds for calmer reading.</string>
+    <string name="web_tweaks_ai_privacy_button">AI &amp; data training settings</string>
+    <string name="web_tweaks_ai_privacy_note">Server-side AI model training opt-outs live in your account settings. Open in %1$s\'s isolated session:</string>
+    <string name="web_tweaks_clear_all_data">Clear all sites\' data</string>
+    <string name="web_tweaks_clear_all_title">Clear all sites\' data?</string>
+    <string name="web_tweaks_clear_all_message">This signs you out of Instagram, X, LinkedIn, and Reddit and clears their cookies, cache, and saved positions.</string>
+    <string name="web_tweaks_cleared_all">Cleared all sites\' data</string>
+    <string name="web_tweaks_reset_defaults">Reset tweaks to defaults</string>
+    <string name="web_tweaks_reset_title">Reset privacy &amp; tweaks?</string>
+    <string name="web_tweaks_reset_message">Restores protection levels, focus tweaks, and global web options to their defaults. Your logins stay signed in.</string>
+    <string name="web_tweaks_reset_confirm">Reset</string>
+    <string name="web_tweaks_reset_done">Reset privacy &amp; tweaks to defaults</string>
+    <string name="web_tweaks_site_summary">%1$s • %2$d/%3$d tweaks</string>
+    <string name="web_tweaks_site_summary_blocked">%1$s • %2$d/%3$d tweaks • %4$d blocked</string>
     <string name="web_tweaks_reload_note">Changes apply right away: the site\'s page is rebuilt.</string>
     <string name="web_tweak_instagram_ads">Hide ads and sponsored posts</string>
     <string name="web_tweak_instagram_suggested">Hide suggested posts and people</string>
     <string name="web_tweak_instagram_app_prompts">Hide \"use the app\" prompts</string>
     <string name="web_tweak_instagram_reels">Hide Reels tab and entry points</string>
     <string name="web_tweak_instagram_explore">Hide the Explore grid</string>
+    <string name="web_tweak_instagram_ai">Hide Meta AI prompts &amp; chat</string>
+    <string name="web_tweak_instagram_stories">Hide Stories tray</string>
     <string name="web_tweak_x_promoted">Hide promoted posts</string>
     <string name="web_tweak_x_who_to_follow">Hide \"Who to follow\"</string>
     <string name="web_tweak_x_trends">Hide trends and \"What\'s happening\"</string>
-    <string name="web_tweak_x_premium_grok">Hide Premium and Grok upsells</string>
+    <string name="web_tweak_x_premium_grok">Hide Grok AI and Premium upsells</string>
+    <string name="web_tweak_x_spaces">Hide Spaces live audio bar</string>
     <string name="web_tweak_x_app_prompts">Hide \"use the app\" prompts</string>
     <string name="web_tweak_x_hide_for_you">Hide the \"For you\" tab</string>
     <string name="web_tweak_x_hide_for_you_description">Hides the tab only. X remembers the tab you picked last, so choose Following once.</string>
@@ -802,9 +827,15 @@
     <string name="web_tweak_linkedin_premium">Hide Premium upsells</string>
     <string name="web_tweak_linkedin_app_prompts">Hide \"use the app\" prompts</string>
     <string name="web_tweak_linkedin_news">Hide LinkedIn News and \"Add to your feed\"</string>
+    <string name="web_tweak_linkedin_ai">Hide LinkedIn AI assistants &amp; articles</string>
+    <string name="web_tweak_linkedin_games">Hide LinkedIn Games &amp; job promos</string>
     <string name="web_tweak_reddit_promoted">Hide promoted posts</string>
     <string name="web_tweak_reddit_nags">Hide app and login nags</string>
     <string name="web_tweak_reddit_recommended">Hide recommended and \"because you visited\" posts</string>
+    <string name="web_tweak_reddit_ai">Hide Reddit Answers &amp; AI summaries</string>
+    <string name="web_tweak_reddit_trending">Hide \"Trending Today\"</string>
+    <string name="web_tweak_reddit_unblur_nsfw">Unblur NSFW previews without prompt</string>
+    <string name="web_tweak_reddit_unblur_nsfw_description">Off by default so NSFW media stays blurred unless you choose to unblur it.</string>
 
     <!-- Crux 1.0 polish -->
     <string name="storage_export_warning_title">Export your data?</string>

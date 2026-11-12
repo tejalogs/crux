@@ -78,4 +78,26 @@ class LiveWebLinksTest {
         assertEquals(null, parseLiveWebPost("null"))
         assertEquals(null, parseLiveWebPost(null))
     }
+
+    @Test
+    fun readerEligibleUrlsIncludeArticlesAndExcludeAppsMediaAndAuth() {
+        assertEquals(true, isReaderEligibleUrl("https://arstechnica.com/tech-policy/2026/11/example/"))
+        assertEquals(true, isReaderEligibleUrl("http://example.org/blog/post"))
+        assertEquals(false, isReaderEligibleUrl("https://play.google.com/store/apps/details?id=org.crux"))
+        assertEquals(false, isReaderEligibleUrl("https://www.youtube.com/watch?v=dQw4w9WgXcQ"))
+        assertEquals(false, isReaderEligibleUrl("https://accounts.google.com/o/oauth2/auth"))
+        assertEquals(false, isReaderEligibleUrl("https://example.com/report.pdf"))
+        assertEquals(false, isReaderEligibleUrl("https://pbs.twimg.com/media/sample.jpg"))
+        assertEquals(false, isReaderEligibleUrl("mailto:team@example.com"))
+    }
+
+    @Test
+    fun sessionStateAcceptsOnlySameSiteHttpsUrls() {
+        assertEquals(true, LiveWebSessionState.isRestorableUrl(LiveWebSite.X, "https://x.com/home"))
+        assertEquals(true, LiveWebSessionState.isRestorableUrl(LiveWebSite.Reddit, "https://www.reddit.com/r/Kotlin/"))
+        assertEquals(false, LiveWebSessionState.isRestorableUrl(LiveWebSite.X, "http://x.com/home"))
+        assertEquals(false, LiveWebSessionState.isRestorableUrl(LiveWebSite.X, "https://reddit.com/r/Kotlin"))
+        assertEquals(false, LiveWebSessionState.isRestorableUrl(LiveWebSite.X, "about:blank"))
+        assertEquals(false, LiveWebSessionState.isRestorableUrl(LiveWebSite.X, null))
+    }
 }

@@ -217,4 +217,84 @@ class SmartReplyHumanVoiceTest {
             assertTrue(replies.none { it.contains("compared to the previous setup") }, "$tone uses a generic canned line")
         }
     }
+
+    @Test
+    fun toneAdaptationPreservesPronounCaseAndAvoidsDuplicateLeadIns() {
+        val lowercaseFirstPerson = Regex("\\bi(?:'[a-z]+)?\\b")
+        val duplicateHonestly = Regex("honestly[,\\s]+honestly|playing devil's advocate[,\\s]+honestly", RegexOption.IGNORE_CASE)
+        for (post in corpus) {
+            for (tone in SmartReplyTone.entries) {
+                val outputs =
+                    SmartReplyEngine.generateReplies(postText = post, tone = tone).options +
+                        SmartReplyEngine.parseGemmaReplies(
+                            SmartReplyEngine.generateGemmaRefinedOutput(postText = post, tone = tone),
+                            tone = tone,
+                            sourcePostText = post,
+                        )!!
+                for (option in outputs) {
+                    val text = option.replyText
+                    val where = "[$tone/${option.angle}] \"$text\""
+                    assertTrue(text.isNotBlank(), "blank reply $where")
+                    assertFalse(lowercaseFirstPerson.containsMatchIn(text), "lowercase 'i' $where")
+                    assertFalse(duplicateHonestly.containsMatchIn(text), "duplicate lead-in $where")
+                }
+            }
+        }
+    }
+
+    @Test
+    fun parseGemmaRepliesRecoversWhenHumanizerStripsAllPraise() {
+        val parsed =
+            SmartReplyEngine.parseGemmaReplies(
+                raw = "[INSIGHT]: Spot on!\n[QUESTION]: Totally agree?\n[COUNTERPOINT]: Great post.\n[PUNCHY]: Brilliant!",
+                tone = SmartReplyTone.Casual,
+                sourcePostText = rustPost,
+            )
+        assertNotNull(parsed)
+        assertEquals(4, parsed.size)
+        parsed.forEach { option ->
+            assertTrue(option.replyText.isNotBlank(), "Expected fallback instead of blank for ${option.angle}")
+        }
+    }
+
+    @Test
+    fun refinedOutputsCoverAllModalitiesWithoutGenericYearsFallback() {
+        val domainPosts =
+            listOf(
+                "Finally finished repainting the kitchen. Took three weekends and way too much coffee.",
+                "Hot take: most standups should be a Slack message.",
+                "JWST spectroscopy revealed water vapor signatures in a rocky exoplanet atmosphere.",
+                "Finished my marathon training block with 70 miles this week and steady aerobic splits.",
+                "Saw the director's cut of Dune last night in IMAX and the sound mix hit different.",
+                "Anyone here migrated from Postgres 14 to 17 on a live box? Curious about extension gotchas.",
+                "My dog just barked at a reflection of a spoon for ten straight minutes.",
+            )
+        for (post in domainPosts) {
+            val raw = SmartReplyEngine.generateGemmaRefinedOutput(postText = post)
+            val parsed = SmartReplyEngine.parseGemmaReplies(raw, sourcePostText = post)!!
+            for (option in parsed) {
+                assertFalse(
+                    option.replyText.contains("next couple of years", ignoreCase = true),
+                    "Used generic 'next couple of years' fallback for \"$post\": ${option.replyText}",
+                )
+            }
+        }
+    }
+
+    @Test
+    fun durationsLikeEveryThreeYearsNeverBecomeBenchmarkJump() {
+        val cngPost =
+            "Why the 1,900-km rule means most private CNG buyers are actually losing money\n" +
+                "Every 3 years, government rules mandate cylinder hydrostatic testing."
+        for (tone in SmartReplyTone.entries) {
+            val replies = SmartReplyEngine.generateReplies(postText = cngPost, tone = tone).options.map { it.replyText }
+            for (reply in replies) {
+                assertFalse(
+                    reply.contains("3 years", ignoreCase = true) &&
+                        (reply.contains("jump", ignoreCase = true) || reply.contains("wild", ignoreCase = true)),
+                    "Misframed '3 years' as a jump in $tone: $reply",
+                )
+            }
+        }
+    }
 }

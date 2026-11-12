@@ -77,6 +77,7 @@ import org.crux.ui.presenter.invoke
 import org.crux.ui.screen.crux.hasSession
 import org.crux.ui.screen.home.LiveWebPrivacyCounters
 import org.crux.ui.screen.home.LiveWebSite
+import org.crux.ui.screen.home.LocalLiveWebPages
 import org.crux.ui.screen.home.clearSession
 import org.crux.ui.screen.home.cookieManager
 import org.crux.ui.theme.first
@@ -423,9 +424,11 @@ internal fun LiveWebProfilesSandboxCard() {
                             )
                         }
                         if (status.canClear) {
+                            val pages = LocalLiveWebPages.current
                             TextButton(
                                 onClick = {
-                                    site.clearSession()
+                                    site.clearSession(context)
+                                    pages?.clearAndReload(site)
                                     refreshTick++
                                     Toast
                                         .makeText(
