@@ -1,0 +1,5 @@
+Crux 1.0.2
+- Scoped platform tab sync so tabs removed in Tab Settings stay removed
+- Haptic sign-in confirmation, staggered Welcome pillar animations, and TalkBack dock descriptions
+- Updated Gradle, AGP, Kotlin, SKIE, KSP, Ktor, Material3, and DataStore dependencies
+- Removed unused androidx.browser dependency

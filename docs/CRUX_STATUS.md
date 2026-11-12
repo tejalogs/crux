@@ -2,10 +2,10 @@
 
 **Repository:** `https://github.com/tejalogs/crux` (`main` branch, AGPL-3.0)
 **Website:** `https://tejalogs.github.io/crux/`
-**Latest Release:** `v1.0.1` (`versionCode=2`, signed `app-release.apk` 18.2 MB attached)
+**Latest Release:** `v1.0.2` (`versionCode=3`, signed `app-release.apk` attached)
 
 ## Distribution & In-App Updates
-- **GitHub Releases (Primary)**: Signed release APKs are hosted directly on GitHub Releases (`v1.0.0`, `v1.0.1`). F-Droid inclusion MR #56349 was closed by maintainers because the main F-Droid catalog requires 3+ months of public repository history; GitHub Releases + GitHub Pages remain the official distribution channels.
+- **GitHub Releases (Primary)**: Signed release APKs are hosted directly on GitHub Releases (`v1.0.0`, `v1.0.1`, `v1.0.2`). F-Droid inclusion MR #56349 was closed by maintainers because the main F-Droid catalog requires 3+ months of public repository history; GitHub Releases + GitHub Pages remain the official distribution channels.
 - **In-App OTA Updater**: `AppUpdateManager` checks `/repos/tejalogs/crux/releases/latest` from *Settings → About → Check for updates*, streams APK downloads with progress reporting, and installs via `FileProvider` (`REQUEST_INSTALL_PACKAGES`).
 
 ## What Crux is now
