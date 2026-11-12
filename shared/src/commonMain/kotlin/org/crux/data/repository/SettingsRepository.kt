@@ -278,9 +278,17 @@ public class SettingsRepository internal constructor(
      * the person picked, keeping their order. Only called when the platform choice changes, so pills
      * removed in tab settings stay removed.
      */
-    public suspend fun syncLiveWebTabs(enabledPlatforms: Set<String>) {
+    public suspend fun syncLiveWebTabs(
+        enabledPlatforms: Set<String>,
+        platformsToAdd: Set<String> = enabledPlatforms,
+    ) {
         val tabs = homeTimelineTabs.first()
-        val updated = syncPlatformTabs(current = tabs, enabledPlatforms = enabledPlatforms)
+        val updated =
+            syncPlatformTabs(
+                current = tabs,
+                enabledPlatforms = enabledPlatforms,
+                platformsToAdd = platformsToAdd,
+            )
         if (updated.map { it.id } != tabs.map { it.id }) {
             replaceHomeTimelineTabs(updated)
         }

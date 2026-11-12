@@ -652,9 +652,10 @@ internal fun TimelineItemContent(
             val success = state.listState as? org.crux.common.PagingState.Success<org.crux.ui.model.UiTimelineV2>
             if (success != null && success.itemCount >= 3) {
                 val posts = (0 until minOf(25, success.itemCount)).mapNotNull { success.peek(it) }
-                value = withContext(Dispatchers.Default) {
-                    CatchMeUpDigestEngine.generateDigest(posts)
-                }
+                value =
+                    withContext(Dispatchers.Default) {
+                        CatchMeUpDigestEngine.generateDigest(posts)
+                    }
             } else {
                 value = null
             }

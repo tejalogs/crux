@@ -110,4 +110,13 @@ class PlatformTabsRepositoryTest {
             assertEquals(emptyList(), tabIds())
             assertEquals(false, repository.appSettings.first().liveWebTabsMigrated)
         }
+
+    @Test
+    fun toggledPlatformSyncDoesNotResurrectTabRemovedInTabSettings() =
+        runTest {
+            repository.syncLiveWebTabs(setOf("X", "Instagram", "Reddit"))
+            repository.removeHomeTimelineTabBySourceId("web.reddit:reddit")
+            repository.syncLiveWebTabs(setOf("X", "Instagram", "Reddit", "LinkedIn"), platformsToAdd = setOf("LinkedIn"))
+            assertEquals(listOf("web.x:x", "web.instagram:instagram", "web.linkedin:linkedin"), tabIds())
+        }
 }

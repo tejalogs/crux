@@ -150,4 +150,16 @@ class PlatformTabSyncTest {
         assertTrue(result.none { it.isSystemHomeMixedTimeline })
         assertEquals(listOf("web.x:x", "web.reddit:reddit", "rss.all:all"), ids(result))
     }
+
+    @Test
+    fun syncOnlyAddsRequestedPlatformsSoUserRemovedPillsStayRemoved() {
+        val current = listOf(source("web.x:x"), source("web.instagram:instagram"))
+        val enabled = setOf("X", "Instagram", "Reddit", "LinkedIn")
+        // Reddit was removed in tab settings; enabling LinkedIn must not resurrect Reddit.
+        val afterEnableLinkedIn = syncPlatformTabs(current, enabled, platformsToAdd = setOf("LinkedIn"))
+        assertEquals(listOf("web.x:x", "web.instagram:instagram", "web.linkedin:linkedin"), ids(afterEnableLinkedIn))
+        // Disabling Instagram must not resurrect Reddit either.
+        val afterDisableInstagram = syncPlatformTabs(afterEnableLinkedIn, enabled - "Instagram", platformsToAdd = emptySet())
+        assertEquals(listOf("web.x:x", "web.linkedin:linkedin"), ids(afterDisableInstagram))
+    }
 }

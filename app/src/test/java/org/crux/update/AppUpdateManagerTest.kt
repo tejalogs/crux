@@ -5,7 +5,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AppUpdateManagerTest {
-
     @Test
     fun testIsNewerVersion_greaterMajor() {
         assertTrue(AppUpdateManager.isNewerVersion("v2.0.0", "1.0.0"))

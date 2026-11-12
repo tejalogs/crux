@@ -1,7 +1,7 @@
 package org.crux.ui.screen.settings
 
-import androidx.annotation.StringRes
 import android.widget.Toast
+import androidx.annotation.StringRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -155,10 +155,16 @@ internal fun AboutScreen(
                                             updateStatusSupporting = msg
                                             Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                                         }
+
                                         is UpdateCheckResult.UpdateAvailable -> {
-                                            updateStatusSupporting = context.getString(R.string.settings_update_available, result.info.tagName)
+                                            updateStatusSupporting =
+                                                context.getString(
+                                                    R.string.settings_update_available,
+                                                    result.info.tagName,
+                                                )
                                             updateInfo = result.info
                                         }
+
                                         is UpdateCheckResult.Error -> {
                                             val err = context.getString(R.string.settings_update_failed)
                                             updateStatusSupporting = err

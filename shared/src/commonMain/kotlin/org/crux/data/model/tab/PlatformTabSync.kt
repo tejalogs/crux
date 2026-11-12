@@ -72,13 +72,14 @@ internal fun syncPlatformTabs(
     enabledPlatforms: Set<String>,
     platforms: List<PlatformTab> = platformTabs(),
     addMissing: Boolean = true,
+    platformsToAdd: Set<String> = if (addMissing) enabledPlatforms else emptySet(),
 ): List<UiTimelineTabItem> {
     val migrated = current.mapNotNull { it.syncPlatform(enabledPlatforms, platforms) }.distinctBy { it.id }
-    if (!addMissing) return migrated
+    if (!addMissing || platformsToAdd.isEmpty()) return migrated
     val present = migrated.flatMap { it.realIds() }.toSet()
     val missing =
         platforms
-            .filter { it.platform in enabledPlatforms && it.tab.id !in present }
+            .filter { it.platform in enabledPlatforms && it.platform in platformsToAdd && it.tab.id !in present }
             .map { it.tab }
     return migrated + missing
 }

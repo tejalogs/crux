@@ -5,9 +5,11 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
@@ -59,8 +61,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -76,6 +82,7 @@ import compose.icons.fontawesomeicons.solid.LayerGroup
 import compose.icons.fontawesomeicons.solid.Leaf
 import compose.icons.fontawesomeicons.solid.ShieldHalved
 import compose.icons.fontawesomeicons.solid.WandMagicSparkles
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.crux.R
@@ -129,6 +136,14 @@ internal fun CruxOnboardingScreen(connections: CruxConnectionsState) {
         }
     }
     var signingIn by remember { mutableStateOf<CruxPlatform?>(null) }
+    val haptics = LocalHapticFeedback.current
+    var previousSignedIn by remember { mutableStateOf(connections.signedIn) }
+    LaunchedEffect(connections.signedIn) {
+        if ((connections.signedIn - previousSignedIn).isNotEmpty()) {
+            haptics.performHapticFeedback(HapticFeedbackType.Confirm)
+        }
+        previousSignedIn = connections.signedIn
+    }
 
     fun finish() {
         val existing = existingFeedUrls.orEmpty()
@@ -325,6 +340,32 @@ private fun StepScaffold(
 
 @Composable
 private fun WelcomeStep(onContinue: () -> Unit) {
+    val pillars =
+        listOf(
+            Triple(
+                FontAwesomeIcons.Solid.LayerGroup,
+                stringResource(R.string.crux_onboarding_value_one_title),
+                stringResource(R.string.crux_onboarding_value_one_body),
+            ),
+            Triple(
+                FontAwesomeIcons.Solid.ShieldHalved,
+                stringResource(R.string.crux_onboarding_value_two_title),
+                stringResource(R.string.crux_onboarding_value_two_body),
+            ),
+            Triple(
+                FontAwesomeIcons.Solid.WandMagicSparkles,
+                stringResource(R.string.crux_onboarding_value_three_title),
+                stringResource(R.string.crux_onboarding_value_three_body),
+            ),
+        )
+    val visiblePillars = remember { mutableStateListOf(false, false, false) }
+    LaunchedEffect(Unit) {
+        pillars.indices.forEach { index ->
+            delay(65L)
+            visiblePillars[index] = true
+        }
+    }
+
     Column(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier =
@@ -362,21 +403,16 @@ private fun WelcomeStep(onContinue: () -> Unit) {
             }
             PlatformConstellation()
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                ValueCard(
-                    icon = FontAwesomeIcons.Solid.LayerGroup,
-                    title = stringResource(R.string.crux_onboarding_value_one_title),
-                    body = stringResource(R.string.crux_onboarding_value_one_body),
-                )
-                ValueCard(
-                    icon = FontAwesomeIcons.Solid.ShieldHalved,
-                    title = stringResource(R.string.crux_onboarding_value_two_title),
-                    body = stringResource(R.string.crux_onboarding_value_two_body),
-                )
-                ValueCard(
-                    icon = FontAwesomeIcons.Solid.WandMagicSparkles,
-                    title = stringResource(R.string.crux_onboarding_value_three_title),
-                    body = stringResource(R.string.crux_onboarding_value_three_body),
-                )
+                pillars.forEachIndexed { index, (icon, title, body) ->
+                    AnimatedVisibility(
+                        visible = visiblePillars[index],
+                        enter =
+                            fadeIn(animationSpec = tween(durationMillis = 260)) +
+                                slideInVertically(animationSpec = tween(durationMillis = 260)) { it / 6 },
+                    ) {
+                        ValueCard(icon = icon, title = title, body = body)
+                    }
+                }
             }
         }
         Button(
@@ -494,11 +530,26 @@ private fun ValueCard(
 
 @Composable
 private fun LiveDockPreview(selected: List<CruxPlatform>) {
+    val dockTitle = stringResource(R.string.crux_onboarding_dock_preview_title)
+    val emptyHint = stringResource(R.string.crux_onboarding_dock_empty_hint)
+    val activePlatforms = CruxPlatform.entries.filter { it in selected }
+    val dockDescription =
+        if (activePlatforms.isEmpty()) {
+            "$dockTitle. $emptyHint"
+        } else {
+            val names = activePlatforms.joinToString(", ") { it.displayName }
+            "$dockTitle. ${activePlatforms.size} active: $names"
+        }
     Surface(
         shape = RoundedCornerShape(20.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHighest,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
-        modifier = Modifier.fillMaxWidth(),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .semantics(mergeDescendants = true) {
+                    contentDescription = dockDescription
+                },
     ) {
         Column(
             modifier = Modifier.padding(14.dp),
@@ -756,7 +807,10 @@ private fun RssStarterFeedsSelector(
                                 selectedFeeds.addAll(starterFeedPicks())
                             },
                         ) {
-                            Text(stringResource(R.string.crux_onboarding_rss_select_recommended), style = MaterialTheme.typography.labelMedium)
+                            Text(
+                                text = stringResource(R.string.crux_onboarding_rss_select_recommended),
+                                style = MaterialTheme.typography.labelMedium,
+                            )
                         }
                         TextButton(
                             onClick = {
@@ -966,7 +1020,10 @@ private fun SignInStep(
 }
 
 @Composable
-private fun LiveCalmSamplePreview(grayscale: Boolean, paperTint: Boolean) {
+private fun LiveCalmSamplePreview(
+    grayscale: Boolean,
+    paperTint: Boolean,
+) {
     Surface(
         shape = RoundedCornerShape(20.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHighest,

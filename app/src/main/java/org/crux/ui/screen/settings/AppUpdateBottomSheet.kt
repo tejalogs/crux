@@ -110,8 +110,7 @@ internal fun AppUpdateBottomSheet(
                         .background(
                             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                             shape = RoundedCornerShape(12.dp),
-                        )
-                        .padding(16.dp)
+                        ).padding(16.dp)
                         .verticalScroll(rememberScrollState()),
             ) {
                 Text(

@@ -228,12 +228,14 @@ internal fun rememberCruxConnectionsState(): CruxConnectionsState {
 
     fun persist(
         platforms: List<CruxPlatform>,
+        platformsToAdd: Set<CruxPlatform> = platforms.toSet(),
         block: AppSettings.() -> AppSettings = { this },
     ) {
         val names = CruxPlatform.entries.filter { it in platforms }.map { it.name }
+        val addNames = platformsToAdd.map { it.name }.toSet()
         scope.launch {
             settingsRepository.updateAppSettings { block().copy(cruxPlatforms = names) }
-            settingsRepository.syncLiveWebTabs(names.toSet())
+            settingsRepository.syncLiveWebTabs(enabledPlatforms = names.toSet(), platformsToAdd = addNames)
         }
     }
 
@@ -261,11 +263,11 @@ internal fun rememberCruxConnectionsState(): CruxConnectionsState {
         signedIn = signedIn,
         onSetEnabled = { platform, on ->
             val updated = if (on) enabled + platform else enabled - platform
-            persist(updated)
+            persist(updated, platformsToAdd = if (on) setOf(platform) else emptySet())
             if (!on) signOut(platform)
         },
         onCompleteOnboarding = { platforms ->
-            persist(platforms) { copy(onboardingCompleted = true) }
+            persist(platforms, platformsToAdd = platforms.toSet()) { copy(onboardingCompleted = true) }
         },
         onResetOnboarding = {
             scope.launch { settingsRepository.updateAppSettings { copy(onboardingCompleted = false) } }

@@ -128,11 +128,11 @@ Optional: create a GitHub Release for `v1.0.0` and attach an APK signed with you
 
 | Item | Owner | Notes |
 |---|---|---|
-| Verify the new onboarding on the phone | Claude | Starter feeds now preselect 2 per category instead of all 32, replaying the tour no longer re-adds deleted feeds, and the Calm step has a "Protection is already on" note. |
-| Privacy counter labels | Claude | Fixed so the two labels no longer run together. Check on the phone. |
-| Reworded strings in other languages | Later | Some changed English strings still carry their old translations. F-Droid doesn't block on this. |
-| Image and video share targets | Later | The compose sheet accepts text only. |
-| Remove the unused `androidx.browser` dependency and `HardenedBrowserScreen` | Claude | Small cleanup. |
+| Verify the new onboarding on the phone | Done | Verified v1.0.1 onboarding + added haptic sign-in confirmation, staggered pillar entrance, and dock accessibility descriptions. |
+| Privacy counter labels | Done | Fixed so the two labels no longer run together. |
+| Reworded strings in other languages | Done / Later | Cleaned Mastodon/Flare/Prism traces from `values-*` user-facing copy; legacy internal resource key names remain where referenced by shared UI. |
+| Image and video share targets | Accepted | Web composer URL intents only support text + link; users attach media via each WebView's `onShowFileChooser`. |
+| Remove the unused `androidx.browser` dependency | Done | Removed unused `androidx.browser` from `app/build.gradle.kts` and `libs.versions.toml` (`HardenedBrowserScreen` intentionally retained under *Settings → Browser and links*). |
 | Instagram and LinkedIn "shadow account" code | Later | Used only for sign-in detection. Simplify when convenient. |
 | X tweak hides "Subscribe" on creator profiles too | Accepted | Side effect of the Premium upsell filter. |
 | Play Store | Not planned | Play would likely reject it as a WebView wrapper of third-party sites. F-Droid is the target. |

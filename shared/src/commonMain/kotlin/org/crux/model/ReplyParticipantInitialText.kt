@@ -30,7 +30,8 @@ public fun ComposeInitialTextContext.resolveReplyParticipantInitialText(): Initi
 
                 is RenderRun.Text -> {
                     val href = run.style.link ?: return@mapNotNull null
-                    val isMentionScheme = href.startsWith("crux://ProfileWithNameAndHost") || href.startsWith("flare://ProfileWithNameAndHost")
+                    val isMentionScheme =
+                        href.startsWith("crux://ProfileWithNameAndHost") || href.startsWith("flare://ProfileWithNameAndHost")
                     if (!isMentionScheme) {
                         return@mapNotNull null
                     }
@@ -41,7 +42,15 @@ public fun ComposeInitialTextContext.resolveReplyParticipantInitialText(): Initi
                 }
             }
         }.filterNot { mention ->
-            val schemePrefix = if (mention.href.startsWith("crux://")) "crux://ProfileWithNameAndHost/" else "flare://ProfileWithNameAndHost/"
+            val schemePrefix =
+                if (mention.href.startsWith(
+                        "crux://",
+                    )
+                ) {
+                    "crux://ProfileWithNameAndHost/"
+                } else {
+                    "flare://ProfileWithNameAndHost/"
+                }
             val params =
                 mention.href
                     .substringAfter(schemePrefix)
