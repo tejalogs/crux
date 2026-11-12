@@ -4,15 +4,15 @@ collection = "1.7.0"
 compileSdk = "37"
 composemediaplayer = "0.11.4"
 composewebview = "1.0.0-beta-02"
-cryptographyProviderOptimal = "0.5.0"
+cryptographyProviderOptimal = "0.6.0"
 jna = "5.19.1"
 lifecycleViewmodelComposeVersion = "2.11.0"
 minSdk = "26"
 java = "17"
-agp = "9.4.1"
+agp = "9.5.1"
 aboutlibraries = "15.3.0"
-# shortcut: SKIE supports Kotlin through 2.4.20; upgrade after SKIE adds support for newer versions.
-kotlin = "2.4.20"
+# shortcut: SKIE supports Kotlin through 2.4.21 (with 0.10.16); keep coupled when upgrading.
+kotlin = "2.4.21"
 core-ktx = "1.19.1"
 junit = "4.13.2"
 androidx-test-ext-junit = "1.3.0"
@@ -20,17 +20,17 @@ espresso-core = "3.7.0"
 lifecycle-runtime-ktx = "2.11.0"
 activity-compose = "1.13.0"
 compose-bom = "2026.09.00"
-ksp = "2.3.12"
+ksp = "2.3.13"
 koog = "1.3.0"
 nucleus = "1.15.7"
 paging = "3.5.3"
 kotlinx-datetime = "0.8.0"
 kotlinx-collections-immutable = "0.5.2"
-kotlinx-serialization = "1.11.0"
+kotlinx-serialization = "1.12.0"
 kotlinx-browser = "0.5.0"
 coil3 = "3.6.3"
 ktorfit = "2.7.5"
-ktor = "3.6.0"
+ktor = "3.6.1"
 prettytime = "5.0.9.Final"
 readability = "1.0.0"
 reorderable = "3.1.0"
@@ -43,21 +43,21 @@ ktlintPlugin = "14.2.0"
 apng-android = "3.0.5"
 ktlint = "1.8.0"
 okio = "3.18.2"
-skie = "0.10.15"
+skie = "0.10.16"
 ksoup = "0.2.6"
-versionUpdate = "0.66.0"
+versionUpdate = "0.67.0"
 kotlinx-coroutines = "1.11.0"
 koin = "4.2.2"
-koin-plugin = "1.2.1"
+koin-plugin = "1.2.3"
 composeIcons = "1.3.0"
 media3 = "1.11.1"
 desugar_jdk_libs = "2.1.5"
-datastore = "1.3.0-rc01"
+datastore = "1.3.0"
 materialKolor = "5.0.1"
 room = "3.0.3"
 sqlite = "2.7.1"
 compose-multiplatform = "1.12.2"
-navigation3 = "1.3.0-alpha02"
+navigation3 = "1.3.0-alpha04"
 zoomable = "0.19.0"
 cupertino = "2.3.1"
 robolectric = "4.17"
@@ -104,7 +104,7 @@ ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
 ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
 ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
 ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
-material3 = { group = "androidx.compose.material3", name = "material3", version = "1.5.0-beta01" }
+material3 = { group = "androidx.compose.material3", name = "material3", version = "1.5.0-rc01" }
 material3WindowSizeClass = { group = "androidx.compose.material3", name = "material3-window-size-class" }
 material3-adaptive-navigation-suite = { group = "androidx.compose.material3", name = "material3-adaptive-navigation-suite" }
 material3-adaptive = { group = "androidx.compose.material3.adaptive", name = "adaptive" }
@@ -129,7 +129,7 @@ sqlite-bundled = { group = "androidx.sqlite", name = "sqlite-bundled", version.r
 sqlite-web = { group = "androidx.sqlite", name = "sqlite-web", version.ref = "sqlite" }
 nestedScrollView = { group = "com.github.Tlaster", name = "NestedScrollView", version = "1.0.3" }
 webkit = { group = "androidx.webkit", name = "webkit", version = "1.17.1" }
-swiperefreshlayout = { group = "androidx.swiperefreshlayout", name = "swiperefreshlayout", version = "1.1.0" }
+swiperefreshlayout = { group = "androidx.swiperefreshlayout", name = "swiperefreshlayout", version = "1.2.0" }
 
 media3-exoplayer = { group = "androidx.media3", name = "media3-exoplayer", version.ref = "media3" }
 media3-ui-compose = { group = "androidx.media3", name = "media3-ui-compose", version.ref = "media3" }
@@ -224,8 +224,6 @@ androidx-lifecycle-viewmodel-navigation3 = { module = "androidx.lifecycle:lifecy
 
 cupertino = { group = "io.github.schott12521", name = "cupertino", version.ref = "cupertino" }
 robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
-
-navigation3-desktop = { module = "org.jetbrains.androidx.navigation3:navigation3-ui", version = "1.1.2" }
 
 ### Server ###
 ktor-client-resources = { module = "io.ktor:ktor-client-resources", version.ref = "ktor" }

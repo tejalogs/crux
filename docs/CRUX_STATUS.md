@@ -28,4 +28,4 @@ Android only. Platforms: **Instagram, X, LinkedIn, Reddit** (live web tabs, each
 ## Remaining Backlog
 - Some internal `R.string.*` / `Res.string.*` resource identifier names (`pixiv_*`, `fanbox_*`, `mastodon_*`) remain in `EditTabDialog`, `TabIcon`, and `CommonStatusComponent` (English & localized user-facing copy has already been cleaned of Mastodon/Flare/Prism references).
 - Instagram/LinkedIn "shadow account" code still exists (used for sign-in detection only).
-- Dependency updates (SKIE/Kotlin versions are intentionally coupled at Kotlin `2.4.20` + SKIE `0.10.15` until both are verified together).
+- Dependency updates applied cleanly (`Gradle 9.8.2`, `AGP 9.5.1`, `Kotlin 2.4.21`, `SKIE 0.10.16`, `KSP 2.3.13`, `Ktor 3.6.1`, `Material3 1.5.0-rc01`, `DataStore 1.3.0`). Kotlin and SKIE remain coupled when upgrading further.
