@@ -25,7 +25,11 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -42,10 +46,15 @@ import androidx.compose.ui.unit.dp
 import compose.icons.FontAwesomeIcons
 import compose.icons.fontawesomeicons.Solid
 import compose.icons.fontawesomeicons.solid.Download
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.crux.BuildConfig
 import org.crux.R
 import org.crux.update.AppReleaseInfo
 import org.crux.update.AppUpdateManager
+import org.crux.update.AppUpdatePrefs
+import org.crux.update.UpdateCheckResult
+import org.crux.update.shouldPromptRelease
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,6 +62,7 @@ internal fun AppUpdateBottomSheet(
     sheetState: SheetState,
     updateInfo: AppReleaseInfo,
     onDismissRequest: () -> Unit,
+    onSkipVersion: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
@@ -184,7 +194,59 @@ internal fun AppUpdateBottomSheet(
                         Text(text = stringResource(R.string.settings_update_download_install))
                     }
                 }
+                if (onSkipVersion != null && !isDownloading) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        TextButton(onClick = onSkipVersion) {
+                            Text(text = stringResource(R.string.settings_update_skip_version))
+                        }
+                        TextButton(onClick = onDismissRequest) {
+                            Text(text = stringResource(R.string.settings_update_later))
+                        }
+                    }
+                }
             }
         }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun AutoAppUpdatePrompt() {
+    val context = LocalContext.current
+    val prefs = remember(context) { AppUpdatePrefs.get(context) }
+    val autoCheckEnabled by prefs.autoCheckEnabled.collectAsState()
+    var updateInfo by remember { mutableStateOf<AppReleaseInfo?>(null) }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    LaunchedEffect(autoCheckEnabled) {
+        if (!autoCheckEnabled) return@LaunchedEffect
+        delay(1500L)
+        if (!prefs.tryStartSessionCheck()) return@LaunchedEffect
+        when (val result = AppUpdateManager.checkForUpdates(BuildConfig.VERSION_NAME)) {
+            is UpdateCheckResult.UpToDate -> prefs.recordCheckCompleted()
+            is UpdateCheckResult.UpdateAvailable -> {
+                prefs.recordCheckCompleted()
+                if (shouldPromptRelease(result.info.tagName, prefs.skippedTag(), BuildConfig.VERSION_NAME)) {
+                    updateInfo = result.info
+                }
+            }
+
+            is UpdateCheckResult.Error -> Unit
+        }
+    }
+
+    updateInfo?.let { current ->
+        AppUpdateBottomSheet(
+            sheetState = sheetState,
+            updateInfo = current,
+            onDismissRequest = { updateInfo = null },
+            onSkipVersion = {
+                prefs.skipVersion(current.tagName)
+                updateInfo = null
+            },
+        )
     }
 }

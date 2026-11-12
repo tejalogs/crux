@@ -936,11 +936,15 @@
     <string name="settings_about_privacy_policy_description">What Crux stores and sends</string>
     <string name="settings_about_report_issue">Report an issue</string>
     <string name="settings_check_for_updates">Check for updates</string>
+    <string name="settings_auto_check_updates">Auto-check for updates</string>
+    <string name="settings_auto_check_updates_description">Show a popup on launch when a new release is published</string>
     <string name="settings_checking_for_updates">Checking for updates…</string>
     <string name="settings_up_to_date">Crux is up to date (%1$s)</string>
     <string name="settings_update_available">Crux %1$s is available</string>
     <string name="settings_update_download_install">Download &amp; Install</string>
     <string name="settings_update_view_release">View on GitHub</string>
+    <string name="settings_update_later">Later</string>
+    <string name="settings_update_skip_version">Skip this version</string>
     <string name="settings_update_downloading">Downloading update (%1$d%%)…</string>
     <string name="settings_update_failed">Failed to check for updates</string>
     <string name="settings_update_install_permission_needed">Permission required to install updates. Please enable \'Install unknown apps\' for Crux.</string>

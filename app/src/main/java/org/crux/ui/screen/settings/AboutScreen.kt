@@ -20,10 +20,12 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SegmentedListItem
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -60,6 +62,7 @@ import org.crux.ui.component.listCard
 import org.crux.ui.theme.segmentedShapes2
 import org.crux.update.AppReleaseInfo
 import org.crux.update.AppUpdateManager
+import org.crux.update.AppUpdatePrefs
 import org.crux.update.UpdateCheckResult
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -72,6 +75,8 @@ internal fun AboutScreen(
     val uriHandler = LocalUriHandler.current
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
+    val updatePrefs = remember(context) { AppUpdatePrefs.get(context) }
+    val autoCheckUpdates by updatePrefs.autoCheckEnabled.collectAsState()
     var isCheckingUpdates by remember { mutableStateOf(false) }
     var updateInfo by remember { mutableStateOf<AppReleaseInfo?>(null) }
     var updateStatusSupporting by remember { mutableStateOf<String?>(null) }
@@ -151,12 +156,15 @@ internal fun AboutScreen(
                                     isCheckingUpdates = false
                                     when (result) {
                                         is UpdateCheckResult.UpToDate -> {
+                                            updatePrefs.recordCheckCompleted()
                                             val msg = context.getString(R.string.settings_up_to_date, BuildConfig.VERSION_NAME)
                                             updateStatusSupporting = msg
                                             Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                                         }
 
                                         is UpdateCheckResult.UpdateAvailable -> {
+                                            updatePrefs.recordCheckCompleted()
+                                            updatePrefs.clearSkippedVersion()
                                             updateStatusSupporting =
                                                 context.getString(
                                                     R.string.settings_update_available,
@@ -174,6 +182,18 @@ internal fun AboutScreen(
                                 }
                             }
                         },
+                    ),
+                    AboutRow(
+                        icon = FontAwesomeIcons.Solid.RotateRight,
+                        title = R.string.settings_auto_check_updates,
+                        supportingRes = R.string.settings_auto_check_updates_description,
+                        trailing = {
+                            Switch(
+                                checked = autoCheckUpdates,
+                                onCheckedChange = { updatePrefs.setAutoCheckEnabled(it) },
+                            )
+                        },
+                        onClick = { updatePrefs.setAutoCheckEnabled(!autoCheckUpdates) },
                     ),
                     AboutRow(
                         icon = FontAwesomeIcons.Brands.Github,
@@ -232,6 +252,7 @@ internal fun AboutScreen(
                                 modifier = Modifier.size(24.dp),
                             )
                         },
+                        trailingContent = row.trailing,
                     )
                 }
             }
@@ -254,6 +275,7 @@ private data class AboutRow(
     @StringRes val title: Int,
     val supporting: String? = null,
     @StringRes val supportingRes: Int? = null,
+    val trailing: (@Composable () -> Unit)? = null,
     val onClick: () -> Unit,
 )
 

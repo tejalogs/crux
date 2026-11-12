@@ -121,6 +121,7 @@ import org.crux.ui.route.Router
 import org.crux.ui.route.reloginRoute
 import org.crux.ui.screen.crux.CruxDrawerHeader
 import org.crux.ui.screen.crux.CruxOnboardingScreen
+import org.crux.ui.screen.settings.AutoAppUpdatePrompt
 import org.crux.ui.screen.crux.CruxPlatform
 import org.crux.ui.screen.crux.LocalCruxConnections
 import org.crux.ui.screen.crux.rememberCruxConnectionsState
@@ -185,6 +186,7 @@ internal fun HomeScreen(afterInit: () -> Unit) {
     }
     state.tabs
         .onSuccess { tabs ->
+            AutoAppUpdatePrompt()
             val currentRoute =
                 remember(
                     tabs,
