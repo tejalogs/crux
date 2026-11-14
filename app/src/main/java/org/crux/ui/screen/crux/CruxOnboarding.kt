@@ -108,7 +108,9 @@ private enum class OnboardingStep { Welcome, Platforms, SignIn, Calm }
 @Composable
 internal fun CruxOnboardingScreen(connections: CruxConnectionsState) {
     val subscriptionRepository = koinInject<SubscriptionRepository>()
+    val settingsRepository = koinInject<SettingsRepository>()
     val scope = rememberCoroutineScope()
+    var finishing by remember { mutableStateOf(false) }
     var step by rememberSaveable { mutableStateOf(OnboardingStep.Welcome) }
     val selected =
         remember {
@@ -146,14 +148,27 @@ internal fun CruxOnboardingScreen(connections: CruxConnectionsState) {
     }
 
     fun finish() {
+        if (finishing) return
+        finishing = true
         val existing = existingFeedUrls.orEmpty()
         val newFeeds = selectedStarterFeeds.filter { it.url !in existing }
-        if (CruxPlatform.Rss in selected && newFeeds.isNotEmpty()) {
-            scope.launch {
-                subscriptionRepository.upsertAll(newFeeds.map { it.toSubscriptionSourceInput() })
+        val rssChosen = CruxPlatform.Rss in selected
+        val platforms = selected.toList()
+        // Save before completing: completing removes this screen, which cancels `scope`.
+        scope.launch {
+            try {
+                if (rssChosen) {
+                    if (newFeeds.isNotEmpty()) {
+                        subscriptionRepository.upsertAll(newFeeds.map { it.toSubscriptionSourceInput() })
+                    }
+                    // The user picked their starter feeds here, so the feeds screen must not
+                    // later seed all defaults into an empty library.
+                    settingsRepository.updateAppSettings { copy(rssDefaultsSeeded = true) }
+                }
+            } finally {
+                connections.completeOnboarding(platforms)
             }
         }
-        connections.completeOnboarding(selected.toList())
     }
 
     val activeSignIn = signingIn
