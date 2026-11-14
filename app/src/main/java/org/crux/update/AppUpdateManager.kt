@@ -3,6 +3,8 @@ package org.crux.update
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageInfo
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
@@ -39,6 +41,20 @@ public sealed interface UpdateCheckResult {
 }
 
 public object AppUpdateManager {
+    // GitHub serves release assets from github.com and redirects to one of these CDN hosts.
+    private val TRUSTED_DOWNLOAD_HOSTS =
+        setOf(
+            "github.com",
+            "objects.githubusercontent.com",
+            "release-assets.githubusercontent.com",
+        )
+    private const val MAX_APK_BYTES = 150L * 1024 * 1024
+
+    internal fun isTrustedDownloadUrl(url: String?): Boolean {
+        val parsed = url?.let { runCatching { URL(it) }.getOrNull() } ?: return false
+        return parsed.protocol == "https" && parsed.host.lowercase() in TRUSTED_DOWNLOAD_HOSTS
+    }
+
     public fun isNewerVersion(
         remoteTag: String,
         localVersion: String,
@@ -93,7 +109,7 @@ public object AppUpdateManager {
                         val asset = assets.getJSONObject(i)
                         val assetName = asset.optString("name", "")
                         if (assetName.endsWith(".apk", ignoreCase = true)) {
-                            apkUrl = if (asset.has("browser_download_url")) asset.getString("browser_download_url") else null
+                            apkUrl = asset.optString("browser_download_url").takeIf(::isTrustedDownloadUrl)
                             apkSize = asset.optLong("size", 0L)
                             break
                         }
@@ -124,10 +140,12 @@ public object AppUpdateManager {
     public suspend fun downloadAndInstallApk(
         activity: Activity,
         apkUrl: String,
+        expectedSizeBytes: Long = 0L,
         onProgress: (Int) -> Unit,
     ): Result<Unit> =
         withContext(Dispatchers.IO) {
             try {
+                require(isTrustedDownloadUrl(apkUrl)) { "Update link is not a GitHub release download." }
                 // Check unknown apps install permission on Android 8.0+
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     if (!activity.packageManager.canRequestPackageInstalls()) {
@@ -158,24 +176,46 @@ public object AppUpdateManager {
                         instanceFollowRedirects = true
                     }
 
-                val contentLength = connection.contentLength
+                val responseCode = connection.responseCode
+                if (responseCode != HttpURLConnection.HTTP_OK) {
+                    connection.disconnect()
+                    error("Download failed (HTTP $responseCode).")
+                }
+                // Redirects are followed automatically, so check where we actually ended up.
+                if (!isTrustedDownloadUrl(connection.url.toString())) {
+                    connection.disconnect()
+                    error("Download was redirected to an untrusted host.")
+                }
+                val contentLength = connection.contentLengthLong
                 var downloaded = 0L
 
                 connection.inputStream.use { input ->
                     FileOutputStream(targetFile).use { output ->
                         val buffer = ByteArray(8192)
                         var bytesRead: Int
+                        var lastPercent = -1
                         while (input.read(buffer).also { bytesRead = it } != -1) {
                             output.write(buffer, 0, bytesRead)
                             downloaded += bytesRead
+                            if (downloaded > MAX_APK_BYTES) error("Update file is too large.")
                             if (contentLength > 0) {
                                 val percent = ((downloaded * 100) / contentLength).toInt().coerceIn(0, 100)
-                                withContext(Dispatchers.Main) {
-                                    onProgress(percent)
+                                if (percent != lastPercent) {
+                                    lastPercent = percent
+                                    withContext(Dispatchers.Main) { onProgress(percent) }
                                 }
                             }
                         }
                     }
+                }
+
+                if (expectedSizeBytes > 0 && downloaded != expectedSizeBytes) {
+                    targetFile.delete()
+                    error("Download was incomplete. Please try again.")
+                }
+                verifyApkMatchesInstalledApp(activity, targetFile)?.let { problem ->
+                    targetFile.delete()
+                    error(problem)
                 }
 
                 withContext(Dispatchers.Main) {
@@ -200,4 +240,57 @@ public object AppUpdateManager {
                 Result.failure(e)
             }
         }
+
+    /**
+     * Returns a reason to refuse the APK, or null when it is the same app signed by the same key.
+     * Android would reject a different signer on install anyway, but a different package name
+     * would install as a separate app, so both are checked before showing the installer.
+     */
+    private fun verifyApkMatchesInstalledApp(
+        context: Context,
+        apk: File,
+    ): String? {
+        val pm = context.packageManager
+        val archive =
+            pm.getPackageArchiveInfo(apk.absolutePath, signingFlags())
+                ?: return "The downloaded file is not a valid app package."
+        if (archive.packageName != context.packageName) {
+            return "The downloaded app is not Crux."
+        }
+        val installed = pm.getPackageInfo(context.packageName, signingFlags())
+        val archiveSigners = archive.signerDigests()
+        val installedSigners = installed.signerDigests()
+        if (archiveSigners.isEmpty() || archiveSigners != installedSigners) {
+            return "The update is not signed with the same key as this app."
+        }
+        return null
+    }
+
+    @Suppress("DEPRECATION")
+    private fun signingFlags(): Int =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            PackageManager.GET_SIGNING_CERTIFICATES
+        } else {
+            PackageManager.GET_SIGNATURES
+        }
+
+    @Suppress("DEPRECATION")
+    private fun PackageInfo.signerDigests(): Set<String> {
+        val signatures =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                signingInfo?.let { info ->
+                    if (info.hasMultipleSigners()) info.apkContentsSigners else info.signingCertificateHistory
+                }
+            } else {
+                signatures
+            }
+        return signatures
+            .orEmpty()
+            .map { sig ->
+                java.security.MessageDigest
+                    .getInstance("SHA-256")
+                    .digest(sig.toByteArray())
+                    .joinToString("") { "%02x".format(it) }
+            }.toSet()
+    }
 }

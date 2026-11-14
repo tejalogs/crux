@@ -178,6 +178,7 @@ internal fun AppUpdateBottomSheet(
                                         AppUpdateManager.downloadAndInstallApk(
                                             activity = activity,
                                             apkUrl = updateInfo.apkUrl,
+                                            expectedSizeBytes = updateInfo.apkSizeBytes,
                                             onProgress = { progress -> downloadProgress = progress },
                                         )
                                     isDownloading = false

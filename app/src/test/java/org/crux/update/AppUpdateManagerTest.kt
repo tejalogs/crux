@@ -67,4 +67,15 @@ class AppUpdateManagerTest {
         assertFalse(shouldPromptRelease("v1.0.0", skippedTag = null, currentVersion = "1.0.0"))
         assertFalse(shouldPromptRelease("v0.9.0", skippedTag = null, currentVersion = "1.0.0"))
     }
+
+    @Test
+    fun trustedDownloadUrl_acceptsOnlyHttpsGithubHosts() {
+        assertTrue(AppUpdateManager.isTrustedDownloadUrl("https://github.com/tejalogs/crux/releases/download/v1.0.2/crux.apk"))
+        assertTrue(AppUpdateManager.isTrustedDownloadUrl("https://objects.githubusercontent.com/x/crux.apk"))
+        assertFalse(AppUpdateManager.isTrustedDownloadUrl("http://github.com/tejalogs/crux/crux.apk"))
+        assertFalse(AppUpdateManager.isTrustedDownloadUrl("https://github.com.evil.example/crux.apk"))
+        assertFalse(AppUpdateManager.isTrustedDownloadUrl("https://evil.example/crux.apk"))
+        assertFalse(AppUpdateManager.isTrustedDownloadUrl("not a url"))
+        assertFalse(AppUpdateManager.isTrustedDownloadUrl(null))
+    }
 }
