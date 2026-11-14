@@ -45,8 +45,13 @@ private val INSTAGRAM_PROFILE =
         postSelector = "article",
         baseRules =
             listOf(
+                "html,body{-webkit-overflow-scrolling:touch!important;overscroll-behavior-y:contain!important}",
+                "html,body,button,a,[role=\"button\"],input,textarea{touch-action:manipulation!important}",
                 "div._aagw, div._aagv > div:not(img){pointer-events:none!important}",
                 "img{-webkit-user-select:auto!important;user-select:auto!important;pointer-events:auto!important}",
+                "*{-webkit-tap-highlight-color:transparent!important}",
+                "article video{object-fit:cover!important}",
+                "html,body{-webkit-font-smoothing:antialiased!important;-moz-osx-font-smoothing:grayscale!important}",
             ),
     )
 
@@ -57,9 +62,14 @@ private val LINKEDIN_PROFILE =
         labelExcludeSelector = ".update-components-text,.feed-shared-text,[data-test-id=\"main-feed-activity-card__commentary\"]",
         baseRules =
             listOf(
+                "html,body{-webkit-overflow-scrolling:touch!important;overscroll-behavior-y:contain!important}",
+                "html,body,button,a,[role=\"button\"],input,textarea{touch-action:manipulation!important}",
+                "*{-webkit-tap-highlight-color:transparent!important}",
                 "div:has(>footer){grid-template-columns:minmax(0,1fr)!important}",
                 "footer,main{min-width:0!important}",
                 "footer li{min-width:0!important;flex:1 1 0!important}",
+                "html,body{-webkit-font-smoothing:antialiased!important;-moz-osx-font-smoothing:grayscale!important}",
+                "div.feed-shared-update-v2:active{background-color:rgba(128,128,128,0.04)!important}",
             ),
     )
 
@@ -74,12 +84,21 @@ private val X_PROFILE =
 private val REDDIT_PROFILE =
     SiteScriptProfile(
         postSelector = "shreddit-post,[data-testid=\"ad-post\"],[data-adclicklocation]",
+        baseRules =
+            listOf(
+                "html,body{-webkit-overflow-scrolling:touch!important;overscroll-behavior-y:contain!important}",
+                "html,body,button,a,[role=\"button\"],shreddit-post{touch-action:manipulation!important}",
+                "shreddit-post{-webkit-tap-highlight-color:transparent!important}",
+            ),
         baseJs =
             """
-            document.querySelectorAll('button[slot="show-more-comments"],faceplate-expandable-section-helper button').forEach(function(b){
-              var txt=(b.textContent||'').trim();
-              if(/view more comments|show more comments|continue this thread/i.test(txt)){b.click()}
-            });
+            function expandRedditComments(){
+              document.querySelectorAll('button[slot="show-more-comments"],faceplate-expandable-section-helper button').forEach(function(b){
+                var txt=(b.textContent||'').trim();
+                if(/view more comments|show more comments|continue this thread/i.test(txt)){b.click()}
+              });
+            }
+            expandRedditComments();
             if(document.documentElement.style.overflow==='hidden')document.documentElement.style.overflow='';
             """.trimIndent(),
     )
@@ -139,6 +158,8 @@ internal val SiteTweak.rule: TweakRule
                             "div[role=\"dialog\"]:has(a[href*=\"apps.apple.com\"])",
                             "div:has(> a[href*=\"instagram://\"])",
                             "div:has(> a[href*=\"onelink.me\"])",
+                            "div:has(> a[href*=\"play.google.com\"])",
+                            "div:has(> a[href*=\"apps.apple.com\"])",
                             "header a[href*=\"instagram.com/download/\"]",
                         ),
                     promptLabels = USE_APP_LABELS + listOf("Open Instagram"),
@@ -272,8 +293,11 @@ internal val SiteTweak.rule: TweakRule
                             "div[data-testid=\"inline_prompt\"]",
                             "div:has(> a[href*=\"app.link\"])",
                             "div:has(> a[href*=\"play.google.com\"])",
+                            "div[data-testid=\"BottomBar\"]",
+                            "div[data-testid=\"sheetDialog\"]:has(a[href*=\"play.google.com\"])",
+                            "div[data-testid=\"sheetDialog\"]:has(a[href*=\"apps.apple.com\"])",
                         ),
-                    promptLabels = USE_APP_LABELS + listOf("Download app", "Switch to the app"),
+                    promptLabels = USE_APP_LABELS + listOf("Download app", "Switch to the app", "Don't miss what's happening"),
                 )
             }
 
@@ -316,6 +340,9 @@ internal val SiteTweak.rule: TweakRule
                         listOf(
                             ".app-upsell-banner",
                             ".modal-upsell",
+                            ".app-banner",
+                            "div:has(> a[href*=\"play.google.com\"])",
+                            "div:has(> a[href*=\"apps.apple.com\"])",
                             "div[data-tracking-control-name=\"mobile_app_upsell\"]",
                             "div[data-tracking-control-name=\"app_interstitial\"]",
                         ),
@@ -379,6 +406,8 @@ internal val SiteTweak.rule: TweakRule
                             "[id^=configured-xpromo]",
                             "xpromo-app-selector",
                             "xpromo-bottom-sheet",
+                            "xpromo-bottom-bar",
+                            "community-barrier",
                             "xpromo-floating-pill",
                             "xpromo-nsfw-blocking-container",
                             "shreddit-async-loader[bundlename*=\"xpromo\"]",
@@ -439,7 +468,8 @@ internal val SiteTweak.rule: TweakRule
 
             SiteTweak.RedditUnblurNsfw -> {
                 TweakRule(
-                    js = "document.querySelectorAll('shreddit-post[nsfw]').forEach(function(p){p.removeAttribute('nsfw')});",
+                    css = listOf("[slot=\"blur-toggle\"]", "[slot=\"nsfw-banner\"]", "faceplate-tracker[source=\"nsfw_modal\"]"),
+                    js = "document.querySelectorAll('shreddit-post[nsfw],shreddit-post [slot=\"blur-toggle\"]').forEach(function(p){p.removeAttribute('nsfw');p.removeAttribute('blurred');if(p.style)p.style.filter='none';});",
                 )
             }
         }
@@ -490,9 +520,9 @@ private val ENGINE_JS =
       var styleEl=null;
       // Only Reddit renders with shadow DOM; walking every element elsewhere is wasted work.
       var hasShadowDom=/(^|\.)reddit\.com$/.test(location.hostname);
-      // Full-screen video viewers (Reels, Stories, Shorts-style pages) have no feed posts to filter,
-      // and their DOM churns as each clip loads, so they only get the stylesheet and prompt checks.
-      var isImmersive=function(){return /^\/(reels?|stories)\//.test(location.pathname)};
+      // Full-screen video viewers (Reels, Stories, Shorts-style pages) and direct messages have no feed posts to filter,
+      // and their DOM churns as each clip/message loads, so they only get the stylesheet and prompt checks.
+      var isImmersive=function(){return /^\/(reels?|stories|direct|shorts)\//.test(location.pathname)};
       var lastScroll=0;
       var markScroll=function(){lastScroll=Date.now()};
       try{

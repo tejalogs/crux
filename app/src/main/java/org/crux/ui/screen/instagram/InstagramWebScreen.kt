@@ -2,6 +2,7 @@ package org.crux.ui.screen.instagram
 
 import android.content.Intent
 import android.net.Uri
+import android.view.View
 import android.view.ViewGroup.LayoutParams
 import android.webkit.GeolocationPermissions
 import android.webkit.PermissionRequest
@@ -95,13 +96,18 @@ import org.crux.ui.component.CruxDropdownMenu
 import org.crux.ui.component.CruxScaffold
 import org.crux.ui.component.CruxTopAppBar
 import org.crux.ui.component.FAIcon
+import org.crux.ui.screen.home.LiveWebPrivacyStore
 import org.crux.ui.screen.home.LiveWebSite
 import org.crux.ui.screen.home.WebSessionLifecycleSuspender
 import org.crux.ui.screen.home.clearSession
+import org.crux.ui.screen.home.cleanOutgoingLink
 import org.crux.ui.screen.home.cookieManager
 import org.crux.ui.screen.home.openInSystemBrowser
 import org.crux.ui.screen.home.openLinkOutsideWebView
 import org.crux.ui.screen.home.useProfileOf
+import androidx.webkit.WebSettingsCompat
+import androidx.webkit.WebViewCompat
+import androidx.webkit.WebViewFeature
 import java.io.ByteArrayInputStream
 
 private const val INSTAGRAM_HOME_URL = "https://www.instagram.com"
@@ -434,6 +440,10 @@ internal fun InstagramWebScreen(
                 modifier = Modifier.fillMaxSize(),
                 onCreated = { view: WebView ->
                     view.useProfileOf(LiveWebSite.Instagram)
+                    view.isNestedScrollingEnabled = false
+                    view.overScrollMode = View.OVER_SCROLL_NEVER
+                    view.isVerticalScrollBarEnabled = false
+                    view.isHorizontalScrollBarEnabled = false
                     webViewRef.value = view
                     with(view.settings) {
                         javaScriptEnabled = true
@@ -452,8 +462,26 @@ internal fun InstagramWebScreen(
                         saveFormData = false
                         setSafeBrowsingEnabled(true)
                         cacheMode = WebSettings.LOAD_DEFAULT
+                        useWideViewPort = true
+                        loadWithOverviewMode = true
+                        displayZoomControls = false
+                        builtInZoomControls = false
                     }
                     LiveWebSite.Instagram.cookieManager().setAcceptThirdPartyCookies(view, false)
+
+                    val privacyStore = LiveWebPrivacyStore.get(view.context)
+                    val config = privacyStore.configFor(LiveWebSite.Instagram)
+                    if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
+                        config.documentStartScripts(LiveWebSite.Instagram).forEach { script ->
+                            WebViewCompat.addDocumentStartJavaScript(view, script, setOf("*"))
+                        }
+                    }
+                    if (WebViewFeature.isFeatureSupported(WebViewFeature.REQUESTED_WITH_HEADER_ALLOW_LIST)) {
+                        WebSettingsCompat.setRequestedWithHeaderOriginAllowList(view.settings, emptySet())
+                    }
+                    if (WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING)) {
+                        WebSettingsCompat.setAlgorithmicDarkeningAllowed(view.settings, true)
+                    }
 
                     view.webViewClient =
                         object : WebViewClient() {
@@ -466,17 +494,20 @@ internal fun InstagramWebScreen(
                                 view: WebView,
                                 request: WebResourceRequest,
                             ): Boolean {
-                                val url = request.url.toString()
+                                val rawUrl = request.url.toString()
+                                val cleaned = cleanOutgoingLink(rawUrl)
+                                val isRedirect = cleaned.substringBefore("?") != rawUrl.substringBefore("?")
                                 val host = request.url.host
-                                if (InstagramFeedService.isValidInstagramHost(host)) {
+                                if (InstagramFeedService.isValidInstagramHost(host) && !isRedirect) {
                                     return false
                                 }
-                                return if (url.startsWith("http://") || url.startsWith("https://")) {
-                                    openLinkOutsideWebView(view.context, url, clean = true)
+                                val target = if (isRedirect) cleaned else rawUrl
+                                return if (target.startsWith("http://") || target.startsWith("https://")) {
+                                    openLinkOutsideWebView(view.context, target, clean = true)
                                     true
                                 } else {
                                     // Deep links like instagram://, market://
-                                    uriHandler.openUri(url)
+                                    uriHandler.openUri(rawUrl)
                                     true
                                 }
                             }
@@ -529,6 +560,11 @@ internal fun InstagramWebScreen(
                                     canGoForward = view.canGoForward()
                                 }
                                 isPageLoading = false
+                                if (!WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
+                                    config.documentStartScripts(LiveWebSite.Instagram).forEach { script ->
+                                        view.evaluateJavascript(script, null)
+                                    }
+                                }
                                 val host = committed?.let { runCatching { Uri.parse(it).host }.getOrNull() }
                                 if (InstagramFeedService.isValidInstagramHost(host)) {
                                     checkAndSyncSession()

@@ -54,13 +54,24 @@ internal class AppUpdatePrefs private constructor(
         autoCheckMutable.value = enabled
     }
 
-    fun tryStartSessionCheck(nowMs: Long = System.currentTimeMillis()): Boolean {
-        if (!checkedThisProcess.compareAndSet(false, true)) return false
-        return shouldRunAutoUpdateCheck(
-            autoCheckEnabled = autoCheckMutable.value,
-            lastCheckAtMs = prefs.getLong(KEY_LAST_CHECK_AT_MS, 0L),
-            nowMs = nowMs,
-        )
+    fun tryStartSessionCheck(
+        nowMs: Long = System.currentTimeMillis(),
+        force: Boolean = false,
+    ): Boolean {
+        if (checkedThisProcess.get() && !force) return false
+        val shouldRun =
+            force ||
+                shouldRunAutoUpdateCheck(
+                    autoCheckEnabled = autoCheckMutable.value,
+                    lastCheckAtMs = prefs.getLong(KEY_LAST_CHECK_AT_MS, 0L),
+                    nowMs = nowMs,
+                )
+        if (!shouldRun) return false
+        return checkedThisProcess.compareAndSet(false, true) || force
+    }
+
+    fun resetProcessCheck() {
+        checkedThisProcess.set(false)
     }
 
     fun recordCheckCompleted(nowMs: Long = System.currentTimeMillis()) {

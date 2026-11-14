@@ -52,6 +52,7 @@ import org.crux.BuildConfig
 import org.crux.R
 import org.crux.update.AppReleaseInfo
 import org.crux.update.AppUpdateManager
+import org.crux.update.AppUpdateNotificationManager
 import org.crux.update.AppUpdatePrefs
 import org.crux.update.UpdateCheckResult
 import org.crux.update.shouldPromptRelease
@@ -195,17 +196,19 @@ internal fun AppUpdateBottomSheet(
                         Text(text = stringResource(R.string.settings_update_download_install))
                     }
                 }
-                if (onSkipVersion != null && !isDownloading) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        TextButton(onClick = onSkipVersion) {
-                            Text(text = stringResource(R.string.settings_update_skip_version))
-                        }
-                        TextButton(onClick = onDismissRequest) {
-                            Text(text = stringResource(R.string.settings_update_later))
-                        }
+            }
+
+            if (onSkipVersion != null && !isDownloading) {
+                Spacer(Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    TextButton(onClick = onSkipVersion) {
+                        Text(text = stringResource(R.string.settings_update_skip_version))
+                    }
+                    TextButton(onClick = onDismissRequest) {
+                        Text(text = stringResource(R.string.settings_update_later))
                     }
                 }
             }
@@ -222,6 +225,13 @@ internal fun AutoAppUpdatePrompt() {
     var updateInfo by remember { mutableStateOf<AppReleaseInfo?>(null) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
+    LaunchedEffect(Unit) {
+        AppUpdateManager.pendingPromptUpdate?.let { pending ->
+            updateInfo = pending
+            AppUpdateManager.pendingPromptUpdate = null
+        }
+    }
+
     LaunchedEffect(autoCheckEnabled) {
         if (!autoCheckEnabled) return@LaunchedEffect
         delay(1500L)
@@ -232,6 +242,7 @@ internal fun AutoAppUpdatePrompt() {
                 prefs.recordCheckCompleted()
                 if (shouldPromptRelease(result.info.tagName, prefs.skippedTag(), BuildConfig.VERSION_NAME)) {
                     updateInfo = result.info
+                    AppUpdateNotificationManager.showUpdateNotification(context, result.info)
                 }
             }
 
@@ -243,9 +254,13 @@ internal fun AutoAppUpdatePrompt() {
         AppUpdateBottomSheet(
             sheetState = sheetState,
             updateInfo = current,
-            onDismissRequest = { updateInfo = null },
+            onDismissRequest = {
+                AppUpdateNotificationManager.cancelUpdateNotification(context)
+                updateInfo = null
+            },
             onSkipVersion = {
                 prefs.skipVersion(current.tagName)
+                AppUpdateNotificationManager.cancelUpdateNotification(context)
                 updateInfo = null
             },
         )

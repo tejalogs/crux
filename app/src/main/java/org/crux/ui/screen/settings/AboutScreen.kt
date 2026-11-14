@@ -62,6 +62,7 @@ import org.crux.ui.component.listCard
 import org.crux.ui.theme.segmentedShapes2
 import org.crux.update.AppReleaseInfo
 import org.crux.update.AppUpdateManager
+import org.crux.update.AppUpdateNotificationManager
 import org.crux.update.AppUpdatePrefs
 import org.crux.update.UpdateCheckResult
 
@@ -171,6 +172,7 @@ internal fun AboutScreen(
                                                     result.info.tagName,
                                                 )
                                             updateInfo = result.info
+                                            AppUpdateNotificationManager.showUpdateNotification(context, result.info)
                                         }
 
                                         is UpdateCheckResult.Error -> {
@@ -194,6 +196,33 @@ internal fun AboutScreen(
                             )
                         },
                         onClick = { updatePrefs.setAutoCheckEnabled(!autoCheckUpdates) },
+                    ),
+                    *(
+                        if (BuildConfig.DEBUG) {
+                            arrayOf(
+                                AboutRow(
+                                    icon = FontAwesomeIcons.Solid.RotateRight,
+                                    title = R.string.settings_test_update_prompt,
+                                    supporting = stringResource(R.string.settings_test_update_prompt_desc),
+                                    onClick = {
+                                        val mockInfo =
+                                            AppReleaseInfo(
+                                                tagName = "v9.9.9",
+                                                versionName = "9.9.9",
+                                                title = "Crux 9.9.9 (Preview Test)",
+                                                changelog = "• Sample release notes for update preview\n• Native social feed performance polish\n• Instant gesture responsiveness",
+                                                releaseUrl = CruxLinks.RELEASES,
+                                                apkUrl = null,
+                                                apkSizeBytes = 0L,
+                                            )
+                                        updateInfo = mockInfo
+                                        AppUpdateNotificationManager.showUpdateNotification(context, mockInfo)
+                                    },
+                                ),
+                            )
+                        } else {
+                            emptyArray()
+                        }
                     ),
                     AboutRow(
                         icon = FontAwesomeIcons.Brands.Github,

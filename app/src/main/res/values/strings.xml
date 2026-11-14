@@ -948,6 +948,10 @@
     <string name="settings_update_downloading">Downloading update (%1$d%%)…</string>
     <string name="settings_update_failed">Failed to check for updates</string>
     <string name="settings_update_install_permission_needed">Permission required to install updates. Please enable \'Install unknown apps\' for Crux.</string>
+    <string name="settings_updates_channel_name">App Updates</string>
+    <string name="settings_updates_channel_desc">Notifications when new Crux updates are available</string>
+    <string name="settings_test_update_prompt">Simulate Update (Preview)</string>
+    <string name="settings_test_update_prompt_desc">Preview update notification and bottom sheet dialog</string>
     <string name="settings_licenses_intro">Crux includes the %1$d libraries below. Each is used under its own license. Tap one to open its project page.</string>
     <string name="settings_licenses_unavailable">The library list is not available in this build.</string>
     <string name="settings_licenses_not_declared">No license declared</string>

@@ -10,6 +10,8 @@ class ImmersivePathTest {
         assertTrue(isImmersivePath("https://www.instagram.com/reels/C1abc/"))
         assertTrue(isImmersivePath("https://www.instagram.com/reel/C1abc/?igsh=x"))
         assertTrue(isImmersivePath("https://www.instagram.com/stories/someone/123/"))
+        assertTrue(isImmersivePath("https://www.instagram.com/direct/t/12345/"))
+        assertTrue(isImmersivePath("https://www.youtube.com/shorts/abc123xyz"))
     }
 
     @Test

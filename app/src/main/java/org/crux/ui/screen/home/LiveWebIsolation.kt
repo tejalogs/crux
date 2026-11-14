@@ -224,7 +224,9 @@ internal fun cleanOutgoingLink(url: String): String {
     val target =
         when {
             uri.host == "l.instagram.com" -> queryParam(uri.rawQuery, "u")
-            uri.host?.endsWith("linkedin.com") == true && uri.path.startsWith("/safety/go") -> queryParam(uri.rawQuery, "url")
+            uri.host == "out.reddit.com" -> queryParam(uri.rawQuery, "url")
+            uri.host == "l.facebook.com" || uri.host == "lm.facebook.com" -> queryParam(uri.rawQuery, "u")
+            uri.host?.endsWith("linkedin.com") == true && uri.path?.startsWith("/safety/go") == true -> queryParam(uri.rawQuery, "url")
             else -> null
         }
     if (target != null) return cleanOutgoingLink(target)

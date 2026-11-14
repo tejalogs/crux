@@ -126,6 +126,7 @@ internal enum class LiveWebSite(
         defaultProtection = ProtectionLevel.Standard,
         cookieDomains = setOf("linkedin.com"),
         sessionCookies = setOf("li_at"),
+        pullToRefresh = true,
     ),
     X(
         homeUrl = "https://x.com/home",
@@ -136,6 +137,7 @@ internal enum class LiveWebSite(
         defaultProtection = ProtectionLevel.Standard,
         cookieDomains = setOf("x.com", "twitter.com"),
         sessionCookies = setOf("auth_token", "twid", "ct0"),
+        pullToRefresh = true,
     ),
     Reddit(
         // Newest first, not Reddit's ranked "Best".

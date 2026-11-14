@@ -257,6 +257,8 @@ internal class LiveWebPage(
             // Without these WebView ignores the page's mobile viewport, and wide layouts get cropped.
             settings.useWideViewPort = true
             settings.loadWithOverviewMode = true
+            settings.displayZoomControls = false
+            settings.builtInZoomControls = false
             settings.setSupportMultipleWindows(true)
             settings.javaScriptCanOpenWindowsAutomatically = true
             settings.mediaPlaybackRequiresUserGesture = config.blockAutoplay
@@ -612,12 +614,13 @@ private class HorizontalFriendlySwipeRefreshLayout(
 ) : SwipeRefreshLayout(context) {
     private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
     private var startX = 0f
+    private var startY = 0f
     private var isDisallowed = false
 
     override fun canChildScrollUp(): Boolean {
         val child = getChildAt(0) as? WebView ?: return super.canChildScrollUp()
-        // Full-screen viewers scroll inside the page, so the WebView always reports the top and a
-        // swipe back to the previous Reel would trigger a reload instead.
+        // Full-screen viewers and chat threads scroll inside the page, so the WebView always reports
+        // the top and a swipe down should never trigger an accidental reload.
         return isImmersivePath(child.url) || child.canScrollVertically(-1)
     }
 
@@ -625,12 +628,14 @@ private class HorizontalFriendlySwipeRefreshLayout(
         when (ev.action) {
             MotionEvent.ACTION_DOWN -> {
                 startX = ev.x
+                startY = ev.y
                 isDisallowed = false
             }
 
             MotionEvent.ACTION_MOVE -> {
                 val dx = abs(ev.x - startX)
-                if (dx > touchSlop) {
+                val dy = abs(ev.y - startY)
+                if (dx > touchSlop && dx > dy) {
                     isDisallowed = true
                 }
             }
@@ -954,9 +959,9 @@ private fun inferWebImageFileName(imageUrl: String): String {
 
 private val DIAL_AND_MAIL_SCHEMES = setOf("mailto", "tel", "sms")
 
-private val IMMERSIVE_PATH = Regex("^/(reels?|stories)/")
+private val IMMERSIVE_PATH = Regex("^/(reels?|stories|direct|shorts)/", RegexOption.IGNORE_CASE)
 
-/** True for full-screen video pages (Instagram Reels and Stories) where pull-to-refresh must stay off. */
+/** True for full-screen video and message pages where pull-to-refresh must stay off. */
 internal fun isImmersivePath(url: String?): Boolean {
     val path = url?.let { runCatching { java.net.URI(it).path }.getOrNull() } ?: return false
     return IMMERSIVE_PATH.containsMatchIn(path)

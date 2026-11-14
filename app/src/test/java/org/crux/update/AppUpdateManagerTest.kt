@@ -78,4 +78,22 @@ class AppUpdateManagerTest {
         assertFalse(AppUpdateManager.isTrustedDownloadUrl("not a url"))
         assertFalse(AppUpdateManager.isTrustedDownloadUrl(null))
     }
+
+    @Test
+    fun pendingPromptUpdate_storesAndClearsState() {
+        val info =
+            AppReleaseInfo(
+                tagName = "v1.0.3",
+                versionName = "1.0.3",
+                title = "Release 1.0.3",
+                changelog = "Changes",
+                releaseUrl = "https://github.com/tejalogs/crux/releases/tag/v1.0.3",
+                apkUrl = null,
+                apkSizeBytes = 0L,
+            )
+        AppUpdateManager.pendingPromptUpdate = info
+        org.junit.Assert.assertEquals("v1.0.3", AppUpdateManager.pendingPromptUpdate?.tagName)
+        AppUpdateManager.pendingPromptUpdate = null
+        org.junit.Assert.assertNull(AppUpdateManager.pendingPromptUpdate)
+    }
 }

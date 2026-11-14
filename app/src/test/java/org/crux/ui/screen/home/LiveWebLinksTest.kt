@@ -98,6 +98,37 @@ class LiveWebLinksTest {
     }
 
     @Test
+    fun readerEligibleUrlsExcludeBioLinksAndStorefronts() {
+        assertEquals(false, isReaderEligibleUrl("https://linktr.ee/creator"))
+        assertEquals(false, isReaderEligibleUrl("https://beacons.ai/musician"))
+        assertEquals(false, isReaderEligibleUrl("https://bento.me/designer"))
+        assertEquals(false, isReaderEligibleUrl("https://mybrand.carrd.co"))
+        assertEquals(false, isReaderEligibleUrl("https://stan.store/creator"))
+        assertEquals(false, isReaderEligibleUrl("https://bio.link/creator"))
+        assertEquals(false, isReaderEligibleUrl("https://open.spotify.com/album/12345"))
+        assertEquals(false, isReaderEligibleUrl("https://mybrand.com/"))
+        assertEquals(false, isReaderEligibleUrl("https://mybrand.com/shop"))
+        assertEquals(false, isReaderEligibleUrl("https://mybrand.com/about"))
+        assertEquals(false, isReaderEligibleUrl("https://mybrand.com/profile"))
+        assertEquals(false, isReaderEligibleUrl("https://mybrand.com/johndoe"))
+        assertEquals(false, isReaderEligibleUrl("https://github.com/torvalds/linux"))
+        assertEquals(true, isReaderEligibleUrl("https://theverge.com/2026/11/12/iphone-review.html"))
+        assertEquals(true, isReaderEligibleUrl("https://medium.com/@author/how-to-build-great-apps-12345"))
+    }
+
+    @Test
+    fun unwrapsRedditAndFacebookRedirects() {
+        assertEquals(
+            "https://example.com/post",
+            cleanOutgoingLink("https://out.reddit.com/?url=https%3A%2F%2Fexample.com%2Fpost"),
+        )
+        assertEquals(
+            "https://example.com/article",
+            cleanOutgoingLink("https://l.facebook.com/?u=https%3A%2F%2Fexample.com%2Farticle"),
+        )
+    }
+
+    @Test
     fun sessionStateAcceptsOnlySameSiteHttpsUrls() {
         assertEquals(true, LiveWebSessionState.isRestorableUrl(LiveWebSite.X, "https://x.com/home"))
         assertEquals(true, LiveWebSessionState.isRestorableUrl(LiveWebSite.Reddit, "https://www.reddit.com/r/Kotlin/"))

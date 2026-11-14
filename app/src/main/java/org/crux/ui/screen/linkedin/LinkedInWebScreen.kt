@@ -2,6 +2,7 @@ package org.crux.ui.screen.linkedin
 
 import android.content.Intent
 import android.net.Uri
+import android.view.View
 import android.view.ViewGroup.LayoutParams
 import android.webkit.GeolocationPermissions
 import android.webkit.PermissionRequest
@@ -95,9 +96,14 @@ import org.crux.ui.component.CruxDropdownMenu
 import org.crux.ui.component.CruxScaffold
 import org.crux.ui.component.CruxTopAppBar
 import org.crux.ui.component.FAIcon
+import androidx.webkit.WebSettingsCompat
+import androidx.webkit.WebViewCompat
+import androidx.webkit.WebViewFeature
+import org.crux.ui.screen.home.LiveWebPrivacyStore
 import org.crux.ui.screen.home.LiveWebSite
 import org.crux.ui.screen.home.WebSessionLifecycleSuspender
 import org.crux.ui.screen.home.clearSession
+import org.crux.ui.screen.home.cleanOutgoingLink
 import org.crux.ui.screen.home.cookieManager
 import org.crux.ui.screen.home.openInSystemBrowser
 import org.crux.ui.screen.home.openLinkOutsideWebView
@@ -328,7 +334,12 @@ internal fun LinkedInWebScreen(
                 modifier = Modifier.fillMaxSize(),
                 onCreated = { webView ->
                     webView.useProfileOf(LiveWebSite.LinkedIn)
+                    webView.isNestedScrollingEnabled = false
+                    webView.overScrollMode = View.OVER_SCROLL_NEVER
+                    webView.isVerticalScrollBarEnabled = false
+                    webView.isHorizontalScrollBarEnabled = false
                     webViewRef.value = webView
+                    @Suppress("DEPRECATION")
                     webView.settings.apply {
                         javaScriptEnabled = true
                         domStorageEnabled = true
@@ -337,7 +348,7 @@ internal fun LinkedInWebScreen(
                         mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
                         allowFileAccess = false
                         allowContentAccess = true
-                        builtInZoomControls = true
+                        builtInZoomControls = false
                         displayZoomControls = false
                         loadWithOverviewMode = true
                         useWideViewPort = true
@@ -347,6 +358,20 @@ internal fun LinkedInWebScreen(
                     cookieManager.setAcceptCookie(true)
                     cookieManager.setAcceptThirdPartyCookies(webView, false)
 
+                    val privacyStore = LiveWebPrivacyStore.get(webView.context)
+                    val config = privacyStore.configFor(LiveWebSite.LinkedIn)
+                    if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
+                        config.documentStartScripts(LiveWebSite.LinkedIn).forEach { script ->
+                            WebViewCompat.addDocumentStartJavaScript(webView, script, setOf("*"))
+                        }
+                    }
+                    if (WebViewFeature.isFeatureSupported(WebViewFeature.REQUESTED_WITH_HEADER_ALLOW_LIST)) {
+                        WebSettingsCompat.setRequestedWithHeaderOriginAllowList(webView.settings, emptySet())
+                    }
+                    if (WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING)) {
+                        WebSettingsCompat.setAlgorithmicDarkeningAllowed(webView.settings, true)
+                    }
+
                     webView.webViewClient =
                         object : WebViewClient() {
                             override fun shouldOverrideUrlLoading(
@@ -354,11 +379,15 @@ internal fun LinkedInWebScreen(
                                 request: WebResourceRequest?,
                             ): Boolean {
                                 val uri = request?.url ?: return false
+                                val rawUrl = uri.toString()
+                                val cleaned = cleanOutgoingLink(rawUrl)
+                                val isRedirect = cleaned.substringBefore("?") != rawUrl.substringBefore("?")
                                 val host = uri.host
-                                if (isLinkedInHost(host)) {
+                                if (isLinkedInHost(host) && !isRedirect) {
                                     return false
                                 }
-                                openLinkOutsideWebView(view?.context ?: context, uri.toString(), clean = true)
+                                val target = if (isRedirect) cleaned else rawUrl
+                                openLinkOutsideWebView(view?.context ?: context, target, clean = true)
                                 return true
                             }
 
@@ -389,6 +418,11 @@ internal fun LinkedInWebScreen(
                             ) {
                                 super.onPageFinished(view, url)
                                 isPageLoading = false
+                                if (!WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
+                                    config.documentStartScripts(LiveWebSite.LinkedIn).forEach { script ->
+                                        view?.evaluateJavascript(script, null)
+                                    }
+                                }
                                 val committed = url ?: view?.url
                                 committedUrlHolder.url = committed
                                 committed?.let {

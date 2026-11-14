@@ -41,6 +41,9 @@ public sealed interface UpdateCheckResult {
 }
 
 public object AppUpdateManager {
+    @Volatile
+    public var pendingPromptUpdate: AppReleaseInfo? = null
+
     // GitHub serves release assets from github.com and redirects to one of these CDN hosts.
     private val TRUSTED_DOWNLOAD_HOSTS =
         setOf(
