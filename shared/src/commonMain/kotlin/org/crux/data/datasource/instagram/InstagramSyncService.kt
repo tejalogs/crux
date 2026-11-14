@@ -166,11 +166,6 @@ public class InstagramSyncService internal constructor(
     }
 
     public fun getLatestCachedItems(): List<InstagramMediaOrAd> {
-        if (!isLoaded) {
-            syncScope.launch {
-                ensureLoaded()
-            }
-        }
         return cachedItems.value
     }
 

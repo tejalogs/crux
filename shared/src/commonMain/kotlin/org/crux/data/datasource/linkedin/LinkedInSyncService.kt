@@ -172,11 +172,6 @@ public class LinkedInSyncService internal constructor(
     }
 
     public fun getLatestCachedUpdates(): List<LinkedInUpdate> {
-        if (!isLoaded) {
-            syncScope.launch {
-                ensureLoaded()
-            }
-        }
         return cachedUpdates.value
     }
 

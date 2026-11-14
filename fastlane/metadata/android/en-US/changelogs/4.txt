@@ -1,0 +1,6 @@
+Crux 1.0.3
+- Native app experience polish for Instagram, X, LinkedIn, and Reddit
+- Reader mode fix: excludes bio-link aggregators, social profiles, and root URLs
+- In-app update bottom sheet and status-bar notifications for new releases
+- Pull-to-refresh enabled on LinkedIn and X with dual-axis gesture arbitration
+- 0ms tap latency and prompt suppression across social tabs
