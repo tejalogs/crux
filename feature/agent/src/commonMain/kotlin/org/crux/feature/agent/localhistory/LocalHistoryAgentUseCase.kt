@@ -87,6 +87,7 @@ internal class LocalHistoryAgentUseCase(
                                     userInput = userInputValue,
                                 ),
                             systemPrompt = LOCAL_HISTORY_SYSTEM_PROMPT,
+                            rawUserInput = userInputValue,
                             agentId = "flare-local-history",
                             strategyName = "local_history_chat",
                             analyzeNodeName = "answer_local_history_request",

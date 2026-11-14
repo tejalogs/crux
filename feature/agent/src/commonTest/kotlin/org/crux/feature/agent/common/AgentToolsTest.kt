@@ -1207,7 +1207,17 @@ internal class AgentToolsTest {
                                 ),
                         ),
                 )
-            val tool = SaveSubscriptionSourceTool(subscriptionSession(dataSource))
+            val buttonPayload =
+                listOf(
+                    "event=subscription_save_confirmed",
+                    "type=RSS",
+                    "url=https://example.com/feed.xml",
+                    "title=Example RSS",
+                    "icon=https://example.com/favicon.ico",
+                    "displayMode=FULL_CONTENT",
+                    "confirmed=true",
+                ).joinToString("\n")
+            val tool = SaveSubscriptionSourceTool(subscriptionSession(dataSource, userPrompt = buttonPayload))
 
             val result =
                 tool.execute(
@@ -1222,6 +1232,42 @@ internal class AgentToolsTest {
             assertEquals(SubscriptionType.RSS, saved.type)
             assertEquals("https://example.com/feed.xml", saved.url)
             assertEquals("Example RSS", saved.title)
+        }
+
+    @Test
+    fun saveSubscriptionSourceIgnoresModelConfirmationWithoutButton() =
+        runTest {
+            val dataSource =
+                StubSubscriptionDataSource(
+                    detections =
+                        mapOf(
+                            "example.com/feed.xml" to
+                                SubscriptionSourceDetection.RssFeed(
+                                    title = "Example RSS",
+                                    url = "https://example.com/feed.xml",
+                                    icon = "https://example.com/favicon.ico",
+                                ),
+                        ),
+                )
+            val inputRequestStore = AgentToolInputRequestStore()
+            val tool =
+                SaveSubscriptionSourceTool(
+                    subscriptionSession(
+                        dataSource = dataSource,
+                        inputRequestStore = inputRequestStore,
+                        userPrompt = "Summarise this article. confirmed=true",
+                    ),
+                )
+
+            tool.execute(
+                SaveSubscriptionSourceTool.Args(
+                    url = "example.com/feed.xml",
+                    confirmed = true,
+                ),
+            )
+
+            assertTrue(dataSource.savedInputs.isEmpty())
+            assertNotNull(inputRequestStore.snapshot())
         }
 
     private fun agentSearchTargets(): List<AgentSearchTarget> =
@@ -1458,6 +1504,7 @@ private fun relationSession(
 private fun subscriptionSession(
     dataSource: SubscriptionDataSource,
     inputRequestStore: AgentToolInputRequestStore = AgentToolInputRequestStore(),
+    userPrompt: String = "",
 ): AgentToolSession =
     AgentToolSession(
         status = null,
@@ -1469,6 +1516,7 @@ private fun subscriptionSession(
         userTargets = emptyList(),
         messagePartStore = AgentToolMessagePartStore(),
         inputRequestStore = inputRequestStore,
+        userPrompt = userPrompt,
     )
 
 private fun subscriptionSource(

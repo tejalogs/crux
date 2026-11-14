@@ -40,7 +40,7 @@ internal class CruxAgentRunner(
         val runtime =
             runtimeProvider.createRuntime()
                 ?: throw CruxAgentUnavailableException(runtimeProvider.availability())
-        val toolSet = toolProvider.resolve(request.toolContext)
+        val toolSet = toolProvider.resolve(request.toolContext, userPrompt = request.rawUserInput)
         val resolvedRequest = request.withToolSet(toolSet)
         val agent = runtime.createAgent(resolvedRequest, onTrace)
         return try {
@@ -198,6 +198,8 @@ internal data class CruxAgentRequest(
     val maxIterations: Int = 16,
     val finishAfterToolResults: Boolean = false,
     val chatMemoryWindowSize: Int = 20,
+    // The user's own text for this turn, before prompt wrapping. Used to verify confirmations.
+    val rawUserInput: String = "",
     private val toolSet: AgentToolSet = AgentToolSet.Empty,
 ) {
     val toolRegistry: ToolRegistry = toolSet.toolRegistry

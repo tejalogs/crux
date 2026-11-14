@@ -56,7 +56,10 @@ internal class AgentToolProvider(
     private val localCacheRepository: LocalCacheRepository,
     private val platformRegistry: PlatformRegistry,
 ) {
-    fun resolve(context: AgentToolContext): AgentToolSet {
+    fun resolve(
+        context: AgentToolContext,
+        userPrompt: String = "",
+    ): AgentToolSet {
         val statusContext = context.status
         val microblogDataSource = statusContext?.postDataSource as? MicroblogDataSource
         val searchTargets =
@@ -131,6 +134,7 @@ internal class AgentToolProvider(
                 userTargets = userTargets,
                 messagePartStore = AgentToolMessagePartStore(),
                 inputRequestStore = AgentToolInputRequestStore(),
+                userPrompt = userPrompt,
             )
         return AgentToolSet(
             toolRegistry =
@@ -519,6 +523,10 @@ internal data class AgentToolSession(
     val subscriptionItemStore: AgentSubscriptionItemStore = AgentSubscriptionItemStore(),
     val localCacheRepository: LocalCacheRepository? = null,
     val platformRegistry: PlatformRegistry? = null,
+    // Raw text of the latest user turn. Side-effect tools compare it with the
+    // confirmation button payload so a model-supplied confirmed=true alone
+    // (for example from a prompt injected via an article) cannot act.
+    val userPrompt: String = "",
 ) {
     fun statusMicroblogDataSource(): MicroblogDataSource? = status?.postDataSource as? MicroblogDataSource
 

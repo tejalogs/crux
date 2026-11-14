@@ -55,6 +55,7 @@ internal class GenericChatAgentUseCase(
                     request =
                         CruxAgentRequest(
                             prompt = userInputValue.toGenericChatPrompt(),
+                            rawUserInput = userInputValue,
                             systemPrompt = GENERIC_CHAT_SYSTEM_PROMPT,
                             agentId = "flare-generic-chat",
                             strategyName = "generic_chat",
