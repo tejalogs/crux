@@ -398,7 +398,7 @@ internal val SiteTweak.rule: TweakRule
                         ),
                     promptLabels =
                         USE_APP_LABELS +
-                            listOf("Open in Reddit", "View in Reddit App", "Continue in Reddit App", "Use Reddit App", "View in app", "Join"),
+                            listOf("Open in Reddit", "View in Reddit App", "Continue in Reddit App", "Use Reddit App", "View in app"),
                     js = "if(document.body&&document.body.style.overflow==='hidden')document.body.style.overflow='';",
                 )
             }
@@ -488,6 +488,18 @@ private val ENGINE_JS =
       var rx=function(s){return s?new RegExp(s,'i'):null};
       var postLabels=rx(__POSTLABELS__),headingLabels=rx(__HEADINGLABELS__),tabLabels=rx(__TABLABELS__),prompts=rx(__PROMPTS__);
       var styleEl=null;
+      // Only Reddit renders with shadow DOM; walking every element elsewhere is wasted work.
+      var hasShadowDom=/(^|\.)reddit\.com$/.test(location.hostname);
+      // Full-screen video viewers (Reels, Stories, Shorts-style pages) have no feed posts to filter,
+      // and their DOM churns as each clip loads, so they only get the stylesheet and prompt checks.
+      var isImmersive=function(){return /^\/(reels?|stories)\//.test(location.pathname)};
+      var lastScroll=0;
+      var markScroll=function(){lastScroll=Date.now()};
+      try{
+        window.addEventListener('scroll',markScroll,{capture:true,passive:true});
+        window.addEventListener('touchmove',markScroll,{capture:true,passive:true});
+        window.addEventListener('wheel',markScroll,{capture:true,passive:true});
+      }catch(e){}
       var ensureStyle=function(){
         try{
           if(!css||(styleEl&&styleEl.isConnected))return;
@@ -530,8 +542,9 @@ private val ENGINE_JS =
       };
       var scan=function(){
         ensureStyle();
+        var immersive=isImmersive();
         try{
-          if(postLabels&&postSel){
+          if(postLabels&&postSel&&!immersive){
             document.querySelectorAll(postSel).forEach(function(p){
               if(p.getAttribute('data-cx-hidden'))return;
               var len=(p.textContent||'').length;
@@ -552,7 +565,7 @@ private val ENGINE_JS =
               }
             });
           }
-          if(headingLabels){
+          if(headingLabels&&!immersive){
             document.querySelectorAll('h1,h2,h3,h4,[role="heading"]').forEach(function(h){
               if(h.getAttribute('data-cx-hidden'))return;
               var txt=clean(h.textContent);
@@ -576,7 +589,7 @@ private val ENGINE_JS =
           }
           if(prompts){
             scanPromptsInRoot(document,null);
-            walkShadowRoots(document);
+            if(hasShadowDom)walkShadowRoots(document);
           }
         }catch(e){}
         try{
@@ -587,9 +600,13 @@ private val ENGINE_JS =
       setTimeout(scan,400);
       setTimeout(scan,1500);
       var timer=0;
+      // Scans wait until scrolling has paused, so they never compete with a fling or a Reel swipe.
+      var SCROLL_IDLE_MS=350;
       var schedule=function(){
         if(timer)return;
-        timer=setTimeout(function(){
+        timer=setTimeout(function run(){
+          var sinceScroll=Date.now()-lastScroll;
+          if(sinceScroll<SCROLL_IDLE_MS){timer=setTimeout(run,SCROLL_IDLE_MS-sinceScroll);return}
           timer=0;
           if(window.requestIdleCallback){
             requestIdleCallback(scan,{timeout:500});

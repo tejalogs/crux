@@ -25,7 +25,21 @@ private const val FREEZE_MEDIA_SCRIPT =
         try {
             document.querySelectorAll('video, audio').forEach(function(m) {
                 m.pause();
-                m.muted = true;
+                // Remember which elements we muted so resume only undoes our change,
+                // not a mute the user or the site chose.
+                if (!m.muted) { m.muted = true; m.setAttribute('data-crux-muted', '1'); }
+            });
+        } catch(e) {}
+    })();
+    """
+
+private const val RESTORE_MEDIA_SCRIPT =
+    """
+    (function() {
+        try {
+            document.querySelectorAll('[data-crux-muted]').forEach(function(m) {
+                m.muted = false;
+                m.removeAttribute('data-crux-muted');
             });
         } catch(e) {}
     })();
@@ -51,6 +65,7 @@ internal fun WebView.suspendWebSession() {
 internal fun WebView.resumeWebSession() {
     runCatching {
         onResume()
+        evaluateJavascript(RESTORE_MEDIA_SCRIPT, null)
     }
 }
 
@@ -200,7 +215,8 @@ private fun queryParam(
         ?.split("&")
         ?.firstOrNull { it.startsWith("$name=") }
         ?.substringAfter("=")
-        ?.let { URLDecoder.decode(it, "UTF-8") }
+        // A malformed escape such as %zz throws; fall back to leaving the link as it was.
+        ?.let { runCatching { URLDecoder.decode(it, "UTF-8") }.getOrNull() }
 
 /** Follows the site's click-tracking redirect to the real link, then drops tracking parameters. */
 internal fun cleanOutgoingLink(url: String): String {

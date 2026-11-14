@@ -13,6 +13,12 @@ class LiveWebLinksTest {
     }
 
     @Test
+    fun malformedRedirectDoesNotCrash() {
+        val link = "https://l.instagram.com/?u=https%3A%2F%2Fexample.com%zz"
+        assertEquals(link, cleanOutgoingLink(link))
+    }
+
+    @Test
     fun unwrapsLinkedInRedirect() {
         assertEquals(
             "https://example.com/a",

@@ -245,7 +245,8 @@ internal class LiveWebPage(
     val webView: WebView =
         WebView(context).apply {
             useProfileOf(site)
-            setLayerType(View.LAYER_TYPE_HARDWARE, null)
+            // No forced hardware layer: WebView already composites on the GPU, and an extra layer
+            // re-rasterises the whole page each frame, which made Reels and video scrolling stutter.
             isNestedScrollingEnabled = false
             overScrollMode = View.OVER_SCROLL_NEVER
             isVerticalScrollBarEnabled = false
@@ -324,6 +325,15 @@ internal class LiveWebPage(
                         if (url.scheme == "https" && site.allows(url.host) && !isRedirect) return false
                         if (url.scheme == "https" || url.scheme == "http") {
                             openOutside(view.context, url.toString())
+                        } else if (url.scheme?.lowercase() in DIAL_AND_MAIL_SCHEMES && request.hasGesture()) {
+                            // Only on a tap, so a page cannot pop the dialer or mail app by itself.
+                            // intent:, market: and other schemes stay blocked.
+                            runCatching {
+                                view.context.startActivity(
+                                    android.content.Intent(android.content.Intent.ACTION_VIEW, url)
+                                        .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
+                                )
+                            }
                         }
                         return true
                     }
@@ -605,8 +615,10 @@ private class HorizontalFriendlySwipeRefreshLayout(
     private var isDisallowed = false
 
     override fun canChildScrollUp(): Boolean {
-        val child = getChildAt(0) as? WebView
-        return child?.canScrollVertically(-1) ?: super.canChildScrollUp()
+        val child = getChildAt(0) as? WebView ?: return super.canChildScrollUp()
+        // Full-screen viewers scroll inside the page, so the WebView always reports the top and a
+        // swipe back to the previous Reel would trigger a reload instead.
+        return isImmersivePath(child.url) || child.canScrollVertically(-1)
     }
 
     override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
@@ -938,4 +950,14 @@ private fun inferWebImageFileName(imageUrl: String): String {
     val ext = formatExt ?: if (hasImageExt) null else "jpg"
     val base = sanitized?.takeIf { it.isNotBlank() } ?: "crux_web_${System.currentTimeMillis()}"
     return if (ext != null && !base.endsWith(".$ext", ignoreCase = true)) "$base.$ext" else base
+}
+
+private val DIAL_AND_MAIL_SCHEMES = setOf("mailto", "tel", "sms")
+
+private val IMMERSIVE_PATH = Regex("^/(reels?|stories)/")
+
+/** True for full-screen video pages (Instagram Reels and Stories) where pull-to-refresh must stay off. */
+internal fun isImmersivePath(url: String?): Boolean {
+    val path = url?.let { runCatching { java.net.URI(it).path }.getOrNull() } ?: return false
+    return IMMERSIVE_PATH.containsMatchIn(path)
 }
