@@ -1,0 +1,5 @@
+Crux 1.0.4
+- Fix X (Twitter) login: unhide bottom bar authentication buttons and protect auth/login sheets
+- Live update notifications: request POST_NOTIFICATIONS runtime permission on Android 13+
+- Test notification simulation available in About Settings
+- Direct unauthenticated X sessions to the login flow

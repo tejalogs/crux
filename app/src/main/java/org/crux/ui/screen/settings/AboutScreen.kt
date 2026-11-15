@@ -1,7 +1,14 @@
 package org.crux.ui.screen.settings
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
+import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -82,6 +89,12 @@ internal fun AboutScreen(
     var updateInfo by remember { mutableStateOf<AppReleaseInfo?>(null) }
     var updateStatusSupporting by remember { mutableStateOf<String?>(null) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val notificationPermissionLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            if (!granted) {
+                Toast.makeText(context, R.string.settings_notification_permission_needed, Toast.LENGTH_SHORT).show()
+            }
+        }
     CruxScaffold(
         topBar = {
             CruxLargeFlexibleTopAppBar(
@@ -192,37 +205,52 @@ internal fun AboutScreen(
                         trailing = {
                             Switch(
                                 checked = autoCheckUpdates,
-                                onCheckedChange = { updatePrefs.setAutoCheckEnabled(it) },
+                                onCheckedChange = { enabled ->
+                                    updatePrefs.setAutoCheckEnabled(enabled)
+                                    if (enabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                                        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+                                    ) {
+                                        notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                    }
+                                },
                             )
                         },
-                        onClick = { updatePrefs.setAutoCheckEnabled(!autoCheckUpdates) },
+                        onClick = {
+                            val next = !autoCheckUpdates
+                            updatePrefs.setAutoCheckEnabled(next)
+                            if (next && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+                            ) {
+                                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            }
+                        },
                     ),
-                    *(
-                        if (BuildConfig.DEBUG) {
-                            arrayOf(
-                                AboutRow(
-                                    icon = FontAwesomeIcons.Solid.RotateRight,
-                                    title = R.string.settings_test_update_prompt,
-                                    supporting = stringResource(R.string.settings_test_update_prompt_desc),
-                                    onClick = {
-                                        val mockInfo =
-                                            AppReleaseInfo(
-                                                tagName = "v9.9.9",
-                                                versionName = "9.9.9",
-                                                title = "Crux 9.9.9 (Preview Test)",
-                                                changelog = "• Sample release notes for update preview\n• Native social feed performance polish\n• Instant gesture responsiveness",
-                                                releaseUrl = CruxLinks.RELEASES,
-                                                apkUrl = null,
-                                                apkSizeBytes = 0L,
-                                            )
-                                        updateInfo = mockInfo
-                                        AppUpdateNotificationManager.showUpdateNotification(context, mockInfo)
-                                    },
-                                ),
-                            )
-                        } else {
-                            emptyArray()
-                        }
+                    AboutRow(
+                        icon = FontAwesomeIcons.Solid.RotateRight,
+                        title = R.string.settings_test_update_prompt,
+                        supporting = stringResource(R.string.settings_test_update_prompt_desc),
+                        onClick = {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+                            ) {
+                                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            }
+                            val mockInfo =
+                                AppReleaseInfo(
+                                    tagName = "v9.9.9",
+                                    versionName = "9.9.9",
+                                    title = "Crux 9.9.9 (Preview Test)",
+                                    changelog = "• Sample release notes for update preview\n• Native social feed performance polish\n• Instant gesture responsiveness",
+                                    releaseUrl = CruxLinks.RELEASES,
+                                    apkUrl = null,
+                                    apkSizeBytes = 0L,
+                                )
+                            updateInfo = mockInfo
+                            val posted = AppUpdateNotificationManager.showUpdateNotification(context, mockInfo)
+                            if (!posted && !NotificationManagerCompat.from(context).areNotificationsEnabled()) {
+                                Toast.makeText(context, R.string.settings_notification_permission_needed, Toast.LENGTH_SHORT).show()
+                            }
+                        },
                     ),
                     AboutRow(
                         icon = FontAwesomeIcons.Brands.Github,

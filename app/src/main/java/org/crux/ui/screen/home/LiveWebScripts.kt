@@ -291,13 +291,12 @@ internal val SiteTweak.rule: TweakRule
                     css =
                         listOf(
                             "div[data-testid=\"inline_prompt\"]",
-                            "div:has(> a[href*=\"app.link\"])",
-                            "div:has(> a[href*=\"play.google.com\"])",
-                            "div[data-testid=\"BottomBar\"]",
-                            "div[data-testid=\"sheetDialog\"]:has(a[href*=\"play.google.com\"])",
-                            "div[data-testid=\"sheetDialog\"]:has(a[href*=\"apps.apple.com\"])",
+                            "div:not(:has(input)):not(:has(form)):has(> a[href*=\"app.link\"])",
+                            "div:not(:has(input)):not(:has(form)):has(> a[href*=\"play.google.com\"])",
+                            "div[data-testid=\"sheetDialog\"]:not(:has(input)):not(:has(form)):has(a[href*=\"play.google.com\"])",
+                            "div[data-testid=\"sheetDialog\"]:not(:has(input)):not(:has(form)):has(a[href*=\"apps.apple.com\"])",
                         ),
-                    promptLabels = USE_APP_LABELS + listOf("Download app", "Switch to the app", "Don't miss what's happening"),
+                    promptLabels = USE_APP_LABELS + listOf("Download app", "Switch to the app"),
                 )
             }
 
@@ -554,7 +553,11 @@ private val ENGINE_JS =
           if(!prompts.test(clean(b.textContent)))return;
           b.setAttribute('data-cx-hidden','1');
           var d=b.closest('[role=dialog]');
-          if(d){hide(d);if(document.body)document.body.style.overflow=''}
+          if(d){
+            if(d.querySelector('input,form,textarea,[data-testid*="login"],[data-testid*="Login"],[data-testid*="auth"]'))return;
+            hide(d);
+            if(document.body)document.body.style.overflow='';
+          }
           else if(host&&bar(b)===b.getRootNode().firstElementChild){hide(host)}
           else{hide(bar(b))}
         });
@@ -601,7 +604,10 @@ private val ENGINE_JS =
               var txt=clean(h.textContent);
               if(txt&&txt.length<=40&&headingLabels.test(txt)){
                 var m=h.closest(moduleSel);
-                if(m){hide(m);m.setAttribute('data-cx-hidden','1')}
+                if(m&&!m.querySelector('input,form,[data-testid*="login"],[data-testid*="Login"]')){
+                  hide(m);
+                  m.setAttribute('data-cx-hidden','1');
+                }
                 h.setAttribute('data-cx-hidden','1');
               }
             });

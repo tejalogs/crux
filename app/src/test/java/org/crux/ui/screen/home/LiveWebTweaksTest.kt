@@ -99,6 +99,8 @@ class LiveWebTweaksTest {
         assertTrue(all.contains("Grok"))
         assertTrue(all.contains("premium_sign_up"))
         assertFalse("For you tab is off by default", all.contains("For you"))
+        assertFalse("BottomBar must not be hidden so X login works", all.contains("data-testid=\\\"BottomBar\\\""))
+        assertFalse("Don't miss what's happening must not be in prompts to avoid hiding login bar", all.contains("Don['’]t miss what['’]s happening"))
 
         val withForYou = script(LiveWebSite.X, SiteWebSettings.defaultsFor(LiveWebSite.X).tweaks + SiteTweak.XHideForYou)
         assertTrue(withForYou.contains("For you"))

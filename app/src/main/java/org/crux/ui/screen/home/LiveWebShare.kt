@@ -30,6 +30,7 @@ import org.crux.R
 import org.crux.ui.component.BackButton
 import org.crux.ui.component.CruxScaffold
 import org.crux.ui.component.CruxTopAppBar
+import org.crux.ui.screen.crux.hasSession
 import org.crux.ui.screen.crux.CruxPlatform
 import java.net.URLEncoder
 
@@ -195,7 +196,7 @@ internal fun LiveWebScreen(
             )
         },
     ) { contentPadding ->
-        val startUrl = initialUrl ?: site.homeUrl
+        val startUrl = initialUrl ?: if (site == LiveWebSite.X && !site.hasSession()) "https://x.com/i/flow/login" else site.homeUrl
         key(site, startUrl) {
             val page = remember { LiveWebPage(site, context, startUrl = startUrl) }
             BindFileChooser(page)

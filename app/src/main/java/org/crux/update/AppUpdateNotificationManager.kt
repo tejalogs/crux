@@ -31,12 +31,12 @@ public object AppUpdateNotificationManager {
     public fun showUpdateNotification(
         context: Context,
         info: AppReleaseInfo,
-    ) {
+    ): Boolean {
         AppUpdateManager.pendingPromptUpdate = info
         ensureNotificationChannel(context)
 
         val notificationManager = NotificationManagerCompat.from(context)
-        if (!notificationManager.areNotificationsEnabled()) return
+        if (!notificationManager.areNotificationsEnabled()) return false
 
         val launchIntent =
             Intent(context, MainActivity::class.java).apply {
@@ -64,10 +64,12 @@ public object AppUpdateNotificationManager {
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true)
 
-        try {
+        return try {
             notificationManager.notify(NOTIFICATION_ID, builder.build())
+            true
         } catch (_: SecurityException) {
             // Permission not granted or revoked at runtime
+            false
         }
     }
 

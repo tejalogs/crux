@@ -952,6 +952,7 @@
     <string name="settings_updates_channel_desc">Notifications when new Crux updates are available</string>
     <string name="settings_test_update_prompt">Simulate Update (Preview)</string>
     <string name="settings_test_update_prompt_desc">Preview update notification and bottom sheet dialog</string>
+    <string name="settings_notification_permission_needed">Notification permission is required to receive update alerts.</string>
     <string name="settings_licenses_intro">Crux includes the %1$d libraries below. Each is used under its own license. Tap one to open its project page.</string>
     <string name="settings_licenses_unavailable">The library list is not available in this build.</string>
     <string name="settings_licenses_not_declared">No license declared</string>

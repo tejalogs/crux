@@ -1,7 +1,12 @@
 package org.crux.ui.screen.settings
 
+import android.Manifest
 import android.app.Activity
+import android.content.pm.PackageManager
+import android.os.Build
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -43,6 +48,7 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import compose.icons.FontAwesomeIcons
 import compose.icons.fontawesomeicons.Solid
 import compose.icons.fontawesomeicons.solid.Download
@@ -225,6 +231,9 @@ internal fun AutoAppUpdatePrompt() {
     var updateInfo by remember { mutableStateOf<AppReleaseInfo?>(null) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
+    val notificationLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { _ -> }
+
     LaunchedEffect(Unit) {
         AppUpdateManager.pendingPromptUpdate?.let { pending ->
             updateInfo = pending
@@ -234,6 +243,11 @@ internal fun AutoAppUpdatePrompt() {
 
     LaunchedEffect(autoCheckEnabled) {
         if (!autoCheckEnabled) return@LaunchedEffect
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
         delay(1500L)
         if (!prefs.tryStartSessionCheck()) return@LaunchedEffect
         when (val result = AppUpdateManager.checkForUpdates(BuildConfig.VERSION_NAME)) {
