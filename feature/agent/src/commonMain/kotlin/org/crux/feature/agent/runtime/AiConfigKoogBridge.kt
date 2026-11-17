@@ -7,6 +7,7 @@ import ai.koog.prompt.executor.llms.MultiLLMPromptExecutor
 import ai.koog.prompt.llm.LLMCapability
 import ai.koog.prompt.llm.LLMProvider
 import ai.koog.prompt.llm.LLModel
+import org.crux.common.OnDeviceAI
 import org.crux.data.datastore.model.AppSettings
 
 internal class AiConfigKoogBridge {
@@ -40,6 +41,7 @@ internal class AiConfigKoogBridge {
     fun createRuntime(
         aiConfig: AppSettings.AiConfig,
         httpClientFactory: KoogHttpClient.Factory,
+        onDeviceAI: OnDeviceAI? = null,
     ): CruxAgentRuntime? {
         if (availability(aiConfig) != AgentAvailability.Available) {
             return null
@@ -62,12 +64,22 @@ internal class AiConfigKoogBridge {
                             ),
                         contextLength = type.contextLength,
                     )
+                val delegate =
+                    OnDevicePromptExecutor(
+                        config = type,
+                        httpClientFactory = httpClientFactory,
+                    )
                 CruxAgentRuntime(
                     promptExecutor =
-                        OnDevicePromptExecutor(
-                            config = type,
-                            httpClientFactory = httpClientFactory,
-                        ),
+                        if (onDeviceAI != null) {
+                            LocalModelPromptExecutor(
+                                config = type,
+                                delegate = delegate,
+                                onDeviceAI = onDeviceAI,
+                            )
+                        } else {
+                            delegate
+                        },
                     model = model,
                     aiConfig = aiConfig,
                 )

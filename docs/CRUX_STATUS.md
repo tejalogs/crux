@@ -1,11 +1,11 @@
-# Crux status — 12 Nov 2026
+# Crux status — 17 Nov 2026
 
 **Repository:** `https://github.com/tejalogs/crux` (`main` branch, AGPL-3.0)
 **Website:** `https://tejalogs.github.io/crux/`
-**Latest Release:** `v1.0.4` (`versionCode=5`, signed `app-release.apk` attached)
+**Latest Release:** `v1.0.5` (`versionCode=6`, signed `app-release.apk` attached)
 
 ## Distribution & In-App Updates
-- **GitHub Releases (Primary)**: Signed release APKs are hosted directly on GitHub Releases (`v1.0.0`, `v1.0.1`, `v1.0.2`, `v1.0.3`, `v1.0.4`). F-Droid inclusion MR #56349 was closed by maintainers because the main F-Droid catalog requires 3+ months of public repository history; GitHub Releases + GitHub Pages remain the official distribution channels.
+- **GitHub Releases (Primary)**: Signed release APKs are hosted directly on GitHub Releases (`v1.0.0`, `v1.0.1`, `v1.0.2`, `v1.0.3`, `v1.0.4`, `v1.0.5`). F-Droid inclusion MR #56349 was closed by maintainers because the main F-Droid catalog requires 3+ months of public repository history; GitHub Releases + GitHub Pages remain the official distribution channels.
 - **In-App OTA Updater**: `AppUpdateManager` checks `/repos/tejalogs/crux/releases/latest` from *Settings → About → Check for updates*, streams APK downloads with progress reporting, and installs via `FileProvider` (`REQUEST_INSTALL_PACKAGES`).
 
 ## What Crux is now
@@ -23,7 +23,8 @@ Android only. Platforms: **Instagram, X, LinkedIn, Reddit** (live web tabs, each
 - **Privacy & Tweaks** (Settings, and side panel): per site Standard/Strict protection (Standard = hide-only, default for IG/X/LinkedIn; Strict = also blocks trackers, default for Reddit), focus toggles (Reels/Explore, Who to follow/trends, promoted, app nags), block autoplay, clear one site's data, screenshot protection, Global Privacy Control, link cleaning, and an optional In-App Hardened Browser screen under *Settings → Browser and links*.
 - **Links:** every link opens in your default browser (tracking removed first), except Instagram/X/LinkedIn/Reddit links, which open in their Crux tab.
 - **Share / quick tile / shortcut** open the Crux compose sheet (text + link). Web composer URLs cannot accept local `content://` image/video files directly, so media attachments use each WebView composer's file picker (`onShowFileChooser`).
-- **RSS:** lenient feed parsing, US time-zone dates, `<br>`/numbered lists/relative images in articles, defaults seeded once, no duplicate feeds, sturdier OPML import, reader remembers position as a fraction, bookmark waits for the article.
+- **RSS:** lenient feed parsing, US time-zone dates, `<br>`/numbered lists/relative images in articles, defaults seeded once, no duplicate feeds, sturdier OPML import, reader remembers position as a fraction, bookmark waits for the article, and RSS articles can be saved to custom Universal Bookmark Folders.
+- **v1.0.5 WebView, Bookmarks & On-Device AI:** Universal Bookmark Folders across all social tabs and RSS (custom icons, colors, notes, inline folder editing); removed local browsing history; onboarding auto-return after login + starter RSS seeding on quick skip; RSS-first default bottom dock order; external links default to system browser; Instagram blank-scroll fix; LinkedIn dark-mode image polarity fix, bottom dock clearance, and `/redir/` navigation; Reddit scroll unlock, inline/fullscreen video playback, and NSFW unblurring; LiteRT-LM on-device AI model management & local prompt execution.
 
 ## Remaining Backlog
 - Some internal `R.string.*` / `Res.string.*` resource identifier names (`pixiv_*`, `fanbox_*`, `mastodon_*`) remain in `EditTabDialog`, `TabIcon`, and `CommonStatusComponent` (English & localized user-facing copy has already been cleaned of Mastodon/Flare/Prism references).

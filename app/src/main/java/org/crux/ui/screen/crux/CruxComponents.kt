@@ -126,13 +126,15 @@ internal fun CruxPlatformList(
 ) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         CruxPlatform.entries.forEach { platform ->
+            val signedIn = connections.isSignedIn(platform)
             CruxPlatformRow(
                 platform = platform,
                 connections = connections,
                 onAdd = {
                     connections.setEnabled(platform, true)
-                    if (!platform.worksSignedOut) navigate(platform.route)
+                    if (!platform.worksSignedOut && !signedIn) navigate(platform.signInRoute)
                 },
+                onSignIn = { navigate(platform.signInRoute) },
                 onOpen = { navigate(platform.route) },
             )
         }
@@ -144,13 +146,19 @@ private fun CruxPlatformRow(
     platform: CruxPlatform,
     connections: CruxConnectionsState,
     onAdd: () -> Unit,
+    onSignIn: () -> Unit,
     onOpen: () -> Unit,
 ) {
     val enabled = connections.isEnabled(platform)
     val signedIn = connections.isSignedIn(platform)
     var showMenu by remember { mutableStateOf(false) }
     Surface(
-        onClick = if (enabled) onOpen else onAdd,
+        onClick =
+            when {
+                !enabled -> onAdd
+                platform.site != null && !signedIn -> onSignIn
+                else -> onOpen
+            },
         shape = RoundedCornerShape(20.dp),
         color = if (enabled) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surfaceContainerLow,
         modifier = Modifier.fillMaxWidth(),
@@ -187,7 +195,7 @@ private fun CruxPlatformRow(
 
                 platform.site != null && !signedIn -> {
                     OutlinedButton(
-                        onClick = onOpen,
+                        onClick = onSignIn,
                     ) { Text(stringResource(R.string.crux_action_sign_in)) }
                 }
 

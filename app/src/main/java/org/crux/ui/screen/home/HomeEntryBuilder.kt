@@ -41,6 +41,9 @@ internal fun EntryProviderScope<NavKey>.homeEntryBuilder(
                 navigate(Route.TabSettings)
             },
             uriHandler = uriHandler,
+            toReadingList = {
+                navigate(Route.ReadingList)
+            },
         )
     }
     entry<Route.Timeline> { args ->
@@ -122,6 +125,7 @@ internal fun EntryProviderScope<NavKey>.homeEntryBuilder(
         InstagramWebScreen(
             onBack = onBack,
             initialUrl = args.initialUrl,
+            forSignIn = args.forSignIn,
             onNavigateToRss = { rssUrl ->
                 navigate(Route.Rss.Create(initialUrl = rssUrl))
             },
@@ -134,6 +138,7 @@ internal fun EntryProviderScope<NavKey>.homeEntryBuilder(
         LinkedInWebScreen(
             onBack = onBack,
             initialUrl = args.initialUrl,
+            forSignIn = args.forSignIn,
         )
     }
 
@@ -144,6 +149,7 @@ internal fun EntryProviderScope<NavKey>.homeEntryBuilder(
             siteName = args.site,
             onBack = onBack,
             initialUrl = args.initialUrl,
+            forSignIn = args.forSignIn,
         )
     }
 
@@ -165,6 +171,7 @@ internal fun EntryProviderScope<NavKey>.homeEntryBuilder(
             toStorageSettings = {
                 navigate(Route.Settings.Storage)
             },
+            onNavigate = navigate,
         )
     }
 

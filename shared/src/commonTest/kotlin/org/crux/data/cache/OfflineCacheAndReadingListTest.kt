@@ -96,4 +96,56 @@ class OfflineCacheAndReadingListTest {
             assertEquals(1, reloaded.items.value.size)
             assertEquals("rss-2", reloaded.items.value[0].id)
         }
+
+    @Test
+    fun bookmarkFoldersCreateMoveNoteAndDeleteSafeReassign() =
+        runTest {
+            val fileStorage = InMemoryFileStorage()
+            val repo = ReadingListRepository(fileStorage)
+
+            assertTrue(repo.folders.value.size >= 5)
+            val customFolder = repo.createFolder(name = "AI Threads", iconName = "microchip", colorHex = 0xFF10B981L)
+            assertEquals("ai_threads", customFolder.id)
+            assertTrue(repo.folders.value.any { it.id == "ai_threads" })
+
+            val xPost =
+                ReadingListItem(
+                    id = "https://x.com/user/status/99",
+                    title = "Gemma 4 On-Device Benchmarks",
+                    authorName = "DeepMind Dev",
+                    authorHandle = "@deepmind",
+                    contentText = "Running Gemma 4 E2B at 50 tok/s on Android NPU.",
+                    sourceUrl = "https://x.com/user/status/99",
+                    platformId = "x",
+                    savedAtTimestamp = 1700000010000L,
+                    folderId = customFolder.id,
+                    note = "Check GPU delegate config",
+                )
+            repo.save(xPost)
+            assertEquals("ai_threads", repo.getItem(xPost.id)?.folderId)
+            assertEquals("Check GPU delegate config", repo.getItem(xPost.id)?.note)
+
+            repo.updateNote(xPost.id, "Updated note text")
+            assertEquals("Updated note text", repo.getItem(xPost.id)?.note)
+
+            repo.moveToFolder(xPost.id, "inspiration")
+            assertEquals("inspiration", repo.getItem(xPost.id)?.folderId)
+
+            repo.moveToFolder(xPost.id, customFolder.id)
+            val updatedFolder =
+                repo.updateFolder(
+                    folderId = customFolder.id,
+                    name = "AI Deep Dives",
+                    iconName = "robot",
+                    colorHex = 0xFF6366F1L,
+                )
+            assertEquals("AI Deep Dives", updatedFolder?.name)
+            assertEquals("robot", updatedFolder?.iconName)
+            assertEquals(0xFF6366F1L, updatedFolder?.colorHex)
+            assertEquals("AI Deep Dives", repo.folders.value.firstOrNull { it.id == customFolder.id }?.name)
+
+            repo.deleteFolder(customFolder.id)
+            assertFalse(repo.folders.value.any { it.id == customFolder.id })
+            assertEquals("quick_saves", repo.getItem(xPost.id)?.folderId)
+        }
 }

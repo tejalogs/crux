@@ -1,5 +1,7 @@
 package org.crux.ui.screen.home
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -11,6 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -38,6 +41,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import compose.icons.FontAwesomeIcons
 import compose.icons.fontawesomeicons.Solid
+import compose.icons.fontawesomeicons.solid.Bookmark
 import compose.icons.fontawesomeicons.solid.Sliders
 import compose.icons.fontawesomeicons.solid.WandMagicSparkles
 import org.crux.R
@@ -274,7 +278,7 @@ internal fun ExpressiveAvatarFrame(
  * Tapping the already-selected pill calls [onReselect] (scroll to top / refresh), matching the
  * old "tap Home again" behaviour. Purely presentational — every action is a caller callback.
  */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3ExpressiveApi::class, ExperimentalFoundationApi::class)
 @Composable
 internal fun ExpressiveHomeDockTabs(
     tabs: List<UiTimelineTabItem>,
@@ -286,6 +290,8 @@ internal fun ExpressiveHomeDockTabs(
     modifier: Modifier = Modifier,
     loginButton: (@Composable () -> Unit)? = null,
     smartReplyAction: (() -> Unit)? = null,
+    bookmarkAction: (() -> Unit)? = null,
+    onOpenBookmarks: (() -> Unit)? = null,
 ) {
     val hapticFeedback = LocalHapticFeedback.current
     Row(
@@ -313,7 +319,30 @@ internal fun ExpressiveHomeDockTabs(
         // Outside the scrolling strip so it stays reachable however many feeds there are.
         loginButton?.invoke()
         CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
-            if (smartReplyAction != null) {
+            if (bookmarkAction != null) {
+                Box(
+                    modifier =
+                        Modifier
+                            .size(DOCK_ACTION_SIZE)
+                            .clip(CircleShape)
+                            .combinedClickable(
+                                onClick = bookmarkAction,
+                                onLongClick = {
+                                    if (onOpenBookmarks != null) {
+                                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        onOpenBookmarks()
+                                    }
+                                },
+                            ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    FAIcon(
+                        imageVector = FontAwesomeIcons.Solid.Bookmark,
+                        contentDescription = stringResource(R.string.reading_list_title),
+                        modifier = Modifier.size(15.dp),
+                    )
+                }
+            } else if (smartReplyAction != null) {
                 IconButton(
                     onClick = smartReplyAction,
                     modifier = Modifier.size(DOCK_ACTION_SIZE),
@@ -322,7 +351,7 @@ internal fun ExpressiveHomeDockTabs(
                     FAIcon(
                         imageVector = FontAwesomeIcons.Solid.WandMagicSparkles,
                         contentDescription = stringResource(R.string.live_web_smart_reply),
-                        modifier = Modifier.size(16.dp),
+                        modifier = Modifier.size(15.dp),
                     )
                 }
             }
@@ -334,7 +363,7 @@ internal fun ExpressiveHomeDockTabs(
                 FAIcon(
                     imageVector = FontAwesomeIcons.Solid.Sliders,
                     contentDescription = stringResource(R.string.edit_tab_title),
-                    modifier = Modifier.size(16.dp),
+                    modifier = Modifier.size(15.dp),
                 )
             }
         }
@@ -342,7 +371,7 @@ internal fun ExpressiveHomeDockTabs(
 }
 
 // Trailing wand and settings buttons stay compact so the pills keep the width.
-private val DOCK_ACTION_SIZE = 40.dp
+private val DOCK_ACTION_SIZE = 36.dp
 
 // Above this many tabs, unselected tabs collapse to icon-only so the strip stays scannable.
 private const val COMPACT_LABEL_THRESHOLD = 4

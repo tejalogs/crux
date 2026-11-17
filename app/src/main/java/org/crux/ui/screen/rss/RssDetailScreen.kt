@@ -127,6 +127,9 @@ import org.crux.ui.presenter.server.AiTLDRPresenter
 import org.crux.ui.render.parseHtml
 import org.crux.ui.route.DeeplinkRoute
 import org.crux.ui.route.toUri
+import org.crux.ui.screen.home.ExtractedSocialPost
+import org.crux.ui.screen.home.SaveToBookmarkFolderSheet
+import org.crux.ui.screen.home.openInSystemBrowser
 import org.crux.ui.theme.isLightTheme
 import org.crux.ui.theme.screenHorizontalPadding
 import org.koin.compose.koinInject
@@ -189,6 +192,7 @@ internal fun RssDetailScreen(
     val reader = readerSettings.value
     var showReaderSettings by remember { mutableStateOf(false) }
     var showMoreMenu by remember { mutableStateOf(false) }
+    var pendingBookmarkPost by remember { mutableStateOf<ExtractedSocialPost?>(null) }
     val scrollState = rememberScrollState()
     val positions = remember(context) { ReaderPositions(context.applicationContext) }
     val hasContent = state.data.isSuccess
@@ -255,6 +259,12 @@ internal fun RssDetailScreen(
             onDismiss = { showReaderSettings = false },
         )
     }
+    pendingBookmarkPost?.let { postToSave ->
+        SaveToBookmarkFolderSheet(
+            post = postToSave,
+            onDismiss = { pendingBookmarkPost = null },
+        )
+    }
     val readerBar: @Composable () -> Unit = {
         CruxTopAppBar(
             title = {},
@@ -273,40 +283,36 @@ internal fun RssDetailScreen(
                     // Saving before the article loads would store a placeholder, so wait for it.
                     enabled = isSavedState || state.data.isSuccess,
                     onClick = {
-                        scope.launch {
-                            if (isSavedState) {
-                                readingListRepo.remove(url)
-                            } else {
-                                val doc = (state.data as? UiState.Success)?.data ?: return@launch
-                                val itemTitle =
-                                    descriptionTitle?.takeIf { it.isNotBlank() }
-                                        ?: doc.title.takeIf { it.isNotBlank() }
-                                        ?: context.getString(R.string.rss_detail_article_fallback_title)
-                                val itemContent =
-                                    doc.textContent.takeIf { it.isNotBlank() } ?: doc.content.takeIf { it.isNotBlank() } ?: itemTitle
-                                val itemAuthor =
-                                    doc.byline?.takeIf { it.isNotBlank() } ?: doc.siteName?.takeIf { it.isNotBlank() }.orEmpty()
-
-                                val item =
-                                    ReadingListItem(
-                                        id = url,
-                                        title = itemTitle,
-                                        authorName = itemAuthor,
-                                        authorHandle = "rss",
-                                        contentText = itemContent,
-                                        sourceUrl = url,
-                                        platformId = "rss",
-                                        savedAtTimestamp = System.currentTimeMillis(),
-                                    )
-                                readingListRepo.save(item)
-                                prefetcher.prefetchItem(item)
-                            }
-                        }
+                        val doc = (state.data as? UiState.Success)?.data
+                        val itemTitle =
+                            descriptionTitle?.takeIf { it.isNotBlank() }
+                                ?: doc?.title?.takeIf { it.isNotBlank() }
+                                ?: context.getString(R.string.rss_detail_article_fallback_title)
+                        val itemContent =
+                            doc?.textContent?.takeIf { it.isNotBlank() }
+                                ?: doc?.content?.takeIf { it.isNotBlank() }
+                                ?: itemTitle
+                        val itemAuthor =
+                            doc?.byline?.takeIf { it.isNotBlank() }
+                                ?: doc?.siteName?.takeIf { it.isNotBlank() }
+                                ?: runCatching { Url(url).host }.getOrNull().orEmpty()
+                        pendingBookmarkPost =
+                            ExtractedSocialPost(
+                                id = url,
+                                title = itemTitle,
+                                authorName = itemAuthor,
+                                authorHandle = "rss",
+                                authorAvatarUrl = null,
+                                contentText = itemContent,
+                                sourceUrl = url,
+                                platformId = "rss",
+                                mediaUrls = emptyList(),
+                            )
                     },
                 ) {
                     FAIcon(
                         imageVector = FontAwesomeIcons.Solid.Bookmark,
-                        contentDescription = if (isSavedState) "Remove from Reading List" else "Save to Reading List",
+                        contentDescription = if (isSavedState) "Edit Bookmark Folder" else "Save to Bookmark Folder",
                         tint = if (isSavedState) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.size(18.dp),
                     )
@@ -384,7 +390,7 @@ internal fun RssDetailScreen(
                             text = { Text(stringResource(R.string.rss_detail_open_in_browser)) },
                             onClick = {
                                 showMoreMenu = false
-                                uriHandler.openUri(url)
+                                openInSystemBrowser(context, url)
                             },
                         )
                         if (state.data.isSuccess && !state.isAutoTranslate && !state.enableTranslate) {

@@ -106,6 +106,9 @@ internal fun AccountsScreen(
         accountsPresenter()
     }
     val connections = rememberCruxConnections()
+    LaunchedEffect(Unit) {
+        connections.refresh()
+    }
     var pendingDeleteAccountKey by remember { mutableStateOf<MicroBlogKey?>(null) }
     var pendingDeleteAccountLabel by remember { mutableStateOf<String?>(null) }
     val lazyListState = rememberLazyListState()

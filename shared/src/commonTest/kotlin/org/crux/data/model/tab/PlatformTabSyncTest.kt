@@ -50,7 +50,7 @@ class PlatformTabSyncTest {
     fun freshInstallGetsOnePillPerEnabledPlatformInOrder() {
         val result = syncPlatformTabs(emptyList(), all)
         assertEquals(
-            listOf("web.x:x", "web.instagram:instagram", "web.linkedin:linkedin", "web.reddit:reddit", "rss.all:all"),
+            listOf("rss.all:all", "web.x:x", "web.instagram:instagram", "web.linkedin:linkedin", "web.reddit:reddit"),
             ids(result),
         )
         assertTrue(result.none { it.isSystemHomeMixedTimeline }, "must not create the empty mixed Home group")
@@ -58,7 +58,7 @@ class PlatformTabSyncTest {
 
     @Test
     fun onlyEnabledPlatformsGetPills() {
-        assertEquals(listOf("web.instagram:instagram", "rss.all:all"), ids(syncPlatformTabs(emptyList(), setOf("Instagram", "Rss"))))
+        assertEquals(listOf("rss.all:all", "web.instagram:instagram"), ids(syncPlatformTabs(emptyList(), setOf("Instagram", "Rss"))))
         assertEquals(emptyList(), ids(syncPlatformTabs(emptyList(), emptySet())))
     }
 

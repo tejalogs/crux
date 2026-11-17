@@ -31,10 +31,12 @@ public data class AppSettings(
     // Crux: the empty combined "Home" tab was dropped and every enabled platform got its pill.
     // Fields are stored by position, so new ones always go at the end.
     val homeTabsNormalized: Boolean = false,
+    // Crux: default bottom dock order puts RSS Feeds first, followed by social platforms.
+    val rssFirstNormalized: Boolean = false,
 ) {
     public companion object {
         // Must be initialised before [default], which reads it through the constructor default.
-        public val DEFAULT_CRUX_PLATFORMS: List<String> = listOf("Instagram", "LinkedIn", "X", "Reddit", "Rss")
+        public val DEFAULT_CRUX_PLATFORMS: List<String> = listOf("Rss", "X", "Instagram", "LinkedIn", "Reddit")
 
         // for SwiftUI environment defaults
         public val default: AppSettings = AppSettings(version = "")

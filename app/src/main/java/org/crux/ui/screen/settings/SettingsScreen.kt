@@ -56,7 +56,6 @@ import compose.icons.fontawesomeicons.solid.CircleInfo
 import compose.icons.fontawesomeicons.solid.CircleUser
 import compose.icons.fontawesomeicons.solid.Database
 import compose.icons.fontawesomeicons.solid.Feather
-import compose.icons.fontawesomeicons.solid.Filter
 import compose.icons.fontawesomeicons.solid.Gear
 import compose.icons.fontawesomeicons.solid.Globe
 import compose.icons.fontawesomeicons.solid.Language
@@ -216,8 +215,6 @@ internal fun SettingsScreen(
         if (connectedAccountsCount > 0) stringResource(id = R.string.settings_platforms_in_use, connectedAccountsCount) else null
     val behaviorTitle = stringResource(id = R.string.settings_behavior_title)
     val behaviorSubtitle = stringResource(id = R.string.settings_behavior_description)
-    val localFilterTitle = stringResource(id = R.string.settings_local_filter_title)
-    val localFilterSubtitle = stringResource(id = R.string.settings_local_filter_description)
     val appearanceTitle = stringResource(id = R.string.settings_appearance_hub_title)
     val appearanceSubtitle = stringResource(id = R.string.settings_appearance_hub_subtitle)
     val languageTitle = stringResource(id = R.string.settings_language_title)
@@ -288,21 +285,6 @@ internal fun SettingsScreen(
                         icon = FontAwesomeIcons.Solid.Sliders,
                         iconColor = ThemeIconData.Color.SapphireBlue,
                         onClick = toBehavior,
-                    ),
-                )
-                add(
-                    SettingsDestinationEntry(
-                        hubItem =
-                            SettingsHubItem(
-                                id = "local_filter",
-                                category = SettingsCategory.SocialAndWeb,
-                                title = localFilterTitle,
-                                subtitle = localFilterSubtitle,
-                                keywords = listOf("mute", "keywords", "block words", "filter", "hide posts"),
-                            ),
-                        icon = FontAwesomeIcons.Solid.Filter,
-                        iconColor = ThemeIconData.Color.BurntUmber,
-                        onClick = toLocalFilter,
                     ),
                 )
                 add(

@@ -62,7 +62,7 @@ class PlatformTabsRepositoryTest {
         runTest {
             repository.syncLiveWebTabs(setOf("X", "Instagram", "LinkedIn", "Reddit", "Rss"))
             assertEquals(
-                listOf("web.x:x", "web.instagram:instagram", "web.linkedin:linkedin", "web.reddit:reddit", "rss.all:all"),
+                listOf("rss.all:all", "web.x:x", "web.instagram:instagram", "web.linkedin:linkedin", "web.reddit:reddit"),
                 tabIds(),
             )
             assertTrue(repository.homeTimelineTabs.first().none { it.isSystemHomeMixedTimeline })
@@ -118,5 +118,28 @@ class PlatformTabsRepositoryTest {
             repository.removeHomeTimelineTabBySourceId("web.reddit:reddit")
             repository.syncLiveWebTabs(setOf("X", "Instagram", "Reddit", "LinkedIn"), platformsToAdd = setOf("LinkedIn"))
             assertEquals(listOf("web.x:x", "web.instagram:instagram", "web.linkedin:linkedin"), tabIds())
+        }
+
+    @Test
+    fun upgradesMoveAllRssTabFirstOnceForExistingInstalls() =
+        runTest {
+            repository.updateAppSettings {
+                copy(
+                    onboardingCompleted = true,
+                    liveWebTabsMigrated = true,
+                    homeTabsNormalized = true,
+                    rssFirstNormalized = false,
+                )
+            }
+            repository.replaceHomeTimelineTabs(
+                listOf(
+                    LiveWebTimelineSpecs.xCandidate.toUiTimelineTabItem(),
+                    LiveWebTimelineSpecs.instagramCandidate.toUiTimelineTabItem(),
+                    org.crux.data.model.tab.allRssTabItem(),
+                ),
+            )
+            repository.ensureLiveWebTabsMigrated()
+            assertEquals(listOf("rss.all:all", "web.x:x", "web.instagram:instagram"), tabIds())
+            assertEquals(true, repository.appSettings.first().rssFirstNormalized)
         }
 }

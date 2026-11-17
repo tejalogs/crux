@@ -34,6 +34,7 @@ import org.crux.data.model.tab.TabSettingsV2
 import org.crux.data.model.tab.TimelineResolver
 import org.crux.data.model.tab.TimelineSlot
 import org.crux.data.model.tab.TimelineSlotContent
+import org.crux.data.model.tab.TimelineSpecIds
 import org.crux.data.model.tab.UiTimelineTabItem
 import org.crux.data.model.tab.findById
 import org.crux.data.model.tab.isSystemHomeMixedTimeline
@@ -292,27 +293,49 @@ public class SettingsRepository internal constructor(
         if (updated.map { it.id } != tabs.map { it.id }) {
             replaceHomeTimelineTabs(updated)
         }
-        updateAppSettings { copy(redditTabAdded = true, xTabAdded = true, liveWebTabsMigrated = true, homeTabsNormalized = true) }
+        updateAppSettings {
+            copy(
+                redditTabAdded = true,
+                xTabAdded = true,
+                liveWebTabsMigrated = true,
+                homeTabsNormalized = true,
+                rssFirstNormalized = true,
+            )
+        }
     }
 
     /**
      * Once, for installs made before Instagram and LinkedIn had static pills: swaps their
      * account-based pills for the static ones and adds a pill for an enabled platform that has none
-     * (it used to appear only after a sign-in). Skipped until onboarding is done, because the
-     * onboarding choice does the same job.
+     * (it used to appear only after a sign-in). Also promotes "All RSS" first once so bottom nav
+     * starts on RSS feeds by default. Skipped until onboarding is done, because the onboarding
+     * choice does the same job.
      */
     public suspend fun ensureLiveWebTabsMigrated() {
         val settings = appSettings.first()
         if (!settings.onboardingCompleted) return
-        if (settings.liveWebTabsMigrated && settings.homeTabsNormalized) return
+        if (settings.liveWebTabsMigrated && settings.homeTabsNormalized && settings.rssFirstNormalized) return
         // Older installs can have the empty combined "Home" tab and no "All RSS" pill: give every
         // enabled platform its pill once, in place of the combined tab.
         val tabs = homeTimelineTabs.first()
-        val updated = syncPlatformTabs(current = tabs, enabledPlatforms = settings.cruxPlatforms.toSet())
+        var updated =
+            if (!settings.liveWebTabsMigrated || !settings.homeTabsNormalized) {
+                syncPlatformTabs(current = tabs, enabledPlatforms = settings.cruxPlatforms.toSet())
+            } else {
+                tabs
+            }
+        if (!settings.rssFirstNormalized) {
+            val rssId = "${TimelineSpecIds.RSS_ALL}:all"
+            val rssIndex = updated.indexOfFirst { it.id == rssId }
+            if (rssIndex > 0) {
+                val rssTab = updated[rssIndex]
+                updated = listOf(rssTab) + updated.filterIndexed { i, _ -> i != rssIndex }
+            }
+        }
         if (updated.map { it.id } != tabs.map { it.id }) {
             replaceHomeTimelineTabs(updated)
         }
-        updateAppSettings { copy(liveWebTabsMigrated = true, homeTabsNormalized = true) }
+        updateAppSettings { copy(liveWebTabsMigrated = true, homeTabsNormalized = true, rssFirstNormalized = true) }
     }
 
     public suspend fun updateAppSettings(block: AppSettings.() -> AppSettings) {

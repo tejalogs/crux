@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.update
 
 private const val PREFS_NAME = "crux_web_privacy"
 private const val KEY_CLEAN_LINKS = "clean_outgoing_links"
-private const val KEY_OPEN_IN_READER = "open_links_in_reader"
+private const val KEY_OPEN_IN_READER = "open_links_in_reader_v2"
 private const val KEY_BLOCK_THIRD_PARTY_COOKIES = "block_third_party_cookies"
 private const val KEY_REMEMBER_TAB_POSITION = "remember_tab_position"
 private const val KEY_HIDE_ENGAGEMENT_COUNTS = "hide_engagement_counts"
@@ -19,9 +19,9 @@ private const val KEY_GPC = "send_gpc"
 
 private fun protectionKey(site: LiveWebSite) = "protection.${site.name}"
 
-private fun autoplayKey(site: LiveWebSite) = "block_autoplay.${site.name}"
+private fun autoplayKey(site: LiveWebSite) = "block_autoplay_v2.${site.name}"
 
-private fun tweakKey(tweak: SiteTweak) = "tweak.${tweak.name}"
+private fun tweakKey(tweak: SiteTweak) = "tweak_v2.${tweak.name}"
 
 /**
  * Persists [WebPrivacySettings] in SharedPreferences. Only values the person changed are written,

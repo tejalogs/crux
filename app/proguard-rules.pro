@@ -92,8 +92,11 @@
 # On-Device AI, LiteRT & MediaPipe Runtime
 # ------------------------------------------------------------------------------
 -keep class com.google.ai.edge.litert.** { *; }
+-keep class com.google.ai.edge.litertlm.** { *; }
+-keepclasseswithmembers class com.google.ai.edge.litertlm.** { native <methods>; }
 -keep class com.google.mediapipe.** { *; }
 -dontwarn com.google.ai.edge.litert.**
+-dontwarn com.google.ai.edge.litertlm.**
 -dontwarn com.google.mediapipe.**
 
 # ------------------------------------------------------------------------------

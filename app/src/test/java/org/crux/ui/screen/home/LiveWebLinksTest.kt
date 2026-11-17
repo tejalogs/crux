@@ -132,6 +132,10 @@ class LiveWebLinksTest {
     fun sessionStateAcceptsOnlySameSiteHttpsUrls() {
         assertEquals(true, LiveWebSessionState.isRestorableUrl(LiveWebSite.X, "https://x.com/home"))
         assertEquals(true, LiveWebSessionState.isRestorableUrl(LiveWebSite.Reddit, "https://www.reddit.com/r/Kotlin/"))
+        assertEquals(false, LiveWebSessionState.isRestorableUrl(LiveWebSite.X, "https://x.com/"))
+        assertEquals(false, LiveWebSessionState.isRestorableUrl(LiveWebSite.X, "https://x.com/i/flow/login"))
+        assertEquals(false, LiveWebSessionState.isRestorableUrl(LiveWebSite.Instagram, "https://www.instagram.com/accounts/login/"))
+        assertEquals(false, LiveWebSessionState.isRestorableUrl(LiveWebSite.LinkedIn, "https://www.linkedin.com/uas/login"))
         assertEquals(false, LiveWebSessionState.isRestorableUrl(LiveWebSite.X, "http://x.com/home"))
         assertEquals(false, LiveWebSessionState.isRestorableUrl(LiveWebSite.X, "https://reddit.com/r/Kotlin"))
         assertEquals(false, LiveWebSessionState.isRestorableUrl(LiveWebSite.X, "about:blank"))

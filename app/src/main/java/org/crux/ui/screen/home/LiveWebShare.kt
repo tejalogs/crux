@@ -7,10 +7,25 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -19,19 +34,35 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import compose.icons.FontAwesomeIcons
+import compose.icons.fontawesomeicons.Solid
+import compose.icons.fontawesomeicons.solid.Bookmark
+import compose.icons.fontawesomeicons.solid.RotateRight
+import kotlinx.coroutines.delay
 import org.crux.R
+import org.crux.data.datasource.instagram.InstagramFeedService
+import org.crux.data.datasource.instagram.InstagramSyncService
+import org.crux.data.datasource.linkedin.LinkedInFeedService
+import org.crux.data.datasource.linkedin.LinkedInSyncService
 import org.crux.ui.component.BackButton
 import org.crux.ui.component.CruxScaffold
 import org.crux.ui.component.CruxTopAppBar
-import org.crux.ui.screen.crux.hasSession
+import org.crux.ui.component.FAIcon
 import org.crux.ui.screen.crux.CruxPlatform
+import org.crux.ui.screen.crux.LocalCruxConnections
+import org.crux.ui.screen.crux.PlatformBadge
+import org.crux.ui.screen.crux.hasSession
+import org.koin.compose.koinInject
 import java.net.URLEncoder
 
 /** Sites the post panel can open a ready-to-post composer on. Instagram opens home with caption copied to clipboard. */
@@ -147,22 +178,41 @@ internal fun LiveShareScreen(
             DisposableEffect(page) {
                 onDispose { page.destroy() }
             }
-            AndroidView(
+            Box(
                 modifier =
                     Modifier
                         .fillMaxSize()
                         .padding(contentPadding)
                         .imePadding(),
-                factory = { viewContext ->
-                    FrameLayout(viewContext).apply {
-                        addView(
-                            page.webView,
-                            ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT),
-                        )
-                    }
-                },
-                onRelease = { it.removeAllViews() },
-            )
+            ) {
+                AndroidView(
+                    modifier = Modifier.fillMaxSize(),
+                    factory = { viewContext ->
+                        FrameLayout(viewContext).apply {
+                            addView(
+                                page.webView,
+                                ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT),
+                            )
+                        }
+                    },
+                    onRelease = { it.removeAllViews() },
+                )
+                AnimatedVisibility(
+                    visible = page.isLoading && page.loadError == null,
+                    enter = fadeIn(),
+                    exit = fadeOut(),
+                    modifier =
+                        Modifier
+                            .align(Alignment.TopCenter)
+                            .fillMaxWidth(),
+                ) {
+                    LinearProgressIndicator(
+                        progress = { (page.loadProgress / 100f).coerceIn(0.08f, 1f) },
+                        modifier = Modifier.fillMaxWidth().height(2.dp),
+                    )
+                }
+                FullscreenWebVideoOverlay(page = page)
+            }
         }
     }
 }
@@ -177,6 +227,7 @@ internal fun LiveWebScreen(
     siteName: String,
     onBack: () -> Unit,
     initialUrl: String? = null,
+    forSignIn: Boolean = false,
 ) {
     val site = remember(siteName) { LiveWebSite.fromName(siteName) }
     if (site == null) {
@@ -188,44 +239,240 @@ internal fun LiveWebScreen(
     }
     val context = LocalContext.current
     val pages = LocalLiveWebPages.current
-    CruxScaffold(
-        topBar = {
-            CruxTopAppBar(
-                title = { Text(text = site.label) },
-                navigationIcon = { BackButton(onBack = onBack) },
-            )
-        },
-    ) { contentPadding ->
-        val startUrl = initialUrl ?: if (site == LiveWebSite.X && !site.hasSession()) "https://x.com/i/flow/login" else site.homeUrl
-        key(site, startUrl) {
-            val page = remember { LiveWebPage(site, context, startUrl = startUrl) }
-            BindFileChooser(page)
-            WebSessionLifecycleSuspender(webView = page.webView, isVisible = true)
-            BackHandler(enabled = page.canGoBack) {
-                page.goBack()
+    val connections = LocalCruxConnections.current
+    val instagramSyncService = koinInject<InstagramSyncService>()
+    val linkedInSyncService = koinInject<LinkedInSyncService>()
+    val customUrl = initialUrl?.takeIf { it.isNotBlank() }
+    val startUrl =
+        remember(site, customUrl, forSignIn) {
+            when {
+                customUrl != null -> customUrl
+                forSignIn && !site.hasSession() -> site.loginUrl
+                else -> site.startUrlForSession()
             }
-            DisposableEffect(page) {
-                onDispose {
-                    page.destroy()
-                    pages?.reload(site)
+        }
+    val autoReturnOnSignIn =
+        remember(site, customUrl, forSignIn) {
+            forSignIn || (customUrl != null && LiveWebSessionState.isAuthOrLoginUrl(customUrl) && !site.hasSession())
+        }
+    key(site, startUrl) {
+        val ownsPage = (customUrl != null && !forSignIn) || pages == null
+        val page =
+            remember(site, startUrl, pages) {
+                if (!ownsPage && pages != null) {
+                    pages.page(site, context)
+                } else {
+                    LiveWebPage(site, context, startUrl = startUrl)
                 }
             }
-            AndroidView(
+        LaunchedEffect(page, site, forSignIn) {
+            if (forSignIn && !site.hasSession()) {
+                val current = page.webView.url
+                if (!LiveWebSessionState.isAuthOrLoginUrl(current)) {
+                    page.webView.loadUrl(site.loginUrl)
+                }
+            }
+        }
+        LaunchedEffect(site, page, autoReturnOnSignIn) {
+            if (!autoReturnOnSignIn) return@LaunchedEffect
+            while (true) {
+                site.cookieManager().flush()
+                if (site.hasSession()) {
+                    when (site) {
+                        LiveWebSite.Instagram -> {
+                            val cm = site.cookieManager()
+                            val cookies =
+                                cm.getCookie("https://www.instagram.com").orEmpty() +
+                                    "; " +
+                                    cm.getCookie("https://instagram.com").orEmpty()
+                            if (InstagramFeedService.hasActiveSession(cookies)) {
+                                instagramSyncService.syncSession(cookies)
+                            }
+                        }
+
+                        LiveWebSite.LinkedIn -> {
+                            val cm = site.cookieManager()
+                            val cookies =
+                                cm.getCookie("https://www.linkedin.com").orEmpty() +
+                                    "; " +
+                                    cm.getCookie("https://linkedin.com").orEmpty()
+                            if (LinkedInFeedService.hasActiveSession(cookies)) {
+                                linkedInSyncService.syncSession(cookies)
+                            }
+                        }
+
+                        else -> Unit
+                    }
+                    delay(350L)
+                    if (!ownsPage) {
+                        page.webView.loadUrl(site.homeUrl)
+                    } else {
+                        pages?.reload(site)
+                    }
+                    connections?.refresh()
+                    Toast.makeText(context, "Signed in to ${site.label}", Toast.LENGTH_SHORT).show()
+                    onBack()
+                    break
+                }
+                delay(300L)
+            }
+        }
+        var pendingBookmarkPost by remember { mutableStateOf<ExtractedSocialPost?>(null) }
+        DisposableEffect(page, site) {
+            val trigger = {
+                extractPostFromWebView(site, page.webView) { extracted ->
+                    pendingBookmarkPost = extracted
+                }
+            }
+            page.onNativeBookmarkTap = trigger
+            onDispose {
+                if (page.onNativeBookmarkTap === trigger) page.onNativeBookmarkTap = null
+            }
+        }
+        pendingBookmarkPost?.let { postToSave ->
+            SaveToBookmarkFolderSheet(
+                post = postToSave,
+                onDismiss = { pendingBookmarkPost = null },
+            )
+        }
+        CruxScaffold(
+            topBar = {
+                CruxTopAppBar(
+                    title = {
+                        if (autoReturnOnSignIn) {
+                            Column {
+                                Text(
+                                    text = "Sign in to ${site.label}",
+                                    style = MaterialTheme.typography.titleMedium,
+                                )
+                                Text(
+                                    text = "Returns automatically once signed in",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        } else {
+                            Text(text = site.label)
+                        }
+                    },
+                    navigationIcon = { BackButton(onBack = onBack) },
+                    actions = {
+                        if (autoReturnOnSignIn) {
+                            IconButton(onClick = { page.webView.reload() }) {
+                                FAIcon(
+                                    imageVector = FontAwesomeIcons.Solid.RotateRight,
+                                    contentDescription = stringResource(R.string.web_nav_reload),
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            }
+                        } else {
+                            IconButton(
+                                onClick = {
+                                    extractPostFromWebView(site, page.webView) { extracted ->
+                                        pendingBookmarkPost = extracted
+                                    }
+                                },
+                            ) {
+                                FAIcon(
+                                    imageVector = FontAwesomeIcons.Solid.Bookmark,
+                                    contentDescription = "Save to Bookmark Folder",
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            }
+                        }
+                    },
+                )
+            },
+        ) { contentPadding ->
+            BindFileChooser(page)
+            WebSessionLifecycleSuspender(webView = page.webView, isVisible = true)
+            BackHandler(enabled = page.customVideoView != null || (page.canGoBack && !autoReturnOnSignIn)) {
+                if (page.customVideoView != null) {
+                    page.exitFullscreenVideo()
+                } else {
+                    page.goBack()
+                }
+            }
+            DisposableEffect(page, ownsPage) {
+                onDispose {
+                    (page.webView.parent as? ViewGroup)?.removeView(page.webView)
+                    if (ownsPage) {
+                        page.destroy()
+                        pages?.reload(site)
+                    } else if (site.hasSession() && LiveWebSessionState.isAuthOrLoginUrl(page.webView.url)) {
+                        page.webView.loadUrl(site.homeUrl)
+                    }
+                }
+            }
+            Box(
                 modifier =
                     Modifier
                         .fillMaxSize()
                         .padding(contentPadding)
                         .imePadding(),
-                factory = { viewContext ->
-                    FrameLayout(viewContext).apply {
-                        addView(
-                            page.webView,
-                            ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT),
-                        )
+            ) {
+                AndroidView(
+                    modifier = Modifier.fillMaxSize(),
+                    factory = { viewContext ->
+                        FrameLayout(viewContext).apply {
+                            (page.webView.parent as? ViewGroup)?.removeView(page.webView)
+                            addView(
+                                page.webView,
+                                ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT),
+                            )
+                        }
+                    },
+                    onRelease = { it.removeAllViews() },
+                )
+                AnimatedVisibility(
+                    visible = page.isLoading && page.loadError == null,
+                    enter = fadeIn(),
+                    exit = fadeOut(),
+                    modifier =
+                        Modifier
+                            .align(Alignment.TopCenter)
+                            .fillMaxWidth(),
+                ) {
+                    LinearProgressIndicator(
+                        progress = { (page.loadProgress / 100f).coerceIn(0.08f, 1f) },
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .height(2.dp),
+                    )
+                }
+                AnimatedVisibility(
+                    visible = !page.hasLoadedOnce && page.isLoading && page.loadProgress < 75 && page.loadError == null,
+                    enter = fadeIn(),
+                    exit = fadeOut(),
+                    modifier = Modifier.fillMaxSize(),
+                ) {
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = MaterialTheme.colorScheme.background,
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxSize(),
+                            verticalArrangement = Arrangement.Center,
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            PlatformBadge(platform = CruxPlatform.forSite(site), size = 56.dp)
+                            Spacer(modifier = Modifier.height(16.dp))
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                strokeWidth = 2.5.dp,
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = "Opening ${site.label}…",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
-                },
-                onRelease = { it.removeAllViews() },
-            )
+                }
+                FullscreenWebVideoOverlay(page = page)
+            }
         }
     }
 }

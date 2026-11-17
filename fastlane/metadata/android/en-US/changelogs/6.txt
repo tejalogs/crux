@@ -1,0 +1,5 @@
+Crux 1.0.5
+- Universal Bookmark Folders with custom names, icons, colors, and notes across social tabs and RSS
+- Onboarding auto-returns after platform sign-in and seeds starter RSS feeds
+- Fix Instagram blank scroll, LinkedIn dark-mode negatives/nav bar, and Reddit scroll, video, and NSFW
+- RSS-first bottom dock ordering, external links to system browser, and LiteRT-LM on-device AI

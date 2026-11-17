@@ -22,6 +22,28 @@ internal object SovereignEdgeEngine {
     private val URL_REGEX = Regex("https?://[a-zA-Z0-9.-]+(?:/[a-zA-Z0-9&%_.~#+-]*)?")
 
     @OptIn(ExperimentalUuidApi::class)
+    fun evaluateToolCallIfMatched(
+        prompt: Prompt,
+        tools: List<ToolDescriptor>,
+    ): Message.Assistant? {
+        val messages = prompt.messages
+        val latestUserMessage =
+            messages
+                .lastOrNull { it.role == Message.Role.User }
+                ?.textContent()
+                .orEmpty()
+                .trim()
+        val toolCall = evaluateToolCall(latestUserMessage, tools, messages) ?: return null
+        return Message.Assistant(
+            parts = listOf(toolCall),
+            metaInfo = ResponseMetaInfo(timestamp = Instant.DISTANT_PAST),
+            finishReason = "tool_calls",
+            rawResponse = null,
+            id = Uuid.random().toString(),
+        )
+    }
+
+    @OptIn(ExperimentalUuidApi::class)
     fun execute(
         prompt: Prompt,
         tools: List<ToolDescriptor>,
@@ -36,16 +58,7 @@ internal object SovereignEdgeEngine {
         val systemPrompt = messages.firstOrNull { it.role == Message.Role.System }?.textContent().orEmpty()
 
         // 1. Tool Call Evaluation
-        val toolCall = evaluateToolCall(latestUserMessage, tools, messages)
-        if (toolCall != null) {
-            return Message.Assistant(
-                parts = listOf(toolCall),
-                metaInfo = ResponseMetaInfo(timestamp = Instant.DISTANT_PAST),
-                finishReason = "tool_calls",
-                rawResponse = null,
-                id = Uuid.random().toString(),
-            )
-        }
+        evaluateToolCallIfMatched(prompt, tools)?.let { return it }
 
         // 2. Natural Language Synthesis
         val generatedText = synthesizeResponse(latestUserMessage, systemPrompt, messages)

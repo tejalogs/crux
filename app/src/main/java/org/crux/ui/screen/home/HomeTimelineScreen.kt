@@ -166,6 +166,7 @@ internal fun HomeTimelineScreen(
     toLogin: () -> Unit,
     toTabSettings: () -> Unit,
     uriHandler: UriHandler,
+    toReadingList: () -> Unit = {},
 ) {
     val state by producePresenter(key = "home_timeline") {
         timelinePresenter()
@@ -394,7 +395,13 @@ internal fun HomeTimelineScreen(
                                                 ),
                                             onTabSelected = { index ->
                                                 scope.launch {
-                                                    pagerState.animateScrollToPage(index)
+                                                    val currentIsWeb = tabs.getOrNull(pagerState.currentPage)?.liveWebSite() != null
+                                                    val targetIsWeb = tabs.getOrNull(index)?.liveWebSite() != null
+                                                    if (currentIsWeb || targetIsWeb) {
+                                                        pagerState.scrollToPage(index)
+                                                    } else {
+                                                        pagerState.animateScrollToPage(index)
+                                                    }
                                                 }
                                             },
                                         )
@@ -488,7 +495,7 @@ internal fun HomeTimelineScreen(
                                     selectedTabIndex = minOf(pagerState.currentPage, tabState.lastIndex),
                                     onTabSelected = { index ->
                                         scope.launch {
-                                            pagerState.animateScrollToPage(index)
+                                            pagerState.scrollToPage(index)
                                         }
                                     },
                                     onReselect = onReselect,
@@ -497,6 +504,8 @@ internal fun HomeTimelineScreen(
                                     // Platforms are connected in onboarding / the side panel, not via a login pill.
                                     loginButton = null,
                                     smartReplyAction = bottomBarAccessory.smartReply,
+                                    bookmarkAction = bottomBarAccessory.bookmarkPost,
+                                    onOpenBookmarks = toReadingList,
                                 )
                             }
                             val latestDockTabs by rememberUpdatedState(dockTabs)

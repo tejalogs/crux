@@ -45,32 +45,44 @@ private val INSTAGRAM_PROFILE =
         postSelector = "article",
         baseRules =
             listOf(
-                "html,body{-webkit-overflow-scrolling:touch!important;overscroll-behavior-y:contain!important}",
                 "html,body,button,a,[role=\"button\"],input,textarea{touch-action:manipulation!important}",
-                "div._aagw, div._aagv > div:not(img){pointer-events:none!important}",
+                "div._aagw{pointer-events:none!important}",
                 "img{-webkit-user-select:auto!important;user-select:auto!important;pointer-events:auto!important}",
                 "*{-webkit-tap-highlight-color:transparent!important}",
-                "article video{object-fit:cover!important}",
                 "html,body{-webkit-font-smoothing:antialiased!important;-moz-osx-font-smoothing:grayscale!important}",
             ),
     )
 
 private val LINKEDIN_PROFILE =
     SiteScriptProfile(
-        postSelector = "[role=\"listitem\"],div.feed-shared-update-v2,div[data-id*=\"activity\"]",
-        moduleSelector = "[role=\"listitem\"],li,section,aside",
+        postSelector = "div.feed-shared-update-v2,div[data-id*=\"activity\"],div[data-urn*=\"activity\"],article",
+        moduleSelector = "aside,div.feed-shared-news-module,div.feed-shared-update-v2",
         labelExcludeSelector = ".update-components-text,.feed-shared-text,[data-test-id=\"main-feed-activity-card__commentary\"]",
         baseRules =
             listOf(
-                "html,body{-webkit-overflow-scrolling:touch!important;overscroll-behavior-y:contain!important}",
                 "html,body,button,a,[role=\"button\"],input,textarea{touch-action:manipulation!important}",
                 "*{-webkit-tap-highlight-color:transparent!important}",
-                "div:has(>footer){grid-template-columns:minmax(0,1fr)!important}",
-                "footer,main{min-width:0!important}",
-                "footer li{min-width:0!important;flex:1 1 0!important}",
                 "html,body{-webkit-font-smoothing:antialiased!important;-moz-osx-font-smoothing:grayscale!important}",
                 "div.feed-shared-update-v2:active{background-color:rgba(128,128,128,0.04)!important}",
             ),
+        baseJs =
+            """
+            if(!window.__cxLiSubBind){
+              window.__cxLiSubBind=true;
+              document.addEventListener('submit',function(){window.__cxLiSub=true},true);
+            }
+            if(!window.__cxLiSub&&/^\/(uas\/)?login/.test(location.pathname)){
+              document.querySelectorAll('[role="alert"],.artdeco-toast-item,#artdeco-global-alert-container,.toast,div,section').forEach(function(el){
+                if(el.querySelector('input,form,main'))return;
+                var h=el.clientHeight||0;
+                if(h>160)return;
+                var txt=(el.textContent||'').replace(/\s+/g,' ').trim();
+                if(/^An unexpected error has occurred\.\s*Please try again\b/i.test(txt)){
+                  el.style.setProperty('display','none','important');
+                }
+              });
+            }
+            """.trimIndent(),
     )
 
 private val X_PROFILE =
@@ -79,6 +91,12 @@ private val X_PROFILE =
         cellSelector = "div[data-testid=\"cellInnerDiv\"]",
         moduleSelector = "div[data-testid=\"cellInnerDiv\"],aside,section",
         labelExcludeSelector = "[data-testid=\"tweetText\"],[data-testid=\"User-Name\"]",
+        baseRules =
+            listOf(
+                "html,body,button,a,[role=\"button\"],input,textarea{touch-action:manipulation!important}",
+                "*{-webkit-tap-highlight-color:transparent!important}",
+                "html,body{-webkit-font-smoothing:antialiased!important;-moz-osx-font-smoothing:grayscale!important}",
+            ),
     )
 
 private val REDDIT_PROFILE =
@@ -86,8 +104,8 @@ private val REDDIT_PROFILE =
         postSelector = "shreddit-post,[data-testid=\"ad-post\"],[data-adclicklocation]",
         baseRules =
             listOf(
-                "html,body{-webkit-overflow-scrolling:touch!important;overscroll-behavior-y:contain!important}",
-                "html,body,button,a,[role=\"button\"],shreddit-post{touch-action:manipulation!important}",
+                "html,body{overflow-y:auto!important;overflow-x:hidden!important}",
+                "html,body,button,a,[role=\"button\"]{touch-action:manipulation!important}",
                 "shreddit-post{-webkit-tap-highlight-color:transparent!important}",
             ),
         baseJs =
@@ -99,7 +117,16 @@ private val REDDIT_PROFILE =
               });
             }
             expandRedditComments();
+            document.querySelectorAll('html,body,shreddit-app,main').forEach(function(el){
+              if(el.hasAttribute('inert'))el.removeAttribute('inert');
+              if(el.getAttribute('aria-hidden')==='true')el.removeAttribute('aria-hidden');
+            });
             if(document.documentElement.style.overflow==='hidden')document.documentElement.style.overflow='';
+            if(document.body){
+              if(document.body.style.overflow==='hidden')document.body.style.overflow='';
+              if(document.body.style.position==='fixed')document.body.style.position='';
+              document.body.classList.remove('scroll-disabled','no-scroll');
+            }
             """.trimIndent(),
     )
 
@@ -145,7 +172,7 @@ internal val SiteTweak.rule: TweakRule
 
             SiteTweak.InstagramSuggested -> {
                 TweakRule(
-                    css = listOf("div:has(> div > a[href*=\"/explore/people/\"])"),
+                    css = listOf("aside:has(a[href*=\"/explore/people/\"])"),
                     postLabels = listOf("Suggested for you", "Suggested posts", "Suggested Reels"),
                 )
             }
@@ -156,10 +183,8 @@ internal val SiteTweak.rule: TweakRule
                         listOf(
                             "div[role=\"dialog\"]:has(a[href*=\"play.google.com\"])",
                             "div[role=\"dialog\"]:has(a[href*=\"apps.apple.com\"])",
-                            "div:has(> a[href*=\"instagram://\"])",
-                            "div:has(> a[href*=\"onelink.me\"])",
-                            "div:has(> a[href*=\"play.google.com\"])",
-                            "div:has(> a[href*=\"apps.apple.com\"])",
+                            "div[role=\"dialog\"]:has(a[href*=\"instagram://\"])",
+                            "div[role=\"dialog\"]:has(a[href*=\"onelink.me\"])",
                             "header a[href*=\"instagram.com/download/\"]",
                         ),
                     promptLabels = USE_APP_LABELS + listOf("Open Instagram"),
@@ -321,7 +346,7 @@ internal val SiteTweak.rule: TweakRule
 
             SiteTweak.LinkedInSuggested -> {
                 TweakRule(
-                    css = listOf("div:has(> .feed-shared-celebration-card)"),
+                    css = listOf(".feed-shared-celebration-card"),
                     postLabels = listOf("Suggested", "Recommended for you"),
                 )
             }
@@ -340,8 +365,6 @@ internal val SiteTweak.rule: TweakRule
                             ".app-upsell-banner",
                             ".modal-upsell",
                             ".app-banner",
-                            "div:has(> a[href*=\"play.google.com\"])",
-                            "div:has(> a[href*=\"apps.apple.com\"])",
                             "div[data-tracking-control-name=\"mobile_app_upsell\"]",
                             "div[data-tracking-control-name=\"app_interstitial\"]",
                         ),
@@ -377,10 +400,9 @@ internal val SiteTweak.rule: TweakRule
                     css =
                         listOf(
                             "a[href*=\"/games/\"]",
-                            "div:has(> a[href*=\"/games/\"])",
-                            "section:has(a[href*=\"/games/\"])",
+                            "aside:has(a[href*=\"/games/\"])",
                         ),
-                    headingLabels = listOf("Today's puzzles", "Games", "Jobs recommended for you", "Recommended jobs for you"),
+                    headingLabels = listOf("Today's puzzles", "Games"),
                 )
             }
 
@@ -467,8 +489,50 @@ internal val SiteTweak.rule: TweakRule
 
             SiteTweak.RedditUnblurNsfw -> {
                 TweakRule(
-                    css = listOf("[slot=\"blur-toggle\"]", "[slot=\"nsfw-banner\"]", "faceplate-tracker[source=\"nsfw_modal\"]"),
-                    js = "document.querySelectorAll('shreddit-post[nsfw],shreddit-post [slot=\"blur-toggle\"]').forEach(function(p){p.removeAttribute('nsfw');p.removeAttribute('blurred');if(p.style)p.style.filter='none';});",
+                    css =
+                        listOf(
+                            "[slot=\"blur-toggle\"]",
+                            "[slot=\"nsfw-banner\"]",
+                            "faceplate-tracker[source=\"nsfw_modal\"]",
+                            "shreddit-blurred-container [slot=\"blurred\"]",
+                            "#blocking-modal",
+                            "shreddit-async-loader[bundlename*=\"nsfw\"]",
+                        ),
+                    js =
+                        """
+                        try{
+                          document.cookie='over18=1; path=/; domain=.reddit.com; max-age=31536000; SameSite=Lax';
+                          document.cookie='over18=1; path=/; max-age=31536000; SameSite=Lax';
+                        }catch(e){}
+                        document.querySelectorAll('shreddit-post[nsfw],shreddit-post [slot="blur-toggle"],shreddit-blurred-container').forEach(function(p){
+                          p.removeAttribute('nsfw');
+                          p.removeAttribute('blurred');
+                          p.removeAttribute('is-blurred');
+                          p.removeAttribute('embed-obscured');
+                          if(p.tagName==='SHREDDIT-BLURRED-CONTAINER'){
+                            p.setAttribute('mode','revealed');
+                            var rev=p.querySelector('[slot="revealed"]');
+                            if(rev&&rev.style){rev.style.setProperty('display','block','important');rev.style.setProperty('filter','none','important');rev.style.setProperty('opacity','1','important');rev.style.setProperty('visibility','visible','important');}
+                            var blr=p.querySelector('[slot="blurred"]');
+                            if(blr&&blr.style){blr.style.setProperty('display','none','important');}
+                            if(p.shadowRoot){
+                              p.shadowRoot.querySelectorAll('.blurred,[class*="blur"],div,slot').forEach(function(s){
+                                if(s.style){s.style.filter='none';s.style.webkitFilter='none';s.style.backdropFilter='none';}
+                                if(s.tagName==='SLOT'&&s.getAttribute('name')==='blurred'){s.style.display='none';}
+                                if(s.tagName==='SLOT'&&s.getAttribute('name')==='revealed'){s.style.display='block';}
+                              });
+                            }
+                          }
+                          if(p.style){p.style.filter='none';p.style.webkitFilter='none';}
+                        });
+                        document.querySelectorAll('button,a[role="button"]').forEach(function(b){
+                          var txt=(b.textContent||'').replace(/\s+/g,' ').trim();
+                          if(/^(Yes,\s*I['’]?m over 18|View NSFW content|Yes,\s*continue)$/i.test(txt)&&!b.getAttribute('data-cx-nsfw-clicked')){
+                            b.setAttribute('data-cx-nsfw-clicked','1');
+                            b.click();
+                          }
+                        });
+                        """.trimIndent(),
                 )
             }
         }
@@ -522,12 +586,40 @@ private val ENGINE_JS =
       // Full-screen video viewers (Reels, Stories, Shorts-style pages) and direct messages have no feed posts to filter,
       // and their DOM churns as each clip/message loads, so they only get the stylesheet and prompt checks.
       var isImmersive=function(){return /^\/(reels?|stories|direct|shorts)\//.test(location.pathname)};
+      var isAuthPage=function(){return /(^|\/)(i\/flow|login|accounts\/login|uas\/login|checkpoint|challenge)(\/|$)/i.test(location.pathname)};
       var lastScroll=0;
+      var lastPtrState=null;
       var markScroll=function(){lastScroll=Date.now()};
       try{
+        window.addEventListener('touchstart',function(ev){
+          try{
+            var winTop=window.scrollY||window.pageYOffset||document.documentElement.scrollTop||(document.body&&document.body.scrollTop)||0;
+            var allow=winTop<=2&&!isAuthPage()&&!isImmersive();
+            if(allow){
+              var el=ev.target;
+              if(el&&el.closest&&el.closest('[role="dialog"],[aria-modal="true"]')){allow=false;}
+              while(allow&&el&&el!==document.documentElement){
+                if((el.scrollTop||0)>2){allow=false;break;}
+                el=el.parentElement;
+              }
+            }
+            if(lastPtrState!==allow){
+              lastPtrState=allow;
+              console.debug(allow?'__crux_ptr:1':'__crux_ptr:0');
+            }
+          }catch(e){}
+        },{capture:true,passive:true});
         window.addEventListener('scroll',markScroll,{capture:true,passive:true});
         window.addEventListener('touchmove',markScroll,{capture:true,passive:true});
         window.addEventListener('wheel',markScroll,{capture:true,passive:true});
+        window.addEventListener('click',function(ev){
+          var t=ev.target;
+          if(!t||!t.closest)return;
+          var p=t.closest('article[data-testid="tweet"],shreddit-post,div.feed-shared-update-v2,div[data-id*="activity"],article,[role="article"]');
+          if(p){try{p.setAttribute('data-cx-tapped',String(Date.now()));}catch(e){}}
+          var bm=t.closest('[data-testid="bookmark"],button[aria-label="Save" i],button[aria-label="Bookmark" i],div[role="button"]:has(svg[aria-label="Save" i]),shreddit-post [slot*="save"]');
+          if(bm){console.debug('__crux_bm_tap__');}
+        },{capture:true,passive:true});
       }catch(e){}
       var ensureStyle=function(){
         try{
@@ -537,13 +629,21 @@ private val ENGINE_JS =
           (document.head||document.documentElement).appendChild(styleEl);
         }catch(e){}
       };
-      var hide=function(e){if(e&&e.style)e.style.setProperty('display','none','important')};
-      var clean=function(t){return (t||'').replace(/[​-‍﻿ ]/g,' ').trim()};
+      var canHide=function(e){
+        if(!e||!e.style||e===document.body||e===document.documentElement)return false;
+        if(/^(MAIN|BODY|HTML|HEADER|NAV|FOOTER)$/i.test(e.tagName))return false;
+        var role=e.getAttribute&&e.getAttribute('role');
+        if(role==='main'||role==='navigation'||role==='banner'||role==='contentinfo'||e.id==='main-content')return false;
+        if(postSel&&e.querySelectorAll&&e.querySelectorAll(postSel).length>1)return false;
+        return true;
+      };
+      var hide=function(e){if(canHide(e))e.style.setProperty('display','none','important')};
+      var clean=function(t){return (t||'').replace(/[\u200B-\u200D\uFEFF\u00A0]/g,' ').trim()};
       var bar=function(e){
         // Climb only through wrappers that hold nothing else clickable: a site header that also has
         // the menu or search must stay, so stop at it.
         var clickable='a,button,input,select,textarea,[role=button],[role=search],[role=navigation]';
-        while(e.parentElement&&e.parentElement!==document.body&&(e.parentElement.clientHeight||0)<=120&&!/^(HEADER|NAV)$/.test(e.parentElement.tagName)&&!/header/i.test(e.parentElement.tagName)&&e.parentElement.querySelectorAll(clickable).length<=1){e=e.parentElement}
+        while(e.parentElement&&e.parentElement!==document.body&&(e.parentElement.clientHeight||0)<=120&&!/^(HEADER|NAV|FOOTER)$/.test(e.parentElement.tagName)&&!/header|footer|nav/i.test(e.parentElement.tagName)&&e.parentElement.getAttribute('role')!=='navigation'&&!e.parentElement.querySelector('nav,header,footer,[role="navigation"]')&&e.parentElement.querySelectorAll(clickable).length<=1){e=e.parentElement}
         return e;
       };
       var scanPromptsInRoot=function(root,host){
@@ -562,9 +662,10 @@ private val ENGINE_JS =
           else{hide(bar(b))}
         });
       };
+      var shadowBannerSel='configured-xpromo-modal,xpromo-app-selector,xpromo-bottom-sheet,xpromo-bottom-bar,xpromo-nsfw-blocking-container,community-barrier,shreddit-async-loader,faceplate-banner';
       var walkShadowRoots=function(root){
-        root.querySelectorAll('*').forEach(function(el){
-          if(el.tagName&&el.tagName.indexOf('-')!==-1&&el.shadowRoot){
+        root.querySelectorAll(shadowBannerSel).forEach(function(el){
+          if(el.shadowRoot){
             if(css&&!el.shadowRoot.getElementById('cx-shadow-hide')){
               try{var s=document.createElement('style');s.id='cx-shadow-hide';s.textContent=css;el.shadowRoot.appendChild(s)}catch(e){}
             }
@@ -575,7 +676,8 @@ private val ENGINE_JS =
       };
       var scan=function(){
         ensureStyle();
-        var immersive=isImmersive();
+        var auth=isAuthPage();
+        var immersive=isImmersive()||auth;
         try{
           if(postLabels&&postSel&&!immersive){
             document.querySelectorAll(postSel).forEach(function(p){
@@ -612,7 +714,7 @@ private val ENGINE_JS =
               }
             });
           }
-          if(tabLabels){
+          if(tabLabels&&!auth){
             document.querySelectorAll('[role="tab"]').forEach(function(t){
               if(t.getAttribute('data-cx-hidden'))return;
               if(tabLabels.test(clean(t.textContent))){
@@ -623,7 +725,7 @@ private val ENGINE_JS =
               }
             });
           }
-          if(prompts){
+          if(prompts&&!auth){
             scanPromptsInRoot(document,null);
             if(hasShadowDom)walkShadowRoots(document);
           }
@@ -694,8 +796,9 @@ internal fun buildSiteScript(
     val profile = site.scriptProfile()
     val rules = SiteTweak.forSite(site).filter { it in enabled }.map { it.rule }
     val metricRules = if (hideEngagementCounts) calmMetricsCss(site) else emptyList()
+    val baseRules = if (site == LiveWebSite.X && rules.isEmpty() && metricRules.isEmpty()) emptyList() else profile.baseRules
     val css =
-        (profile.baseRules + (rules.flatMap { it.css } + metricRules).distinct().map { "$it{display:none!important}" })
+        (baseRules + (rules.flatMap { it.css } + metricRules).distinct().map { "$it{display:none!important}" })
             .joinToString(" ")
     val postLabels = rules.flatMap { it.postLabels }.distinct()
     val headingLabels = rules.flatMap { it.headingLabels }.distinct()

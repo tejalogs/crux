@@ -96,6 +96,9 @@ import org.crux.ui.component.CruxDropdownMenu
 import org.crux.ui.component.CruxScaffold
 import org.crux.ui.component.CruxTopAppBar
 import org.crux.ui.component.FAIcon
+import org.crux.ui.screen.crux.CruxPlatform
+import org.crux.ui.screen.crux.LocalCruxConnections
+import org.crux.ui.screen.crux.isSignedIn
 import org.crux.ui.screen.home.LiveWebPrivacyStore
 import org.crux.ui.screen.home.LiveWebSite
 import org.crux.ui.screen.home.WebSessionLifecycleSuspender
@@ -160,6 +163,7 @@ internal fun InstagramWebScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
     initialUrl: String? = null,
+    forSignIn: Boolean = false,
     onNavigateToRss: ((String) -> Unit)? = null,
 ) {
     val context = LocalContext.current
@@ -170,15 +174,22 @@ internal fun InstagramWebScreen(
     val instagramSyncService by koinInject<InstagramSyncService>()
     val scope = rememberCoroutineScope()
     val targetUrl =
-        remember(initialUrl) {
+        remember(initialUrl, forSignIn) {
             val clean = initialUrl?.trim()
             if (!clean.isNullOrEmpty() && (clean.startsWith("http://") || clean.startsWith("https://"))) {
                 clean
             } else {
-                INSTAGRAM_HOME_URL
+                LiveWebSite.Instagram.startUrlForSession()
             }
         }
     val webViewState = rememberWebViewState(targetUrl)
+    val pages = org.crux.ui.screen.home.LocalLiveWebPages.current
+    val connections = org.crux.ui.screen.crux.LocalCruxConnections.current
+    val autoReturnOnSignIn =
+        remember(forSignIn) {
+            forSignIn && !org.crux.ui.screen.crux.CruxPlatform.Instagram.isSignedIn()
+        }
+    var hasAutoReturned by remember { mutableStateOf(false) }
 
     var currentUrl by remember { mutableStateOf(targetUrl) }
     val committedUrlHolder =
@@ -207,7 +218,16 @@ internal fun InstagramWebScreen(
                 cm.flush()
                 val cookies = cm.getCookie(INSTAGRAM_HOME_URL).orEmpty() + "; " + cm.getCookie("https://instagram.com").orEmpty()
                 if (InstagramFeedService.hasActiveSession(cookies)) {
-                    scope.launch { instagramSyncService.syncSession(cookies) }
+                    scope.launch {
+                        instagramSyncService.syncSession(cookies)
+                        pages?.reload(LiveWebSite.Instagram)
+                        connections?.refresh()
+                        if (autoReturnOnSignIn && !hasAutoReturned) {
+                            hasAutoReturned = true
+                            Toast.makeText(context, "Signed in to Instagram", Toast.LENGTH_SHORT).show()
+                            onBack()
+                        }
+                    }
                 }
             }
         }
@@ -341,6 +361,15 @@ internal fun InstagramWebScreen(
                         BackButton(onBack = onBack)
                     },
                     actions = {
+                        var pendingBookmarkPost by remember {
+                            mutableStateOf<org.crux.ui.screen.home.ExtractedSocialPost?>(null)
+                        }
+                        pendingBookmarkPost?.let { postToSave ->
+                            org.crux.ui.screen.home.SaveToBookmarkFolderSheet(
+                                post = postToSave,
+                                onDismiss = { pendingBookmarkPost = null },
+                            )
+                        }
                         val detectedProfile = remember(currentUrl) { extractInstagramProfile(currentUrl) }
                         if (detectedProfile != null && onNavigateToRss != null) {
                             IconButton(
@@ -354,6 +383,24 @@ internal fun InstagramWebScreen(
                                     modifier = Modifier.size(18.dp),
                                 )
                             }
+                        }
+                        IconButton(
+                            onClick = {
+                                val wv = webViewRef.value ?: return@IconButton
+                                org.crux.ui.screen.home.extractPostFromWebView(
+                                    site = LiveWebSite.Instagram,
+                                    webView = wv,
+                                ) { extracted ->
+                                    pendingBookmarkPost = extracted
+                                }
+                            },
+                            modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp),
+                        ) {
+                            FAIcon(
+                                imageVector = FontAwesomeIcons.Solid.Bookmark,
+                                contentDescription = stringResource(R.string.reading_list_title),
+                                modifier = Modifier.size(18.dp),
+                            )
                         }
                         IconButton(
                             onClick = {
@@ -467,10 +514,18 @@ internal fun InstagramWebScreen(
                         displayZoomControls = false
                         builtInZoomControls = false
                     }
-                    LiveWebSite.Instagram.cookieManager().setAcceptThirdPartyCookies(view, false)
-
                     val privacyStore = LiveWebPrivacyStore.get(view.context)
                     val config = privacyStore.configFor(LiveWebSite.Instagram)
+                    val acceptThirdParty = !config.blockThirdPartyCookies
+                    runCatching {
+                        val globalCookieManager = android.webkit.CookieManager.getInstance()
+                        globalCookieManager.setAcceptCookie(true)
+                        globalCookieManager.setAcceptThirdPartyCookies(view, acceptThirdParty)
+                    }
+                    LiveWebSite.Instagram.cookieManager().apply {
+                        setAcceptCookie(true)
+                        setAcceptThirdPartyCookies(view, acceptThirdParty)
+                    }
                     if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
                         config.documentStartScripts(LiveWebSite.Instagram).forEach { script ->
                             WebViewCompat.addDocumentStartJavaScript(view, script, setOf("*"))
@@ -480,7 +535,7 @@ internal fun InstagramWebScreen(
                         WebSettingsCompat.setRequestedWithHeaderOriginAllowList(view.settings, emptySet())
                     }
                     if (WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING)) {
-                        WebSettingsCompat.setAlgorithmicDarkeningAllowed(view.settings, true)
+                        WebSettingsCompat.setAlgorithmicDarkeningAllowed(view.settings, false)
                     }
 
                     view.webViewClient =
@@ -488,14 +543,22 @@ internal fun InstagramWebScreen(
                             override fun shouldInterceptRequest(
                                 view: WebView,
                                 request: WebResourceRequest,
-                            ): WebResourceResponse? = super.shouldInterceptRequest(view, request)
+                            ): WebResourceResponse? =
+                                if (config.blocks(LiveWebSite.Instagram, request.url.host)) {
+                                    org.crux.ui.screen.home.LiveWebPrivacyCounters
+                                        .get(view.context)
+                                        .recordBlockedRequest(LiveWebSite.Instagram)
+                                    org.crux.ui.screen.home.blockedTrackerResponse()
+                                } else {
+                                    super.shouldInterceptRequest(view, request)
+                                }
 
                             override fun shouldOverrideUrlLoading(
                                 view: WebView,
                                 request: WebResourceRequest,
                             ): Boolean {
                                 val rawUrl = request.url.toString()
-                                val cleaned = cleanOutgoingLink(rawUrl)
+                                val cleaned = if (config.cleanLinks) cleanOutgoingLink(rawUrl) else rawUrl
                                 val isRedirect = cleaned.substringBefore("?") != rawUrl.substringBefore("?")
                                 val host = request.url.host
                                 if (InstagramFeedService.isValidInstagramHost(host) && !isRedirect) {
@@ -503,7 +566,12 @@ internal fun InstagramWebScreen(
                                 }
                                 val target = if (isRedirect) cleaned else rawUrl
                                 return if (target.startsWith("http://") || target.startsWith("https://")) {
-                                    openLinkOutsideWebView(view.context, target, clean = true)
+                                    openLinkOutsideWebView(
+                                        context = view.context,
+                                        url = target,
+                                        clean = config.cleanLinks,
+                                        openInReader = config.openInReader,
+                                    )
                                     true
                                 } else {
                                     // Deep links like instagram://, market://
@@ -606,131 +674,6 @@ internal fun InstagramWebScreen(
                         }
                 },
             )
-
-            // Floating Ergonomic Privacy & Navigation Dock
-            Surface(
-                modifier =
-                    Modifier
-                        .zIndex(10f)
-                        .align(Alignment.BottomEnd)
-                        .padding(end = 16.dp, bottom = 68.dp)
-                        .navigationBarsPadding(),
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
-                tonalElevation = 6.dp,
-                shadowElevation = 8.dp,
-                border =
-                    androidx.compose.foundation.BorderStroke(
-                        1.dp,
-                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-                    ),
-            ) {
-                if (!isDockExpanded) {
-                    IconButton(
-                        onClick = { isDockExpanded = true },
-                        modifier = Modifier.size(48.dp),
-                    ) {
-                        FAIcon(
-                            imageVector = FontAwesomeIcons.Solid.ShieldHalved,
-                            contentDescription = stringResource(R.string.web_nav_expand),
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(18.dp),
-                        )
-                    }
-                } else {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        IconButton(
-                            onClick = { webViewRef.value?.goBack() },
-                            enabled = canGoBack,
-                            modifier = Modifier.size(48.dp),
-                        ) {
-                            FAIcon(
-                                imageVector = FontAwesomeIcons.Solid.ArrowLeft,
-                                contentDescription = stringResource(R.string.web_nav_back),
-                                modifier = Modifier.size(16.dp),
-                                tint =
-                                    if (canGoBack) {
-                                        MaterialTheme.colorScheme.onSurface
-                                    } else {
-                                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                                    },
-                            )
-                        }
-
-                        IconButton(
-                            onClick = { webViewRef.value?.goForward() },
-                            enabled = canGoForward,
-                            modifier = Modifier.size(48.dp),
-                        ) {
-                            FAIcon(
-                                imageVector = FontAwesomeIcons.Solid.ArrowRight,
-                                contentDescription = stringResource(R.string.web_nav_forward),
-                                modifier = Modifier.size(16.dp),
-                                tint =
-                                    if (canGoForward) {
-                                        MaterialTheme.colorScheme.onSurface
-                                    } else {
-                                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                                    },
-                            )
-                        }
-
-                        IconButton(
-                            onClick = { webViewRef.value?.reload() },
-                            modifier = Modifier.size(48.dp),
-                        ) {
-                            FAIcon(
-                                imageVector = FontAwesomeIcons.Solid.RotateRight,
-                                contentDescription = stringResource(R.string.web_nav_reload),
-                                modifier = Modifier.size(16.dp),
-                            )
-                        }
-
-                        IconButton(
-                            onClick = { showPrivacyDialog = true },
-                            modifier = Modifier.size(48.dp),
-                        ) {
-                            FAIcon(
-                                imageVector = FontAwesomeIcons.Solid.ShieldHalved,
-                                contentDescription = stringResource(R.string.web_nav_site_protection),
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(16.dp),
-                            )
-                        }
-
-                        IconButton(
-                            onClick = {
-                                if (currentUrl.isNotBlank()) {
-                                    openInSystemBrowser(context, currentUrl)
-                                }
-                            },
-                            modifier = Modifier.size(48.dp),
-                        ) {
-                            FAIcon(
-                                imageVector = FontAwesomeIcons.Solid.ArrowUpRightFromSquare,
-                                contentDescription = stringResource(R.string.web_open_in_browser),
-                                modifier = Modifier.size(16.dp),
-                            )
-                        }
-
-                        IconButton(
-                            onClick = { isDockExpanded = false },
-                            modifier = Modifier.size(48.dp),
-                        ) {
-                            FAIcon(
-                                imageVector = FontAwesomeIcons.Solid.Xmark,
-                                contentDescription = stringResource(R.string.web_nav_collapse),
-                                modifier = Modifier.size(16.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                }
-            }
         }
     }
 }

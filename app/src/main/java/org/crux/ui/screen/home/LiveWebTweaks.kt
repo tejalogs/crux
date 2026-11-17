@@ -18,7 +18,7 @@ internal enum class SiteTweak(
     val defaultOn: Boolean = true,
 ) {
     InstagramAds(LiveWebSite.Instagram),
-    InstagramSuggested(LiveWebSite.Instagram),
+    InstagramSuggested(LiveWebSite.Instagram, defaultOn = false),
     InstagramAppPrompts(LiveWebSite.Instagram),
     InstagramReels(LiveWebSite.Instagram),
     InstagramExplore(LiveWebSite.Instagram),
@@ -34,7 +34,7 @@ internal enum class SiteTweak(
     XHideForYou(LiveWebSite.X, defaultOn = false),
 
     LinkedInPromoted(LiveWebSite.LinkedIn),
-    LinkedInSuggested(LiveWebSite.LinkedIn),
+    LinkedInSuggested(LiveWebSite.LinkedIn, defaultOn = false),
     LinkedInPremium(LiveWebSite.LinkedIn),
     LinkedInAppPrompts(LiveWebSite.LinkedIn),
     LinkedInNews(LiveWebSite.LinkedIn),
@@ -46,7 +46,7 @@ internal enum class SiteTweak(
     RedditRecommended(LiveWebSite.Reddit),
     RedditAi(LiveWebSite.Reddit),
     RedditTrending(LiveWebSite.Reddit),
-    RedditUnblurNsfw(LiveWebSite.Reddit, defaultOn = false),
+    RedditUnblurNsfw(LiveWebSite.Reddit, defaultOn = true),
     ;
 
     companion object {
@@ -77,7 +77,7 @@ internal data class SiteWebSettings(
             SiteWebSettings(
                 protection = site.defaultProtection,
                 tweaks = SiteTweak.forSite(site).filter { it.defaultOn }.toSet(),
-                blockAutoplay = true,
+                blockAutoplay = false,
             )
     }
 }
@@ -88,7 +88,7 @@ internal data class WebPrivacySettings(
     /** Unwrap tracking redirects and drop tracking parameters on links that leave a site. */
     val cleanOutgoingLinks: Boolean = true,
     /** Open shared article links inside Crux's built-in reader instead of an external browser. */
-    val openLinksInReader: Boolean = true,
+    val openLinksInReader: Boolean = false,
     /** Refuses third-party cookies inside site WebViews. */
     val blockThirdPartyCookies: Boolean = false,
     /** Remembers each tab's last same-site URL and vertical scroll offset across process death. */
@@ -137,7 +137,7 @@ internal data class LiveWebConfig(
     val tweaks: Set<SiteTweak>,
     val blockAutoplay: Boolean,
     val cleanLinks: Boolean,
-    val openInReader: Boolean = true,
+    val openInReader: Boolean = false,
     val blockThirdPartyCookies: Boolean = false,
     val rememberTabPosition: Boolean = true,
     val hideEngagementCounts: Boolean = false,

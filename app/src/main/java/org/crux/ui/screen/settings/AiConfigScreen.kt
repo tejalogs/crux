@@ -128,11 +128,11 @@ internal fun AiConfigScreen(onBack: () -> Unit) {
                 },
             )
 
-            val currentSpec =
-                OnDeviceModelSpec.SupportedModels.firstOrNull {
-                    it.displayName.equals(state.onDeviceModel, ignoreCase = true) ||
-                        it.modelId.equals(state.onDeviceModel, ignoreCase = true)
-                } ?: OnDeviceModelSpec.Gemma4E2B
+            val currentSpec = OnDeviceModelSpec.findById(state.onDeviceModel)
+            OnDeviceModelsSection(
+                activeModelId = currentSpec.modelId,
+                onSelectModel = { state.setOnDeviceModel(it) },
+            )
             SegmentedListItem(
                 checked = state.showOnDeviceModelDropdown,
                 onCheckedChange = { state.setShowOnDeviceModelDropdown(it) },

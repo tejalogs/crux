@@ -52,6 +52,14 @@ internal enum class CruxPlatform(
     /** Useful without signing in (Reddit can be browsed signed out, RSS has no account). */
     val worksSignedOut: Boolean,
 ) {
+    Rss(
+        displayName = "Feeds",
+        brandColor = Color(0xFFF26522),
+        tagline = R.string.crux_platform_rss_tagline,
+        site = null,
+        canPost = false,
+        worksSignedOut = true,
+    ),
     X(
         displayName = "X",
         brandColor = Color(0xFF14171A),
@@ -84,14 +92,6 @@ internal enum class CruxPlatform(
         canPost = true,
         worksSignedOut = true,
     ),
-    Rss(
-        displayName = "Feeds",
-        brandColor = Color(0xFFF26522),
-        tagline = R.string.crux_platform_rss_tagline,
-        site = null,
-        canPost = false,
-        worksSignedOut = true,
-    ),
     ;
 
     val icon: ImageVector
@@ -112,6 +112,17 @@ internal enum class CruxPlatform(
                 LinkedIn -> Route.LinkedInWeb()
                 Rss -> Route.Rss.Sources
                 X, Reddit -> Route.LiveWeb(name)
+            }
+
+    /** Direct sign-in route that opens the platform's login page and auto-returns on completion. */
+    val signInRoute: Route
+        get() =
+            when (this) {
+                Instagram -> Route.InstagramWeb(initialUrl = LiveWebSite.Instagram.loginUrl, forSignIn = true)
+                LinkedIn -> Route.LinkedInWeb(initialUrl = LiveWebSite.LinkedIn.loginUrl, forSignIn = true)
+                Rss -> Route.Rss.Sources
+                X -> Route.LiveWeb(name, initialUrl = LiveWebSite.X.loginUrl, forSignIn = true)
+                Reddit -> Route.LiveWeb(name, initialUrl = LiveWebSite.Reddit.loginUrl, forSignIn = true)
             }
 
     companion object {

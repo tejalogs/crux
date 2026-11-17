@@ -26,11 +26,11 @@ internal class PlatformTab(
 
 internal fun platformTabs(): List<PlatformTab> =
     listOf(
+        PlatformTab("Rss", allRssTabItem()),
         PlatformTab("X", LiveWebTimelineSpecs.xCandidate.toUiTimelineTabItem()),
         PlatformTab("Instagram", LiveWebTimelineSpecs.instagramCandidate.toUiTimelineTabItem(), "@instagram.com"),
         PlatformTab("LinkedIn", LiveWebTimelineSpecs.linkedinCandidate.toUiTimelineTabItem(), "@linkedin.com"),
         PlatformTab("Reddit", LiveWebTimelineSpecs.redditCandidate.toUiTimelineTabItem()),
-        PlatformTab("Rss", allRssTabItem()),
     )
 
 /** The "All RSS" pill, built without the subscription module that owns the spec. */

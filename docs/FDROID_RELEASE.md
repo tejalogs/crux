@@ -1,6 +1,6 @@
 # Crux: F-Droid release plan and pending steps
 
-Updated 15 Nov 2026. App ID `org.crux.social`, version 1.0.4 (versionCode 5), AGPL-3.0-only.
+Updated 17 Nov 2026. App ID `org.crux.social`, version 1.0.5 (versionCode 6), AGPL-3.0-only.
 
 **Who does what**
 - **Teja:** anything involving accounts, passwords, publishing or pushing. That covers GitHub, GitLab, signing keys and the merge request itself.
@@ -16,12 +16,12 @@ Updated 15 Nov 2026. App ID `org.crux.social`, version 1.0.4 (versionCode 5), AG
 - [x] The only non-free Gradle plugin (the foojay toolchain resolver) sits between `// START/END Non-FOSS component` markers in `settings.gradle.kts`, and the recipe's prebuild strips it.
 - [x] Unicode data is vendored in `third_party/unicode-ucd-16.0.0`, so the build downloads nothing beyond Maven.
 - [x] JDK 17 is enough. The toolchain is set to 17, and the recipe deletes `gradle/gradle-daemon-jvm.properties`.
-- [x] Version lives in `fdroid.properties` (`versionName=1.0.4`, `versionCode=5`).
+- [x] Version lives in `fdroid.properties` (`versionName=1.0.5`, `versionCode=6`).
 - [x] Store text in `fastlane/metadata/android/en-US/`: title, short and full description, `changelogs/1.txt`, `images/icon.png`.
 - [x] Draft fdroiddata recipe at `docs/fdroid/org.crux.social.yml`, with the NonFreeNet anti-feature declared.
 - [x] Privacy policy at `docs/PRIVACY.md`. About screen with an open-source licenses screen.
 - [x] Backups are off (`allowBackup=false`, and the data extraction rules exclude everything).
-- [x] Release APK builds (about 19 MB). Unit tests pass: app, shared, subscription, agent, compose-ui.
+- [x] Release APK builds (about 65.5 MB). Unit tests pass: app, shared, subscription, agent.
 
 ### Status
 - [x] Unshallowed and pushed repository to **https://github.com/tejalogs/crux** (AGPL-3.0)

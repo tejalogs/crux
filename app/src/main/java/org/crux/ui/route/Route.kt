@@ -160,6 +160,7 @@ internal sealed interface Route : NavKey {
     data class LiveWeb(
         val site: String,
         val initialUrl: String? = null,
+        val forSignIn: Boolean = false,
     ) : Route
 
     /** Crux: write once, then pick which connected platforms to post it on. */
@@ -227,11 +228,13 @@ internal sealed interface Route : NavKey {
     @Serializable
     data class InstagramWeb(
         val initialUrl: String? = null,
+        val forSignIn: Boolean = false,
     ) : Route
 
     @Serializable
     data class LinkedInWeb(
         val initialUrl: String? = null,
+        val forSignIn: Boolean = false,
     ) : Route
 
     @Serializable

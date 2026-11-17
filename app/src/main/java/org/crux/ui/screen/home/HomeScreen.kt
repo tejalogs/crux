@@ -68,7 +68,6 @@ import compose.icons.fontawesomeicons.solid.Bars
 import compose.icons.fontawesomeicons.solid.Bell
 import compose.icons.fontawesomeicons.solid.Bookmark
 import compose.icons.fontawesomeicons.solid.CaretDown
-import compose.icons.fontawesomeicons.solid.ClockRotateLeft
 import compose.icons.fontawesomeicons.solid.Gear
 import compose.icons.fontawesomeicons.solid.House
 import compose.icons.fontawesomeicons.solid.MagnifyingGlass
@@ -181,7 +180,12 @@ internal fun HomeScreen(afterInit: () -> Unit) {
     }
     if (!connections.onboardingCompleted) {
         LaunchedEffect(Unit) { afterInit.invoke() }
-        CruxOnboardingScreen(connections = connections)
+        CompositionLocalProvider(
+            LocalLiveWebPages provides liveWebPages,
+            LocalCruxConnections provides connections,
+        ) {
+            CruxOnboardingScreen(connections = connections)
+        }
         return
     }
     state.tabs
@@ -224,7 +228,10 @@ internal fun HomeScreen(afterInit: () -> Unit) {
                     showFab =
                         state.topLevelBackStack.takeSuccess()?.currentKey is Route.Home &&
                             !homeBottomBarAccessory.keepVisible,
-                    bottomBarVisible = tabs.any { it.route == currentTopKey } && !isImeVisible,
+                    bottomBarVisible =
+                        tabs.any { it.route == currentTopKey } &&
+                            !isImeVisible &&
+                            (!homeBottomBarAccessory.keepVisible || homeBottomBarAccessory.webDockExpanded),
                     keepBottomBarVisible = homeBottomBarAccessory.keepVisible,
                     onFabClicked = {
                         state.navigate(Route.CruxCompose())
@@ -430,21 +437,6 @@ internal fun HomeScreen(afterInit: () -> Unit) {
                             },
                             label = {
                                 Text(text = stringResource(id = R.string.drawer_reading_list))
-                            },
-                        )
-                        item(
-                            selected = currentRoute is Route.Settings.LocalHistory,
-                            onClick = {
-                                state.navigate(Route.Settings.LocalHistory)
-                            },
-                            icon = {
-                                FAIcon(
-                                    imageVector = FontAwesomeIcons.Solid.ClockRotateLeft,
-                                    contentDescription = stringResource(id = R.string.settings_local_history_title),
-                                )
-                            },
-                            label = {
-                                Text(text = stringResource(id = R.string.settings_local_history_title))
                             },
                         )
 
@@ -680,7 +672,6 @@ private fun presenter(uriHandler: UriHandler) =
                                 setOf(
                                     Route.Settings.Main,
                                     Route.Rss.Sources,
-                                    Route.Settings.LocalHistory,
                                     Route.ReadingList,
                                     Route.Settings.Accounts,
                                     Route.Settings.PrivacyTweaks,

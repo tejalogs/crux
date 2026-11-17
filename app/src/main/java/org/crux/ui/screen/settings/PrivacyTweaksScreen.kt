@@ -96,6 +96,7 @@ private fun SiteTweak.labelRes(): Int =
 @StringRes
 private fun SiteTweak.descriptionRes(): Int? =
     when (this) {
+        SiteTweak.InstagramSuggested -> R.string.web_tweak_instagram_suggested_description
         SiteTweak.XHideForYou -> R.string.web_tweak_x_hide_for_you_description
         SiteTweak.RedditUnblurNsfw -> R.string.web_tweak_reddit_unblur_nsfw_description
         else -> null

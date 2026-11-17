@@ -6,13 +6,16 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import org.crux.common.OnDeviceAI
 import org.crux.data.network.ktorClient
 import org.crux.data.repository.SettingsRepository
+import org.koin.core.annotation.Provided
 import org.koin.core.annotation.Single
 
 @Single
 internal class CruxAgentRuntimeProvider(
     private val settingsRepository: SettingsRepository,
+    @Provided private val onDeviceAI: OnDeviceAI,
 ) {
     private val bridge = AiConfigKoogBridge()
     private val httpClientFactory: KoogHttpClient.Factory by lazy {
@@ -43,5 +46,6 @@ internal class CruxAgentRuntimeProvider(
                     .first()
                     .aiConfig,
             httpClientFactory = httpClientFactory,
+            onDeviceAI = onDeviceAI,
         )
 }

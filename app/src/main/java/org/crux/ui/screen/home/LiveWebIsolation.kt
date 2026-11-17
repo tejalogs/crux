@@ -15,6 +15,7 @@ import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
 import java.net.URI
 import java.net.URLDecoder
+import org.crux.ui.screen.crux.hasSession
 
 private const val ISOLATION_PREFS = "live_web_isolation"
 private const val KEY_SHARED_DATA_CLEARED = "shared_data_cleared"
@@ -65,6 +66,8 @@ internal fun WebView.suspendWebSession() {
 internal fun WebView.resumeWebSession() {
     runCatching {
         onResume()
+        resumeTimers()
+        postInvalidateOnAnimation()
         evaluateJavascript(RESTORE_MEDIA_SCRIPT, null)
     }
 }
@@ -226,7 +229,8 @@ internal fun cleanOutgoingLink(url: String): String {
             uri.host == "l.instagram.com" -> queryParam(uri.rawQuery, "u")
             uri.host == "out.reddit.com" -> queryParam(uri.rawQuery, "url")
             uri.host == "l.facebook.com" || uri.host == "lm.facebook.com" -> queryParam(uri.rawQuery, "u")
-            uri.host?.endsWith("linkedin.com") == true && uri.path?.startsWith("/safety/go") == true -> queryParam(uri.rawQuery, "url")
+            uri.host?.endsWith("linkedin.com") == true &&
+                (uri.path?.startsWith("/safety/go") == true || uri.path?.startsWith("/redir/") == true) -> queryParam(uri.rawQuery, "url")
             else -> null
         }
     if (target != null) return cleanOutgoingLink(target)
@@ -248,10 +252,21 @@ internal fun cleanOutgoingLink(url: String): String {
  */
 internal object LiveWebSessionState {
     private const val PREFS_NAME = "crux_web_state"
+    private val AUTH_PATH_REGEX =
+        Regex("(^|/)(i/flow|login|accounts/login|accounts/onetap|uas/login|checkpoint|challenge)(/|$)", RegexOption.IGNORE_CASE)
 
     private fun urlKey(site: LiveWebSite) = "url.${site.name}"
 
     private fun scrollKey(site: LiveWebSite) = "scroll.${site.name}"
+
+    fun isAuthOrLoginUrl(url: String?): Boolean {
+        val candidate = url?.trim() ?: return false
+        val uri = runCatching { URI(candidate) }.getOrNull() ?: return false
+        val host = uri.host?.lowercase()?.trimEnd('.').orEmpty()
+        if (host == "accounts.google.com" || host == "appleid.apple.com") return true
+        val path = uri.path.orEmpty()
+        return AUTH_PATH_REGEX.containsMatchIn(path)
+    }
 
     fun isRestorableUrl(
         site: LiveWebSite,
@@ -259,7 +274,11 @@ internal object LiveWebSessionState {
     ): Boolean {
         val candidate = url?.trim() ?: return false
         val uri = runCatching { URI(candidate) }.getOrNull() ?: return false
-        return uri.scheme.equals("https", ignoreCase = true) && site.allows(uri.host)
+        if (!uri.scheme.equals("https", ignoreCase = true) || !site.allows(uri.host)) return false
+        val path = uri.path.orEmpty()
+        if (site == LiveWebSite.X && (path.isEmpty() || path == "/")) return false
+        if (AUTH_PATH_REGEX.containsMatchIn(path)) return false
+        return true
     }
 
     fun save(
@@ -268,6 +287,7 @@ internal object LiveWebSessionState {
         url: String?,
         scrollY: Int,
     ) {
+        if (site.isSignedInAccount && !site.hasSession()) return
         if (!isRestorableUrl(site, url)) return
         context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit {
             putString(urlKey(site), url)
@@ -279,9 +299,16 @@ internal object LiveWebSessionState {
         context: Context,
         site: LiveWebSite,
     ): Pair<String, Int>? {
+        if (site.isSignedInAccount && !site.hasSession()) {
+            clear(context, site)
+            return null
+        }
         val prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val savedUrl = prefs.getString(urlKey(site), null) ?: return null
-        if (!isRestorableUrl(site, savedUrl)) return null
+        if (!isRestorableUrl(site, savedUrl)) {
+            clear(context, site)
+            return null
+        }
         return savedUrl to prefs.getInt(scrollKey(site), 0).coerceAtLeast(0)
     }
 

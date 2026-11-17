@@ -128,9 +128,15 @@ class BottomBarAccessory {
     var keepVisibleOwner: Any? by mutableStateOf(null)
     val keepVisible: Boolean get() = keepVisibleOwner != null
 
+    // Tracks whether the floating dock should stay expanded on the active live web tab (collapses on downward scroll).
+    var webDockExpanded: Boolean by mutableStateOf(true)
+
     // Set by the visible live web tab that supports smart replies; shown as a dock button so it
     // never floats over the page.
     var smartReply: (() -> Unit)? by mutableStateOf(null)
+
+    // Set by the visible live web tab to save the post currently in view into a Universal Bookmark Folder.
+    var bookmarkPost: (() -> Unit)? by mutableStateOf(null)
 }
 
 val LocalBottomBarAccessory = androidx.compose.runtime.staticCompositionLocalOf<BottomBarAccessory?> { null }
@@ -262,6 +268,16 @@ fun NavigationSuiteScaffold2(
                     bottomBarVisible
                         ?: scope.itemList.any { item -> item is NavigationSuiteItem.DefaultItem && item.selected }
                 )
+        val hasAccessoryItem =
+            scope.itemList.asMutableList().any { item ->
+                item is NavigationSuiteItem.DefaultItem && item.selected && item.expandedContent != null
+            }
+        val effectiveBarHeight =
+            if (hasAccessoryItem) {
+                maxOf(bottomBarHeight, DockHeight)
+            } else {
+                bottomBarHeight
+            }
 
         Row {
             ModalWideNavigationRail(
@@ -338,14 +354,14 @@ fun NavigationSuiteScaffold2(
                 CompositionLocalProvider(
                     LocalBottomBarHeight provides
                         if (isPodcastShowing) {
-                            bottomBarHeight
+                            effectiveBarHeight
                         } else {
                             0.dp
                         } +
                         if (showBottomBar) {
                             when (bottomBarStyle) {
-                                BottomBarStyle.Floating -> bottomBarHeight + 16.dp
-                                BottomBarStyle.Classic -> bottomBarHeight + 8.dp
+                                BottomBarStyle.Floating -> effectiveBarHeight + 16.dp
+                                BottomBarStyle.Classic -> effectiveBarHeight + 8.dp
                             }
                         } else {
                             0.dp

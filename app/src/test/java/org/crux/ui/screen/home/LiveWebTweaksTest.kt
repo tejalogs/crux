@@ -32,19 +32,20 @@ class LiveWebTweaksTest {
         val off = SiteTweak.entries.filterNot { it in SiteWebSettings.defaultsFor(it.site).tweaks }.toSet()
         assertEquals(
             setOf(
+                SiteTweak.InstagramSuggested,
                 SiteTweak.InstagramStories,
                 SiteTweak.XHideForYou,
-                SiteTweak.RedditUnblurNsfw,
+                SiteTweak.LinkedInSuggested,
             ),
             off,
         )
     }
 
     @Test
-    fun everySiteHasTweaksAndBlocksAutoplayByDefault() {
+    fun everySiteHasTweaksAndAllowsPlaybackByDefault() {
         LiveWebSite.entries.forEach { site ->
             assertTrue("$site has no tweaks", SiteTweak.forSite(site).isNotEmpty())
-            assertTrue(SiteWebSettings.defaultsFor(site).blockAutoplay)
+            assertFalse(SiteWebSettings.defaultsFor(site).blockAutoplay)
         }
     }
 
@@ -73,11 +74,14 @@ class LiveWebTweaksTest {
     @Test
     fun instagramScriptFollowsTheToggles() {
         val all = defaultScript(LiveWebSite.Instagram)
-        assertTrue(all.contains("a[href=\\\"/reels/\\\"]"))
-        assertTrue(all.contains("data-cx-explore"))
-        assertTrue(all.contains("Sponsored"))
-        assertTrue(all.contains("Suggested for you"))
-        assertTrue(all.contains("play.google.com"))
+        val igAll = script(LiveWebSite.Instagram, SiteTweak.forSite(LiveWebSite.Instagram).toSet())
+        assertTrue(igAll.contains("a[href=\\\"/reels/\\\"]"))
+        assertTrue(igAll.contains("data-cx-explore"))
+        assertTrue(igAll.contains("Sponsored"))
+        assertTrue(igAll.contains("Suggested for you"))
+        assertTrue(igAll.contains("play.google.com"))
+        // Default Instagram script keeps Suggested posts off to avoid hiding feed content during scroll.
+        assertFalse(all.contains("Suggested for you"))
 
         val noReels = script(LiveWebSite.Instagram, SiteWebSettings.defaultsFor(LiveWebSite.Instagram).tweaks - SiteTweak.InstagramReels)
         assertFalse(noReels.contains("/reels/"))
@@ -239,7 +243,7 @@ class LiveWebTweaksTest {
         val x = base.configFor(LiveWebSite.X)
         assertEquals(x, base.configFor(LiveWebSite.X))
         assertNotEquals(x, base.updateSite(LiveWebSite.X) { it.withTweak(SiteTweak.XTrends, false) }.configFor(LiveWebSite.X))
-        assertNotEquals(x, base.updateSite(LiveWebSite.X) { it.withBlockAutoplay(false) }.configFor(LiveWebSite.X))
+        assertNotEquals(x, base.updateSite(LiveWebSite.X) { it.withBlockAutoplay(true) }.configFor(LiveWebSite.X))
         assertNotEquals(x, base.copy(cleanOutgoingLinks = false).configFor(LiveWebSite.X))
         assertFalse(x.blocks(LiveWebSite.X, "doubleclick.net"))
     }
@@ -320,11 +324,11 @@ class LiveWebTweaksTest {
     }
 
     @Test
-    fun openLinksInReaderDefaultsOnAndFollowsToggle() {
-        assertTrue(WebPrivacySettings.Default.openLinksInReader)
-        assertTrue(WebPrivacySettings.Default.configFor(LiveWebSite.X).openInReader)
-        val disabled = WebPrivacySettings.Default.copy(openLinksInReader = false)
-        assertFalse(disabled.configFor(LiveWebSite.X).openInReader)
+    fun openLinksInReaderDefaultsOffAndFollowsToggle() {
+        assertFalse(WebPrivacySettings.Default.openLinksInReader)
+        assertFalse(WebPrivacySettings.Default.configFor(LiveWebSite.X).openInReader)
+        val enabled = WebPrivacySettings.Default.copy(openLinksInReader = true)
+        assertTrue(enabled.configFor(LiveWebSite.X).openInReader)
     }
 
     @Test
@@ -349,11 +353,13 @@ class LiveWebTweaksTest {
         val defaults = defaultScript(LiveWebSite.Reddit)
         assertTrue(defaults.contains("reddit-answers"))
         assertTrue(defaults.contains("trending-carousel"))
-        assertFalse("NSFW unblur is opt-in", defaults.contains("removeAttribute('nsfw')"))
+        assertTrue("NSFW unblur is on by default", defaults.contains("removeAttribute('nsfw')"))
+        assertTrue(defaults.contains("over18=1"))
 
-        val withUnblur =
-            script(LiveWebSite.Reddit, SiteWebSettings.defaultsFor(LiveWebSite.Reddit).tweaks + SiteTweak.RedditUnblurNsfw)
-        assertTrue(withUnblur.contains("removeAttribute('nsfw')"))
+        val withoutUnblur =
+            script(LiveWebSite.Reddit, SiteWebSettings.defaultsFor(LiveWebSite.Reddit).tweaks - SiteTweak.RedditUnblurNsfw)
+        assertFalse(withoutUnblur.contains("removeAttribute('nsfw')"))
+        assertFalse(withoutUnblur.contains("over18=1"))
     }
 
     @Test
@@ -392,5 +398,61 @@ class LiveWebTweaksTest {
         assertTrue(shouldBlockHost(LiveWebSite.Reddit, ProtectionLevel.Strict, "segment.io"))
         assertTrue(shouldBlockHost(LiveWebSite.Reddit, ProtectionLevel.Strict, "w3-reporting-nel.reddit.com"))
         assertTrue(shouldBlockHost(LiveWebSite.X, ProtectionLevel.Strict, "ads-api.twitter.com"))
+    }
+
+    @Test
+    fun sessionCookiesExcludeGuestTokensAndStartUrlsUseLoginFlowWhenSignedOut() {
+        assertFalse("ct0 is set on guest X visits and must not mark X signed in", "ct0" in LiveWebSite.X.sessionCookies)
+        assertTrue("auth_token" in LiveWebSite.X.sessionCookies)
+        assertFalse("token_v2 is set on anonymous Reddit visits and must not mark Reddit signed in", "token_v2" in LiveWebSite.Reddit.sessionCookies)
+        assertTrue("reddit_session" in LiveWebSite.Reddit.sessionCookies)
+
+        assertEquals("https://x.com/i/flow/login", LiveWebSite.X.startUrlForSession())
+        assertEquals("https://www.instagram.com/accounts/login/", LiveWebSite.Instagram.startUrlForSession())
+        assertEquals("https://www.linkedin.com/login", LiveWebSite.LinkedIn.startUrlForSession())
+        assertEquals("https://www.reddit.com/new/", LiveWebSite.Reddit.startUrlForSession())
+        assertTrue(LiveWebSite.X.isSignedOutXRoot("https://x.com/"))
+        assertTrue(LiveWebSite.X.isSignedOutXRoot("https://x.com/?mx=2"))
+        assertFalse(LiveWebSite.X.isSignedOutXRoot("https://x.com/i/flow/login"))
+        assertFalse(LiveWebSite.X.isSignedOutXRoot("https://x.com/jack"))
+    }
+
+    @Test
+    fun xAllowsFeedHostsAndExcludesDocsAndMarketingSubdomains() {
+        assertTrue(LiveWebSite.X.allows("x.com"))
+        assertTrue(LiveWebSite.X.allows("mobile.x.com"))
+        assertTrue(LiveWebSite.X.allows("api.x.com"))
+        assertFalse(LiveWebSite.X.allows("developer.x.com"))
+        assertFalse(LiveWebSite.X.allows("help.x.com"))
+        assertFalse(LiveWebSite.X.allows("business.x.com"))
+        assertFalse(LiveWebSite.X.allows("about.x.com"))
+    }
+
+    @Test
+    fun engineGuardsAuthAndLoginPathsAgainstDomHiding() {
+        val xJs = defaultScript(LiveWebSite.X)
+        assertTrue(xJs.contains("isAuthPage"))
+        assertTrue(xJs.contains("i\\/flow|login|accounts\\/login|uas\\/login|checkpoint|challenge"))
+    }
+
+    @Test
+    fun engineIncludesNativeBookmarkTapHookWithoutGlobalWindowLeak() {
+        val xJs = defaultScript(LiveWebSite.X)
+        assertTrue(xJs.contains("data-cx-tapped"))
+        assertTrue(xJs.contains("__crux_bm_tap__"))
+        assertTrue(xJs.contains("__crux_ptr:0"))
+        assertTrue(xJs.contains("canHide"))
+        assertFalse(xJs.contains("window.__cruxLastTappedPost"))
+    }
+
+    @Test
+    fun redditAllowsVideoAndMediaHostsAndUnwrapsLinkedInRedirects() {
+        assertTrue(LiveWebSite.Reddit.allows("v.redd.it"))
+        assertTrue(LiveWebSite.Reddit.allows("i.redd.it"))
+        assertTrue(LiveWebSite.Reddit.allows("www.redditstatic.com"))
+        assertEquals(
+            "https://example.com/article",
+            cleanOutgoingLink("https://www.linkedin.com/redir/redirect?url=https%3A%2F%2Fexample.com%2Farticle&trk=abc"),
+        )
     }
 }

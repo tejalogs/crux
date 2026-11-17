@@ -20,6 +20,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -47,6 +48,8 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -62,6 +65,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -93,7 +97,10 @@ import org.crux.data.repository.SettingsRepository
 import org.crux.data.repository.SubscriptionRepository
 import org.crux.ui.component.FAIcon
 import org.crux.ui.component.LocalGlobalAppearance
+import org.crux.ui.screen.home.LiveWebPages
 import org.crux.ui.screen.home.LiveWebScreen
+import org.crux.ui.screen.home.LiveWebSite
+import org.crux.ui.screen.home.LocalLiveWebPages
 import org.crux.ui.screen.instagram.InstagramWebScreen
 import org.crux.ui.screen.linkedin.LinkedInWebScreen
 import org.koin.compose.koinInject
@@ -150,14 +157,16 @@ internal fun CruxOnboardingScreen(connections: CruxConnectionsState) {
     fun finish() {
         if (finishing) return
         finishing = true
-        val existing = existingFeedUrls.orEmpty()
-        val newFeeds = selectedStarterFeeds.filter { it.url !in existing }
+        val chosenFeeds = if (starterFeedsPrimed) selectedStarterFeeds.toList() else starterFeedPicks()
         val rssChosen = CruxPlatform.Rss in selected
         val platforms = selected.toList()
         // Save before completing: completing removes this screen, which cancels `scope`.
         scope.launch {
             try {
                 if (rssChosen) {
+                    val existing = existingFeedUrls ?: subscriptionRepository.observeAll().first().map { it.url }.toSet()
+                    val candidateFeeds = if (starterFeedsPrimed) chosenFeeds else if (existing.isEmpty()) starterFeedPicks() else emptyList()
+                    val newFeeds = candidateFeeds.filter { it.url !in existing }
                     if (newFeeds.isNotEmpty()) {
                         subscriptionRepository.upsertAll(newFeeds.map { it.toSubscriptionSourceInput() })
                     }
@@ -171,6 +180,23 @@ internal fun CruxOnboardingScreen(connections: CruxConnectionsState) {
         }
     }
 
+    val context = LocalContext.current
+    val externalWebPages = LocalLiveWebPages.current
+    val onboardingWebPages = remember(externalWebPages) { externalWebPages ?: LiveWebPages() }
+    DisposableEffect(onboardingWebPages, externalWebPages) {
+        onDispose {
+            if (externalWebPages == null) {
+                onboardingWebPages.destroy()
+            }
+        }
+    }
+    val nextPlatformToWarm = nextUnsignedPlatform(selected.toList(), connections.signedIn)
+    LaunchedEffect(nextPlatformToWarm?.site) {
+        nextPlatformToWarm?.site?.let { site ->
+            onboardingWebPages.page(site, context)
+        }
+    }
+
     val activeSignIn = signingIn
     if (activeSignIn != null) {
         val close = {
@@ -178,10 +204,14 @@ internal fun CruxOnboardingScreen(connections: CruxConnectionsState) {
             connections.refresh()
         }
         BackHandler(onBack = close)
-        when (activeSignIn) {
-            CruxPlatform.Instagram -> InstagramWebScreen(onBack = close)
-            CruxPlatform.LinkedIn -> LinkedInWebScreen(onBack = close)
-            else -> activeSignIn.site?.let { LiveWebScreen(siteName = it.name, onBack = close) }
+        CompositionLocalProvider(LocalLiveWebPages provides onboardingWebPages) {
+            activeSignIn.site?.let { site ->
+                LiveWebScreen(
+                    siteName = site.name,
+                    onBack = close,
+                    forSignIn = true,
+                )
+            }
         }
         return
     }
@@ -812,7 +842,7 @@ private fun RssStarterFeedsSelector(
             AnimatedVisibility(visible = expanded) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -821,10 +851,13 @@ private fun RssStarterFeedsSelector(
                                 selectedFeeds.clear()
                                 selectedFeeds.addAll(starterFeedPicks())
                             },
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                         ) {
                             Text(
                                 text = stringResource(R.string.crux_onboarding_rss_select_recommended),
                                 style = MaterialTheme.typography.labelMedium,
+                                maxLines = 1,
+                                softWrap = false,
                             )
                         }
                         TextButton(
@@ -832,13 +865,25 @@ private fun RssStarterFeedsSelector(
                                 selectedFeeds.clear()
                                 selectedFeeds.addAll(DefaultRssFeeds.allFeeds)
                             },
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                         ) {
-                            Text(stringResource(R.string.crux_onboarding_rss_select_all), style = MaterialTheme.typography.labelMedium)
+                            Text(
+                                text = stringResource(R.string.crux_onboarding_rss_select_all),
+                                style = MaterialTheme.typography.labelMedium,
+                                maxLines = 1,
+                                softWrap = false,
+                            )
                         }
                         TextButton(
                             onClick = { selectedFeeds.clear() },
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                         ) {
-                            Text(stringResource(R.string.crux_onboarding_rss_deselect_all), style = MaterialTheme.typography.labelMedium)
+                            Text(
+                                text = stringResource(R.string.crux_onboarding_rss_deselect_all),
+                                style = MaterialTheme.typography.labelMedium,
+                                maxLines = 1,
+                                softWrap = false,
+                            )
                         }
                     }
 
@@ -909,6 +954,13 @@ private fun RssStarterFeedsSelector(
     }
 }
 
+internal fun nextUnsignedPlatform(
+    platforms: List<CruxPlatform>,
+    signedIn: Set<CruxPlatform>,
+): CruxPlatform? =
+    platforms.firstOrNull { it.site != null && !it.worksSignedOut && it !in signedIn }
+        ?: platforms.firstOrNull { it.site != null && it !in signedIn }
+
 @Composable
 private fun SignInStep(
     platforms: List<CruxPlatform>,
@@ -917,23 +969,36 @@ private fun SignInStep(
     onSignIn: (CruxPlatform) -> Unit,
     onContinue: () -> Unit,
 ) {
+    val signedInCount = platforms.count { connections.isSignedIn(it) }
+    val allSignedIn = platforms.isNotEmpty() && signedInCount == platforms.size
+    val nextPlatform = nextUnsignedPlatform(platforms, connections.signedIn)
     StepScaffold(
         title = stringResource(R.string.crux_onboarding_signin_title),
         subtitle = stringResource(R.string.crux_onboarding_signin_subtitle),
         primaryLabel = stringResource(R.string.crux_onboarding_continue_to_calm),
         onPrimary = onContinue,
-        secondaryAction = {
-            TextButton(
-                onClick = onContinue,
-                modifier = Modifier.heightIn(min = 44.dp),
-            ) {
-                Text(
-                    text = stringResource(R.string.crux_onboarding_signin_later),
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        },
+        secondaryAction =
+            if (allSignedIn) {
+                null
+            } else {
+                {
+                    TextButton(
+                        onClick = onContinue,
+                        modifier = Modifier.heightIn(min = 44.dp),
+                    ) {
+                        Text(
+                            text =
+                                if (signedInCount > 0) {
+                                    "Skip remaining"
+                                } else {
+                                    stringResource(R.string.crux_onboarding_signin_later)
+                                },
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            },
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Surface(
@@ -955,7 +1020,14 @@ private fun SignInStep(
                     )
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(
-                            text = stringResource(R.string.crux_onboarding_signin_optional_banner_title),
+                            text =
+                                if (allSignedIn) {
+                                    "All selected accounts connected"
+                                } else if (signedInCount > 0) {
+                                    "$signedInCount of ${platforms.size} accounts connected"
+                                } else {
+                                    stringResource(R.string.crux_onboarding_signin_optional_banner_title)
+                                },
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -971,9 +1043,23 @@ private fun SignInStep(
 
             platforms.forEach { platform ->
                 val signedIn = connections.isSignedIn(platform)
+                val isNext = platform == nextPlatform
                 Surface(
+                    onClick = { if (!signedIn) onSignIn(platform) },
+                    enabled = !signedIn,
                     shape = RoundedCornerShape(20.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    color =
+                        if (isNext) {
+                            MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f)
+                        } else {
+                            MaterialTheme.colorScheme.surfaceContainerHigh
+                        },
+                    border =
+                        if (isNext) {
+                            BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary)
+                        } else {
+                            null
+                        },
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Row(
@@ -1002,6 +1088,10 @@ private fun SignInStep(
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(22.dp),
                             )
+                        } else if (isNext) {
+                            Button(onClick = { onSignIn(platform) }) {
+                                Text(stringResource(R.string.crux_action_sign_in))
+                            }
                         } else {
                             FilledTonalButton(onClick = { onSignIn(platform) }) {
                                 Text(stringResource(R.string.crux_action_sign_in))
