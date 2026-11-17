@@ -240,8 +240,8 @@ private fun CruxPlatformRow(
 @Composable
 internal fun CruxSectionHeader(
     title: String,
-    subtitle: String? = null,
     modifier: Modifier = Modifier,
+    subtitle: String? = null,
 ) {
     Column(modifier = modifier.padding(top = 16.dp, bottom = 4.dp, start = 4.dp)) {
         Text(text = title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)

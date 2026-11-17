@@ -251,31 +251,31 @@ private val UiStrings.androidStringRes: Int
 
             UiStrings.Following -> R.string.following_title
 
-            UiStrings.PixivRankingWeek -> R.string.pixiv_ranking_week_title
+            UiStrings.PixivRankingWeek -> R.string.ranking_week_title
 
-            UiStrings.PixivRankingMonth -> R.string.pixiv_ranking_month_title
+            UiStrings.PixivRankingMonth -> R.string.ranking_month_title
 
-            UiStrings.PixivRankingDayMale -> R.string.pixiv_ranking_day_male_title
+            UiStrings.PixivRankingDayMale -> R.string.ranking_day_male_title
 
-            UiStrings.PixivRankingDayFemale -> R.string.pixiv_ranking_day_female_title
+            UiStrings.PixivRankingDayFemale -> R.string.ranking_day_female_title
 
-            UiStrings.PixivRankingWeekOriginal -> R.string.pixiv_ranking_week_original_title
+            UiStrings.PixivRankingWeekOriginal -> R.string.ranking_week_original_title
 
-            UiStrings.PixivRankingWeekRookie -> R.string.pixiv_ranking_week_rookie_title
+            UiStrings.PixivRankingWeekRookie -> R.string.ranking_week_rookie_title
 
-            UiStrings.PixivRankingDayManga -> R.string.pixiv_ranking_day_manga_title
+            UiStrings.PixivRankingDayManga -> R.string.ranking_day_manga_title
 
             UiStrings.Illustrations -> R.string.illustrations_title
 
             UiStrings.Manga -> R.string.manga_title
 
-            UiStrings.FanboxSupported -> R.string.fanbox_supported_title
+            UiStrings.FanboxSupported -> R.string.creator_supported_title
 
-            UiStrings.FanboxRecommendedCreators -> R.string.fanbox_recommended_creators_title
+            UiStrings.FanboxRecommendedCreators -> R.string.recommended_creators_title
 
-            UiStrings.PixivPrivateFollowing -> R.string.pixiv_private_following_title
+            UiStrings.PixivPrivateFollowing -> R.string.private_following_title
 
             UiStrings.PixivPrivateBookmarks,
             UiStrings.PixivPrivateFavourites,
-            -> R.string.pixiv_private_favourites_title
+            -> R.string.private_favourites_title
         }

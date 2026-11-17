@@ -35,7 +35,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import org.crux.compose.ui.Res
-import org.crux.compose.ui.mastodon_item_show_more
+import org.crux.compose.ui.post_item_show_more
 import org.crux.ui.component.status.StatusReactionRow
 import org.jetbrains.compose.resources.stringResource
 import org.junit.Assert.assertEquals
@@ -184,7 +184,7 @@ class TimelineItemPerformanceTest {
         }
         composeRule.setContent {
             MaterialTheme {
-                moreLabel = stringResource(Res.string.mastodon_item_show_more)
+                moreLabel = stringResource(Res.string.post_item_show_more)
                 CompositionLocalProvider(LocalLayoutDirection provides direction.value) {
                     Box(Modifier.size(width.value, 500.dp)) {
                         StatusReactionRow(itemCount = itemCount.intValue, isDetail = detail.value) { index ->

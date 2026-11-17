@@ -96,4 +96,12 @@ class AppUpdateManagerTest {
         AppUpdateManager.pendingPromptUpdate = null
         org.junit.Assert.assertNull(AppUpdateManager.pendingPromptUpdate)
     }
+
+    @Test
+    fun signerMismatchMessage_distinguishesDebugFromRelease() {
+        val debugMsg = AppUpdateManager.signerMismatchMessage(isDebugBuild = true)
+        val releaseMsg = AppUpdateManager.signerMismatchMessage(isDebugBuild = false)
+        assertTrue(debugMsg.contains("debug", ignoreCase = true))
+        assertTrue(releaseMsg.contains("not signed with the same key", ignoreCase = true))
+    }
 }

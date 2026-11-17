@@ -26,16 +26,11 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import org.crux.R
 import org.crux.data.datastore.model.AppSettings
-import org.crux.data.platform.INSTAGRAM_PLATFORM_ID
-import org.crux.data.platform.LINKEDIN_PLATFORM_ID
 import org.crux.data.repository.SettingsRepository
-import org.crux.ui.model.onSuccess
-import org.crux.ui.presenter.invoke
 import org.crux.ui.route.Route
 import org.crux.ui.screen.home.LiveWebSite
 import org.crux.ui.screen.home.clearSession
 import org.crux.ui.screen.home.cookieManager
-import org.crux.ui.screen.settings.AccountManagementPresenter
 import org.koin.compose.koinInject
 
 /**
@@ -230,7 +225,6 @@ internal fun rememberCruxConnectionsState(): CruxConnectionsState {
                 platforms = AppSettings.DEFAULT_CRUX_PLATFORMS,
             ),
     )
-    val accountState = remember { AccountManagementPresenter() }.invoke()
     var signedIn by remember { mutableStateOf(readSignedInPlatforms()) }
     val refresh = remember { { signedIn = readSignedInPlatforms() } }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { refresh() }
@@ -252,18 +246,6 @@ internal fun rememberCruxConnectionsState(): CruxConnectionsState {
 
     fun signOut(platform: CruxPlatform) {
         platform.site?.clearSession()
-        // Instagram and LinkedIn sessions are also mirrored as accounts so their feeds show up as pills.
-        val platformId =
-            when (platform) {
-                CruxPlatform.Instagram -> INSTAGRAM_PLATFORM_ID
-                CruxPlatform.LinkedIn -> LINKEDIN_PLATFORM_ID
-                else -> null
-            }
-        if (platformId != null) {
-            accountState.accounts.onSuccess { items ->
-                items.filter { it.account.platformId == platformId }.forEach { accountState.logout(it.account.accountKey) }
-            }
-        }
         refresh()
     }
 

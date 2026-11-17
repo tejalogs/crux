@@ -367,8 +367,8 @@ internal fun folderIconForName(iconName: String): ImageVector =
 @Composable
 internal fun SocialPlatformBadge(
     platformId: String,
-    size: Dp = 26.dp,
     modifier: Modifier = Modifier,
+    size: Dp = 26.dp,
 ) {
     val (icon, brush) =
         when (platformId.lowercase()) {

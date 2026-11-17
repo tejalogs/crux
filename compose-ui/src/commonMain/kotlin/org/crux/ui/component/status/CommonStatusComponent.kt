@@ -85,16 +85,16 @@ import org.crux.compose.ui.favourite
 import org.crux.compose.ui.fx_share
 import org.crux.compose.ui.hide_media
 import org.crux.compose.ui.like
-import org.crux.compose.ui.mastodon_item_show_less
-import org.crux.compose.ui.mastodon_item_show_more
-import org.crux.compose.ui.mastodon_visibility_direct
-import org.crux.compose.ui.mastodon_visibility_private
-import org.crux.compose.ui.mastodon_visibility_public
-import org.crux.compose.ui.mastodon_visibility_unlisted
 import org.crux.compose.ui.more
 import org.crux.compose.ui.poll_expired
 import org.crux.compose.ui.poll_expired_at
+import org.crux.compose.ui.post_item_show_less
+import org.crux.compose.ui.post_item_show_more
 import org.crux.compose.ui.post_show_full_text
+import org.crux.compose.ui.post_visibility_direct
+import org.crux.compose.ui.post_visibility_private
+import org.crux.compose.ui.post_visibility_public
+import org.crux.compose.ui.post_visibility_unlisted
 import org.crux.compose.ui.profile_open_user
 import org.crux.compose.ui.quote
 import org.crux.compose.ui.reaction_add
@@ -1051,7 +1051,7 @@ public fun StatusVisibilityComponent(
         UiTimelineV2.Post.Visibility.Public -> {
             FAIcon(
                 imageVector = FontAwesomeIcons.Solid.Globe,
-                contentDescription = stringResource(resource = Res.string.mastodon_visibility_public),
+                contentDescription = stringResource(resource = Res.string.post_visibility_public),
                 modifier = modifier,
                 tint = tint,
             )
@@ -1060,7 +1060,7 @@ public fun StatusVisibilityComponent(
         UiTimelineV2.Post.Visibility.Home -> {
             FAIcon(
                 imageVector = FontAwesomeIcons.Solid.LockOpen,
-                contentDescription = stringResource(resource = Res.string.mastodon_visibility_unlisted),
+                contentDescription = stringResource(resource = Res.string.post_visibility_unlisted),
                 modifier = modifier,
                 tint = tint,
             )
@@ -1069,7 +1069,7 @@ public fun StatusVisibilityComponent(
         UiTimelineV2.Post.Visibility.Followers -> {
             FAIcon(
                 imageVector = FontAwesomeIcons.Solid.Lock,
-                contentDescription = stringResource(resource = Res.string.mastodon_visibility_private),
+                contentDescription = stringResource(resource = Res.string.post_visibility_private),
                 modifier = modifier,
                 tint = tint,
             )
@@ -1078,7 +1078,7 @@ public fun StatusVisibilityComponent(
         UiTimelineV2.Post.Visibility.Specified -> {
             FAIcon(
                 imageVector = FontAwesomeIcons.Solid.At,
-                contentDescription = stringResource(resource = Res.string.mastodon_visibility_direct),
+                contentDescription = stringResource(resource = Res.string.post_visibility_direct),
                 modifier = modifier,
                 tint = tint,
             )
@@ -1498,9 +1498,9 @@ private fun StatusContentComponent(
                         },
                     ) {
                         if (expanded) {
-                            PlatformText(stringResource(Res.string.mastodon_item_show_less))
+                            PlatformText(stringResource(Res.string.post_item_show_less))
                         } else {
-                            PlatformText(stringResource(Res.string.mastodon_item_show_more))
+                            PlatformText(stringResource(Res.string.post_item_show_more))
                         }
                     }
                 }

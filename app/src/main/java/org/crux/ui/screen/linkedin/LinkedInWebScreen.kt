@@ -85,9 +85,10 @@ import compose.icons.fontawesomeicons.solid.TrashCan
 import compose.icons.fontawesomeicons.solid.Xmark
 import kotlinx.coroutines.launch
 import org.crux.R
+import androidx.webkit.WebViewCompat
+import androidx.webkit.WebViewFeature
 import org.crux.data.datasource.linkedin.LinkedInFeedParser
 import org.crux.data.datasource.linkedin.LinkedInFeedService
-import org.crux.data.datasource.linkedin.LinkedInSyncService
 import org.crux.data.readinglist.ReadingListItem
 import org.crux.data.readinglist.ReadingListRepository
 import org.crux.di.koinInject
@@ -99,14 +100,12 @@ import org.crux.ui.component.FAIcon
 import org.crux.ui.screen.crux.CruxPlatform
 import org.crux.ui.screen.crux.LocalCruxConnections
 import org.crux.ui.screen.crux.isSignedIn
-import androidx.webkit.WebSettingsCompat
-import androidx.webkit.WebViewCompat
-import androidx.webkit.WebViewFeature
 import org.crux.ui.screen.home.LiveWebPrivacyStore
 import org.crux.ui.screen.home.LiveWebSite
 import org.crux.ui.screen.home.WebSessionLifecycleSuspender
 import org.crux.ui.screen.home.clearSession
 import org.crux.ui.screen.home.cleanOutgoingLink
+import org.crux.ui.screen.home.configureWebViewHeadersAndDarkening
 import org.crux.ui.screen.home.cookieManager
 import org.crux.ui.screen.home.openInSystemBrowser
 import org.crux.ui.screen.home.openLinkOutsideWebView
@@ -151,7 +150,6 @@ internal fun LinkedInWebScreen(
     val webViewRef = remember { mutableStateOf<WebView?>(null) }
     WebSessionLifecycleSuspender(webView = webViewRef.value)
     val readingListRepo by koinInject<ReadingListRepository>()
-    val linkedInSyncService by koinInject<LinkedInSyncService>()
     val scope = rememberCoroutineScope()
     val targetUrl =
         remember(initialUrl, forSignIn) {
@@ -189,15 +187,13 @@ internal fun LinkedInWebScreen(
     var showOverflowMenu by remember { mutableStateOf(false) }
     var isDockExpanded by remember { mutableStateOf(false) }
 
-    // Registers the signed-in session as an account row once cookies show a login. It is silent: a row
-    // existing says nothing about any feed, so nothing in the UI reports it.
+    // Refreshes cookie-backed session state once LinkedIn login cookies are present.
     fun checkAndSyncSession() {
         val cm = LiveWebSite.LinkedIn.cookieManager()
         cm.flush()
         val cookies = cm.getCookie("https://www.linkedin.com").orEmpty() + "; " + cm.getCookie("https://linkedin.com").orEmpty()
         if (LinkedInFeedService.hasActiveSession(cookies)) {
             scope.launch {
-                linkedInSyncService.syncSession(cookies)
                 pages?.reload(LiveWebSite.LinkedIn)
                 connections?.refresh()
                 if (autoReturnOnSignIn && !hasAutoReturned) {
@@ -417,12 +413,7 @@ internal fun LinkedInWebScreen(
                             WebViewCompat.addDocumentStartJavaScript(webView, script, setOf("*"))
                         }
                     }
-                    if (WebViewFeature.isFeatureSupported(WebViewFeature.REQUESTED_WITH_HEADER_ALLOW_LIST)) {
-                        WebSettingsCompat.setRequestedWithHeaderOriginAllowList(webView.settings, emptySet())
-                    }
-                    if (WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING)) {
-                        WebSettingsCompat.setAlgorithmicDarkeningAllowed(webView.settings, false)
-                    }
+                    configureWebViewHeadersAndDarkening(webView.settings)
 
                     webView.webViewClient =
                         object : WebViewClient() {

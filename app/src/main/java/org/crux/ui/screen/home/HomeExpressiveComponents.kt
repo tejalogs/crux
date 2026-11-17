@@ -114,7 +114,6 @@ internal fun ExpressiveHomeTabStrip(
                 showLabel = !iconOnly && (isSelected || (!selectedLabelOnly && tabs.size <= COMPACT_LABEL_THRESHOLD)),
                 uncheckedContainerColor = uncheckedContainerColor,
                 onClick = { onTabSelected(index) },
-                modifier = Modifier,
                 horizontalPadding = if (iconOnly) 6.dp else 12.dp,
                 minWidth = if (iconOnly) 36.dp else 48.dp,
             )
@@ -143,9 +142,9 @@ private fun HomeTabPill(
     showLabel: Boolean,
     uncheckedContainerColor: Color,
     onClick: () -> Unit,
-    modifier: Modifier,
     horizontalPadding: Dp,
     minWidth: Dp,
+    modifier: Modifier = Modifier,
 ) {
     ToggleButton(
         checked = isSelected,

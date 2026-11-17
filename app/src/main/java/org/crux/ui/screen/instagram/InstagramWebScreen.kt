@@ -86,8 +86,9 @@ import compose.icons.fontawesomeicons.solid.TrashCan
 import compose.icons.fontawesomeicons.solid.Xmark
 import kotlinx.coroutines.launch
 import org.crux.R
+import androidx.webkit.WebViewCompat
+import androidx.webkit.WebViewFeature
 import org.crux.data.datasource.instagram.InstagramFeedService
-import org.crux.data.datasource.instagram.InstagramSyncService
 import org.crux.data.readinglist.ReadingListItem
 import org.crux.data.readinglist.ReadingListRepository
 import org.crux.di.koinInject
@@ -104,13 +105,11 @@ import org.crux.ui.screen.home.LiveWebSite
 import org.crux.ui.screen.home.WebSessionLifecycleSuspender
 import org.crux.ui.screen.home.clearSession
 import org.crux.ui.screen.home.cleanOutgoingLink
+import org.crux.ui.screen.home.configureWebViewHeadersAndDarkening
 import org.crux.ui.screen.home.cookieManager
 import org.crux.ui.screen.home.openInSystemBrowser
 import org.crux.ui.screen.home.openLinkOutsideWebView
 import org.crux.ui.screen.home.useProfileOf
-import androidx.webkit.WebSettingsCompat
-import androidx.webkit.WebViewCompat
-import androidx.webkit.WebViewFeature
 import java.io.ByteArrayInputStream
 
 private const val INSTAGRAM_HOME_URL = "https://www.instagram.com"
@@ -171,7 +170,6 @@ internal fun InstagramWebScreen(
     val webViewRef = remember { mutableStateOf<WebView?>(null) }
     WebSessionLifecycleSuspender(webView = webViewRef.value)
     val readingListRepo by koinInject<ReadingListRepository>()
-    val instagramSyncService by koinInject<InstagramSyncService>()
     val scope = rememberCoroutineScope()
     val targetUrl =
         remember(initialUrl, forSignIn) {
@@ -209,17 +207,15 @@ internal fun InstagramWebScreen(
     var showOverflowMenu by remember { mutableStateOf(false) }
     var isDockExpanded by remember { mutableStateOf(false) }
 
-    // Registers the signed-in session as an account row once cookies show a login. It is silent: a row
-    // existing says nothing about any feed, so nothing in the UI reports it.
+    // Refreshes cookie-backed session state once Instagram login cookies are present.
     val checkAndSyncSession =
-        remember(instagramSyncService) {
+        remember(pages, connections, autoReturnOnSignIn) {
             {
                 val cm = LiveWebSite.Instagram.cookieManager()
                 cm.flush()
                 val cookies = cm.getCookie(INSTAGRAM_HOME_URL).orEmpty() + "; " + cm.getCookie("https://instagram.com").orEmpty()
                 if (InstagramFeedService.hasActiveSession(cookies)) {
                     scope.launch {
-                        instagramSyncService.syncSession(cookies)
                         pages?.reload(LiveWebSite.Instagram)
                         connections?.refresh()
                         if (autoReturnOnSignIn && !hasAutoReturned) {
@@ -531,12 +527,7 @@ internal fun InstagramWebScreen(
                             WebViewCompat.addDocumentStartJavaScript(view, script, setOf("*"))
                         }
                     }
-                    if (WebViewFeature.isFeatureSupported(WebViewFeature.REQUESTED_WITH_HEADER_ALLOW_LIST)) {
-                        WebSettingsCompat.setRequestedWithHeaderOriginAllowList(view.settings, emptySet())
-                    }
-                    if (WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING)) {
-                        WebSettingsCompat.setAlgorithmicDarkeningAllowed(view.settings, false)
-                    }
+                    configureWebViewHeadersAndDarkening(view.settings)
 
                     view.webViewClient =
                         object : WebViewClient() {

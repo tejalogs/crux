@@ -250,9 +250,23 @@ internal fun CruxOnboardingScreen(connections: CruxConnectionsState) {
 
                     OnboardingStep.Platforms -> {
                         PlatformsStep(
-                            selected = selected,
-                            selectedStarterFeeds = selectedStarterFeeds,
+                            selected = selected.toList(),
+                            selectedStarterFeeds = selectedStarterFeeds.toList(),
                             existingFeedUrls = existingFeedUrls.orEmpty(),
+                            onTogglePlatform = { platform ->
+                                if (platform in selected) selected.remove(platform) else selected.add(platform)
+                            },
+                            onToggleStarterFeed = { feed, checked ->
+                                if (checked) {
+                                    if (feed !in selectedStarterFeeds) selectedStarterFeeds.add(feed)
+                                } else {
+                                    selectedStarterFeeds.remove(feed)
+                                }
+                            },
+                            onReplaceStarterFeeds = { feeds ->
+                                selectedStarterFeeds.clear()
+                                selectedStarterFeeds.addAll(feeds)
+                            },
                             onContinue = {
                                 step = if (selected.any { it.site != null }) OnboardingStep.SignIn else OnboardingStep.Calm
                             },
@@ -675,9 +689,12 @@ private fun LiveDockPreview(selected: List<CruxPlatform>) {
 
 @Composable
 private fun PlatformsStep(
-    selected: MutableList<CruxPlatform>,
-    selectedStarterFeeds: MutableList<DefaultRssFeeds.FeedItem>,
+    selected: List<CruxPlatform>,
+    selectedStarterFeeds: List<DefaultRssFeeds.FeedItem>,
     existingFeedUrls: Set<String>,
+    onTogglePlatform: (CruxPlatform) -> Unit,
+    onToggleStarterFeed: (DefaultRssFeeds.FeedItem, Boolean) -> Unit,
+    onReplaceStarterFeeds: (List<DefaultRssFeeds.FeedItem>) -> Unit,
     onContinue: () -> Unit,
 ) {
     StepScaffold(
@@ -708,7 +725,7 @@ private fun PlatformsStep(
                                 Modifier
                                     .fillMaxWidth()
                                     .clickable {
-                                        if (isSelected) selected.remove(platform) else selected.add(platform)
+                                        onTogglePlatform(platform)
                                     },
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(14.dp),
@@ -745,7 +762,12 @@ private fun PlatformsStep(
                             }
                         }
                         AnimatedVisibility(visible = platform == CruxPlatform.Rss && isSelected) {
-                            RssStarterFeedsSelector(selectedFeeds = selectedStarterFeeds, existingFeedUrls = existingFeedUrls)
+                            RssStarterFeedsSelector(
+                                selectedFeeds = selectedStarterFeeds,
+                                existingFeedUrls = existingFeedUrls,
+                                onToggleFeed = onToggleStarterFeed,
+                                onReplaceFeeds = onReplaceStarterFeeds,
+                            )
                         }
                     }
                 }
@@ -756,8 +778,10 @@ private fun PlatformsStep(
 
 @Composable
 private fun RssStarterFeedsSelector(
-    selectedFeeds: MutableList<DefaultRssFeeds.FeedItem>,
+    selectedFeeds: List<DefaultRssFeeds.FeedItem>,
     existingFeedUrls: Set<String>,
+    onToggleFeed: (DefaultRssFeeds.FeedItem, Boolean) -> Unit,
+    onReplaceFeeds: (List<DefaultRssFeeds.FeedItem>) -> Unit,
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
     var selectedCategoryIndex by remember { mutableStateOf<Int?>(null) }
@@ -848,8 +872,7 @@ private fun RssStarterFeedsSelector(
                     ) {
                         TextButton(
                             onClick = {
-                                selectedFeeds.clear()
-                                selectedFeeds.addAll(starterFeedPicks())
+                                onReplaceFeeds(starterFeedPicks())
                             },
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                         ) {
@@ -862,8 +885,7 @@ private fun RssStarterFeedsSelector(
                         }
                         TextButton(
                             onClick = {
-                                selectedFeeds.clear()
-                                selectedFeeds.addAll(DefaultRssFeeds.allFeeds)
+                                onReplaceFeeds(DefaultRssFeeds.allFeeds)
                             },
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                         ) {
@@ -875,7 +897,7 @@ private fun RssStarterFeedsSelector(
                             )
                         }
                         TextButton(
-                            onClick = { selectedFeeds.clear() },
+                            onClick = { onReplaceFeeds(emptyList()) },
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                         ) {
                             Text(
@@ -911,7 +933,7 @@ private fun RssStarterFeedsSelector(
                             val isChecked = alreadyAdded || feed in selectedFeeds
                             Surface(
                                 onClick = {
-                                    if (isChecked) selectedFeeds.remove(feed) else selectedFeeds.add(feed)
+                                    onToggleFeed(feed, !isChecked)
                                 },
                                 enabled = !alreadyAdded,
                                 shape = RoundedCornerShape(12.dp),
@@ -927,11 +949,7 @@ private fun RssStarterFeedsSelector(
                                         enabled = !alreadyAdded,
                                         checked = isChecked,
                                         onCheckedChange = { checked ->
-                                            if (checked) {
-                                                if (feed !in selectedFeeds) selectedFeeds.add(feed)
-                                            } else {
-                                                selectedFeeds.remove(feed)
-                                            }
+                                            onToggleFeed(feed, checked)
                                         },
                                     )
                                     Column(modifier = Modifier.weight(1f)) {

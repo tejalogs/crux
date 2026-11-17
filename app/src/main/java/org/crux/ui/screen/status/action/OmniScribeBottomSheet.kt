@@ -60,6 +60,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
@@ -134,6 +135,7 @@ internal fun OmniScribeBottomSheet(
     sourceUrl: String = "",
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val haptic = rememberFlareHapticFeedback(true)
     val scope = rememberCoroutineScope()
 
@@ -888,7 +890,7 @@ internal fun OmniScribeBottomSheet(
                             val clipboard =
                                 context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
                             clipboard?.setPrimaryClip(
-                                ClipData.newPlainText(context.getString(R.string.omni_scribe_clipboard_label), editedText),
+                                ClipData.newPlainText(resources.getString(R.string.omni_scribe_clipboard_label), editedText),
                             )
                         }
 
@@ -910,7 +912,7 @@ internal fun OmniScribeBottomSheet(
                                         activeDeck.slides
                                             .getOrNull(
                                                 idx,
-                                            )?.body ?: context.getString(R.string.omni_scribe_slide_alt, idx + 1),
+                                            )?.body ?: resources.getString(R.string.omni_scribe_slide_alt, idx + 1),
                                 )
                             }
 

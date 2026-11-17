@@ -50,10 +50,6 @@ import compose.icons.fontawesomeicons.solid.Bookmark
 import compose.icons.fontawesomeicons.solid.RotateRight
 import kotlinx.coroutines.delay
 import org.crux.R
-import org.crux.data.datasource.instagram.InstagramFeedService
-import org.crux.data.datasource.instagram.InstagramSyncService
-import org.crux.data.datasource.linkedin.LinkedInFeedService
-import org.crux.data.datasource.linkedin.LinkedInSyncService
 import org.crux.ui.component.BackButton
 import org.crux.ui.component.CruxScaffold
 import org.crux.ui.component.CruxTopAppBar
@@ -163,6 +159,7 @@ internal fun LiveShareScreen(
             BackHandler(enabled = page.canGoBack) {
                 page.goBack()
             }
+            val instagramHint = stringResource(R.string.live_share_instagram_hint)
             LaunchedEffect(site, text) {
                 if (site == LiveWebSite.Instagram) {
                     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
@@ -170,7 +167,7 @@ internal fun LiveShareScreen(
                     Toast
                         .makeText(
                             context,
-                            context.getString(R.string.live_share_instagram_hint),
+                            instagramHint,
                             Toast.LENGTH_LONG,
                         ).show()
                 }
@@ -240,8 +237,6 @@ internal fun LiveWebScreen(
     val context = LocalContext.current
     val pages = LocalLiveWebPages.current
     val connections = LocalCruxConnections.current
-    val instagramSyncService = koinInject<InstagramSyncService>()
-    val linkedInSyncService = koinInject<LinkedInSyncService>()
     val customUrl = initialUrl?.takeIf { it.isNotBlank() }
     val startUrl =
         remember(site, customUrl, forSignIn) {
@@ -278,31 +273,6 @@ internal fun LiveWebScreen(
             while (true) {
                 site.cookieManager().flush()
                 if (site.hasSession()) {
-                    when (site) {
-                        LiveWebSite.Instagram -> {
-                            val cm = site.cookieManager()
-                            val cookies =
-                                cm.getCookie("https://www.instagram.com").orEmpty() +
-                                    "; " +
-                                    cm.getCookie("https://instagram.com").orEmpty()
-                            if (InstagramFeedService.hasActiveSession(cookies)) {
-                                instagramSyncService.syncSession(cookies)
-                            }
-                        }
-
-                        LiveWebSite.LinkedIn -> {
-                            val cm = site.cookieManager()
-                            val cookies =
-                                cm.getCookie("https://www.linkedin.com").orEmpty() +
-                                    "; " +
-                                    cm.getCookie("https://linkedin.com").orEmpty()
-                            if (LinkedInFeedService.hasActiveSession(cookies)) {
-                                linkedInSyncService.syncSession(cookies)
-                            }
-                        }
-
-                        else -> Unit
-                    }
                     delay(350L)
                     if (!ownsPage) {
                         page.webView.loadUrl(site.homeUrl)

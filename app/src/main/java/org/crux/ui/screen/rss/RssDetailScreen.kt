@@ -148,10 +148,10 @@ private val PAGE_EDGE_FADE = 28.dp
 @Composable
 internal fun RssDetailScreen(
     url: String,
+    onBack: () -> Unit,
     descriptionHtml: String? = null,
     descriptionTitle: String? = null,
     fallbackHtml: String? = null,
-    onBack: () -> Unit,
     toTranslationSettings: () -> Unit = {},
 ) {
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
@@ -279,6 +279,7 @@ internal fun RssDetailScreen(
                     actionIconContentColor = MaterialTheme.colorScheme.primary,
                 ),
             actions = {
+                val fallbackArticleTitle = stringResource(R.string.rss_detail_article_fallback_title)
                 IconButton(
                     // Saving before the article loads would store a placeholder, so wait for it.
                     enabled = isSavedState || state.data.isSuccess,
@@ -287,7 +288,7 @@ internal fun RssDetailScreen(
                         val itemTitle =
                             descriptionTitle?.takeIf { it.isNotBlank() }
                                 ?: doc?.title?.takeIf { it.isNotBlank() }
-                                ?: context.getString(R.string.rss_detail_article_fallback_title)
+                                ?: fallbackArticleTitle
                         val itemContent =
                             doc?.textContent?.takeIf { it.isNotBlank() }
                                 ?: doc?.content?.takeIf { it.isNotBlank() }

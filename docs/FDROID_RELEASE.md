@@ -1,6 +1,6 @@
 # Crux: F-Droid release plan and pending steps
 
-Updated 17 Nov 2026. App ID `org.crux.social`, version 1.0.5 (versionCode 6), AGPL-3.0-only.
+Updated 17 Nov 2026. App ID `org.crux.social`, version 1.0.6 (versionCode 7), AGPL-3.0-only.
 
 **Who does what**
 - **Teja:** anything involving accounts, passwords, publishing or pushing. That covers GitHub, GitLab, signing keys and the merge request itself.
@@ -16,12 +16,12 @@ Updated 17 Nov 2026. App ID `org.crux.social`, version 1.0.5 (versionCode 6), AG
 - [x] The only non-free Gradle plugin (the foojay toolchain resolver) sits between `// START/END Non-FOSS component` markers in `settings.gradle.kts`, and the recipe's prebuild strips it.
 - [x] Unicode data is vendored in `third_party/unicode-ucd-16.0.0`, so the build downloads nothing beyond Maven.
 - [x] JDK 17 is enough. The toolchain is set to 17, and the recipe deletes `gradle/gradle-daemon-jvm.properties`.
-- [x] Version lives in `fdroid.properties` (`versionName=1.0.5`, `versionCode=6`).
+- [x] Version lives in `fdroid.properties` (`versionName=1.0.6`, `versionCode=7`).
 - [x] Store text in `fastlane/metadata/android/en-US/`: title, short and full description, `changelogs/1.txt`, `images/icon.png`.
 - [x] Draft fdroiddata recipe at `docs/fdroid/org.crux.social.yml`, with the NonFreeNet anti-feature declared.
 - [x] Privacy policy at `docs/PRIVACY.md`. About screen with an open-source licenses screen.
 - [x] Backups are off (`allowBackup=false`, and the data extraction rules exclude everything).
-- [x] Release APK builds (about 65.5 MB). Unit tests pass: app, shared, subscription, agent.
+- [x] Release APK builds (about 66.1 MB). Unit tests pass: app, shared, subscription, agent, compose-ui.
 
 ### Status
 - [x] Unshallowed and pushed repository to **https://github.com/tejalogs/crux** (AGPL-3.0)
@@ -130,10 +130,10 @@ Optional: create a GitHub Release for `v1.0.0` and attach an APK signed with you
 |---|---|---|
 | Verify the new onboarding on the phone | Done | Verified v1.0.1 onboarding + added haptic sign-in confirmation, staggered pillar entrance, and dock accessibility descriptions. |
 | Privacy counter labels | Done | Fixed so the two labels no longer run together. |
-| Reworded strings in other languages | Done / Later | Cleaned Mastodon/Flare/Prism traces from `values-*` user-facing copy; legacy internal resource key names remain where referenced by shared UI. |
+| Reworded strings in other languages | Done | Cleaned Mastodon/Flare/Prism traces from `values-*` user-facing copy and renamed legacy `pixiv_*`, `fanbox_*`, and `mastodon_*` XML keys across all 62 localized `strings.xml` files. |
 | Image and video share targets | Accepted | Web composer URL intents only support text + link; users attach media via each WebView's `onShowFileChooser`. |
 | Remove the unused `androidx.browser` dependency | Done | Removed unused `androidx.browser` from `app/build.gradle.kts` and `libs.versions.toml` (`HardenedBrowserScreen` intentionally retained under *Settings → Browser and links*). |
-| Instagram and LinkedIn "shadow account" code | Later | Used only for sign-in detection. Simplify when convenient. |
+| Instagram and LinkedIn "shadow account" code | Done | Sign-in and sign-out use each site's isolated cookie jar directly (`LiveWebSite.hasSession()`); legacy shadow DB rows are cleaned up after tab migration. |
 | X tweak hides "Subscribe" on creator profiles too | Accepted | Side effect of the Premium upsell filter. |
 | Play Store | Not planned | Play would likely reject it as a WebView wrapper of third-party sites. F-Droid is the target. |
 

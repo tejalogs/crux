@@ -609,32 +609,34 @@ private fun ErrorFooter(
     onRetryClick: () -> Unit,
     onDiscardClick: () -> Unit,
 ) {
-    Text(
-        text = state.message,
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.error,
-    )
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        FilledTonalButton(
-            onClick = onRetryClick,
-            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = state.message,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.error,
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text =
-                    if (state.partialBytes > 0L) {
-                        stringResource(id = R.string.on_device_model_action_resume)
-                    } else {
-                        stringResource(id = R.string.on_device_model_action_retry)
-                    },
-            )
-        }
-        if (state.partialBytes > 0L) {
-            TextButton(onClick = onDiscardClick) {
-                Text(text = stringResource(id = R.string.on_device_model_action_discard_partial))
+            FilledTonalButton(
+                onClick = onRetryClick,
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+            ) {
+                Text(
+                    text =
+                        if (state.partialBytes > 0L) {
+                            stringResource(id = R.string.on_device_model_action_resume)
+                        } else {
+                            stringResource(id = R.string.on_device_model_action_retry)
+                        },
+                )
+            }
+            if (state.partialBytes > 0L) {
+                TextButton(onClick = onDiscardClick) {
+                    Text(text = stringResource(id = R.string.on_device_model_action_discard_partial))
+                }
             }
         }
     }

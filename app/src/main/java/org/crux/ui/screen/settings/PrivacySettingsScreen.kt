@@ -47,6 +47,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -375,6 +376,7 @@ internal fun LiveWebProfilesSandboxCard() {
                 }
             }
 
+            val resources = LocalResources.current
             LiveWebSite.entries.forEach { site ->
                 val status =
                     remember(site, refreshTick) {
@@ -433,7 +435,7 @@ internal fun LiveWebProfilesSandboxCard() {
                                     Toast
                                         .makeText(
                                             context,
-                                            context.getString(R.string.privacy_web_session_cleared, site.name),
+                                            resources.getString(R.string.privacy_web_session_cleared, site.name),
                                             Toast.LENGTH_SHORT,
                                         ).show()
                                 },

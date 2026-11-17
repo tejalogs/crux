@@ -44,6 +44,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -82,6 +83,7 @@ internal fun AboutScreen(
     val topAppBarScrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val uriHandler = LocalUriHandler.current
     val context = LocalContext.current
+    val resources = LocalResources.current
     val coroutineScope = rememberCoroutineScope()
     val updatePrefs = remember(context) { AppUpdatePrefs.get(context) }
     val autoCheckUpdates by updatePrefs.autoCheckEnabled.collectAsState()
@@ -164,14 +166,14 @@ internal fun AboutScreen(
                         onClick = {
                             if (!isCheckingUpdates) {
                                 isCheckingUpdates = true
-                                updateStatusSupporting = context.getString(R.string.settings_checking_for_updates)
+                                updateStatusSupporting = resources.getString(R.string.settings_checking_for_updates)
                                 coroutineScope.launch {
                                     val result = AppUpdateManager.checkForUpdates(BuildConfig.VERSION_NAME)
                                     isCheckingUpdates = false
                                     when (result) {
                                         is UpdateCheckResult.UpToDate -> {
                                             updatePrefs.recordCheckCompleted()
-                                            val msg = context.getString(R.string.settings_up_to_date, BuildConfig.VERSION_NAME)
+                                            val msg = resources.getString(R.string.settings_up_to_date, BuildConfig.VERSION_NAME)
                                             updateStatusSupporting = msg
                                             Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                                         }
@@ -180,7 +182,7 @@ internal fun AboutScreen(
                                             updatePrefs.recordCheckCompleted()
                                             updatePrefs.clearSkippedVersion()
                                             updateStatusSupporting =
-                                                context.getString(
+                                                resources.getString(
                                                     R.string.settings_update_available,
                                                     result.info.tagName,
                                                 )
@@ -189,7 +191,7 @@ internal fun AboutScreen(
                                         }
 
                                         is UpdateCheckResult.Error -> {
-                                            val err = context.getString(R.string.settings_update_failed)
+                                            val err = resources.getString(R.string.settings_update_failed)
                                             updateStatusSupporting = err
                                             Toast.makeText(context, "$err: ${result.message}", Toast.LENGTH_LONG).show()
                                         }

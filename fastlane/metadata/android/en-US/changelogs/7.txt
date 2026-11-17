@@ -1,0 +1,5 @@
+Crux 1.0.6
+- Clearer in-app update prompt when switching from local debug builds to signed GitHub releases
+- Improved update dialog with equal-height action buttons and cleaner changelog scrolling
+- Simplify Instagram and LinkedIn auth detection to isolated cookie jars with legacy shadow cleanup
+- Rename legacy resource identifiers across localized strings and fix all Android debug lint checks

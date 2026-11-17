@@ -11,6 +11,7 @@ import android.provider.Settings
 import androidx.core.content.FileProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.crux.BuildConfig
 import org.crux.CruxLinks
 import org.json.JSONObject
 import java.io.File
@@ -264,10 +265,17 @@ public object AppUpdateManager {
         val archiveSigners = archive.signerDigests()
         val installedSigners = installed.signerDigests()
         if (archiveSigners.isEmpty() || archiveSigners != installedSigners) {
-            return "The update is not signed with the same key as this app."
+            return signerMismatchMessage(BuildConfig.DEBUG)
         }
         return null
     }
+
+    internal fun signerMismatchMessage(isDebugBuild: Boolean): String =
+        if (isDebugBuild) {
+            "Installed app is a debug build. Export your feeds/bookmarks first, uninstall this debug build, then install the GitHub release APK once for future in-app updates."
+        } else {
+            "The update is not signed with the same key as this app."
+        }
 
     @Suppress("DEPRECATION")
     private fun signingFlags(): Int =

@@ -24,9 +24,8 @@ import org.crux.compose.ui.all_rss_feeds_title
 import org.crux.compose.ui.antenna_title
 import org.crux.compose.ui.cancel_button
 import org.crux.compose.ui.channel_title
+import org.crux.compose.ui.creator_supported_title
 import org.crux.compose.ui.dm_list_title
-import org.crux.compose.ui.fanbox_recommended_creators_title
-import org.crux.compose.ui.fanbox_supported_title
 import org.crux.compose.ui.home_tab_bookmarks_title
 import org.crux.compose.ui.home_tab_discover_title
 import org.crux.compose.ui.home_tab_favorite_title
@@ -45,19 +44,20 @@ import org.crux.compose.ui.login_button
 import org.crux.compose.ui.manga_title
 import org.crux.compose.ui.media_title
 import org.crux.compose.ui.mixed_timeline_title
-import org.crux.compose.ui.pixiv_private_favourites_title
-import org.crux.compose.ui.pixiv_private_following_title
-import org.crux.compose.ui.pixiv_ranking_day_female_title
-import org.crux.compose.ui.pixiv_ranking_day_male_title
-import org.crux.compose.ui.pixiv_ranking_day_manga_title
-import org.crux.compose.ui.pixiv_ranking_month_title
-import org.crux.compose.ui.pixiv_ranking_week_original_title
-import org.crux.compose.ui.pixiv_ranking_week_rookie_title
-import org.crux.compose.ui.pixiv_ranking_week_title
 import org.crux.compose.ui.posts_title
 import org.crux.compose.ui.posts_with_replies_title
+import org.crux.compose.ui.private_favourites_title
+import org.crux.compose.ui.private_following_title
 import org.crux.compose.ui.profile_tab_articles
 import org.crux.compose.ui.profile_tab_highlights
+import org.crux.compose.ui.ranking_day_female_title
+import org.crux.compose.ui.ranking_day_male_title
+import org.crux.compose.ui.ranking_day_manga_title
+import org.crux.compose.ui.ranking_month_title
+import org.crux.compose.ui.ranking_week_original_title
+import org.crux.compose.ui.ranking_week_rookie_title
+import org.crux.compose.ui.ranking_week_title
+import org.crux.compose.ui.recommended_creators_title
 import org.crux.compose.ui.rss_title
 import org.crux.compose.ui.service_select_next_button
 import org.crux.compose.ui.settings_title
@@ -359,31 +359,31 @@ internal val UiStrings.res: StringResource
             UiStrings.WebCookieLogin,
             -> Res.string.login_button
 
-            UiStrings.PixivRankingWeek -> Res.string.pixiv_ranking_week_title
+            UiStrings.PixivRankingWeek -> Res.string.ranking_week_title
 
-            UiStrings.PixivRankingMonth -> Res.string.pixiv_ranking_month_title
+            UiStrings.PixivRankingMonth -> Res.string.ranking_month_title
 
-            UiStrings.PixivRankingDayMale -> Res.string.pixiv_ranking_day_male_title
+            UiStrings.PixivRankingDayMale -> Res.string.ranking_day_male_title
 
-            UiStrings.PixivRankingDayFemale -> Res.string.pixiv_ranking_day_female_title
+            UiStrings.PixivRankingDayFemale -> Res.string.ranking_day_female_title
 
-            UiStrings.PixivRankingWeekOriginal -> Res.string.pixiv_ranking_week_original_title
+            UiStrings.PixivRankingWeekOriginal -> Res.string.ranking_week_original_title
 
-            UiStrings.PixivRankingWeekRookie -> Res.string.pixiv_ranking_week_rookie_title
+            UiStrings.PixivRankingWeekRookie -> Res.string.ranking_week_rookie_title
 
-            UiStrings.PixivRankingDayManga -> Res.string.pixiv_ranking_day_manga_title
+            UiStrings.PixivRankingDayManga -> Res.string.ranking_day_manga_title
 
             UiStrings.Illustrations -> Res.string.illustrations_title
 
             UiStrings.Manga -> Res.string.manga_title
 
-            UiStrings.FanboxSupported -> Res.string.fanbox_supported_title
+            UiStrings.FanboxSupported -> Res.string.creator_supported_title
 
-            UiStrings.FanboxRecommendedCreators -> Res.string.fanbox_recommended_creators_title
+            UiStrings.FanboxRecommendedCreators -> Res.string.recommended_creators_title
 
-            UiStrings.PixivPrivateFollowing -> Res.string.pixiv_private_following_title
+            UiStrings.PixivPrivateFollowing -> Res.string.private_following_title
 
             UiStrings.PixivPrivateBookmarks,
             UiStrings.PixivPrivateFavourites,
-            -> Res.string.pixiv_private_favourites_title
+            -> Res.string.private_favourites_title
         }

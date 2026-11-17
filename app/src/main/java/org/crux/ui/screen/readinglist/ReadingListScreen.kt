@@ -116,8 +116,8 @@ import java.util.Locale
 internal fun ReadingListScreen(
     onBack: () -> Unit,
     toStorageSettings: () -> Unit,
-    onNavigate: (Route) -> Unit = {},
     modifier: Modifier = Modifier,
+    onNavigate: (Route) -> Unit = {},
 ) {
     val context = LocalContext.current
     val repository by koinInject<ReadingListRepository>()

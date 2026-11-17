@@ -326,15 +326,7 @@ internal class LiveWebPage(
                     WebViewCompat.addDocumentStartJavaScript(this, script, setOf("*"))
                 }
             }
-            // Sites otherwise get the app's ID in a header on every request.
-            if (WebViewFeature.isFeatureSupported(WebViewFeature.REQUESTED_WITH_HEADER_ALLOW_LIST)) {
-                WebSettingsCompat.setRequestedWithHeaderOriginAllowList(settings, emptySet())
-            }
-            // Never use WebView algorithmic darkening: it color-inverts profile pictures, avatars,
-            // and media on LinkedIn into photo negatives. Each site uses its own CSS theme instead.
-            if (WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING)) {
-                WebSettingsCompat.setAlgorithmicDarkeningAllowed(settings, false)
-            }
+            configureWebViewHeadersAndDarkening(settings)
             webViewClient =
                 object : WebViewClient() {
                     override fun onPageStarted(
@@ -1128,6 +1120,9 @@ internal fun LiveWebTab(
     if (imageUrl != null) {
         val copyLabel = stringResource(R.string.media_menu_copy_link)
         val shareTitle = stringResource(R.string.media_menu_share_image)
+        val downloadStartedMsg = stringResource(R.string.media_download_started)
+        val saveSuccessMsg = stringResource(R.string.media_save_success)
+        val saveFailMsg = stringResource(R.string.media_save_fail)
         ModalBottomSheet(
             onDismissRequest = { contextImageUrl = null },
         ) {
@@ -1175,7 +1170,7 @@ internal fun LiveWebTab(
                             val fileName = inferWebImageFileName(imageUrl)
                             scope.launch {
                                 Toast
-                                    .makeText(context, context.getString(R.string.media_download_started), Toast.LENGTH_SHORT)
+                                    .makeText(context, downloadStartedMsg, Toast.LENGTH_SHORT)
                                     .show()
                                 downloadManager.downloadMedia(
                                     uri = imageUrl,
@@ -1185,7 +1180,7 @@ internal fun LiveWebTab(
                                             override fun onDownloadSuccess(downloadId: Long) {
                                                 scope.launch(Dispatchers.Main) {
                                                     Toast
-                                                        .makeText(context, context.getString(R.string.media_save_success), Toast.LENGTH_SHORT)
+                                                        .makeText(context, saveSuccessMsg, Toast.LENGTH_SHORT)
                                                         .show()
                                                 }
                                             }
@@ -1193,7 +1188,7 @@ internal fun LiveWebTab(
                                             override fun onDownloadFailed(downloadId: Long) {
                                                 scope.launch(Dispatchers.Main) {
                                                     Toast
-                                                        .makeText(context, context.getString(R.string.media_save_fail), Toast.LENGTH_SHORT)
+                                                        .makeText(context, saveFailMsg, Toast.LENGTH_SHORT)
                                                         .show()
                                                 }
                                             }

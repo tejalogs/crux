@@ -2,10 +2,10 @@
 
 **Repository:** `https://github.com/tejalogs/crux` (`main` branch, AGPL-3.0)
 **Website:** `https://tejalogs.github.io/crux/`
-**Latest Release:** `v1.0.5` (`versionCode=6`, signed `app-release.apk` attached)
+**Latest Release:** `v1.0.6` (`versionCode=7`, signed `app-release.apk` attached)
 
 ## Distribution & In-App Updates
-- **GitHub Releases (Primary)**: Signed release APKs are hosted directly on GitHub Releases (`v1.0.0`, `v1.0.1`, `v1.0.2`, `v1.0.3`, `v1.0.4`, `v1.0.5`). F-Droid inclusion MR #56349 was closed by maintainers because the main F-Droid catalog requires 3+ months of public repository history; GitHub Releases + GitHub Pages remain the official distribution channels.
+- **GitHub Releases (Primary)**: Signed release APKs are hosted directly on GitHub Releases (`v1.0.0`, `v1.0.1`, `v1.0.2`, `v1.0.3`, `v1.0.4`, `v1.0.5`, `v1.0.6`). F-Droid inclusion MR #56349 was closed by maintainers because the main F-Droid catalog requires 3+ months of public repository history; GitHub Releases + GitHub Pages remain the official distribution channels.
 - **In-App OTA Updater**: `AppUpdateManager` checks `/repos/tejalogs/crux/releases/latest` from *Settings → About → Check for updates*, streams APK downloads with progress reporting, and installs via `FileProvider` (`REQUEST_INSTALL_PACKAGES`).
 
 ## What Crux is now
@@ -25,8 +25,7 @@ Android only. Platforms: **Instagram, X, LinkedIn, Reddit** (live web tabs, each
 - **Share / quick tile / shortcut** open the Crux compose sheet (text + link). Web composer URLs cannot accept local `content://` image/video files directly, so media attachments use each WebView composer's file picker (`onShowFileChooser`).
 - **RSS:** lenient feed parsing, US time-zone dates, `<br>`/numbered lists/relative images in articles, defaults seeded once, no duplicate feeds, sturdier OPML import, reader remembers position as a fraction, bookmark waits for the article, and RSS articles can be saved to custom Universal Bookmark Folders.
 - **v1.0.5 WebView, Bookmarks & On-Device AI:** Universal Bookmark Folders across all social tabs and RSS (custom icons, colors, notes, inline folder editing); removed local browsing history; onboarding auto-return after login + starter RSS seeding on quick skip; RSS-first default bottom dock order; external links default to system browser; Instagram blank-scroll fix; LinkedIn dark-mode image polarity fix, bottom dock clearance, and `/redir/` navigation; Reddit scroll unlock, inline/fullscreen video playback, and NSFW unblurring; LiteRT-LM on-device AI model management & local prompt execution.
+- **Cleanup & lint hardening (v1.0.6):** Renamed remaining legacy `pixiv_*`, `fanbox_*`, and `mastodon_*` XML resource keys across 62 localized `strings.xml` files (`ranking_*`, `creator_supported_title`, `recommended_creators_title`, `private_*`, `post_visibility_*`, `post_item_show_*`); stopped creating Instagram/LinkedIn shadow DB accounts at login and clean up legacy shadow rows once migrated; resolved all `:app:lintDebug` errors (`MissingPermission`, `RestrictedApi`, Compose lint checks); polished update prompt changelog scrolling, equal-height buttons, and debug signing mismatch guidance.
 
 ## Remaining Backlog
-- Some internal `R.string.*` / `Res.string.*` resource identifier names (`pixiv_*`, `fanbox_*`, `mastodon_*`) remain in `EditTabDialog`, `TabIcon`, and `CommonStatusComponent` (English & localized user-facing copy has already been cleaned of Mastodon/Flare/Prism references).
-- Instagram/LinkedIn "shadow account" code still exists (used for sign-in detection only).
 - Dependency updates applied cleanly (`Gradle 9.8.2`, `AGP 9.5.1`, `Kotlin 2.4.21`, `SKIE 0.10.16`, `KSP 2.3.13`, `Ktor 3.6.1`, `Material3 1.5.0-rc01`, `DataStore 1.3.0`). Kotlin and SKIE remain coupled when upgrading further.

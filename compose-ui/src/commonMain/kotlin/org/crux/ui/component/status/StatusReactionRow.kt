@@ -9,7 +9,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import org.crux.compose.ui.Res
-import org.crux.compose.ui.mastodon_item_show_more
+import org.crux.compose.ui.post_item_show_more
 import org.crux.ui.component.platform.PlatformText
 import org.crux.ui.theme.PlatformTheme
 import org.jetbrains.compose.resources.stringResource
@@ -34,7 +34,7 @@ internal fun StatusReactionRow(
         overflow =
             ContextualFlowRowOverflow.expandIndicator {
                 PlatformText(
-                    text = stringResource(Res.string.mastodon_item_show_more),
+                    text = stringResource(Res.string.post_item_show_more),
                     style = PlatformTheme.typography.caption,
                     color = PlatformTheme.colorScheme.caption,
                 )

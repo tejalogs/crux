@@ -1,7 +1,9 @@
 package org.crux.ui.screen.home
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.webkit.CookieManager
+import android.webkit.WebSettings
 import android.webkit.WebStorage
 import android.webkit.WebView
 import androidx.compose.runtime.Composable
@@ -11,6 +13,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.webkit.ProfileStore
+import androidx.webkit.WebSettingsCompat
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
 import java.net.URI
@@ -320,5 +323,20 @@ internal object LiveWebSessionState {
             remove(urlKey(site))
             remove(scrollKey(site))
         }
+    }
+}
+
+/**
+ * Hides Crux's package name from the `X-Requested-With` header and disables WebView algorithmic
+ * darkening (which otherwise color-inverts avatars and photos on light-themed pages like LinkedIn).
+ */
+@SuppressLint("RestrictedApi")
+@Suppress("DEPRECATION")
+internal fun configureWebViewHeadersAndDarkening(settings: WebSettings) {
+    if (WebViewFeature.isFeatureSupported(WebViewFeature.REQUESTED_WITH_HEADER_ALLOW_LIST)) {
+        WebSettingsCompat.setRequestedWithHeaderOriginAllowList(settings, emptySet())
+    }
+    if (WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING)) {
+        WebSettingsCompat.setAlgorithmicDarkeningAllowed(settings, false)
     }
 }
