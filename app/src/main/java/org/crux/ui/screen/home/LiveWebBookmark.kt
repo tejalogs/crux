@@ -446,6 +446,33 @@ internal fun SocialPlatformBadge(
     }
 }
 
+/** Author avatar with a corner platform mini-badge when an avatar exists, or the platform badge alone. */
+@Composable
+internal fun AuthorWithPlatformAvatar(
+    avatarUrl: String?,
+    platformId: String,
+    modifier: Modifier = Modifier,
+    size: Dp = 32.dp,
+) {
+    if (avatarUrl.isNullOrBlank()) {
+        SocialPlatformBadge(platformId = platformId, modifier = modifier, size = size)
+        return
+    }
+    Box(modifier = modifier.size(size)) {
+        AsyncImage(
+            model = avatarUrl,
+            contentDescription = null,
+            modifier = Modifier.size(size).clip(CircleShape),
+            contentScale = ContentScale.Crop,
+        )
+        SocialPlatformBadge(
+            platformId = platformId,
+            size = (size * 0.48f).coerceAtLeast(14.dp),
+            modifier = Modifier.align(Alignment.BottomEnd),
+        )
+    }
+}
+
 internal fun platformDisplayName(platformId: String): String =
     when (platformId.lowercase()) {
         "x", "twitter" -> "X"
@@ -553,11 +580,15 @@ internal fun SaveToBookmarkFolderSheet(
                             text = if (existingItem != null) "Saved in Universal Bookmarks" else "Save to Universal Bookmarks",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
                         Text(
-                            text = "Keep posts from X, Instagram, LinkedIn, Reddit & RSS in one place",
+                            text = "Organize across folders with offline copies",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
                 }
@@ -578,15 +609,11 @@ internal fun SaveToBookmarkFolderSheet(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
-                        SocialPlatformBadge(platformId = post.platformId, size = 28.dp)
-                        if (!post.authorAvatarUrl.isNullOrBlank()) {
-                            AsyncImage(
-                                model = post.authorAvatarUrl,
-                                contentDescription = null,
-                                modifier = Modifier.size(24.dp).clip(CircleShape),
-                                contentScale = ContentScale.Crop,
-                            )
-                        }
+                        AuthorWithPlatformAvatar(
+                            avatarUrl = post.authorAvatarUrl,
+                            platformId = post.platformId,
+                            size = 34.dp,
+                        )
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = post.authorName,
@@ -830,7 +857,12 @@ internal fun SaveToBookmarkFolderSheet(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Save to $selectedFolderName",
+                            text =
+                                if (existingItem != null) {
+                                    "Update in $selectedFolderName"
+                                } else {
+                                    "Save to $selectedFolderName"
+                                },
                             fontWeight = FontWeight.Bold,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,

@@ -509,5 +509,24 @@ class LiveWebTweaksTest {
         }
         assertTrue(LiveWebSite.Instagram.allows("www.instagram.com"))
         assertTrue(LiveWebSite.Instagram.allows("m.facebook.com"))
+        assertTrue(LiveWebSite.Instagram.allows("auth.meta.com"))
+        assertFalse(LiveWebSite.Instagram.allows("meta.ai"))
+    }
+
+    @Test
+    fun edgeCaseGuardsPreserveSearchAppStoreLinksSpoilersAndLoginFlows() {
+        val igJs = defaultScript(LiveWebSite.Instagram)
+        assertTrue("Instagram Explore must only hide /explore root, not /explore/tags or /explore/search", igJs.contains("^\\/explore\\/?$"))
+        assertTrue("Instagram Reels must lock mount_0_0 root", igJs.contains("mount_0_0"))
+
+        val xJs = defaultScript(LiveWebSite.X)
+        assertTrue("X Play Store prompt selector must be scoped to #layers so tweet links stay visible", xJs.contains("#layers div:not(:has(input))"))
+        assertTrue("X 2FA and unlock paths must be guarded as auth pages", xJs.contains("account\\/login_verification"))
+
+        val redditJs = defaultScript(LiveWebSite.Reddit)
+        assertFalse("RedditNags must not hide arbitrary Play Store links in posts/comments", redditJs.contains("a[href*=\\\"play.google.com\\\"]{"))
+        assertTrue("RedditNags still hides Reddit's own Play Store app links", redditJs.contains("play.google.com/store/apps/details?id=com.reddit"))
+        assertTrue("Reddit login page keeps auth-flow-link visible via data-cx-auth", redditJs.contains("html:not([data-cx-auth=\\\"1\\\"]) auth-flow-link"))
+        assertTrue("NSFW unblur must not unblur movie/game spoiler containers", redditJs.contains("shreddit-blurred-container:not([reason=\"spoiler\"])"))
     }
 }

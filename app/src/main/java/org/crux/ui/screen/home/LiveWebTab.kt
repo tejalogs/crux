@@ -1,6 +1,7 @@
 package org.crux.ui.screen.home
 
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.ClipData
 import android.content.Context
 import android.content.Intent
@@ -20,6 +21,7 @@ import android.webkit.ConsoleMessage
 import android.webkit.CookieManager
 import android.webkit.GeolocationPermissions
 import android.webkit.PermissionRequest
+import android.webkit.RenderProcessGoneDetail
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
@@ -220,6 +222,11 @@ internal class LiveWebPages {
         pages[site]?.clearInMemoryAndReload()
     }
 
+    /** Evicts a site's page after its WebView renderer process crashed so the tab recreates cleanly. */
+    fun evictCrashed(site: LiveWebSite) {
+        pages.remove(site)?.destroy()
+    }
+
     fun destroy() {
         pages.values.forEach { it.destroy() }
         pages.clear()
@@ -258,6 +265,8 @@ internal class LiveWebPage(
 
     var canGoBack by mutableStateOf(false)
         private set
+    var currentUrl by mutableStateOf(startUrl)
+        private set
     var loadError by mutableStateOf<String?>(null)
         private set
     var isLoading by mutableStateOf(true)
@@ -270,8 +279,10 @@ internal class LiveWebPage(
         private set
     var customVideoView by mutableStateOf<View?>(null)
         private set
+    var rendererCrashed by mutableStateOf(false)
+        private set
     private var customVideoCallback: WebChromeClient.CustomViewCallback? = null
-    var onFileChooser: ((ValueCallback<Array<Uri>>) -> Unit)? = null
+    var onFileChooser: ((ValueCallback<Array<Uri>>, WebChromeClient.FileChooserParams) -> Unit)? = null
     var onImageLongPress: ((String) -> Unit)? = null
     var onNativeBookmarkTap: (() -> Unit)? = null
     var onPageLoaded: (() -> Unit)? = null
@@ -331,8 +342,18 @@ internal class LiveWebPage(
                 }
             }
             configureWebViewHeadersAndDarkening(settings)
+            attachSafeDownloadListener(this)
             webViewClient =
                 object : WebViewClient() {
+                    override fun onRenderProcessGone(
+                        view: WebView,
+                        detail: RenderProcessGoneDetail,
+                    ): Boolean {
+                        exitFullscreenVideo()
+                        rendererCrashed = true
+                        return true
+                    }
+
                     override fun onPageStarted(
                         view: WebView,
                         url: String?,
@@ -344,6 +365,7 @@ internal class LiveWebPage(
                             return
                         }
                         if (url != null && url != "about:blank") {
+                            currentUrl = url
                             loadError = null
                             isLoading = true
                             loadProgress = 10
@@ -409,6 +431,7 @@ internal class LiveWebPage(
                         if (persistSession) {
                             LiveWebSessionState.save(appContext, site, url, view.scrollY)
                         }
+                        (url ?: view.url)?.takeIf { it.isNotBlank() && it != "about:blank" }?.let { currentUrl = it }
                         canGoBack = computeWebViewCanGoBack(view.canGoBack(), url ?: view.url)
                         canPullToRefresh = true
                         onPageLoaded?.invoke()
@@ -428,6 +451,7 @@ internal class LiveWebPage(
                             view.post { view.loadUrl(site.startUrlForSession()) }
                             return
                         }
+                        (url ?: view.url)?.takeIf { it.isNotBlank() && it != "about:blank" }?.let { currentUrl = it }
                         canGoBack = computeWebViewCanGoBack(view.canGoBack(), url ?: view.url)
                         if (persistSession) {
                             LiveWebSessionState.save(appContext, site, url, view.scrollY)
@@ -527,7 +551,7 @@ internal class LiveWebPage(
                         fileChooserParams: FileChooserParams,
                     ): Boolean {
                         val chooser = onFileChooser ?: return false
-                        chooser(filePathCallback)
+                        chooser(filePathCallback, fileChooserParams)
                         return true
                     }
                 }
@@ -674,13 +698,7 @@ private fun WebView.hardenWebSettings(
     cookieManager.setAcceptThirdPartyCookies(this, acceptThirdParty)
 }
 
-private val AUTH_URL_PATH =
-    Regex("(^|/)(i/flow|login|accounts/login|uas/login|checkpoint|challenge)(/|$)", RegexOption.IGNORE_CASE)
-
-private fun isAuthUrl(url: String?): Boolean {
-    val path = url?.let { runCatching { java.net.URI(it).path }.getOrNull() } ?: return false
-    return AUTH_URL_PATH.containsMatchIn(path)
-}
+private fun isAuthUrl(url: String?): Boolean = LiveWebSessionState.isAuthOrLoginUrl(url)
 
 private class HorizontalFriendlySwipeRefreshLayout(
     context: Context,
@@ -761,20 +779,26 @@ private class HorizontalFriendlySwipeRefreshLayout(
     }
 }
 
-/** Lets the page's own upload buttons open the phone's file picker. */
+/** Lets the page's own upload buttons open the phone's file picker, respecting MIME types and single/multi-select. */
 @Composable
 internal fun BindFileChooser(page: LiveWebPage) {
     var pendingFiles by remember { mutableStateOf<ValueCallback<Array<Uri>>?>(null) }
     val fileLauncher =
-        rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
-            pendingFiles?.onReceiveValue(uris.toTypedArray())
+        rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            val uris = parseFileChooserActivityResult(result.resultCode, result.data)
+            pendingFiles?.onReceiveValue(uris)
             pendingFiles = null
         }
     DisposableEffect(page) {
-        page.onFileChooser = { callback ->
+        page.onFileChooser = { callback, params ->
             pendingFiles?.onReceiveValue(null)
             pendingFiles = callback
-            fileLauncher.launch("*/*")
+            val intent = buildFileChooserIntent(params)
+            val launched = runCatching { fileLauncher.launch(intent) }.isSuccess
+            if (!launched) {
+                pendingFiles?.onReceiveValue(null)
+                pendingFiles = null
+            }
         }
         onDispose {
             page.onFileChooser = null
@@ -782,6 +806,35 @@ internal fun BindFileChooser(page: LiveWebPage) {
             pendingFiles = null
         }
     }
+}
+
+internal fun buildFileChooserIntent(params: WebChromeClient.FileChooserParams?): Intent {
+    val accept = params?.acceptTypes?.filter { it.isNotBlank() }.orEmpty()
+    val allowMultiple = params?.mode == WebChromeClient.FileChooserParams.MODE_OPEN_MULTIPLE
+    return Intent(Intent.ACTION_GET_CONTENT).apply {
+        addCategory(Intent.CATEGORY_OPENABLE)
+        type = if (accept.size == 1 && accept[0].contains("/")) accept[0] else "*/*"
+        if (accept.size > 1 && accept.all { it.contains("/") }) {
+            putExtra(Intent.EXTRA_MIME_TYPES, accept.toTypedArray())
+        }
+        if (allowMultiple) {
+            putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+        }
+    }
+}
+
+internal fun parseFileChooserActivityResult(
+    resultCode: Int,
+    data: Intent?,
+): Array<Uri>? {
+    if (resultCode != Activity.RESULT_OK || data == null) return null
+    val clip = data.clipData
+    if (clip != null && clip.itemCount > 0) {
+        return (0 until clip.itemCount).mapNotNull { clip.getItemAt(it)?.uri }.toTypedArray()
+    }
+    val single = data.data
+    if (single != null) return arrayOf(single)
+    return WebChromeClient.FileChooserParams.parseResult(resultCode, data)
 }
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
@@ -798,7 +851,14 @@ internal fun LiveWebTab(
     val allSettings by store.settings.collectAsState()
     // A changed setting gives a new config, which makes the pages holder build a fresh page.
     val config = remember(allSettings, site) { allSettings.configFor(site) }
-    val page = remember(site, pages, homeUrl, config) { pages.page(site, context, config) }
+    var crashGeneration by remember(site) { mutableIntStateOf(0) }
+    val page = remember(site, pages, homeUrl, config, crashGeneration) { pages.page(site, context, config) }
+    LaunchedEffect(page.rendererCrashed) {
+        if (page.rendererCrashed) {
+            pages.evictCrashed(site)
+            crashGeneration += 1
+        }
+    }
     val isImeVisible = WindowInsets.isImeVisible
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
@@ -824,20 +884,21 @@ internal fun LiveWebTab(
         }
     }
     val accessory = LocalBottomBarAccessory.current
-    LaunchedEffect(isCurrentlyVisible, page) {
+    val isFullscreenVideo = page.customVideoView != null
+    LaunchedEffect(isCurrentlyVisible, page, isFullscreenVideo) {
         if (isCurrentlyVisible) {
-            accessory?.webDockExpanded = true
+            accessory?.webDockExpanded = !isFullscreenVideo
         } else {
             page.saveSessionState()
         }
     }
-    DisposableEffect(accessory, isCurrentlyVisible, site, isImeVisible) {
-        if (isCurrentlyVisible && !isImeVisible) {
+    DisposableEffect(accessory, isCurrentlyVisible, site, isImeVisible, isFullscreenVideo) {
+        if (isCurrentlyVisible && !isImeVisible && !isFullscreenVideo) {
             accessory?.keepVisibleOwner = site
             accessory?.webDockExpanded = true
         } else if (accessory?.keepVisibleOwner == site) {
             accessory.keepVisibleOwner = null
-            accessory.webDockExpanded = true
+            accessory.webDockExpanded = !isFullscreenVideo
         }
         onDispose {
             if (accessory?.keepVisibleOwner == site) {
@@ -1263,10 +1324,15 @@ internal fun decideMainFrameUrlAction(
     if (scheme == "https" && site.allows(host) && !isRedirect) {
         return MainFrameUrlAction.AllowInWebView
     }
+    if (scheme == "http" && site.allows(host) && !isRedirect) {
+        return MainFrameUrlAction.LoadInWebView("https://" + trimmed.substringAfter("://"))
+    }
     if (isRedirect) {
         val cleanedUri = runCatching { java.net.URI(cleaned) }.getOrNull()
-        if (cleanedUri?.scheme.equals("https", ignoreCase = true) && site.allows(cleanedUri?.host)) {
-            return MainFrameUrlAction.LoadInWebView(cleaned)
+        val cleanedScheme = cleanedUri?.scheme?.lowercase()
+        if ((cleanedScheme == "https" || cleanedScheme == "http") && site.allows(cleanedUri.host)) {
+            val upgraded = if (cleanedScheme == "http") "https://" + cleaned.substringAfter("://") else cleaned
+            return MainFrameUrlAction.LoadInWebView(upgraded)
         }
     }
     return when {
@@ -1444,9 +1510,19 @@ internal fun handleCreateWindow(
     return true
 }
 
+internal fun attachSafeDownloadListener(webView: WebView) {
+    webView.setDownloadListener { url, _, _, _, _ ->
+        val trimmed = url?.trim().orEmpty()
+        if (trimmed.startsWith("https://", ignoreCase = true) || trimmed.startsWith("http://", ignoreCase = true)) {
+            openInSystemBrowser(webView.context, trimmed)
+        }
+    }
+}
+
 private val DIAL_AND_MAIL_SCHEMES = setOf("mailto", "tel", "sms")
 
-private val IMMERSIVE_PATH = Regex("^/(?:(?:reels?|stories|direct|shorts)(?:/|$)|[^/]+/reel(?:/|$))", RegexOption.IGNORE_CASE)
+private val IMMERSIVE_PATH =
+    Regex("^/(?:(?:reels?|stories|direct|messages|messaging|chat|shorts)(?:/|$)|[^/]+/reel(?:/|$))", RegexOption.IGNORE_CASE)
 
 /** True for full-screen video and message pages where pull-to-refresh must stay off. */
 internal fun isImmersivePath(url: String?): Boolean {

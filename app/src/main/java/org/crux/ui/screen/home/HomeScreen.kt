@@ -394,14 +394,24 @@ internal fun HomeScreen(afterInit: () -> Unit) {
                                     )
                                 },
                                 label = {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                    ) {
                                         Text(text = platform.displayName)
                                         if (needsSignIn) {
-                                            Text(
-                                                text = "  " + stringResource(id = R.string.crux_action_sign_in),
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.primary,
-                                            )
+                                            androidx.compose.material3.Surface(
+                                                shape = androidx.compose.foundation.shape.RoundedCornerShape(999.dp),
+                                                color = MaterialTheme.colorScheme.primaryContainer,
+                                            ) {
+                                                Text(
+                                                    text = stringResource(id = R.string.crux_action_sign_in),
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                                )
+                                            }
                                         }
                                     }
                                 },

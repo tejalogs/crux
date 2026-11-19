@@ -29,7 +29,7 @@ Crux uses [ktlint](https://github.com/pinterest/ktlint). Run `./gradlew ktlintFo
 - `compose-ui`: reusable Compose components.
 - `feature/subscription`: RSS sources and reader logic.
 - `feature/agent`: optional on-device or OpenAI-compatible assistant (off by default).
-- `feature/login`, `feature/login-api`, `feature/tab`: sign-in detection and tab models.
+- `feature/tab`: tab models and ordering.
 - `build-logic`: Gradle convention plugins.
 
 ## Free-software rules

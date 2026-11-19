@@ -108,6 +108,7 @@ import org.crux.ui.component.FAIcon
 import org.crux.ui.route.DeeplinkRoute
 import org.crux.ui.route.Route
 import org.crux.ui.route.toUri
+import org.crux.ui.screen.home.AuthorWithPlatformAvatar
 import org.crux.ui.screen.home.CreateBookmarkFolderDialog
 import org.crux.ui.screen.home.LiveWebSite
 import org.crux.ui.screen.home.SocialPlatformBadge
@@ -511,27 +512,32 @@ internal fun ReadingListScreen(
                                 )
                             }
                             if (isSelected && !folder.isDefault) {
-                                IconButton(
-                                    onClick = { folderPendingEdit = folder },
-                                    modifier = Modifier.size(24.dp),
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
                                 ) {
-                                    FAIcon(
-                                        imageVector = FontAwesomeIcons.Solid.Pen,
-                                        contentDescription = "Edit folder",
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(11.dp),
-                                    )
-                                }
-                                IconButton(
-                                    onClick = { folderPendingDelete = folder },
-                                    modifier = Modifier.size(24.dp),
-                                ) {
-                                    FAIcon(
-                                        imageVector = FontAwesomeIcons.Solid.Xmark,
-                                        contentDescription = "Delete folder",
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(12.dp),
-                                    )
+                                    IconButton(
+                                        onClick = { folderPendingEdit = folder },
+                                        modifier = Modifier.size(32.dp),
+                                    ) {
+                                        FAIcon(
+                                            imageVector = FontAwesomeIcons.Solid.Pen,
+                                            contentDescription = "Edit folder",
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(12.dp),
+                                        )
+                                    }
+                                    IconButton(
+                                        onClick = { folderPendingDelete = folder },
+                                        modifier = Modifier.size(32.dp),
+                                    ) {
+                                        FAIcon(
+                                            imageVector = FontAwesomeIcons.Solid.Xmark,
+                                            contentDescription = "Delete folder",
+                                            tint = MaterialTheme.colorScheme.error.copy(alpha = 0.85f),
+                                            modifier = Modifier.size(13.dp),
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -607,41 +613,50 @@ internal fun ReadingListScreen(
                         null
                     },
                 singleLine = true,
-                shape = RoundedCornerShape(14.dp),
+                shape = RoundedCornerShape(24.dp),
             )
 
-            // Cross-Platform Filter Chips
+            // Cross-Platform Filter Chips (show All, active filter, and non-empty categories only)
             val folderScopedItems =
                 remember(items, selectedFolderId) {
                     if (selectedFolderId == null) items else items.filter { it.folderId == selectedFolderId }
                 }
+            val visibleFilterCounts =
+                remember(folderScopedItems, selectedFilter) {
+                    BookmarkPlatformFilter.entries
+                        .map { filter ->
+                            val count =
+                                when (filter) {
+                                    BookmarkPlatformFilter.ALL -> folderScopedItems.size
+                                    BookmarkPlatformFilter.X ->
+                                        folderScopedItems.count {
+                                            val p = it.platformId.lowercase()
+                                            p == "x" || p == "twitter"
+                                        }
+                                    BookmarkPlatformFilter.INSTAGRAM ->
+                                        folderScopedItems.count { it.platformId.equals("instagram", ignoreCase = true) }
+                                    BookmarkPlatformFilter.LINKEDIN ->
+                                        folderScopedItems.count { it.platformId.equals("linkedin", ignoreCase = true) }
+                                    BookmarkPlatformFilter.REDDIT ->
+                                        folderScopedItems.count { it.platformId.equals("reddit", ignoreCase = true) }
+                                    BookmarkPlatformFilter.RSS ->
+                                        folderScopedItems.count { it.platformId.equals("rss", ignoreCase = true) }
+                                    BookmarkPlatformFilter.HAS_MEDIA ->
+                                        folderScopedItems.count { it.mediaUrls.isNotEmpty() }
+                                    BookmarkPlatformFilter.UNREAD ->
+                                        folderScopedItems.count { !it.isRead }
+                                }
+                            filter to count
+                        }.filter { (filter, count) ->
+                            filter == BookmarkPlatformFilter.ALL || filter == selectedFilter || count > 0
+                        }
+                }
             LazyRow(
                 modifier = Modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 2.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                items(BookmarkPlatformFilter.entries) { filter ->
-                    val count =
-                        when (filter) {
-                            BookmarkPlatformFilter.ALL -> folderScopedItems.size
-                            BookmarkPlatformFilter.X ->
-                                folderScopedItems.count {
-                                    val p = it.platformId.lowercase()
-                                    p == "x" || p == "twitter"
-                                }
-                            BookmarkPlatformFilter.INSTAGRAM ->
-                                folderScopedItems.count { it.platformId.equals("instagram", ignoreCase = true) }
-                            BookmarkPlatformFilter.LINKEDIN ->
-                                folderScopedItems.count { it.platformId.equals("linkedin", ignoreCase = true) }
-                            BookmarkPlatformFilter.REDDIT ->
-                                folderScopedItems.count { it.platformId.equals("reddit", ignoreCase = true) }
-                            BookmarkPlatformFilter.RSS ->
-                                folderScopedItems.count { it.platformId.equals("rss", ignoreCase = true) }
-                            BookmarkPlatformFilter.HAS_MEDIA ->
-                                folderScopedItems.count { it.mediaUrls.isNotEmpty() }
-                            BookmarkPlatformFilter.UNREAD ->
-                                folderScopedItems.count { !it.isRead }
-                        }
+                items(visibleFilterCounts, key = { it.first.name }) { (filter, count) ->
                     FilterChip(
                         selected = selectedFilter == filter,
                         onClick = { selectedFilter = filter },
@@ -804,21 +819,13 @@ private fun ReadingListItemCard(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                SocialPlatformBadge(platformId = item.platformId, size = 26.dp)
-
-                if (!item.authorAvatarUrl.isNullOrBlank()) {
-                    AsyncImage(
-                        model = item.authorAvatarUrl,
-                        contentDescription = null,
-                        modifier =
-                            Modifier
-                                .size(22.dp)
-                                .clip(CircleShape),
-                        contentScale = ContentScale.Crop,
-                    )
-                }
+                AuthorWithPlatformAvatar(
+                    avatarUrl = item.authorAvatarUrl,
+                    platformId = item.platformId,
+                    size = 32.dp,
+                )
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
@@ -936,6 +943,12 @@ private fun ReadingListItemCard(
             Text(
                 text = item.contentText,
                 style = MaterialTheme.typography.bodyMedium,
+                color =
+                    if (item.isRead) {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    },
                 maxLines = 4,
                 overflow = TextOverflow.Ellipsis,
             )

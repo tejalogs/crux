@@ -23,9 +23,7 @@ dependencyResolutionManagement {
 rootProject.name = "Crux"
 include(":app")
 include(":shared")
-include(":feature:login-api")
 include(":feature:agent")
-include(":feature:login")
 include(":feature:subscription")
 include(":feature:tab")
 include(":compose-ui")

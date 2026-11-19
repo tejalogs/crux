@@ -12,29 +12,38 @@ import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.FrameLayout
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.kevinnzou.web.WebView
 import com.kevinnzou.web.WebViewState
@@ -55,12 +64,17 @@ internal fun HardenedBrowserScreen(onBack: () -> Unit) {
     val inputUrlState = remember { mutableStateOf("") }
     val currentUrlState = remember { mutableStateOf("") }
     val webViewRef = remember { mutableStateOf<WebView?>(null) }
+    var canGoBack by remember { mutableStateOf(false) }
     WebSessionLifecycleSuspender(webView = webViewRef.value)
+    BackHandler(enabled = canGoBack) {
+        webViewRef.value?.goBack()
+    }
     val webViewState = rememberWebViewState("")
 
     val load = { target: String ->
-        if (target.isNotBlank()) {
-            val normalized = if (target.startsWith("http://") || target.startsWith("https://")) target else "https://$target"
+        val trimmed = target.trim()
+        if (trimmed.isNotBlank()) {
+            val normalized = if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) trimmed else "https://$trimmed"
             inputUrlState.value = normalized
             webViewRef.value?.loadUrl(normalized)
         }
@@ -85,18 +99,23 @@ internal fun HardenedBrowserScreen(onBack: () -> Unit) {
                 Modifier
                     .fillMaxSize()
                     .padding(it)
+                    .imePadding()
                     .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                TextField(
+                OutlinedTextField(
                     value = inputUrlState.value,
                     onValueChange = { inputUrlState.value = it },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.weight(1f),
                     singleLine = true,
+                    shape = RoundedCornerShape(14.dp),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go),
+                    keyboardActions = KeyboardActions(onGo = { load(inputUrlState.value) }),
                     label = {
                         Text(text = stringResource(id = R.string.settings_hardened_browser_url))
                     },
@@ -105,6 +124,7 @@ internal fun HardenedBrowserScreen(onBack: () -> Unit) {
                     onClick = {
                         load(inputUrlState.value)
                     },
+                    shape = RoundedCornerShape(14.dp),
                 ) {
                     Text(text = stringResource(id = R.string.browser_go))
                 }
@@ -168,6 +188,7 @@ internal fun HardenedBrowserScreen(onBack: () -> Unit) {
                                 view: WebView,
                                 request: WebResourceRequest,
                             ): Boolean {
+                                if (!request.isForMainFrame) return false
                                 val target = request.url.toString()
                                 return when {
                                     target.startsWith("http://") || target.startsWith("https://") -> {
@@ -175,7 +196,7 @@ internal fun HardenedBrowserScreen(onBack: () -> Unit) {
                                     }
 
                                     else -> {
-                                        uriHandler.openUri(target)
+                                        if (request.hasGesture()) runCatching { uriHandler.openUri(target) }
                                         true
                                     }
                                 }
@@ -187,6 +208,7 @@ internal fun HardenedBrowserScreen(onBack: () -> Unit) {
                             ) {
                                 super.onPageFinished(view, url)
                                 currentUrlState.value = url ?: ""
+                                canGoBack = view.canGoBack()
                             }
                         },
                     )

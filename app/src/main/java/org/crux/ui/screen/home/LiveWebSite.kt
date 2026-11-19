@@ -61,6 +61,7 @@ private val INSTAGRAM_ALLOWED_HOSTS =
         "facebook.com",
         "fbcdn.net",
         "cdninstagram.com",
+        "auth.meta.com",
     )
 
 // Each site's own tracker hosts, read from what the pages really load. They are only refused when

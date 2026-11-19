@@ -16,9 +16,6 @@ kotlin {
         platforms(
             CruxPlatform.ANDROID,
             CruxPlatform.JVM,
-            CruxPlatform.IOS,
-            CruxPlatform.WEB,
-            CruxPlatform.MACOS,
         )
     }
 
@@ -54,11 +51,6 @@ kotlin {
         val androidJvmMain by getting {
             dependencies {
                 implementation(libs.ktor.client.okhttp)
-            }
-        }
-        val appleMain by getting {
-            dependencies {
-                implementation(libs.ktor.client.darwin)
             }
         }
     }

@@ -31,7 +31,6 @@ kotlin {
     sourceSets {
         val commonMain by getting {
             dependencies {
-                api(projects.feature.login)
                 implementation(projects.shared)
                 implementation(projects.feature.subscription)
                 implementation(compose("org.jetbrains.compose.ui:ui"))

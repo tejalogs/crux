@@ -254,6 +254,16 @@ class LiveWebLinksTest {
             decideMainFrameUrlAction("https://www.reddit.com/r/android/comments/abc/post/", LiveWebSite.Reddit, true, true),
         )
 
+        // Same-site HTTP links upgrade in-place to HTTPS instead of spawning duplicate screens
+        assertEquals(
+            MainFrameUrlAction.LoadInWebView("https://www.reddit.com/r/android/"),
+            decideMainFrameUrlAction("http://www.reddit.com/r/android/", LiveWebSite.Reddit, true, true),
+        )
+        assertEquals(
+            MainFrameUrlAction.LoadInWebView("https://www.instagram.com/natgeo/"),
+            decideMainFrameUrlAction("http://www.instagram.com/natgeo/", LiveWebSite.Instagram, true, true),
+        )
+
         // Signed-out X root recovers to direct login flow
         assertEquals(
             MainFrameUrlAction.LoadInWebView(LiveWebSite.X.loginUrl),
@@ -311,5 +321,15 @@ class LiveWebLinksTest {
             MainFrameUrlAction.Block,
             decideMainFrameUrlAction("mailto:hi@example.com", LiveWebSite.LinkedIn, true, hasGesture = false),
         )
+    }
+
+    @Test
+    fun compactHostPathFormatsCleanTopBarSubtitles() {
+        assertEquals("instagram.com/natgeo", formatCompactHostPath("https://www.instagram.com/natgeo/?igsh=1"))
+        assertEquals("accounts.google.com/v3/signin", formatCompactHostPath("https://accounts.google.com/v3/signin?hl=en"))
+        assertEquals("x.com", formatCompactHostPath("https://x.com/"))
+        assertNull(formatCompactHostPath("about:blank"))
+        assertNull(formatCompactHostPath(""))
+        assertNull(formatCompactHostPath(null))
     }
 }

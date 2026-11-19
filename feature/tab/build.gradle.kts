@@ -15,9 +15,6 @@ kotlin {
         platforms(
             CruxPlatform.ANDROID,
             CruxPlatform.JVM,
-            CruxPlatform.IOS,
-            CruxPlatform.WEB,
-            CruxPlatform.MACOS,
         )
     }
 

@@ -29,6 +29,7 @@
         <activity
             android:windowSoftInputMode="adjustResize"
             android:launchMode="singleTask"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"
             android:name="org.crux.MainActivity"
             android:exported="true"
             android:theme="@style/Theme.Crux.Starting">

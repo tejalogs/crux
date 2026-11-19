@@ -37,8 +37,9 @@ internal data class SiteScriptProfile(
 
 // Instagram: the page is a React app with hashed class names, so selectors use hrefs, roles and
 // the visible labels Instagram itself shows ("Sponsored", "Suggested for you").
+// Only hide the recommended grid on /explore itself — keep explicit user searches (/explore/tags/, /explore/search/).
 private const val IG_EXPLORE_FLAG_JS =
-    "document.documentElement.setAttribute('data-cx-explore',location.pathname.indexOf('/explore')===0?'1':'0');"
+    "document.documentElement.setAttribute('data-cx-explore',/^\\/explore\\/?$/i.test(location.pathname)?'1':'0');"
 
 private val INSTAGRAM_PROFILE =
     SiteScriptProfile(
@@ -51,6 +52,7 @@ private val INSTAGRAM_PROFILE =
                 // Lock Reels to vertical panning so tapping an expanded Reel caption and swiping up
                 // never shifts the viewport left into blank horizontal overflow space.
                 "html[data-cx-reels=\"1\"],html[data-cx-reels=\"1\"] body{overflow-x:clip!important;max-width:100vw!important;touch-action:pan-y!important;overscroll-behavior-x:none!important}",
+                "html[data-cx-reels=\"1\"] [id^=\"mount_0_0\"]{overflow-x:clip!important;max-width:100vw!important;touch-action:pan-y!important}",
                 "html[data-cx-reels=\"1\"] main,html[data-cx-reels=\"1\"] section,html[data-cx-reels=\"1\"] article,html[data-cx-reels=\"1\"] button,html[data-cx-reels=\"1\"] a,html[data-cx-reels=\"1\"] [role=\"button\"]{max-width:100vw!important;touch-action:pan-y!important}",
                 "html[data-cx-reels=\"1\"] main,html[data-cx-reels=\"1\"] section,html[data-cx-reels=\"1\"] article,html[data-cx-reels=\"1\"] [role=\"presentation\"],html[data-cx-reels=\"1\"] [role=\"dialog\"]{overflow-x:clip!important;max-width:100vw!important}",
                 "html[data-cx-reels=\"1\"] span[dir=\"auto\"],html[data-cx-reels=\"1\"] h1,html[data-cx-reels=\"1\"] p{overflow-wrap:anywhere!important;max-width:100%!important}",
@@ -445,8 +447,8 @@ internal val SiteTweak.rule: TweakRule
                     css =
                         listOf(
                             "div[data-testid=\"inline_prompt\"]",
-                            "div:not(:has(input)):not(:has(form)):has(> a[href*=\"app.link\"])",
-                            "div:not(:has(input)):not(:has(form)):has(> a[href*=\"play.google.com\"])",
+                            "#layers div:not(:has(input)):not(:has(form)):has(> a[href*=\"app.link\"])",
+                            "#layers div:not(:has(input)):not(:has(form)):has(> a[href*=\"play.google.com\"])",
                             "div[data-testid=\"sheetDialog\"]:not(:has(input)):not(:has(form)):has(a[href*=\"play.google.com\"])",
                             "div[data-testid=\"sheetDialog\"]:not(:has(input)):not(:has(form)):has(a[href*=\"apps.apple.com\"])",
                         ),
@@ -565,14 +567,14 @@ internal val SiteTweak.rule: TweakRule
                             "[slot=\"bottom-banner\"]",
                             "a[href*=onelink]",
                             "a[href*=\"reddit.app.link\"]",
-                            "a[href*=\"apps.apple.com\"]",
-                            "a[href*=\"play.google.com\"]",
+                            "a[href*=\"apps.apple.com\"][href*=\"reddit\"]",
+                            "a[href*=\"play.google.com/store/apps/details?id=com.reddit\"]",
                             "shreddit-app-rating",
-                            "#login-button",
-                            "#signup-button",
-                            "a[href^=\"/login\"]",
-                            "a[href^=\"/register\"]",
-                            "auth-flow-link",
+                            "html:not([data-cx-auth=\"1\"]) #login-button",
+                            "html:not([data-cx-auth=\"1\"]) #signup-button",
+                            "html:not([data-cx-auth=\"1\"]) a[href^=\"/login\"]",
+                            "html:not([data-cx-auth=\"1\"]) a[href^=\"/register\"]",
+                            "html:not([data-cx-auth=\"1\"]) auth-flow-link",
                         ),
                     promptLabels =
                         USE_APP_LABELS +
@@ -664,7 +666,7 @@ internal val SiteTweak.rule: TweakRule
                             h.setAttribute('cx-nsfw-dismissed','1');
                           }
                         });
-                        document.querySelectorAll('shreddit-blurred-container').forEach(function(h){
+                        document.querySelectorAll('shreddit-blurred-container:not([reason="spoiler"])').forEach(function(h){
                           if(h.shadowRoot)cxNsfwClick(h.shadowRoot,true);
                         });
                         document.querySelectorAll('shreddit-post[nsfw],shreddit-post [slot="text-body"],shreddit-post-text-body,[data-post-click-location="text-body"]').forEach(function(p){
@@ -697,7 +699,7 @@ internal val SiteTweak.rule: TweakRule
                         var hasRevContent=function(rev){
                           return !!(rev&&(rev.tagName==='IMG'||rev.tagName==='VIDEO'||rev.querySelector('img,video,p,.md,[slot="text-body"]')||(rev.textContent||'').trim().length>0));
                         };
-                        document.querySelectorAll('shreddit-blurred-container').forEach(function(p){
+                        document.querySelectorAll('shreddit-blurred-container:not([reason="spoiler"])').forEach(function(p){
                           if(p.getAttribute('cx-unblurred')==='1')return;
                           var rev=findRev(p);
                           var hasRev=hasRevContent(rev);
@@ -792,9 +794,13 @@ private val ENGINE_JS =
       var hasShadowDom=/(^|\.)reddit\.com$/.test(location.hostname);
       // Full-screen video viewers (Reels, Stories, Shorts-style pages) and direct messages have no feed posts to filter,
       // and their DOM churns as each clip/message loads, so they only get the stylesheet and prompt checks.
-      var isImmersive=function(){return /^\/(reels?|stories|direct|shorts)(\/|$)|^\/[^\/]+\/reel(\/|$)/i.test(location.pathname)};
+      var isImmersive=function(){return /^\/(reels?|stories|direct|messages|messaging|chat|shorts)(\/|$)|^\/[^\/]+\/reel(\/|$)/i.test(location.pathname)};
       var isPostDetail=function(){return /\/comments\//.test(location.pathname)};
-      var isAuthPage=function(){return /(^|\/)(i\/flow|login|accounts\/login|uas\/login|checkpoint|challenge)(\/|$)/i.test(location.pathname)};
+      var isAuthPage=function(){return /(^|\/)(i\/flow|login|accounts\/login|uas\/login|checkpoint|challenge|account\/access|account\/login_verification)(\/|$)/i.test(location.pathname)};
+      var syncAuthAttr=function(){
+        try{if(document.documentElement)document.documentElement.setAttribute('data-cx-auth',isAuthPage()?'1':'0');}catch(e){}
+      };
+      syncAuthAttr();
       var deepActiveElement=function(){
         var a=document.activeElement;
         while(a&&a.shadowRoot&&a.shadowRoot.activeElement){a=a.shadowRoot.activeElement;}
@@ -911,6 +917,7 @@ private val ENGINE_JS =
       };
       var scan=function(){
         ensureStyle();
+        syncAuthAttr();
         if(isEditableFocused())return;
         lastScan=Date.now();
         var auth=isAuthPage();

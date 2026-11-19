@@ -46,6 +46,7 @@ import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FloatingToolbarDefaults.floatingToolbarVerticalNestedScroll
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LocalContentColor
@@ -699,50 +700,57 @@ private fun SharedTransitionScope.BottomBar(
                     }
                 },
     ) {
-        Row(
-            modifier =
-                Modifier
-                    // Inside the surface: outside it, this clips the shadow to a visible rectangle.
-                    .animateContentSize(MaterialTheme.motionScheme.defaultSpatialSpec())
-                    .let {
-                        if (hasAccessory) it.fillMaxWidth() else it
-                    }.let {
-                        if (isFloating) {
-                            it
-                        } else {
-                            it.windowInsetsPadding(
-                                WindowInsets.systemBars.only(
-                                    WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom,
-                                ),
-                            )
+        Column(modifier = if (hasAccessory) Modifier.fillMaxWidth() else Modifier) {
+            if (!isFloating) {
+                HorizontalDivider(
+                    thickness = 0.8.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.28f),
+                )
+            }
+            Row(
+                modifier =
+                    Modifier
+                        // Inside the surface: outside it, this clips the shadow to a visible rectangle.
+                        .animateContentSize(MaterialTheme.motionScheme.defaultSpatialSpec())
+                        .let {
+                            if (hasAccessory) it.fillMaxWidth() else it
+                        }.let {
+                            if (isFloating) {
+                                it
+                            } else {
+                                it.windowInsetsPadding(
+                                    WindowInsets.systemBars.only(
+                                        WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom,
+                                    ),
+                                )
+                            }
+                        }.let {
+                            // After the insets, so the system bar can't squash the classic dock.
+                            if (hasAccessory) it.height(DockHeight) else it
+                        }.padding(
+                            horizontal = if (hasAccessory) 6.dp else 12.dp,
+                            vertical = if (hasAccessory) 0.dp else 4.dp,
+                        ),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                val defaultItems = provider.itemList.asMutableList().filterIsInstance<NavigationSuiteItem.DefaultItem>()
+                defaultItems.forEachIndexed { index, navItem ->
+                    val expandedContent = navItem.expandedContent
+                    if (hasAccessory && navItem.selected && expandedContent != null) {
+                        Box(
+                            modifier =
+                                Modifier
+                                    .weight(1f)
+                                    .sharedElement(
+                                        rememberSharedContentState("item_$index"),
+                                        animatedVisibilityScope = animatedVisibilityScope,
+                                    ),
+                        ) {
+                            expandedContent(navItem.onClick)
                         }
-                    }.let {
-                        // After the insets, so the system bar can't squash the classic dock.
-                        if (hasAccessory) it.height(DockHeight) else it
-                    }.padding(
-                        horizontal = if (hasAccessory) 6.dp else 12.dp,
-                        vertical = if (hasAccessory) 0.dp else 4.dp,
-                    ),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            val defaultItems = provider.itemList.asMutableList().filterIsInstance<NavigationSuiteItem.DefaultItem>()
-            defaultItems.forEachIndexed { index, navItem ->
-                val expandedContent = navItem.expandedContent
-                if (hasAccessory && navItem.selected && expandedContent != null) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .weight(1f)
-                                .sharedElement(
-                                    rememberSharedContentState("item_$index"),
-                                    animatedVisibilityScope = animatedVisibilityScope,
-                                ),
-                    ) {
-                        expandedContent(navItem.onClick)
-                    }
-                } else if (isExpanded || navItem.selected || defaultItems.size == 1) {
-                    ShortNavigationBarItem(
+                    } else if (isExpanded || navItem.selected || defaultItems.size == 1) {
+                        ShortNavigationBarItem(
                         modifier =
                             navItem.modifier
                                 .sharedElement(
@@ -779,6 +787,7 @@ private fun SharedTransitionScope.BottomBar(
                         interactionSource = navItem.interactionSource,
                     )
                 }
+            }
             }
         }
     }

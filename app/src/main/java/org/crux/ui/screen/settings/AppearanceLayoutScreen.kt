@@ -1,83 +1,29 @@
 package org.crux.ui.screen.settings
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ListItemDefaults
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import kotlinx.collections.immutable.persistentMapOf
-import moe.tlaster.precompose.molecule.producePresenter
 import org.crux.R
 import org.crux.data.model.BottomBarBehavior
 import org.crux.data.model.BottomBarStyle
 import org.crux.data.model.PostActionStyle
 import org.crux.data.model.TimelineDisplayMode
 import org.crux.data.model.appearance.AppearanceKeys
-import org.crux.ui.component.BackButton
-import org.crux.ui.component.CruxLargeFlexibleTopAppBar
-import org.crux.ui.component.CruxScaffold
 import org.crux.ui.component.LocalGlobalAppearance
 import org.crux.ui.component.LocalTimelineAppearance
-import org.crux.ui.component.status.StatusItem
-import org.crux.ui.model.isSuccess
-import org.crux.ui.model.onSuccess
 import org.crux.ui.theme.first
 import org.crux.ui.theme.item
 import org.crux.ui.theme.last
-import org.crux.ui.theme.screenHorizontalPadding
-
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
-@Composable
-internal fun AppearanceLayoutScreen(onBack: () -> Unit) {
-    val topAppBarScrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
-    val state by producePresenter { appearancePresenter() }
-    CruxScaffold(
-        topBar = {
-            CruxLargeFlexibleTopAppBar(
-                title = {
-                    Text(text = stringResource(id = R.string.settings_appearance_layout_group_title))
-                },
-                navigationIcon = {
-                    BackButton(onBack = onBack)
-                },
-                scrollBehavior = topAppBarScrollBehavior,
-            )
-        },
-        modifier =
-            Modifier
-                .nestedScroll(topAppBarScrollBehavior.nestedScrollConnection),
-    ) {
-        Column(
-            modifier =
-                Modifier
-                    .verticalScroll(rememberScrollState())
-                    .padding(it)
-                    .padding(horizontal = screenHorizontalPadding),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            AppearanceLayoutContent(
-                state = state,
-            )
-        }
-    }
-}
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable

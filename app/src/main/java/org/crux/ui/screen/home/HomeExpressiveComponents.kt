@@ -1,6 +1,7 @@
 package org.crux.ui.screen.home
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -8,8 +9,10 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -317,6 +320,14 @@ internal fun ExpressiveHomeDockTabs(
         )
         // Outside the scrolling strip so it stays reachable however many feeds there are.
         loginButton?.invoke()
+        Box(
+            modifier =
+                Modifier
+                    .padding(horizontal = 3.dp)
+                    .width(1.dp)
+                    .height(18.dp)
+                    .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+        )
         CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
             if (bookmarkAction != null) {
                 Box(

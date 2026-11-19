@@ -27,9 +27,6 @@ kotlin {
         platforms(
             CruxPlatform.ANDROID,
             CruxPlatform.JVM,
-            CruxPlatform.IOS,
-            CruxPlatform.WEB,
-            CruxPlatform.MACOS,
         )
         ksp(
             libs.ktorfit.ksp,
@@ -125,19 +122,6 @@ kotlin {
                 implementation(libs.commons.lang3)
                 implementation(libs.prettytime)
                 implementation(libs.jna)
-            }
-        }
-        val appleMain by getting {
-            dependencies {
-                implementation(libs.ktor.client.darwin)
-            }
-        }
-        val wasmJsMain by getting {
-            dependencies {
-                implementation(libs.ktor.client.js)
-                implementation(libs.sqlite.web)
-                implementation(libs.kotlinx.browser)
-                implementation(npm("@androidx/sqlite-web-worker", file("sqlite-web-worker")))
             }
         }
     }

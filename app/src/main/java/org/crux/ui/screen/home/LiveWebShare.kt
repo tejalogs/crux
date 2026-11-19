@@ -13,6 +13,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -47,6 +48,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import compose.icons.FontAwesomeIcons
@@ -302,14 +304,25 @@ internal fun LiveWebScreen(
         }
     key(site, startUrl) {
         val ownsPage = (customUrl != null && !forSignIn) || pages == null
+        var crashGeneration by remember(site, startUrl) { mutableIntStateOf(0) }
         val page =
-            remember(site, startUrl, pages) {
+            remember(site, startUrl, pages, crashGeneration) {
                 if (!ownsPage && pages != null) {
                     pages.page(site, context)
                 } else {
                     LiveWebPage(site, context, startUrl = startUrl)
                 }
             }
+        LaunchedEffect(page.rendererCrashed) {
+            if (page.rendererCrashed) {
+                if (!ownsPage && pages != null) {
+                    pages.evictCrashed(site)
+                } else {
+                    page.destroy()
+                }
+                crashGeneration += 1
+            }
+        }
         LaunchedEffect(page, site, forSignIn) {
             if (forSignIn && !site.hasSession()) {
                 val current = page.webView.url
@@ -359,20 +372,35 @@ internal fun LiveWebScreen(
             topBar = {
                 CruxTopAppBar(
                     title = {
-                        if (autoReturnOnSignIn) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            PlatformBadge(platform = CruxPlatform.forSite(site), size = 28.dp)
                             Column {
                                 Text(
-                                    text = "Sign in to ${site.label}",
+                                    text = if (autoReturnOnSignIn) "Sign in to ${site.label}" else site.label,
                                     style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
                                 )
-                                Text(
-                                    text = "Returns automatically once signed in",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
+                                val subtitle =
+                                    if (autoReturnOnSignIn) {
+                                        "Returns automatically once signed in"
+                                    } else {
+                                        formatCompactHostPath(page.currentUrl)
+                                    }
+                                if (subtitle != null) {
+                                    Text(
+                                        text = subtitle,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
                             }
-                        } else {
-                            Text(text = site.label)
                         }
                     },
                     navigationIcon = {

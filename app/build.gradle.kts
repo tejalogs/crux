@@ -125,7 +125,6 @@ dependencies {
     coreLibraryDesugaring(libs.desugar.jdk.libs)
     implementation(libs.compose.webview)
     implementation(projects.shared)
-    implementation(projects.feature.login)
     implementation(projects.feature.subscription)
     implementation(projects.feature.tab)
     implementation(projects.feature.agent)

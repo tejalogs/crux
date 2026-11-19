@@ -7,8 +7,10 @@ import android.view.View
 import android.webkit.ConsoleMessage
 import android.webkit.GeolocationPermissions
 import android.webkit.PermissionRequest
+import android.webkit.RenderProcessGoneDetail
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
@@ -23,6 +25,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -30,13 +33,16 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
@@ -57,6 +63,8 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
@@ -69,6 +77,7 @@ import compose.icons.fontawesomeicons.brands.LinkedinIn
 import compose.icons.fontawesomeicons.solid.ArrowUpRightFromSquare
 import compose.icons.fontawesomeicons.solid.Bookmark
 import compose.icons.fontawesomeicons.solid.EllipsisVertical
+import compose.icons.fontawesomeicons.solid.RotateRight
 import kotlinx.coroutines.launch
 import org.crux.R
 import org.crux.data.datasource.linkedin.LinkedInFeedParser
@@ -80,6 +89,7 @@ import org.crux.ui.component.CruxTopAppBar
 import org.crux.ui.component.FAIcon
 import org.crux.ui.screen.crux.CruxPlatform
 import org.crux.ui.screen.crux.LocalCruxConnections
+import org.crux.ui.screen.crux.PlatformBadge
 import org.crux.ui.screen.crux.isSignedIn
 import org.crux.ui.screen.home.ExtractedSocialPost
 import org.crux.ui.screen.home.FullscreenCustomVideoOverlay
@@ -89,40 +99,24 @@ import org.crux.ui.screen.home.LiveWebSite
 import org.crux.ui.screen.home.LocalLiveWebPages
 import org.crux.ui.screen.home.SaveToBookmarkFolderSheet
 import org.crux.ui.screen.home.WebSessionLifecycleSuspender
+import org.crux.ui.screen.home.attachSafeDownloadListener
 import org.crux.ui.screen.home.blockedTrackerResponse
+import org.crux.ui.screen.home.buildFileChooserIntent
 import org.crux.ui.screen.home.clearSession
 import org.crux.ui.screen.home.computeWebViewCanGoBack
 import org.crux.ui.screen.home.configureWebViewHeadersAndDarkening
 import org.crux.ui.screen.home.cookieManager
 import org.crux.ui.screen.home.currentUiNightMask
 import org.crux.ui.screen.home.extractPostFromWebView
+import org.crux.ui.screen.home.formatCompactHostPath
 import org.crux.ui.screen.home.handleCreateWindow
 import org.crux.ui.screen.home.handleMainFrameUrlOverride
 import org.crux.ui.screen.home.isExternalOAuthUrl
 import org.crux.ui.screen.home.navigateWebViewBackOrEscapeOAuth
 import org.crux.ui.screen.home.openInSystemBrowser
+import org.crux.ui.screen.home.parseFileChooserActivityResult
 import org.crux.ui.screen.home.restoreUiModeNightMaskIfNeeded
 import org.crux.ui.screen.home.useProfileOf
-
-internal fun isLinkedInHost(host: String?): Boolean = LinkedInFeedParser.isValidLinkedInHost(host)
-
-internal fun isLinkedInAdOrTrackingUrl(url: String): Boolean {
-    val lower = url.lowercase()
-    return lower.contains("snap.licdn.com") ||
-        lower.contains("px.ads.linkedin.com") ||
-        lower.contains("ads.linkedin.com") ||
-        lower.contains("platform.linkedin.com/litms/") ||
-        lower.contains("/li/track") ||
-        lower.contains("doubleclick.net") ||
-        lower.contains("google-analytics.com") ||
-        lower.contains("googletagmanager.com") ||
-        lower.contains("scorecardresearch.com") ||
-        lower.contains("connect.facebook.net") ||
-        lower.contains("clarity.ms") ||
-        lower.contains("branch.io") ||
-        lower.contains("adjust.com") ||
-        lower.contains("appsflyer.com")
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -159,6 +153,7 @@ internal fun LinkedInWebScreen(
     var canGoBack by remember { mutableStateOf(false) }
     var pageProgress by remember { mutableFloatStateOf(0f) }
     var isPageLoading by remember { mutableStateOf(true) }
+    var loadError by remember { mutableStateOf<String?>(null) }
     var showPrivacyDialog by remember { mutableStateOf(false) }
     var showClearConfirmDialog by remember { mutableStateOf(false) }
     var showOverflowMenu by remember { mutableStateOf(false) }
@@ -220,9 +215,9 @@ internal fun LinkedInWebScreen(
     var filePathCallback by remember { mutableStateOf<ValueCallback<Array<Uri>>?>(null) }
     val filePickerLauncher =
         rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.GetMultipleContents(),
-        ) { uris: List<Uri> ->
-            filePathCallback?.onReceiveValue(uris.toTypedArray())
+            contract = ActivityResultContracts.StartActivityForResult(),
+        ) { result ->
+            filePathCallback?.onReceiveValue(parseFileChooserActivityResult(result.resultCode, result.data))
             filePathCallback = null
         }
 
@@ -270,7 +265,18 @@ internal fun LinkedInWebScreen(
                                     text = "LinkedIn",
                                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                                     maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
                                 )
+                                val subtitle = remember(currentUrl) { formatCompactHostPath(currentUrl) }
+                                if (subtitle != null) {
+                                    Text(
+                                        text = subtitle,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
                             }
                         }
                     },
@@ -430,9 +436,32 @@ internal fun LinkedInWebScreen(
                         }
                     }
                     configureWebViewHeadersAndDarkening(webView.settings)
+                    attachSafeDownloadListener(webView)
 
                     webView.webViewClient =
                         object : WebViewClient() {
+                            override fun onRenderProcessGone(
+                                view: WebView?,
+                                detail: RenderProcessGoneDetail?,
+                            ): Boolean {
+                                exitFullscreenVideo()
+                                loadError = "Page renderer restarted"
+                                isPageLoading = false
+                                return true
+                            }
+
+                            override fun onReceivedError(
+                                view: WebView?,
+                                request: WebResourceRequest?,
+                                error: WebResourceError?,
+                            ) {
+                                super.onReceivedError(view, request, error)
+                                if (request?.isForMainFrame == true) {
+                                    loadError = error?.description?.toString() ?: "Failed to connect"
+                                    isPageLoading = false
+                                }
+                            }
+
                             override fun shouldOverrideUrlLoading(
                                 view: WebView?,
                                 request: WebResourceRequest?,
@@ -463,6 +492,7 @@ internal fun LinkedInWebScreen(
                                     currentUrl = it
                                     canGoBack = computeWebViewCanGoBack(view?.canGoBack() ?: false, it)
                                 }
+                                loadError = null
                                 isPageLoading = true
                             }
 
@@ -574,17 +604,61 @@ internal fun LinkedInWebScreen(
                             ): Boolean {
                                 filePathCallback?.onReceiveValue(null)
                                 filePathCallback = callback
-                                return try {
-                                    filePickerLauncher.launch("*/*")
-                                    true
-                                } catch (e: Exception) {
+                                val launched =
+                                    runCatching {
+                                        filePickerLauncher.launch(buildFileChooserIntent(fileChooserParams))
+                                    }.isSuccess
+                                if (!launched) {
+                                    filePathCallback?.onReceiveValue(null)
                                     filePathCallback = null
-                                    false
                                 }
+                                return launched
                             }
                         }
                 },
             )
+            if (loadError != null) {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background,
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxSize().padding(24.dp),
+                        verticalArrangement = Arrangement.Center,
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        PlatformBadge(platform = CruxPlatform.LinkedIn, size = 56.dp)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = stringResource(R.string.crux_web_error_title, "LinkedIn"),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = stringResource(R.string.crux_web_error_subtitle),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                        )
+                        Spacer(modifier = Modifier.height(20.dp))
+                        FilledTonalButton(
+                            onClick = {
+                                loadError = null
+                                webViewRef.value?.reload()
+                            },
+                        ) {
+                            FAIcon(
+                                imageVector = FontAwesomeIcons.Solid.RotateRight,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp),
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(stringResource(R.string.crux_web_error_retry))
+                        }
+                    }
+                }
+            }
             FullscreenCustomVideoOverlay(
                 customView = customVideoView,
                 onExit = ::exitFullscreenVideo,

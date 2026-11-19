@@ -1,0 +1,7 @@
+Crux 1.0.8
+- Permanent release signing key enabled for GitHub Releases so all future in-app updates install seamlessly in-place (one-time note: if updating from v1.0.7 or earlier, export feeds/bookmarks, uninstall once, and install v1.0.8)
+- CI release guard verifies every tagged APK is signed with the permanent Crux key and rejects ephemeral debug keys
+- WebView edge-case hardening across Instagram, X, LinkedIn, and Reddit: preserve WebViews & fullscreen video on screen rotation, auto-hide bottom dock during fullscreen video, graceful renderer crash recovery, MIME-aware multi-file uploads, safe file downloads, and in-place HTTP-to-HTTPS same-site upgrades
+- Platform fixes: keep Instagram search results (/explore/tags/, /explore/search/) visible, allow Meta auth verification, disable pull-to-refresh on X DMs / LinkedIn Messaging / Reddit Chat, stop hiding user-shared Play Store/App Store links on X & Reddit, preserve Reddit spoiler tags and /login Forgot Password links, and add offline retry screens on standalone Instagram/LinkedIn views
+- UI polish: crisp bottom-dock top hairline & tool separator, unified avatar + mini platform badge on Bookmark cards & Save sheet, zero-count filter chip hiding & safer folder edit/delete touch targets, cohesive brand badge + live host/path subtitle on standalone social screens, tonal Sign-in pill in drawer, and fixed URL bar layout in Hardened Browser
+- Codebase cleanup: removed unused legacy login modules (:feature:login, :feature:login-api), dead iOS/macOS/WasmJS KMP targets, and obsolete settings/WebView helpers

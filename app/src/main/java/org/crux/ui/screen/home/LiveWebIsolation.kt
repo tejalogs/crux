@@ -60,8 +60,9 @@ private const val RESTORE_MEDIA_SCRIPT =
  */
 internal fun WebView.suspendWebSession() {
     runCatching {
-        onPause()
+        // Pause & mute HTML5 media BEFORE onPause() so JS executes immediately rather than deferring until resume.
         evaluateJavascript(FREEZE_MEDIA_SCRIPT, null)
+        onPause()
         // Each site keeps its cookies in its own profile, so flush that store, not the shared one.
         (if (isSupported) WebViewCompat.getProfile(this).cookieManager else CookieManager.getInstance()).flush()
     }
@@ -260,7 +261,10 @@ internal fun cleanOutgoingLink(url: String): String {
 internal object LiveWebSessionState {
     private const val PREFS_NAME = "crux_web_state"
     private val AUTH_PATH_REGEX =
-        Regex("(^|/)(i/flow|login|accounts/login|accounts/onetap|uas/login|checkpoint|challenge)(/|$)", RegexOption.IGNORE_CASE)
+        Regex(
+            "(^|/)(i/flow|login|accounts/login|accounts/onetap|uas/login|account/access|account/login_verification|checkpoint|challenge)(/|$)",
+            RegexOption.IGNORE_CASE,
+        )
 
     private fun urlKey(site: LiveWebSite) = "url.${site.name}"
 
@@ -494,4 +498,17 @@ internal fun createThemeSafeWebView(context: Context): WebView {
         restoreUiModeNightMaskIfNeeded(context, expectedNightMask)
     }
     return webView
+}
+
+/** Compact host + first path segment for standalone WebView top-bar subtitles (e.g. `instagram.com/natgeo`). */
+internal fun formatCompactHostPath(url: String?): String? {
+    val raw = url?.trim()?.takeIf { it.isNotEmpty() && it != "about:blank" } ?: return null
+    val uri = runCatching { URI(raw) }.getOrNull() ?: return null
+    val host = uri.host?.lowercase()?.removePrefix("www.")?.takeIf { it.isNotBlank() } ?: return null
+    val cleanPath = uri.path?.trimEnd('/').orEmpty()
+    return if (cleanPath.isEmpty() || cleanPath == "/") {
+        host
+    } else {
+        "$host$cleanPath"
+    }
 }
