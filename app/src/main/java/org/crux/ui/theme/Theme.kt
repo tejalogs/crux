@@ -21,6 +21,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -117,7 +118,7 @@ fun CruxTheme(
                 isDark = darkTheme,
             )
         }.let {
-            remember(it) {
+            remember(it, pureColorMode, darkTheme) {
                 if (pureColorMode) {
                     if (!darkTheme) {
                         it.withPureColorLightMode()
@@ -205,10 +206,20 @@ fun CruxTheme(
     )
 }
 
+/**
+ * Un-clobbered OS dark mode provided by [MainActivity]. Chromium `WebView` initialization on a
+ * plain `ComponentActivity` can strip `UI_MODE_NIGHT_MASK` from `Activity.resources`, which would
+ * otherwise make [isSystemInDarkTheme] flip to `false`.
+ */
+internal val LocalSystemDarkTheme = staticCompositionLocalOf<Boolean?> { null }
+
+@Composable
+internal fun resolveSystemDarkTheme(): Boolean = LocalSystemDarkTheme.current ?: isSystemInDarkTheme()
+
 @Composable
 private fun isDarkTheme(): Boolean =
     LocalGlobalAppearance.current.theme == Theme.DARK ||
-        (LocalGlobalAppearance.current.theme == Theme.SYSTEM && isSystemInDarkTheme())
+        (LocalGlobalAppearance.current.theme == Theme.SYSTEM && resolveSystemDarkTheme())
 
 @Composable
 private fun ApplyCaptionBarAppearance(

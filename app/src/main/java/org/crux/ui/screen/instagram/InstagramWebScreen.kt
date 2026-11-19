@@ -1,9 +1,11 @@
 package org.crux.ui.screen.instagram
 
-import android.content.Intent
 import android.net.Uri
+import android.os.Build
+import android.os.Message
 import android.view.View
 import android.view.ViewGroup.LayoutParams
+import android.webkit.ConsoleMessage
 import android.webkit.GeolocationPermissions
 import android.webkit.PermissionRequest
 import android.webkit.ValueCallback
@@ -19,37 +21,30 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -59,39 +54,27 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.zIndex
+import androidx.webkit.WebViewCompat
+import androidx.webkit.WebViewFeature
 import com.kevinnzou.web.WebView
 import com.kevinnzou.web.rememberWebViewState
 import compose.icons.FontAwesomeIcons
 import compose.icons.fontawesomeicons.Brands
 import compose.icons.fontawesomeicons.Solid
 import compose.icons.fontawesomeicons.brands.Instagram
-import compose.icons.fontawesomeicons.solid.ArrowLeft
-import compose.icons.fontawesomeicons.solid.ArrowRight
 import compose.icons.fontawesomeicons.solid.ArrowUpRightFromSquare
 import compose.icons.fontawesomeicons.solid.Bookmark
 import compose.icons.fontawesomeicons.solid.EllipsisVertical
-import compose.icons.fontawesomeicons.solid.RotateRight
 import compose.icons.fontawesomeicons.solid.Rss
-import compose.icons.fontawesomeicons.solid.ShieldHalved
 import compose.icons.fontawesomeicons.solid.TrashCan
-import compose.icons.fontawesomeicons.solid.Xmark
 import kotlinx.coroutines.launch
 import org.crux.R
-import androidx.webkit.WebViewCompat
-import androidx.webkit.WebViewFeature
 import org.crux.data.datasource.instagram.InstagramFeedService
-import org.crux.data.readinglist.ReadingListItem
-import org.crux.data.readinglist.ReadingListRepository
-import org.crux.di.koinInject
 import org.crux.ui.component.BackButton
 import org.crux.ui.component.CruxDropdownMenu
 import org.crux.ui.component.CruxScaffold
@@ -100,17 +83,28 @@ import org.crux.ui.component.FAIcon
 import org.crux.ui.screen.crux.CruxPlatform
 import org.crux.ui.screen.crux.LocalCruxConnections
 import org.crux.ui.screen.crux.isSignedIn
+import org.crux.ui.screen.home.ExtractedSocialPost
+import org.crux.ui.screen.home.FullscreenCustomVideoOverlay
+import org.crux.ui.screen.home.LiveWebPrivacyCounters
 import org.crux.ui.screen.home.LiveWebPrivacyStore
 import org.crux.ui.screen.home.LiveWebSite
+import org.crux.ui.screen.home.LocalLiveWebPages
+import org.crux.ui.screen.home.SaveToBookmarkFolderSheet
 import org.crux.ui.screen.home.WebSessionLifecycleSuspender
+import org.crux.ui.screen.home.blockedTrackerResponse
 import org.crux.ui.screen.home.clearSession
-import org.crux.ui.screen.home.cleanOutgoingLink
+import org.crux.ui.screen.home.computeWebViewCanGoBack
 import org.crux.ui.screen.home.configureWebViewHeadersAndDarkening
 import org.crux.ui.screen.home.cookieManager
+import org.crux.ui.screen.home.currentUiNightMask
+import org.crux.ui.screen.home.extractPostFromWebView
+import org.crux.ui.screen.home.handleCreateWindow
+import org.crux.ui.screen.home.handleMainFrameUrlOverride
+import org.crux.ui.screen.home.isExternalOAuthUrl
+import org.crux.ui.screen.home.navigateWebViewBackOrEscapeOAuth
 import org.crux.ui.screen.home.openInSystemBrowser
-import org.crux.ui.screen.home.openLinkOutsideWebView
+import org.crux.ui.screen.home.restoreUiModeNightMaskIfNeeded
 import org.crux.ui.screen.home.useProfileOf
-import java.io.ByteArrayInputStream
 
 private const val INSTAGRAM_HOME_URL = "https://www.instagram.com"
 
@@ -166,10 +160,8 @@ internal fun InstagramWebScreen(
     onNavigateToRss: ((String) -> Unit)? = null,
 ) {
     val context = LocalContext.current
-    val uriHandler = LocalUriHandler.current
     val webViewRef = remember { mutableStateOf<WebView?>(null) }
     WebSessionLifecycleSuspender(webView = webViewRef.value)
-    val readingListRepo by koinInject<ReadingListRepository>()
     val scope = rememberCoroutineScope()
     val targetUrl =
         remember(initialUrl, forSignIn) {
@@ -181,31 +173,31 @@ internal fun InstagramWebScreen(
             }
         }
     val webViewState = rememberWebViewState(targetUrl)
-    val pages = org.crux.ui.screen.home.LocalLiveWebPages.current
-    val connections = org.crux.ui.screen.crux.LocalCruxConnections.current
+    val pages = LocalLiveWebPages.current
+    val connections = LocalCruxConnections.current
     val autoReturnOnSignIn =
         remember(forSignIn) {
-            forSignIn && !org.crux.ui.screen.crux.CruxPlatform.Instagram.isSignedIn()
+            forSignIn && !CruxPlatform.Instagram.isSignedIn()
         }
     var hasAutoReturned by remember { mutableStateOf(false) }
 
     var currentUrl by remember { mutableStateOf(targetUrl) }
-    val committedUrlHolder =
-        remember {
-            object {
-                @Volatile
-                var url: String? = targetUrl
-            }
-        }
-    val isSavedState by remember(currentUrl) { readingListRepo.isSaved(currentUrl) }.collectAsState(false)
     var canGoBack by remember { mutableStateOf(false) }
-    var canGoForward by remember { mutableStateOf(false) }
     var pageProgress by remember { mutableFloatStateOf(0f) }
     var isPageLoading by remember { mutableStateOf(true) }
     var showPrivacyDialog by remember { mutableStateOf(false) }
     var showClearConfirmDialog by remember { mutableStateOf(false) }
     var showOverflowMenu by remember { mutableStateOf(false) }
-    var isDockExpanded by remember { mutableStateOf(false) }
+    var pendingBookmarkPost by remember { mutableStateOf<ExtractedSocialPost?>(null) }
+    var customVideoView by remember { mutableStateOf<View?>(null) }
+    var customVideoCallback by remember { mutableStateOf<WebChromeClient.CustomViewCallback?>(null) }
+
+    fun exitFullscreenVideo() {
+        val cb = customVideoCallback
+        customVideoCallback = null
+        customVideoView = null
+        runCatching { cb?.onCustomViewHidden() }
+    }
 
     // Refreshes cookie-backed session state once Instagram login cookies are present.
     val checkAndSyncSession =
@@ -231,6 +223,7 @@ internal fun InstagramWebScreen(
     DisposableEffect(Unit) {
         checkAndSyncSession()
         onDispose {
+            exitFullscreenVideo()
             LiveWebSite.Instagram.cookieManager().flush()
         }
     }
@@ -244,11 +237,11 @@ internal fun InstagramWebScreen(
             fileUploadCallback = null
         }
 
-    BackHandler {
-        if (webViewRef.value?.canGoBack() == true) {
-            webViewRef.value?.goBack()
+    BackHandler(enabled = customVideoView != null || canGoBack) {
+        if (customVideoView != null) {
+            exitFullscreenVideo()
         } else {
-            onBack()
+            webViewRef.value?.let { navigateWebViewBackOrEscapeOAuth(it, LiveWebSite.Instagram) }
         }
     }
 
@@ -256,6 +249,13 @@ internal fun InstagramWebScreen(
         if (targetUrl != INSTAGRAM_HOME_URL && targetUrl != currentUrl) {
             webViewRef.value?.loadUrl(targetUrl)
         }
+    }
+
+    pendingBookmarkPost?.let { postToSave ->
+        SaveToBookmarkFolderSheet(
+            post = postToSave,
+            onDismiss = { pendingBookmarkPost = null },
+        )
     }
 
     if (showPrivacyDialog) {
@@ -302,9 +302,12 @@ internal fun InstagramWebScreen(
                 TextButton(
                     onClick = {
                         showClearConfirmDialog = false
-                        LiveWebSite.Instagram.clearSession()
+                        LiveWebSite.Instagram.clearSession(context)
                         webViewRef.value?.clearCache(true)
-                        webViewRef.value?.loadUrl(INSTAGRAM_HOME_URL)
+                        webViewRef.value?.clearHistory()
+                        pages?.clearAndReload(LiveWebSite.Instagram)
+                        connections?.refresh()
+                        webViewRef.value?.loadUrl(LiveWebSite.Instagram.startUrlForSession())
                     },
                 ) {
                     Text(text = stringResource(R.string.web_clear_confirm), color = MaterialTheme.colorScheme.error)
@@ -354,18 +357,20 @@ internal fun InstagramWebScreen(
                         }
                     },
                     navigationIcon = {
-                        BackButton(onBack = onBack)
+                        BackButton(
+                            onBack = {
+                                val wv = webViewRef.value
+                                if (customVideoView != null) {
+                                    exitFullscreenVideo()
+                                } else if (wv != null && isExternalOAuthUrl(wv.url)) {
+                                    navigateWebViewBackOrEscapeOAuth(wv, LiveWebSite.Instagram)
+                                } else {
+                                    onBack()
+                                }
+                            },
+                        )
                     },
                     actions = {
-                        var pendingBookmarkPost by remember {
-                            mutableStateOf<org.crux.ui.screen.home.ExtractedSocialPost?>(null)
-                        }
-                        pendingBookmarkPost?.let { postToSave ->
-                            org.crux.ui.screen.home.SaveToBookmarkFolderSheet(
-                                post = postToSave,
-                                onDismiss = { pendingBookmarkPost = null },
-                            )
-                        }
                         val detectedProfile = remember(currentUrl) { extractInstagramProfile(currentUrl) }
                         if (detectedProfile != null && onNavigateToRss != null) {
                             IconButton(
@@ -383,7 +388,7 @@ internal fun InstagramWebScreen(
                         IconButton(
                             onClick = {
                                 val wv = webViewRef.value ?: return@IconButton
-                                org.crux.ui.screen.home.extractPostFromWebView(
+                                extractPostFromWebView(
                                     site = LiveWebSite.Instagram,
                                     webView = wv,
                                 ) { extracted ->
@@ -471,8 +476,14 @@ internal fun InstagramWebScreen(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .padding(paddingValues),
+                    .padding(paddingValues)
+                    .imePadding(),
         ) {
+            val expectedNightMask = remember(context) { context.currentUiNightMask() }
+            val webBackgroundColor = MaterialTheme.colorScheme.background.toArgb()
+            LaunchedEffect(webViewRef.value, webBackgroundColor) {
+                webViewRef.value?.setBackgroundColor(webBackgroundColor)
+            }
             WebView(
                 state = webViewState,
                 layoutParams =
@@ -482,15 +493,22 @@ internal fun InstagramWebScreen(
                     ),
                 modifier = Modifier.fillMaxSize(),
                 onCreated = { view: WebView ->
+                    restoreUiModeNightMaskIfNeeded(view.context, expectedNightMask)
+                    view.post { restoreUiModeNightMaskIfNeeded(view.context, expectedNightMask) }
                     view.useProfileOf(LiveWebSite.Instagram)
+                    view.setBackgroundColor(webBackgroundColor)
                     view.isNestedScrollingEnabled = false
                     view.overScrollMode = View.OVER_SCROLL_NEVER
                     view.isVerticalScrollBarEnabled = false
                     view.isHorizontalScrollBarEnabled = false
                     webViewRef.value = view
+                    val privacyStore = LiveWebPrivacyStore.get(view.context)
+                    val privacyCounters = LiveWebPrivacyCounters.get(view.context.applicationContext)
+                    val config = privacyStore.configFor(LiveWebSite.Instagram)
                     with(view.settings) {
                         javaScriptEnabled = true
                         domStorageEnabled = true
+                        databaseEnabled = true
                         mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
                         allowFileAccess = false
                         allowContentAccess = true
@@ -499,19 +517,20 @@ internal fun InstagramWebScreen(
                         setAllowFileAccessFromFileURLs(false)
                         @Suppress("DEPRECATION")
                         setAllowUniversalAccessFromFileURLs(false)
-                        javaScriptCanOpenWindowsAutomatically = false
-                        setSupportMultipleWindows(false)
+                        javaScriptCanOpenWindowsAutomatically = true
+                        setSupportMultipleWindows(true)
+                        mediaPlaybackRequiresUserGesture = config.blockAutoplay
                         @Suppress("DEPRECATION")
                         saveFormData = false
-                        setSafeBrowsingEnabled(true)
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            safeBrowsingEnabled = true
+                        }
                         cacheMode = WebSettings.LOAD_DEFAULT
                         useWideViewPort = true
                         loadWithOverviewMode = true
                         displayZoomControls = false
                         builtInZoomControls = false
                     }
-                    val privacyStore = LiveWebPrivacyStore.get(view.context)
-                    val config = privacyStore.configFor(LiveWebSite.Instagram)
                     val acceptThirdParty = !config.blockThirdPartyCookies
                     runCatching {
                         val globalCookieManager = android.webkit.CookieManager.getInstance()
@@ -536,10 +555,8 @@ internal fun InstagramWebScreen(
                                 request: WebResourceRequest,
                             ): WebResourceResponse? =
                                 if (config.blocks(LiveWebSite.Instagram, request.url.host)) {
-                                    org.crux.ui.screen.home.LiveWebPrivacyCounters
-                                        .get(view.context)
-                                        .recordBlockedRequest(LiveWebSite.Instagram)
-                                    org.crux.ui.screen.home.blockedTrackerResponse()
+                                    privacyCounters.recordBlockedRequest(LiveWebSite.Instagram)
+                                    blockedTrackerResponse()
                                 } else {
                                     super.shouldInterceptRequest(view, request)
                                 }
@@ -547,29 +564,7 @@ internal fun InstagramWebScreen(
                             override fun shouldOverrideUrlLoading(
                                 view: WebView,
                                 request: WebResourceRequest,
-                            ): Boolean {
-                                val rawUrl = request.url.toString()
-                                val cleaned = if (config.cleanLinks) cleanOutgoingLink(rawUrl) else rawUrl
-                                val isRedirect = cleaned.substringBefore("?") != rawUrl.substringBefore("?")
-                                val host = request.url.host
-                                if (InstagramFeedService.isValidInstagramHost(host) && !isRedirect) {
-                                    return false
-                                }
-                                val target = if (isRedirect) cleaned else rawUrl
-                                return if (target.startsWith("http://") || target.startsWith("https://")) {
-                                    openLinkOutsideWebView(
-                                        context = view.context,
-                                        url = target,
-                                        clean = config.cleanLinks,
-                                        openInReader = config.openInReader,
-                                    )
-                                    true
-                                } else {
-                                    // Deep links like instagram://, market://
-                                    uriHandler.openUri(rawUrl)
-                                    true
-                                }
-                            }
+                            ): Boolean = handleMainFrameUrlOverride(view, request, LiveWebSite.Instagram, config)
 
                             override fun onPageStarted(
                                 view: WebView,
@@ -578,11 +573,9 @@ internal fun InstagramWebScreen(
                             ) {
                                 super.onPageStarted(view, url, favicon)
                                 val committed = url ?: view.url
-                                committedUrlHolder.url = committed
                                 committed?.let {
                                     currentUrl = it
-                                    canGoBack = view.canGoBack()
-                                    canGoForward = view.canGoForward()
+                                    canGoBack = computeWebViewCanGoBack(view.canGoBack(), it)
                                 }
                                 isPageLoading = true
                             }
@@ -594,11 +587,9 @@ internal fun InstagramWebScreen(
                             ) {
                                 super.doUpdateVisitedHistory(view, url, isReload)
                                 val committed = url ?: view.url
-                                committedUrlHolder.url = committed
                                 committed?.let {
                                     currentUrl = it
-                                    canGoBack = view.canGoBack()
-                                    canGoForward = view.canGoForward()
+                                    canGoBack = computeWebViewCanGoBack(view.canGoBack(), it)
                                 }
                                 val host = committed?.let { runCatching { Uri.parse(it).host }.getOrNull() }
                                 if (InstagramFeedService.isValidInstagramHost(host)) {
@@ -612,11 +603,9 @@ internal fun InstagramWebScreen(
                             ) {
                                 super.onPageFinished(view, url)
                                 val committed = url ?: view.url
-                                committedUrlHolder.url = committed
                                 committed?.let {
                                     currentUrl = it
-                                    canGoBack = view.canGoBack()
-                                    canGoForward = view.canGoForward()
+                                    canGoBack = computeWebViewCanGoBack(view.canGoBack(), it)
                                 }
                                 isPageLoading = false
                                 if (!WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
@@ -633,6 +622,41 @@ internal fun InstagramWebScreen(
 
                     view.webChromeClient =
                         object : WebChromeClient() {
+                            override fun onCreateWindow(
+                                view: WebView,
+                                isDialog: Boolean,
+                                isUserGesture: Boolean,
+                                resultMsg: Message?,
+                            ): Boolean = handleCreateWindow(view, LiveWebSite.Instagram, config, isUserGesture, resultMsg)
+
+                            override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
+                                if (consoleMessage?.message() == "__crux_bm_tap__") {
+                                    view.post {
+                                        extractPostFromWebView(LiveWebSite.Instagram, view) { extracted ->
+                                            pendingBookmarkPost = extracted
+                                        }
+                                    }
+                                    return true
+                                }
+                                return super.onConsoleMessage(consoleMessage)
+                            }
+
+                            override fun onShowCustomView(
+                                customView: View?,
+                                callback: CustomViewCallback?,
+                            ) {
+                                if (customView == null || customVideoView != null) {
+                                    callback?.onCustomViewHidden()
+                                    return
+                                }
+                                customVideoView = customView
+                                customVideoCallback = callback
+                            }
+
+                            override fun onHideCustomView() {
+                                exitFullscreenVideo()
+                            }
+
                             override fun onGeolocationPermissionsShowPrompt(
                                 origin: String?,
                                 callback: GeolocationPermissions.Callback?,
@@ -659,11 +683,15 @@ internal fun InstagramWebScreen(
                             ): Boolean {
                                 fileUploadCallback?.onReceiveValue(null)
                                 fileUploadCallback = filePathCallback
-                                fileChooserLauncher.launch("image/*")
+                                fileChooserLauncher.launch("*/*")
                                 return true
                             }
                         }
                 },
+            )
+            FullscreenCustomVideoOverlay(
+                customView = customVideoView,
+                onExit = ::exitFullscreenVideo,
             )
         }
     }

@@ -1,6 +1,8 @@
 package org.crux.ui.screen.home
 
+import android.content.res.Configuration
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class LiveWebLinksTest {
@@ -136,9 +138,178 @@ class LiveWebLinksTest {
         assertEquals(false, LiveWebSessionState.isRestorableUrl(LiveWebSite.X, "https://x.com/i/flow/login"))
         assertEquals(false, LiveWebSessionState.isRestorableUrl(LiveWebSite.Instagram, "https://www.instagram.com/accounts/login/"))
         assertEquals(false, LiveWebSessionState.isRestorableUrl(LiveWebSite.LinkedIn, "https://www.linkedin.com/uas/login"))
+        assertEquals(false, LiveWebSessionState.isRestorableUrl(LiveWebSite.LinkedIn, "https://accounts.google.com/v3/signin/identifier"))
         assertEquals(false, LiveWebSessionState.isRestorableUrl(LiveWebSite.X, "http://x.com/home"))
         assertEquals(false, LiveWebSessionState.isRestorableUrl(LiveWebSite.X, "https://reddit.com/r/Kotlin"))
         assertEquals(false, LiveWebSessionState.isRestorableUrl(LiveWebSite.X, "about:blank"))
         assertEquals(false, LiveWebSessionState.isRestorableUrl(LiveWebSite.X, null))
+    }
+
+    @Test
+    fun oauthBackNavigationSkipsGoogleAndOAuthRedirectHops() {
+        val history =
+            listOf(
+                "https://www.linkedin.com/login",
+                "https://www.linkedin.com/uas/connect/google",
+                "https://accounts.google.com/o/oauth2/v2/auth?client_id=1",
+                "https://accounts.google.com/v3/signin/identifier",
+            )
+        assertEquals(
+            BackNavigationAction.GoSteps(-3),
+            computeBackNavigationAction(
+                currentUrl = "https://accounts.google.com/v3/signin/identifier",
+                historyUrls = history,
+                currentIndex = 3,
+                site = LiveWebSite.LinkedIn,
+            ),
+        )
+        assertEquals(true, computeWebViewCanGoBack(webViewCanGoBack = false, currentUrl = "https://accounts.google.com/v3/signin/identifier"))
+    }
+
+    @Test
+    fun oauthBackNavigationFallsBackToSiteLoginWhenNoCleanHistoryExists() {
+        assertEquals(
+            BackNavigationAction.LoadUrl(LiveWebSite.LinkedIn.loginUrl),
+            computeBackNavigationAction(
+                currentUrl = "https://accounts.google.com/v3/signin/identifier",
+                historyUrls = listOf("https://accounts.google.com/o/oauth2/auth", "https://accounts.google.com/v3/signin/identifier"),
+                currentIndex = 1,
+                site = LiveWebSite.LinkedIn,
+            ),
+        )
+        assertEquals(
+            BackNavigationAction.NativeGoBack,
+            computeBackNavigationAction(
+                currentUrl = "https://www.linkedin.com/feed/",
+                historyUrls = listOf("https://www.linkedin.com/login", "https://www.linkedin.com/feed/"),
+                currentIndex = 1,
+                site = LiveWebSite.LinkedIn,
+            ),
+        )
+    }
+
+    @Test
+    fun restoresNightModeMaskWhenWebViewStripsUiMode() {
+        val baseOtherBits = Configuration.UI_MODE_TYPE_NORMAL
+        val lightUiMode = baseOtherBits or Configuration.UI_MODE_NIGHT_NO
+        val darkUiMode = baseOtherBits or Configuration.UI_MODE_NIGHT_YES
+
+        assertEquals(
+            darkUiMode,
+            computeRestoredNightUiMode(
+                currentUiMode = lightUiMode,
+                expectedNightMask = Configuration.UI_MODE_NIGHT_YES,
+            ),
+        )
+        assertEquals(
+            lightUiMode,
+            computeRestoredNightUiMode(
+                currentUiMode = darkUiMode,
+                expectedNightMask = Configuration.UI_MODE_NIGHT_NO,
+            ),
+        )
+        assertNull(
+            computeRestoredNightUiMode(
+                currentUiMode = darkUiMode,
+                expectedNightMask = Configuration.UI_MODE_NIGHT_YES,
+            ),
+        )
+        assertNull(
+            computeRestoredNightUiMode(
+                currentUiMode = lightUiMode,
+                expectedNightMask = Configuration.UI_MODE_NIGHT_UNDEFINED,
+            ),
+        )
+    }
+
+    @Test
+    fun mainFrameUrlRoutingProtectsAllFourPlatformsAgainstAppBouncesAndSubframeHijacks() {
+        // Subframes are never hijacked
+        assertEquals(
+            MainFrameUrlAction.AllowInWebView,
+            decideMainFrameUrlAction(
+                rawUrl = "https://external.example.com/embed",
+                site = LiveWebSite.Instagram,
+                cleanLinks = true,
+                hasGesture = false,
+                isForMainFrame = false,
+            ),
+        )
+
+        // Same-site navigation stays inside WebView across all 4 platforms
+        assertEquals(
+            MainFrameUrlAction.AllowInWebView,
+            decideMainFrameUrlAction("https://www.instagram.com/natgeo/reel/C1abc/", LiveWebSite.Instagram, true, true),
+        )
+        assertEquals(
+            MainFrameUrlAction.AllowInWebView,
+            decideMainFrameUrlAction("https://x.com/i/flow/login", LiveWebSite.X, true, true),
+        )
+        assertEquals(
+            MainFrameUrlAction.AllowInWebView,
+            decideMainFrameUrlAction("https://www.linkedin.com/feed/", LiveWebSite.LinkedIn, true, true),
+        )
+        assertEquals(
+            MainFrameUrlAction.AllowInWebView,
+            decideMainFrameUrlAction("https://www.reddit.com/r/android/comments/abc/post/", LiveWebSite.Reddit, true, true),
+        )
+
+        // Signed-out X root recovers to direct login flow
+        assertEquals(
+            MainFrameUrlAction.LoadInWebView(LiveWebSite.X.loginUrl),
+            decideMainFrameUrlAction("https://x.com/", LiveWebSite.X, true, false),
+        )
+
+        // Same-site tracking redirects unwrap cleanly in-place
+        assertEquals(
+            MainFrameUrlAction.LoadInWebView("https://www.instagram.com/p/abc123/"),
+            decideMainFrameUrlAction(
+                "https://l.instagram.com/?u=https%3A%2F%2Fwww.instagram.com%2Fp%2Fabc123%2F%3Figsh%3Dxyz",
+                LiveWebSite.Instagram,
+                true,
+                true,
+            ),
+        )
+        assertEquals(
+            MainFrameUrlAction.LoadInWebView("https://www.linkedin.com/posts/abc"),
+            decideMainFrameUrlAction(
+                "https://www.linkedin.com/redir/redirect?url=https%3A%2F%2Fwww.linkedin.com%2Fposts%2Fabc%3Ftrk%3D1",
+                LiveWebSite.LinkedIn,
+                true,
+                true,
+            ),
+        )
+
+        // External http(s) links hand off outside WebView
+        assertEquals(
+            MainFrameUrlAction.OpenOutside("https://example.com/news"),
+            decideMainFrameUrlAction("https://example.com/news", LiveWebSite.Reddit, true, true),
+        )
+
+        // Native app / Play Store bounce schemes stay blocked even on tap
+        listOf(
+            LiveWebSite.Instagram to "instagram://reel?id=123",
+            LiveWebSite.LinkedIn to "linkedin://feed",
+            LiveWebSite.Reddit to "reddit://r/android",
+            LiveWebSite.X to "twitter://timeline",
+            LiveWebSite.Instagram to "market://details?id=com.instagram.android",
+            LiveWebSite.LinkedIn to "intent://linkedin.com/#Intent;scheme=https;end",
+        ).forEach { (site, uri) ->
+            assertEquals(
+                "$site must block $uri",
+                MainFrameUrlAction.Block,
+                decideMainFrameUrlAction(uri, site, true, hasGesture = true),
+            )
+        }
+
+        // mailto/tel require explicit user gesture
+        assertEquals(
+            MainFrameUrlAction.OpenDialOrMail("mailto:hi@example.com"),
+            decideMainFrameUrlAction("mailto:hi@example.com", LiveWebSite.LinkedIn, true, hasGesture = true),
+        )
+        assertEquals(
+            MainFrameUrlAction.Block,
+            decideMainFrameUrlAction("mailto:hi@example.com", LiveWebSite.LinkedIn, true, hasGesture = false),
+        )
     }
 }

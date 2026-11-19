@@ -1,7 +1,11 @@
 package org.crux.ui.screen.home
 
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.Context
+import android.content.ContextWrapper
+import android.content.res.Configuration
+import android.content.res.Resources
 import android.webkit.CookieManager
 import android.webkit.WebSettings
 import android.webkit.WebStorage
@@ -276,6 +280,7 @@ internal object LiveWebSessionState {
         url: String?,
     ): Boolean {
         val candidate = url?.trim() ?: return false
+        if (isExternalOAuthUrl(candidate)) return false
         val uri = runCatching { URI(candidate) }.getOrNull() ?: return false
         if (!uri.scheme.equals("https", ignoreCase = true) || !site.allows(uri.host)) return false
         val path = uri.path.orEmpty()
@@ -339,4 +344,154 @@ internal fun configureWebViewHeadersAndDarkening(settings: WebSettings) {
     if (WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING)) {
         WebSettingsCompat.setAlgorithmicDarkeningAllowed(settings, false)
     }
+}
+
+private val EXTERNAL_OAUTH_HOSTS =
+    setOf(
+        "accounts.google.com",
+        "accounts.youtube.com",
+        "appleid.apple.com",
+        "myaccount.google.com",
+        "gds.google.com",
+    )
+
+private val OAUTH_BOUNCE_PATH_REGEX =
+    Regex("(^|/)(oauth2?|uas/connect|checkpoint/lg/login-with-|accounts/onetap|i/flow/sso|auth/google)(/|$)", RegexOption.IGNORE_CASE)
+
+/** True when [url] is hosted on a third-party identity provider (Google, Apple). */
+internal fun isExternalOAuthUrl(url: String?): Boolean {
+    val uri = url?.trim()?.let { runCatching { URI(it) }.getOrNull() } ?: return false
+    val host = uri.host?.lowercase()?.trimEnd('.').orEmpty()
+    return EXTERNAL_OAUTH_HOSTS.any { host == it || host.endsWith(".$it") }
+}
+
+private fun isOAuthRedirectHop(url: String?): Boolean {
+    if (url.isNullOrBlank() || url == "about:blank") return true
+    if (isExternalOAuthUrl(url)) return true
+    val path = runCatching { URI(url.trim()).path }.getOrNull().orEmpty()
+    return OAUTH_BOUNCE_PATH_REGEX.containsMatchIn(path)
+}
+
+internal fun computeWebViewCanGoBack(
+    webViewCanGoBack: Boolean,
+    currentUrl: String?,
+): Boolean = webViewCanGoBack || isExternalOAuthUrl(currentUrl)
+
+internal sealed interface BackNavigationAction {
+    data object NativeGoBack : BackNavigationAction
+
+    data class GoSteps(
+        val steps: Int,
+    ) : BackNavigationAction
+
+    data class LoadUrl(
+        val url: String,
+    ) : BackNavigationAction
+}
+
+/**
+ * When navigating back from an external OAuth provider (such as Google Sign-In on LinkedIn),
+ * skips over all Google and OAuth relay redirect hops back to the previous site page, or falls back
+ * to [site.loginUrl] if no non-OAuth entry exists in history (e.g. after `location.replace`).
+ */
+internal fun computeBackNavigationAction(
+    currentUrl: String?,
+    historyUrls: List<String>,
+    currentIndex: Int,
+    site: LiveWebSite,
+): BackNavigationAction {
+    if (!isExternalOAuthUrl(currentUrl)) return BackNavigationAction.NativeGoBack
+    val startIdx = (currentIndex - 1).coerceAtMost(historyUrls.lastIndex)
+    for (idx in startIdx downTo 0) {
+        val candidate = historyUrls[idx]
+        if (!isOAuthRedirectHop(candidate)) {
+            return BackNavigationAction.GoSteps(idx - currentIndex)
+        }
+    }
+    return BackNavigationAction.LoadUrl(site.loginUrl)
+}
+
+internal fun navigateWebViewBackOrEscapeOAuth(
+    webView: WebView,
+    site: LiveWebSite,
+) {
+    val history = webView.copyBackForwardList()
+    val historyUrls = (0 until history.size).map { idx -> history.getItemAtIndex(idx)?.url.orEmpty() }
+    when (val action = computeBackNavigationAction(webView.url, historyUrls, history.currentIndex, site)) {
+        is BackNavigationAction.GoSteps -> {
+            if (action.steps < 0 && webView.canGoBackOrForward(action.steps)) {
+                webView.goBackOrForward(action.steps)
+            } else if (webView.canGoBack()) {
+                webView.goBack()
+            } else {
+                webView.loadUrl(site.loginUrl)
+            }
+        }
+
+        is BackNavigationAction.LoadUrl -> {
+            webView.loadUrl(action.url)
+        }
+
+        BackNavigationAction.NativeGoBack -> {
+            if (webView.canGoBack()) {
+                webView.goBack()
+            }
+        }
+    }
+}
+
+private tailrec fun Context.findActivity(): Activity? =
+    when (this) {
+        is Activity -> this
+        is ContextWrapper -> baseContext.findActivity()
+        else -> null
+    }
+
+/**
+ * Computes an updated [currentUiMode] with [expectedNightMask] restored when Chromium `WebView`
+ * initialization clears `UI_MODE_NIGHT_MASK` on a plain `ComponentActivity`. Returns `null` if no
+ * change is needed.
+ */
+internal fun computeRestoredNightUiMode(
+    currentUiMode: Int,
+    expectedNightMask: Int,
+): Int? {
+    if (expectedNightMask == Configuration.UI_MODE_NIGHT_UNDEFINED) return null
+    if ((currentUiMode and Configuration.UI_MODE_NIGHT_MASK) == expectedNightMask) return null
+    return (currentUiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or expectedNightMask
+}
+
+internal fun Context.currentUiNightMask(): Int {
+    val hostResources = (findActivity()?.resources ?: resources)
+    return hostResources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
+}
+
+@Suppress("DEPRECATION")
+private fun restoreResourcesNightMask(
+    resources: Resources,
+    expectedNightMask: Int,
+) {
+    val restoredUiMode = computeRestoredNightUiMode(resources.configuration.uiMode, expectedNightMask) ?: return
+    val fixed = Configuration(resources.configuration).apply { uiMode = restoredUiMode }
+    resources.updateConfiguration(fixed, resources.displayMetrics)
+}
+
+internal fun restoreUiModeNightMaskIfNeeded(
+    context: Context,
+    expectedNightMask: Int,
+) {
+    if (expectedNightMask == Configuration.UI_MODE_NIGHT_UNDEFINED) return
+    context.findActivity()?.resources?.let { restoreResourcesNightMask(it, expectedNightMask) }
+    restoreResourcesNightMask(context.resources, expectedNightMask)
+    restoreResourcesNightMask(context.applicationContext.resources, expectedNightMask)
+}
+
+internal fun createThemeSafeWebView(context: Context): WebView {
+    val expectedNightMask = context.currentUiNightMask()
+    val webView = WebView(context)
+    restoreUiModeNightMaskIfNeeded(context, expectedNightMask)
+    webView.post {
+        restoreUiModeNightMaskIfNeeded(context, expectedNightMask)
+    }
+    return webView
 }

@@ -20,15 +20,18 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
@@ -41,6 +44,8 @@ import org.crux.ui.component.BackButton
 import org.crux.ui.component.CruxLargeFlexibleTopAppBar
 import org.crux.ui.component.CruxScaffold
 import org.crux.ui.screen.home.WebSessionLifecycleSuspender
+import org.crux.ui.screen.home.currentUiNightMask
+import org.crux.ui.screen.home.restoreUiModeNightMaskIfNeeded
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -130,6 +135,11 @@ internal fun HardenedBrowserScreen(onBack: () -> Unit) {
                     Text(text = stringResource(id = R.string.browser_open_external))
                 }
             }
+            val expectedNightMask = remember(context) { context.currentUiNightMask() }
+            val webBackgroundColor = MaterialTheme.colorScheme.background.toArgb()
+            LaunchedEffect(webViewRef.value, webBackgroundColor) {
+                webViewRef.value?.setBackgroundColor(webBackgroundColor)
+            }
             WebView(
                 webViewState,
                 FrameLayout.LayoutParams(
@@ -138,6 +148,9 @@ internal fun HardenedBrowserScreen(onBack: () -> Unit) {
                 ),
                 modifier = Modifier.fillMaxSize(),
                 onCreated = { view: WebView ->
+                    restoreUiModeNightMaskIfNeeded(view.context, expectedNightMask)
+                    view.post { restoreUiModeNightMaskIfNeeded(view.context, expectedNightMask) }
+                    view.setBackgroundColor(webBackgroundColor)
                     webViewRef.value = view
                     with(view.settings) {
                         mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW

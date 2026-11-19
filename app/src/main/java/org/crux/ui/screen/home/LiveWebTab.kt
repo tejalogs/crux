@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.ClipData
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
@@ -52,6 +53,7 @@ import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -176,6 +178,8 @@ internal class LiveWebPages {
                     existing.webView.loadUrl(site.startUrlForSession())
                 } else if (site.hasSession() && LiveWebSessionState.isAuthOrLoginUrl(currentUrl)) {
                     existing.webView.loadUrl(site.homeUrl)
+                } else if (!site.hasSession() && isExternalOAuthUrl(currentUrl)) {
+                    existing.webView.loadUrl(site.startUrlForSession())
                 }
             }
             ?: run {
@@ -203,7 +207,12 @@ internal class LiveWebPages {
 
     /** Reloads a site's home tab, e.g. after signing in on a separate page. */
     fun reload(site: LiveWebSite) {
-        pages[site]?.webView?.reload()
+        val wv = pages[site]?.webView ?: return
+        if (site.hasSession() && LiveWebSessionState.isAuthOrLoginUrl(wv.url)) {
+            wv.loadUrl(site.homeUrl)
+        } else {
+            wv.reload()
+        }
     }
 
     /** Clears an active site's in-memory cache, form data, and history, then loads its home URL. */
@@ -244,20 +253,8 @@ internal class LiveWebPage(
     val config: LiveWebConfig = LiveWebPrivacyStore.get(context).configFor(site),
 ) {
     private val appContext = context.applicationContext
+    private val privacyCounters = LiveWebPrivacyCounters.get(appContext)
     private var pendingRestoreScrollY = initialScrollY.coerceAtLeast(0)
-
-    private fun outgoing(url: String): String = if (config.cleanLinks) cleanOutgoingLink(url) else url
-
-    /** Off-site links go to the Crux Reader or default browser, or to Crux's own screen for another social site. */
-    private fun openOutside(
-        context: Context,
-        url: String,
-    ) = openLinkOutsideWebView(
-        context = context,
-        url = url,
-        clean = config.cleanLinks,
-        openInReader = config.openInReader,
-    )
 
     var canGoBack by mutableStateOf(false)
         private set
@@ -288,9 +285,15 @@ internal class LiveWebPage(
     }
 
     val webView: WebView =
-        WebView(context).apply {
+        createThemeSafeWebView(context).apply {
             useProfileOf(site)
-            setBackgroundColor(android.graphics.Color.BLACK)
+            setBackgroundColor(
+                if (context.currentUiNightMask() == Configuration.UI_MODE_NIGHT_YES) {
+                    android.graphics.Color.BLACK
+                } else {
+                    android.graphics.Color.TRANSPARENT
+                },
+            )
             // No forced hardware layer: WebView already composites on the GPU, and an extra layer
             // re-rasterises the whole page each frame, which made Reels and video scrolling stutter.
             isNestedScrollingEnabled = false
@@ -298,7 +301,8 @@ internal class LiveWebPage(
             isVerticalScrollBarEnabled = false
             isHorizontalScrollBarEnabled = false
             settings.cacheMode = WebSettings.LOAD_DEFAULT
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            // Heavy shadow-DOM feeds like Reddit churn GPU tile memory if offscreen tiles are pre-rastered.
+            if (site != LiveWebSite.Reddit && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 settings.offscreenPreRaster = true
             }
             // The WebView's real identity: a spoofed one disagrees with its other signals, and that
@@ -344,7 +348,7 @@ internal class LiveWebPage(
                             isLoading = true
                             loadProgress = 10
                             canPullToRefresh = true
-                            canGoBack = view.canGoBack()
+                            canGoBack = computeWebViewCanGoBack(view.canGoBack(), url)
                         }
                     }
 
@@ -367,7 +371,7 @@ internal class LiveWebPage(
                         request: WebResourceRequest,
                     ): WebResourceResponse? =
                         if (config.blocks(site, request.url.host)) {
-                            LiveWebPrivacyCounters.get(view.context).recordBlockedRequest(site)
+                            privacyCounters.recordBlockedRequest(site)
                             blockedTrackerResponse()
                         } else {
                             super.shouldInterceptRequest(view, request)
@@ -376,38 +380,7 @@ internal class LiveWebPage(
                     override fun shouldOverrideUrlLoading(
                         view: WebView,
                         request: WebResourceRequest,
-                    ): Boolean {
-                        if (!request.isForMainFrame) return false
-                        val url = request.url
-                        if (site.isSignedOutXRoot(url.toString())) {
-                            view.post { view.loadUrl(site.startUrlForSession()) }
-                            return true
-                        }
-                        val rawUrl = url.toString()
-                        val cleaned = outgoing(rawUrl)
-                        val isRedirect = cleaned.substringBefore("?") != rawUrl.substringBefore("?")
-                        if (url.scheme == "https" && site.allows(url.host) && !isRedirect) return false
-                        if (isRedirect) {
-                            val cleanedUri = runCatching { cleaned.toUri() }.getOrNull()
-                            if (cleanedUri?.scheme == "https" && site.allows(cleanedUri.host)) {
-                                view.post { view.loadUrl(cleaned) }
-                                return true
-                            }
-                        }
-                        if (url.scheme == "https" || url.scheme == "http") {
-                            openOutside(view.context, rawUrl)
-                        } else if (url.scheme?.lowercase() in DIAL_AND_MAIL_SCHEMES && request.hasGesture()) {
-                            // Only on a tap, so a page cannot pop the dialer or mail app by itself.
-                            // intent:, market: and other schemes stay blocked.
-                            runCatching {
-                                view.context.startActivity(
-                                    Intent(Intent.ACTION_VIEW, url)
-                                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-                                )
-                            }
-                        }
-                        return true
-                    }
+                    ): Boolean = handleMainFrameUrlOverride(view, request, site, config)
 
                     override fun onPageFinished(
                         view: WebView,
@@ -436,7 +409,7 @@ internal class LiveWebPage(
                         if (persistSession) {
                             LiveWebSessionState.save(appContext, site, url, view.scrollY)
                         }
-                        canGoBack = view.canGoBack()
+                        canGoBack = computeWebViewCanGoBack(view.canGoBack(), url ?: view.url)
                         canPullToRefresh = true
                         onPageLoaded?.invoke()
                         onSiteLoaded?.invoke()
@@ -455,7 +428,7 @@ internal class LiveWebPage(
                             view.post { view.loadUrl(site.startUrlForSession()) }
                             return
                         }
-                        canGoBack = view.canGoBack()
+                        canGoBack = computeWebViewCanGoBack(view.canGoBack(), url ?: view.url)
                         if (persistSession) {
                             LiveWebSessionState.save(appContext, site, url, view.scrollY)
                         }
@@ -487,71 +460,7 @@ internal class LiveWebPage(
                         isDialog: Boolean,
                         isUserGesture: Boolean,
                         resultMsg: android.os.Message?,
-                    ): Boolean {
-                        // Fast path: if the user tapped a link with an explicit target URL, handle it directly.
-                        val hitUrl = view.hitTestResult.extra
-                        if (!hitUrl.isNullOrEmpty() && (hitUrl.startsWith("http://") || hitUrl.startsWith("https://"))) {
-                            val hitHost = runCatching { hitUrl.toUri().host }.getOrNull()
-                            val cleaned = outgoing(hitUrl)
-                            val isRedirect = cleaned.substringBefore("?") != hitUrl.substringBefore("?")
-                            if (!site.allows(hitHost) || isRedirect) {
-                                openOutside(view.context, hitUrl)
-                                return false
-                            }
-                        }
-
-                        val transport = resultMsg?.obj as? WebView.WebViewTransport ?: return false
-                        val popupWebView =
-                            WebView(view.context).apply {
-                                useProfileOf(site)
-                                hardenWebSettings(site, config.blockThirdPartyCookies)
-                                webViewClient =
-                                    object : WebViewClient() {
-                                        private var handled = false
-
-                                        private fun handleTarget(targetUrl: String): Boolean {
-                                            if (handled) return true
-                                            val uri = runCatching { targetUrl.toUri() }.getOrNull() ?: return false
-                                            val host = uri.host
-                                            val cleaned = outgoing(targetUrl)
-                                            val isRedirect = cleaned.substringBefore("?") != targetUrl.substringBefore("?")
-                                            handled = true
-                                            if (targetUrl.startsWith("https://") && site.allows(host) && !isRedirect) {
-                                                this@LiveWebPage.webView.loadUrl(targetUrl)
-                                            } else {
-                                                openOutside(this@LiveWebPage.webView.context, targetUrl)
-                                            }
-                                            post { destroy() }
-                                            return true
-                                        }
-
-                                        override fun shouldOverrideUrlLoading(
-                                            popup: WebView,
-                                            request: WebResourceRequest,
-                                        ): Boolean = handleTarget(request.url.toString())
-
-                                        override fun onPageStarted(
-                                            popup: WebView,
-                                            url: String?,
-                                            favicon: Bitmap?,
-                                        ) {
-                                            if (url != null && url != "about:blank") {
-                                                handleTarget(url)
-                                            }
-                                        }
-
-                                        override fun onPageFinished(
-                                            popup: WebView,
-                                            url: String?,
-                                        ) {
-                                            site.cookieManager().flush()
-                                        }
-                                    }
-                            }
-                        transport.webView = popupWebView
-                        resultMsg.sendToTarget()
-                        return true
-                    }
+                    ): Boolean = handleCreateWindow(view, site, config, isUserGesture, resultMsg)
 
                     override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
                         when (consoleMessage?.message()) {
@@ -668,7 +577,7 @@ internal class LiveWebPage(
         }
 
     fun goBack() {
-        webView.goBack()
+        navigateWebViewBackOrEscapeOAuth(webView, site)
     }
 
     fun clearInMemoryAndReload() {
@@ -795,30 +704,33 @@ private class HorizontalFriendlySwipeRefreshLayout(
     }
 
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
-        when (ev.actionMasked) {
-            MotionEvent.ACTION_DOWN -> {
-                lastTrackX = ev.x
-                lastTrackY = ev.y
-                accumulatedDy = 0f
-            }
+        val scrollCallback = onScrollDirectionChanged
+        if (scrollCallback != null) {
+            when (ev.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    lastTrackX = ev.x
+                    lastTrackY = ev.y
+                    accumulatedDy = 0f
+                }
 
-            MotionEvent.ACTION_MOVE -> {
-                val dx = ev.x - lastTrackX
-                val dy = ev.y - lastTrackY
-                lastTrackX = ev.x
-                lastTrackY = ev.y
-                if (abs(dy) > abs(dx)) {
-                    if ((accumulatedDy > 0f && dy < 0f) || (accumulatedDy < 0f && dy > 0f)) {
-                        accumulatedDy = 0f
-                    }
-                    accumulatedDy += dy
-                    val child = getChildAt(0) as? WebView
-                    if (accumulatedDy < -hideThresholdPx && !isAuthUrl(child?.url)) {
-                        onScrollDirectionChanged?.invoke(false)
-                        accumulatedDy = 0f
-                    } else if (accumulatedDy > showThresholdPx) {
-                        onScrollDirectionChanged?.invoke(true)
-                        accumulatedDy = 0f
+                MotionEvent.ACTION_MOVE -> {
+                    val dx = ev.x - lastTrackX
+                    val dy = ev.y - lastTrackY
+                    lastTrackX = ev.x
+                    lastTrackY = ev.y
+                    if (abs(dy) > abs(dx)) {
+                        if ((accumulatedDy > 0f && dy < 0f) || (accumulatedDy < 0f && dy > 0f)) {
+                            accumulatedDy = 0f
+                        }
+                        accumulatedDy += dy
+                        val child = getChildAt(0) as? WebView
+                        if (accumulatedDy < -hideThresholdPx && !isAuthUrl(child?.url)) {
+                            scrollCallback.invoke(false)
+                            accumulatedDy = 0f
+                        } else if (accumulatedDy > showThresholdPx) {
+                            scrollCallback.invoke(true)
+                            accumulatedDy = 0f
+                        }
                     }
                 }
             }
@@ -980,6 +892,10 @@ internal fun LiveWebTab(
         } else {
             page.goBack()
         }
+    }
+    val webBackgroundColor = MaterialTheme.colorScheme.background.toArgb()
+    LaunchedEffect(page, webBackgroundColor) {
+        page.webView.setBackgroundColor(webBackgroundColor)
     }
     val refreshIndicatorColor = MaterialTheme.colorScheme.primary.toArgb()
     val refreshBackgroundColor = MaterialTheme.colorScheme.surfaceContainerHigh.toArgb()
@@ -1256,7 +1172,18 @@ private fun inferWebImageFileName(imageUrl: String): String {
 
 @Composable
 internal fun FullscreenWebVideoOverlay(page: LiveWebPage) {
-    val customView = page.customVideoView ?: return
+    FullscreenCustomVideoOverlay(
+        customView = page.customVideoView,
+        onExit = page::exitFullscreenVideo,
+    )
+}
+
+@Composable
+internal fun FullscreenCustomVideoOverlay(
+    customView: View?,
+    onExit: () -> Unit,
+) {
+    if (customView == null) return
     Box(
         modifier =
             Modifier
@@ -1280,10 +1207,11 @@ internal fun FullscreenWebVideoOverlay(page: LiveWebPage) {
             onRelease = { it.removeAllViews() },
         )
         androidx.compose.material3.IconButton(
-            onClick = { page.exitFullscreenVideo() },
+            onClick = onExit,
             modifier =
                 Modifier
                     .align(Alignment.TopEnd)
+                    .statusBarsPadding()
                     .padding(16.dp),
         ) {
             FAIcon(
@@ -1296,9 +1224,229 @@ internal fun FullscreenWebVideoOverlay(page: LiveWebPage) {
     }
 }
 
+internal sealed interface MainFrameUrlAction {
+    data object AllowInWebView : MainFrameUrlAction
+
+    data class LoadInWebView(
+        val url: String,
+    ) : MainFrameUrlAction
+
+    data class OpenOutside(
+        val url: String,
+    ) : MainFrameUrlAction
+
+    data class OpenDialOrMail(
+        val url: String,
+    ) : MainFrameUrlAction
+
+    data object Block : MainFrameUrlAction
+}
+
+internal fun decideMainFrameUrlAction(
+    rawUrl: String,
+    site: LiveWebSite,
+    cleanLinks: Boolean,
+    hasGesture: Boolean,
+    isForMainFrame: Boolean = true,
+): MainFrameUrlAction {
+    if (!isForMainFrame) return MainFrameUrlAction.AllowInWebView
+    val trimmed = rawUrl.trim()
+    if (trimmed.isEmpty()) return MainFrameUrlAction.Block
+    if (site.isSignedOutXRoot(trimmed)) {
+        return MainFrameUrlAction.LoadInWebView(site.startUrlForSession())
+    }
+    val uri = runCatching { java.net.URI(trimmed) }.getOrNull()
+    val scheme = uri?.scheme?.lowercase() ?: trimmed.substringBefore(":", "").lowercase()
+    val host = uri?.host
+    val cleaned = if (cleanLinks) cleanOutgoingLink(trimmed) else trimmed
+    val isRedirect = cleaned.substringBefore("?") != trimmed.substringBefore("?")
+    if (scheme == "https" && site.allows(host) && !isRedirect) {
+        return MainFrameUrlAction.AllowInWebView
+    }
+    if (isRedirect) {
+        val cleanedUri = runCatching { java.net.URI(cleaned) }.getOrNull()
+        if (cleanedUri?.scheme.equals("https", ignoreCase = true) && site.allows(cleanedUri?.host)) {
+            return MainFrameUrlAction.LoadInWebView(cleaned)
+        }
+    }
+    return when {
+        scheme == "https" || scheme == "http" -> MainFrameUrlAction.OpenOutside(trimmed)
+        scheme in DIAL_AND_MAIL_SCHEMES && hasGesture -> MainFrameUrlAction.OpenDialOrMail(trimmed)
+        else -> MainFrameUrlAction.Block
+    }
+}
+
+internal fun handleMainFrameUrlOverride(
+    view: WebView,
+    request: WebResourceRequest,
+    site: LiveWebSite,
+    config: LiveWebConfig,
+): Boolean =
+    when (
+        val action =
+            decideMainFrameUrlAction(
+                rawUrl = request.url.toString(),
+                site = site,
+                cleanLinks = config.cleanLinks,
+                hasGesture = request.hasGesture(),
+                isForMainFrame = request.isForMainFrame,
+            )
+    ) {
+        MainFrameUrlAction.AllowInWebView -> false
+
+        is MainFrameUrlAction.LoadInWebView -> {
+            view.post { view.loadUrl(action.url) }
+            true
+        }
+
+        is MainFrameUrlAction.OpenOutside -> {
+            openLinkOutsideWebView(
+                context = view.context,
+                url = action.url,
+                clean = config.cleanLinks,
+                openInReader = config.openInReader,
+            )
+            true
+        }
+
+        is MainFrameUrlAction.OpenDialOrMail -> {
+            runCatching {
+                view.context.startActivity(
+                    Intent(Intent.ACTION_VIEW, action.url.toUri())
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                )
+            }
+            true
+        }
+
+        MainFrameUrlAction.Block -> true
+    }
+
+internal fun handleCreateWindow(
+    parentWebView: WebView,
+    site: LiveWebSite,
+    config: LiveWebConfig,
+    isUserGesture: Boolean,
+    resultMsg: Message?,
+): Boolean {
+    // Fast path: if the user tapped a link with an explicit target URL, route it directly.
+    val hitUrl = parentWebView.hitTestResult.extra
+    if (!hitUrl.isNullOrEmpty() && (hitUrl.startsWith("http://") || hitUrl.startsWith("https://"))) {
+        when (
+            val action =
+                decideMainFrameUrlAction(
+                    rawUrl = hitUrl,
+                    site = site,
+                    cleanLinks = config.cleanLinks,
+                    hasGesture = isUserGesture,
+                    isForMainFrame = true,
+                )
+        ) {
+            is MainFrameUrlAction.LoadInWebView -> {
+                parentWebView.post { parentWebView.loadUrl(action.url) }
+                return false
+            }
+
+            is MainFrameUrlAction.OpenOutside -> {
+                openLinkOutsideWebView(
+                    context = parentWebView.context,
+                    url = action.url,
+                    clean = config.cleanLinks,
+                    openInReader = config.openInReader,
+                )
+                return false
+            }
+
+            else -> {}
+        }
+    }
+
+    val transport = resultMsg?.obj as? WebView.WebViewTransport ?: return false
+    val popupWebView =
+        createThemeSafeWebView(parentWebView.context).apply {
+            useProfileOf(site)
+            hardenWebSettings(site, config.blockThirdPartyCookies)
+            webViewClient =
+                object : WebViewClient() {
+                    private var handled = false
+
+                    private fun handleTarget(targetUrl: String): Boolean {
+                        if (handled) return true
+                        if (targetUrl.isBlank() || targetUrl == "about:blank") return false
+                        handled = true
+                        when (
+                            val action =
+                                decideMainFrameUrlAction(
+                                    rawUrl = targetUrl,
+                                    site = site,
+                                    cleanLinks = config.cleanLinks,
+                                    hasGesture = isUserGesture,
+                                    isForMainFrame = true,
+                                )
+                        ) {
+                            MainFrameUrlAction.AllowInWebView -> {
+                                parentWebView.loadUrl(targetUrl)
+                            }
+
+                            is MainFrameUrlAction.LoadInWebView -> {
+                                parentWebView.loadUrl(action.url)
+                            }
+
+                            is MainFrameUrlAction.OpenOutside -> {
+                                openLinkOutsideWebView(
+                                    context = parentWebView.context,
+                                    url = action.url,
+                                    clean = config.cleanLinks,
+                                    openInReader = config.openInReader,
+                                )
+                            }
+
+                            is MainFrameUrlAction.OpenDialOrMail -> {
+                                runCatching {
+                                    parentWebView.context.startActivity(
+                                        Intent(Intent.ACTION_VIEW, action.url.toUri())
+                                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                                    )
+                                }
+                            }
+
+                            MainFrameUrlAction.Block -> {}
+                        }
+                        post { destroy() }
+                        return true
+                    }
+
+                    override fun shouldOverrideUrlLoading(
+                        popup: WebView,
+                        request: WebResourceRequest,
+                    ): Boolean = handleTarget(request.url.toString())
+
+                    override fun onPageStarted(
+                        popup: WebView,
+                        url: String?,
+                        favicon: Bitmap?,
+                    ) {
+                        if (url != null && url != "about:blank") {
+                            handleTarget(url)
+                        }
+                    }
+
+                    override fun onPageFinished(
+                        popup: WebView,
+                        url: String?,
+                    ) {
+                        site.cookieManager().flush()
+                    }
+                }
+        }
+    transport.webView = popupWebView
+    resultMsg.sendToTarget()
+    return true
+}
+
 private val DIAL_AND_MAIL_SCHEMES = setOf("mailto", "tel", "sms")
 
-private val IMMERSIVE_PATH = Regex("^/(reels?|stories|direct|shorts)/", RegexOption.IGNORE_CASE)
+private val IMMERSIVE_PATH = Regex("^/(?:(?:reels?|stories|direct|shorts)(?:/|$)|[^/]+/reel(?:/|$))", RegexOption.IGNORE_CASE)
 
 /** True for full-screen video and message pages where pull-to-refresh must stay off. */
 internal fun isImmersivePath(url: String?): Boolean {

@@ -455,4 +455,59 @@ class LiveWebTweaksTest {
             cleanOutgoingLink("https://www.linkedin.com/redir/redirect?url=https%3A%2F%2Fexample.com%2Farticle&trk=abc"),
         )
     }
+
+    @Test
+    fun redditScriptPreservesNativeScrollSearchInputAndNsfwPostDescriptions() {
+        val redditJs = defaultScript(LiveWebSite.Reddit)
+        assertFalse("Nested overflow-y:auto breaks root compositor scrolling", redditJs.contains("overflow-y:auto!important"))
+        assertTrue(redditJs.contains("overflow-x:clip!important"))
+        assertTrue("Scans must pause while typing in shadow-DOM search inputs", redditJs.contains("isEditableFocused"))
+        assertTrue(redditJs.contains("__cxRedditSearchGuard"))
+        assertTrue("Post detail pages must not be hidden by feed labels", redditJs.contains("isPostDetail"))
+        assertTrue(redditJs.contains("shreddit-blurred-container[cx-unblurred]"))
+        assertFalse(
+            "Blanket nsfw async-loader hiding can drop NSFW post bodies",
+            redditJs.contains("shreddit-async-loader[bundlename*=\\\"nsfw\\\"]{"),
+        )
+        assertFalse(
+            "Unconditional blurred hiding before reveal drops text descriptions",
+            redditJs.contains("shreddit-blurred-container [slot=\\\"blurred\\\"]"),
+        )
+        assertTrue("Reddit search guard handles IME compositionend", redditJs.contains("compositionend"))
+        assertTrue("Reddit NSFW reveal removes hidden attribute", redditJs.contains("removeAttribute('hidden')"))
+    }
+
+    @Test
+    fun instagramReelsLocksHorizontalScrollAndAllSitesClipHorizontalOverflow() {
+        val igJs = defaultScript(LiveWebSite.Instagram)
+        assertTrue(igJs.contains("overflow-x:clip!important"))
+        assertTrue(igJs.contains("overscroll-behavior-x:none!important"))
+        assertTrue(igJs.contains("data-cx-reels"))
+        assertTrue(igJs.contains("touch-action:pan-y!important"))
+        assertTrue(igJs.contains("overflow-wrap:anywhere!important"))
+        assertTrue(igJs.contains("__cxIgReelLock"))
+        assertTrue(igJs.contains("scrollLeft=0"))
+
+        val xJs = defaultScript(LiveWebSite.X)
+        assertTrue(xJs.contains("overflow-x:clip!important"))
+        assertTrue(xJs.contains("overscroll-behavior-x:none!important"))
+        assertTrue(xJs.contains("fleetline"))
+        assertTrue(xJs.contains("/i/broadcasts/"))
+
+        val liJs = defaultScript(LiveWebSite.LinkedIn)
+        assertTrue(liJs.contains("overflow-x:clip!important"))
+        assertTrue(liJs.contains("overscroll-behavior-x:none!important"))
+    }
+
+    @Test
+    fun oauthAndChallengeHostsStayAllowedAcrossSocialPlatforms() {
+        listOf(LiveWebSite.X, LiveWebSite.LinkedIn, LiveWebSite.Reddit).forEach { site ->
+            assertTrue("$site should allow accounts.google.com", site.allows("accounts.google.com"))
+            assertTrue("$site should allow gds.google.com", site.allows("gds.google.com"))
+            assertTrue("$site should allow accounts.youtube.com", site.allows("accounts.youtube.com"))
+            assertTrue("$site should allow appleid.apple.com", site.allows("appleid.apple.com"))
+        }
+        assertTrue(LiveWebSite.Instagram.allows("www.instagram.com"))
+        assertTrue(LiveWebSite.Instagram.allows("m.facebook.com"))
+    }
 }

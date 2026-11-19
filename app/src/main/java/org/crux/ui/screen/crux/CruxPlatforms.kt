@@ -138,7 +138,12 @@ internal fun LiveWebSite.hasSession(): Boolean =
         cookieDomains
             .flatMap { listOf("https://$it/", "https://www.$it/") }
             .flatMap { cm.getCookie(it).orEmpty().split(";") }
-            .any { it.trim().substringBefore("=") in sessionCookies }
+            .any { pair ->
+                val trimmed = pair.trim()
+                val name = trimmed.substringBefore("=")
+                val value = trimmed.substringAfter("=", "")
+                name in sessionCookies && value.isNotBlank()
+            }
     }.getOrDefault(false)
 
 internal fun CruxPlatform.isSignedIn(): Boolean = site?.hasSession() ?: true

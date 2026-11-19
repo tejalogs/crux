@@ -29,7 +29,7 @@ internal const val READ_POST_SCRIPT = """
   var clean=function(t){return (t||'').replace(/[ \t]+/g,' ').replace(/\n{2,}/g,'\n').trim().slice(0,1500)};
   var sel=clean(String(window.getSelection()));
   if(sel.length>3)return JSON.stringify({text:sel,author:''});
-  var posts=document.querySelectorAll('article,[role=listitem],shreddit-post');
+  var posts=document.querySelectorAll('article[data-testid=tweet],shreddit-post,div.feed-shared-update-v2,div[data-id*="activity"],div[data-urn*="activity"],article,[role=listitem]');
   var mid=innerHeight/2,best=null,gap=1e9;
   posts.forEach(function(p){
     var r=p.getBoundingClientRect();
@@ -40,8 +40,8 @@ internal const val READ_POST_SCRIPT = """
   if(!best)return '';
   // Reddit wraps each shreddit-post in an article; the details are on the inner element.
   var post=best.querySelector('shreddit-post')||best;
-  var body=post.querySelector('[slot="text-body"],[data-testid=tweetText]');
-  var name=post.querySelector('[data-testid=User-Name],a[href]');
+  var body=post.querySelector('[slot="text-body"],shreddit-post-text-body,[data-testid=tweetText],.update-components-text,.feed-shared-update-v2__description,.attributed-text-segment-list__content');
+  var name=post.querySelector('[data-testid=User-Name],.update-components-actor__title span[aria-hidden="true"],.update-components-actor__name,.feed-shared-actor__name,a[href]');
   var title=post.getAttribute('post-title');
   var bodyText=body?clean(body.innerText):'';
   var headline=title?clean(title):'';

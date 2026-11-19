@@ -20,8 +20,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -40,8 +42,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import compose.icons.FontAwesomeIcons
@@ -156,8 +161,16 @@ internal fun LiveShareScreen(
                 }
             BindFileChooser(page)
             WebSessionLifecycleSuspender(webView = page.webView, isVisible = true)
-            BackHandler(enabled = page.canGoBack) {
-                page.goBack()
+            val webBackgroundColor = MaterialTheme.colorScheme.background.toArgb()
+            LaunchedEffect(page, webBackgroundColor) {
+                page.webView.setBackgroundColor(webBackgroundColor)
+            }
+            BackHandler(enabled = page.customVideoView != null || page.canGoBack) {
+                if (page.customVideoView != null) {
+                    page.exitFullscreenVideo()
+                } else {
+                    page.goBack()
+                }
             }
             val instagramHint = stringResource(R.string.live_share_instagram_hint)
             LaunchedEffect(site, text) {
@@ -207,6 +220,43 @@ internal fun LiveShareScreen(
                         progress = { (page.loadProgress / 100f).coerceIn(0.08f, 1f) },
                         modifier = Modifier.fillMaxWidth().height(2.dp),
                     )
+                }
+                if (page.loadError != null) {
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = MaterialTheme.colorScheme.background,
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxSize().padding(24.dp),
+                            verticalArrangement = Arrangement.Center,
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            PlatformBadge(platform = CruxPlatform.forSite(site), size = 56.dp)
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = stringResource(R.string.crux_web_error_title, site.label),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = stringResource(R.string.crux_web_error_subtitle),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center,
+                            )
+                            Spacer(modifier = Modifier.height(20.dp))
+                            FilledTonalButton(onClick = { page.webView.reload() }) {
+                                FAIcon(
+                                    imageVector = FontAwesomeIcons.Solid.RotateRight,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(14.dp),
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(stringResource(R.string.crux_web_error_retry))
+                            }
+                        }
+                    }
                 }
                 FullscreenWebVideoOverlay(page = page)
             }
@@ -263,7 +313,7 @@ internal fun LiveWebScreen(
         LaunchedEffect(page, site, forSignIn) {
             if (forSignIn && !site.hasSession()) {
                 val current = page.webView.url
-                if (!LiveWebSessionState.isAuthOrLoginUrl(current)) {
+                if (!LiveWebSessionState.isAuthOrLoginUrl(current) || isExternalOAuthUrl(current)) {
                     page.webView.loadUrl(site.loginUrl)
                 }
             }
@@ -325,7 +375,19 @@ internal fun LiveWebScreen(
                             Text(text = site.label)
                         }
                     },
-                    navigationIcon = { BackButton(onBack = onBack) },
+                    navigationIcon = {
+                        BackButton(
+                            onBack = {
+                                if (page.customVideoView != null) {
+                                    page.exitFullscreenVideo()
+                                } else if (isExternalOAuthUrl(page.webView.url)) {
+                                    page.goBack()
+                                } else {
+                                    onBack()
+                                }
+                            },
+                        )
+                    },
                     actions = {
                         if (autoReturnOnSignIn) {
                             IconButton(onClick = { page.webView.reload() }) {
@@ -356,7 +418,11 @@ internal fun LiveWebScreen(
         ) { contentPadding ->
             BindFileChooser(page)
             WebSessionLifecycleSuspender(webView = page.webView, isVisible = true)
-            BackHandler(enabled = page.customVideoView != null || (page.canGoBack && !autoReturnOnSignIn)) {
+            val webBackgroundColor = MaterialTheme.colorScheme.background.toArgb()
+            LaunchedEffect(page, webBackgroundColor) {
+                page.webView.setBackgroundColor(webBackgroundColor)
+            }
+            BackHandler(enabled = page.customVideoView != null || page.canGoBack) {
                 if (page.customVideoView != null) {
                     page.exitFullscreenVideo()
                 } else {
@@ -371,6 +437,8 @@ internal fun LiveWebScreen(
                         pages?.reload(site)
                     } else if (site.hasSession() && LiveWebSessionState.isAuthOrLoginUrl(page.webView.url)) {
                         page.webView.loadUrl(site.homeUrl)
+                    } else if (!site.hasSession() && isExternalOAuthUrl(page.webView.url)) {
+                        page.webView.loadUrl(site.startUrlForSession())
                     }
                 }
             }
@@ -438,6 +506,43 @@ internal fun LiveWebScreen(
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
+                        }
+                    }
+                }
+                if (page.loadError != null) {
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = MaterialTheme.colorScheme.background,
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxSize().padding(24.dp),
+                            verticalArrangement = Arrangement.Center,
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            PlatformBadge(platform = CruxPlatform.forSite(site), size = 56.dp)
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = stringResource(R.string.crux_web_error_title, site.label),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = stringResource(R.string.crux_web_error_subtitle),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center,
+                            )
+                            Spacer(modifier = Modifier.height(20.dp))
+                            FilledTonalButton(onClick = { page.webView.reload() }) {
+                                FAIcon(
+                                    imageVector = FontAwesomeIcons.Solid.RotateRight,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(14.dp),
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(stringResource(R.string.crux_web_error_retry))
+                            }
                         }
                     }
                 }

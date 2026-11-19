@@ -9,7 +9,6 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -46,6 +45,7 @@ import androidx.navigationevent.NavigationEvent
 import androidx.navigationevent.NavigationEventTransitionState.InProgress
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import org.crux.ui.theme.resolveSystemDarkTheme
 import kotlin.math.abs
 import kotlin.math.sign
 
@@ -64,7 +64,7 @@ internal fun <T : Any> AndroidNavDisplay(
     val enteringOffset = with(LocalDensity.current) { androidPredictiveBackEnteringStartOffset.roundToPx() }
     val scrim =
         Color.Black.copy(
-            alpha = if (isSystemInDarkTheme()) ANDROID_PREDICTIVE_BACK_SCRIM_ALPHA_DARK else ANDROID_PREDICTIVE_BACK_SCRIM_ALPHA_LIGHT,
+            alpha = if (resolveSystemDarkTheme()) ANDROID_PREDICTIVE_BACK_SCRIM_ALPHA_DARK else ANDROID_PREDICTIVE_BACK_SCRIM_ALPHA_LIGHT,
         )
     val scope = rememberCoroutineScope()
     val motion = remember(scope) { AndroidBackMotion(scope) }

@@ -43,14 +43,69 @@ private const val IG_EXPLORE_FLAG_JS =
 private val INSTAGRAM_PROFILE =
     SiteScriptProfile(
         postSelector = "article",
+        labelExcludeSelector = "h1,textarea,[contenteditable]",
         baseRules =
             listOf(
+                "html,body{overflow-x:clip!important;max-width:100%!important;overscroll-behavior-x:none!important}",
                 "html,body,button,a,[role=\"button\"],input,textarea{touch-action:manipulation!important}",
+                // Lock Reels to vertical panning so tapping an expanded Reel caption and swiping up
+                // never shifts the viewport left into blank horizontal overflow space.
+                "html[data-cx-reels=\"1\"],html[data-cx-reels=\"1\"] body{overflow-x:clip!important;max-width:100vw!important;touch-action:pan-y!important;overscroll-behavior-x:none!important}",
+                "html[data-cx-reels=\"1\"] main,html[data-cx-reels=\"1\"] section,html[data-cx-reels=\"1\"] article,html[data-cx-reels=\"1\"] button,html[data-cx-reels=\"1\"] a,html[data-cx-reels=\"1\"] [role=\"button\"]{max-width:100vw!important;touch-action:pan-y!important}",
+                "html[data-cx-reels=\"1\"] main,html[data-cx-reels=\"1\"] section,html[data-cx-reels=\"1\"] article,html[data-cx-reels=\"1\"] [role=\"presentation\"],html[data-cx-reels=\"1\"] [role=\"dialog\"]{overflow-x:clip!important;max-width:100vw!important}",
+                "html[data-cx-reels=\"1\"] span[dir=\"auto\"],html[data-cx-reels=\"1\"] h1,html[data-cx-reels=\"1\"] p{overflow-wrap:anywhere!important;max-width:100%!important}",
                 "div._aagw{pointer-events:none!important}",
                 "img{-webkit-user-select:auto!important;user-select:auto!important;pointer-events:auto!important}",
                 "*{-webkit-tap-highlight-color:transparent!important}",
                 "html,body{-webkit-font-smoothing:antialiased!important;-moz-osx-font-smoothing:grayscale!important}",
             ),
+        initJs =
+            """
+            if(!window.__cxIgReelLock){
+              window.__cxIgReelLock=true;
+              var __cxIsIgReel=function(){return /^\/reels?(\/|$)|^\/[^\/]+\/reel(\/|$)/i.test(location.pathname||'')};
+              var __cxSyncIgReel=function(){
+                var on=__cxIsIgReel();
+                var flag=on?'1':'0';
+                if(document.documentElement&&document.documentElement.getAttribute('data-cx-reels')!==flag){
+                  document.documentElement.setAttribute('data-cx-reels',flag);
+                }
+                if(on){
+                  var se=document.scrollingElement||document.documentElement;
+                  if((window.scrollX||0)!==0||(se&&se.scrollLeft!==0)||(document.body&&document.body.scrollLeft!==0)){
+                    if(se)se.scrollLeft=0;
+                    if(document.body)document.body.scrollLeft=0;
+                    try{window.scrollTo(0,window.scrollY||0);}catch(e){}
+                  }
+                }
+              };
+              window.__cxSyncIgReel=__cxSyncIgReel;
+              __cxSyncIgReel();
+              var __cxLastIgPath='';
+              var __cxClampReel=function(ev){
+                if(location.pathname!==__cxLastIgPath){
+                  __cxLastIgPath=location.pathname;
+                  __cxSyncIgReel();
+                }else if(__cxIsIgReel()){
+                  __cxSyncIgReel();
+                }
+                if(!__cxIsIgReel())return;
+                var t=ev&&ev.target;
+                if(t&&t.nodeType===1&&t!==document.documentElement&&t!==document.body&&(t.scrollLeft||0)>0){
+                  if(!t.closest||!t.closest('[role="dialog"],[role="tablist"]')){
+                    t.scrollLeft=0;
+                  }
+                }
+              };
+              window.addEventListener('scroll',__cxClampReel,{capture:true,passive:true});
+              window.addEventListener('touchstart',__cxClampReel,{capture:true,passive:true});
+              window.addEventListener('touchend',__cxClampReel,{capture:true,passive:true});
+              window.addEventListener('click',__cxClampReel,{capture:true,passive:true});
+              window.addEventListener('popstate',__cxClampReel,{passive:true});
+              window.addEventListener('hashchange',__cxClampReel,{passive:true});
+            }
+            """.trimIndent(),
+        baseJs = "if(window.__cxSyncIgReel)window.__cxSyncIgReel();",
     )
 
 private val LINKEDIN_PROFILE =
@@ -60,6 +115,7 @@ private val LINKEDIN_PROFILE =
         labelExcludeSelector = ".update-components-text,.feed-shared-text,[data-test-id=\"main-feed-activity-card__commentary\"]",
         baseRules =
             listOf(
+                "html,body{overflow-x:clip!important;max-width:100%!important;overscroll-behavior-x:none!important}",
                 "html,body,button,a,[role=\"button\"],input,textarea{touch-action:manipulation!important}",
                 "*{-webkit-tap-highlight-color:transparent!important}",
                 "html,body{-webkit-font-smoothing:antialiased!important;-moz-osx-font-smoothing:grayscale!important}",
@@ -73,7 +129,7 @@ private val LINKEDIN_PROFILE =
             }
             if(!window.__cxLiSub&&/^\/(uas\/)?login/.test(location.pathname)){
               document.querySelectorAll('[role="alert"],.artdeco-toast-item,#artdeco-global-alert-container,.toast,div,section').forEach(function(el){
-                if(el.querySelector('input,form,main'))return;
+                if(el.children.length>3||el.querySelector('input,form,main'))return;
                 var h=el.clientHeight||0;
                 if(h>160)return;
                 var txt=(el.textContent||'').replace(/\s+/g,' ').trim();
@@ -93,6 +149,7 @@ private val X_PROFILE =
         labelExcludeSelector = "[data-testid=\"tweetText\"],[data-testid=\"User-Name\"]",
         baseRules =
             listOf(
+                "html,body{overflow-x:clip!important;max-width:100%!important;overscroll-behavior-x:none!important}",
                 "html,body,button,a,[role=\"button\"],input,textarea{touch-action:manipulation!important}",
                 "*{-webkit-tap-highlight-color:transparent!important}",
                 "html,body{-webkit-font-smoothing:antialiased!important;-moz-osx-font-smoothing:grayscale!important}",
@@ -104,28 +161,96 @@ private val REDDIT_PROFILE =
         postSelector = "shreddit-post,[data-testid=\"ad-post\"],[data-adclicklocation]",
         baseRules =
             listOf(
-                "html,body{overflow-y:auto!important;overflow-x:hidden!important}",
+                // Keep document root scrolling on Chromium's compositor thread; setting overflow-y:auto
+                // on both html and body creates nested scroll containers and lags Reddit feed scrolling.
+                "html{overflow-x:clip!important}",
                 "html,body,button,a,[role=\"button\"]{touch-action:manipulation!important}",
                 "shreddit-post{-webkit-tap-highlight-color:transparent!important}",
             ),
+        initJs =
+            """
+            if(!window.__cxRedditSearchGuard){
+              window.__cxRedditSearchGuard=true;
+              var __cxSearchState=new WeakMap();
+              var __cxActiveEl=function(){
+                var a=document.activeElement;
+                while(a&&a.shadowRoot&&a.shadowRoot.activeElement){a=a.shadowRoot.activeElement;}
+                return a;
+              };
+              var __cxResolveSearchInput=function(ev){
+                if(!ev)return null;
+                var path=ev.composedPath?ev.composedPath():null;
+                var el=(path&&path[0])||ev.target;
+                if(!el||el.tagName!=='INPUT')return null;
+                var host=el.closest?el.closest('reddit-search-large,faceplate-search-input,faceplate-text-input'):null;
+                if(!host&&el.getRootNode){
+                  var rn=el.getRootNode();
+                  if(rn&&rn.host&&rn.host.closest&&rn.host.closest('reddit-search-large,faceplate-search-input,faceplate-text-input')){host=rn.host;}
+                }
+                if(!host&&el.type!=='search')return null;
+                return el;
+              };
+              var __cxFixCaret=function(el,expected){
+                var restore=function(){
+                  try{
+                    var v=el.value||'';
+                    if(el===__cxActiveEl()&&typeof el.selectionStart==='number'&&el.selectionStart===0&&el.selectionEnd===0&&expected>0&&expected<=v.length){
+                      el.setSelectionRange(expected,expected);
+                    }
+                  }catch(e){}
+                };
+                queueMicrotask(restore);
+                setTimeout(restore,0);
+              };
+              document.addEventListener('beforeinput',function(ev){
+                var el=__cxResolveSearchInput(ev);
+                if(!el)return;
+                if(ev.inputType==='insertText'||ev.inputType==='insertCompositionText'){
+                  var prevVal=el.value||'';
+                  var prevSel=typeof el.selectionStart==='number'?el.selectionStart:prevVal.length;
+                  var insLen=typeof ev.data==='string'&&ev.data.length>0?ev.data.length:1;
+                  __cxSearchState.set(el,{prevVal:prevVal,prevSel:prevSel,insLen:insLen,active:true});
+                }else{
+                  __cxSearchState.delete(el);
+                }
+              },true);
+              document.addEventListener('input',function(ev){
+                var el=__cxResolveSearchInput(ev);
+                if(!el)return;
+                var st=__cxSearchState.get(el);
+                if(!st||!st.active)return;
+                st.active=false;
+                var val=el.value||'';
+                if(val.length<=st.prevVal.length)return;
+                var delta=val.length-st.prevVal.length;
+                var expected=st.prevSel+Math.max(st.insLen,delta);
+                if(expected>val.length)expected=val.length;
+                __cxFixCaret(el,expected);
+              },true);
+              document.addEventListener('compositionend',function(ev){
+                var el=__cxResolveSearchInput(ev);
+                if(!el)return;
+                var val=el.value||'';
+                if(val.length>0&&typeof el.selectionStart==='number'&&el.selectionStart===0&&el.selectionEnd===0){
+                  __cxFixCaret(el,val.length);
+                }
+              },true);
+            }
+            """.trimIndent(),
         baseJs =
             """
-            function expandRedditComments(){
-              document.querySelectorAll('button[slot="show-more-comments"],faceplate-expandable-section-helper button').forEach(function(b){
-                var txt=(b.textContent||'').trim();
-                if(/view more comments|show more comments|continue this thread/i.test(txt)){b.click()}
+            var hasOpenOverlay=isEditableFocused()||!!document.querySelector('[role="dialog"]:not([data-cx-hidden]):not([cx-nsfw-dismissed]),dialog[open],faceplate-modal[open],reddit-search-large[open],reddit-search-large:focus-within');
+            if(!hasOpenOverlay){
+              document.querySelectorAll('html,body,shreddit-app,main').forEach(function(el){
+                if(el.hasAttribute('inert'))el.removeAttribute('inert');
+                if(el.getAttribute('aria-hidden')==='true')el.removeAttribute('aria-hidden');
               });
-            }
-            expandRedditComments();
-            document.querySelectorAll('html,body,shreddit-app,main').forEach(function(el){
-              if(el.hasAttribute('inert'))el.removeAttribute('inert');
-              if(el.getAttribute('aria-hidden')==='true')el.removeAttribute('aria-hidden');
-            });
-            if(document.documentElement.style.overflow==='hidden')document.documentElement.style.overflow='';
-            if(document.body){
-              if(document.body.style.overflow==='hidden')document.body.style.overflow='';
-              if(document.body.style.position==='fixed')document.body.style.position='';
-              document.body.classList.remove('scroll-disabled','no-scroll');
+              if(document.documentElement.style.overflow==='hidden')document.documentElement.style.overflow='';
+              if(document.body){
+                if(document.body.style.overflow==='hidden')document.body.style.overflow='';
+                if(document.body.style.position==='fixed')document.body.style.position='';
+                document.body.classList.remove('scroll-disabled','no-scroll');
+              }
             }
             """.trimIndent(),
     )
@@ -305,8 +430,12 @@ internal val SiteTweak.rule: TweakRule
                     css =
                         listOf(
                             "[data-testid=\"spacesBar\"]",
+                            "[data-testid=\"fleetline\"]",
+                            "[aria-label=\"Spaces\"]",
                             "a[href^=\"/i/spaces/\"]",
+                            "a[href*=\"/i/broadcasts/\"]",
                             "div[data-testid=\"cellInnerDiv\"]:has(a[href^=\"/i/spaces/\"])",
+                            "div[data-testid=\"cellInnerDiv\"]:has(a[href*=\"/i/broadcasts/\"])",
                         ),
                 )
             }
@@ -430,7 +559,6 @@ internal val SiteTweak.rule: TweakRule
                             "xpromo-bottom-bar",
                             "community-barrier",
                             "xpromo-floating-pill",
-                            "xpromo-nsfw-blocking-container",
                             "shreddit-async-loader[bundlename*=\"xpromo\"]",
                             "shreddit-async-loader[bundlename=\"bottom_sheet\"]",
                             "faceplate-banner",
@@ -449,7 +577,8 @@ internal val SiteTweak.rule: TweakRule
                     promptLabels =
                         USE_APP_LABELS +
                             listOf("Open in Reddit", "View in Reddit App", "Continue in Reddit App", "Use Reddit App", "View in app"),
-                    js = "if(document.body&&document.body.style.overflow==='hidden')document.body.style.overflow='';",
+                    js =
+                        "if(!isEditableFocused()&&!document.querySelector('[role=\"dialog\"]:not([data-cx-hidden]):not([cx-nsfw-dismissed]),dialog[open],faceplate-modal[open],reddit-search-large[open],reddit-search-large:focus-within')&&document.body&&document.body.style.overflow==='hidden')document.body.style.overflow='';",
                 )
             }
 
@@ -491,12 +620,14 @@ internal val SiteTweak.rule: TweakRule
                 TweakRule(
                     css =
                         listOf(
-                            "[slot=\"blur-toggle\"]",
                             "[slot=\"nsfw-banner\"]",
-                            "faceplate-tracker[source=\"nsfw_modal\"]",
-                            "shreddit-blurred-container [slot=\"blurred\"]",
-                            "#blocking-modal",
-                            "shreddit-async-loader[bundlename*=\"nsfw\"]",
+                            "shreddit-blurred-container[cx-unblurred] [slot=\"blurred\"]",
+                            "shreddit-blurred-container[cx-unblurred] [slot=\"blur-toggle\"]",
+                            "xpromo-nsfw-blocking-container[cx-nsfw-dismissed]",
+                            "faceplate-tracker[source=\"nsfw_modal\"][cx-nsfw-dismissed]",
+                            "shreddit-async-loader[bundlename*=\"nsfw_blocking\"][cx-nsfw-dismissed]",
+                            "shreddit-async-loader[bundlename*=\"nsfw-blocking\"][cx-nsfw-dismissed]",
+                            "shreddit-async-loader[bundlename*=\"nsfw_modal\"][cx-nsfw-dismissed]",
                         ),
                     js =
                         """
@@ -504,33 +635,109 @@ internal val SiteTweak.rule: TweakRule
                           document.cookie='over18=1; path=/; domain=.reddit.com; max-age=31536000; SameSite=Lax';
                           document.cookie='over18=1; path=/; max-age=31536000; SameSite=Lax';
                         }catch(e){}
-                        document.querySelectorAll('shreddit-post[nsfw],shreddit-post [slot="blur-toggle"],shreddit-blurred-container').forEach(function(p){
+                        var cxNsfwClick=function(root,inBlockingModal){
+                          if(!root||!root.querySelectorAll)return;
+                          root.querySelectorAll('button,a[role="button"]').forEach(function(b){
+                            if(b.getAttribute('data-cx-nsfw-clicked'))return;
+                            var txt=(b.textContent||'').replace(/\s+/g,' ').trim();
+                            var matched=/^(Yes,\s*I['’]?m over 18|I am over 18|View NSFW( content)?|Click to see nsfw|See NSFW|Show post|Yes,\s*continue)$/i.test(txt)||
+                              (inBlockingModal&&/^(Continue|Continue in browser|View in browser|Yes)$/i.test(txt));
+                            if(matched){
+                              b.setAttribute('data-cx-nsfw-clicked','1');
+                              b.click();
+                            }
+                          });
+                        };
+                        cxNsfwClick(document,false);
+                        document.querySelectorAll('xpromo-nsfw-blocking-container,faceplate-tracker[source*="nsfw"],#blocking-modal,shreddit-async-loader[bundlename*="nsfw"]').forEach(function(h){
+                          cxNsfwClick(h,true);
+                          if(h.shadowRoot)cxNsfwClick(h.shadowRoot,true);
+                          var hasUi=h.children.length>0||(h.shadowRoot&&h.shadowRoot.children.length>0);
+                          if(!hasUi)return;
+                          if(h.id==='blocking-modal'){
+                            var dlg=h.closest('[role="dialog"]')||h;
+                            if(!dlg.querySelector('shreddit-post,[slot="text-body"]')){
+                              dlg.setAttribute('cx-nsfw-dismissed','1');
+                              dlg.style.setProperty('display','none','important');
+                            }
+                          }else if(!h.querySelector('shreddit-post,[slot="text-body"]')){
+                            h.setAttribute('cx-nsfw-dismissed','1');
+                          }
+                        });
+                        document.querySelectorAll('shreddit-blurred-container').forEach(function(h){
+                          if(h.shadowRoot)cxNsfwClick(h.shadowRoot,true);
+                        });
+                        document.querySelectorAll('shreddit-post[nsfw],shreddit-post [slot="text-body"],shreddit-post-text-body,[data-post-click-location="text-body"]').forEach(function(p){
+                          if(p.tagName==='SHREDDIT-POST'){
+                            p.removeAttribute('nsfw');
+                            p.removeAttribute('blurred');
+                            p.removeAttribute('is-blurred');
+                            p.removeAttribute('embed-obscured');
+                          }else if(p.hasAttribute&&p.hasAttribute('hidden')){
+                            p.removeAttribute('hidden');
+                          }
+                          if(p.style){
+                            if(p.style.display==='none')p.style.display='';
+                            p.style.filter='none';
+                            p.style.webkitFilter='none';
+                            p.style.opacity='1';
+                            p.style.visibility='visible';
+                          }
+                        });
+                        var findRev=function(p){
+                          var r=p.querySelector('[slot="revealed"],[slot="text-body"],shreddit-post-text-body,[data-post-click-location="text-body"]');
+                          if(r)return r;
+                          for(var i=0;i<p.children.length;i++){
+                            var c=p.children[i];
+                            var sl=c.getAttribute&&c.getAttribute('slot');
+                            if(sl!=='blurred'&&sl!=='blur-toggle'&&c.tagName!=='TEMPLATE'){return c;}
+                          }
+                          return null;
+                        };
+                        var hasRevContent=function(rev){
+                          return !!(rev&&(rev.tagName==='IMG'||rev.tagName==='VIDEO'||rev.querySelector('img,video,p,.md,[slot="text-body"]')||(rev.textContent||'').trim().length>0));
+                        };
+                        document.querySelectorAll('shreddit-blurred-container').forEach(function(p){
+                          if(p.getAttribute('cx-unblurred')==='1')return;
+                          var rev=findRev(p);
+                          var hasRev=hasRevContent(rev);
+                          if(!hasRev){
+                            if(typeof p.unblur==='function'){try{p.unblur();}catch(e){}}
+                            var tog=p.querySelector('[slot="blur-toggle"] button,[slot="blur-toggle"],button')||(p.shadowRoot&&p.shadowRoot.querySelector('[slot="blur-toggle"] button,button,[role="button"]'));
+                            if(tog&&!tog.getAttribute('data-cx-nsfw-clicked')){
+                              tog.setAttribute('data-cx-nsfw-clicked','1');
+                              tog.click();
+                            }
+                            rev=findRev(p);
+                            hasRev=hasRevContent(rev);
+                          }
                           p.removeAttribute('nsfw');
                           p.removeAttribute('blurred');
                           p.removeAttribute('is-blurred');
                           p.removeAttribute('embed-obscured');
-                          if(p.tagName==='SHREDDIT-BLURRED-CONTAINER'){
-                            p.setAttribute('mode','revealed');
-                            var rev=p.querySelector('[slot="revealed"]');
-                            if(rev&&rev.style){rev.style.setProperty('display','block','important');rev.style.setProperty('filter','none','important');rev.style.setProperty('opacity','1','important');rev.style.setProperty('visibility','visible','important');}
-                            var blr=p.querySelector('[slot="blurred"]');
-                            if(blr&&blr.style){blr.style.setProperty('display','none','important');}
-                            if(p.shadowRoot){
-                              p.shadowRoot.querySelectorAll('.blurred,[class*="blur"],div,slot').forEach(function(s){
-                                if(s.style){s.style.filter='none';s.style.webkitFilter='none';s.style.backdropFilter='none';}
-                                if(s.tagName==='SLOT'&&s.getAttribute('name')==='blurred'){s.style.display='none';}
-                                if(s.tagName==='SLOT'&&s.getAttribute('name')==='revealed'){s.style.display='block';}
-                              });
-                            }
+                          if(!hasRev)return;
+                          p.setAttribute('mode','revealed');
+                          p.setAttribute('cx-unblurred','1');
+                          if(rev&&rev.hasAttribute&&rev.hasAttribute('hidden'))rev.removeAttribute('hidden');
+                          if(rev&&rev.style){
+                            rev.style.setProperty('display','block','important');
+                            rev.style.setProperty('filter','none','important');
+                            rev.style.setProperty('opacity','1','important');
+                            rev.style.setProperty('visibility','visible','important');
+                          }
+                          var blr=p.querySelector('[slot="blurred"]');
+                          if(blr&&blr.style){blr.style.setProperty('display','none','important');}
+                          if(p.shadowRoot){
+                            p.shadowRoot.querySelectorAll('.blurred,[class*="blur"],slot').forEach(function(s){
+                              if(s.style){s.style.filter='none';s.style.webkitFilter='none';s.style.backdropFilter='none';}
+                              if(s.tagName==='SLOT'){
+                                var sn=s.getAttribute('name');
+                                if(sn==='blurred'){s.style.display='none';}
+                                else if(!sn||sn==='revealed'){s.style.display='block';}
+                              }
+                            });
                           }
                           if(p.style){p.style.filter='none';p.style.webkitFilter='none';}
-                        });
-                        document.querySelectorAll('button,a[role="button"]').forEach(function(b){
-                          var txt=(b.textContent||'').replace(/\s+/g,' ').trim();
-                          if(/^(Yes,\s*I['’]?m over 18|View NSFW content|Yes,\s*continue)$/i.test(txt)&&!b.getAttribute('data-cx-nsfw-clicked')){
-                            b.setAttribute('data-cx-nsfw-clicked','1');
-                            b.click();
-                          }
                         });
                         """.trimIndent(),
                 )
@@ -585,21 +792,43 @@ private val ENGINE_JS =
       var hasShadowDom=/(^|\.)reddit\.com$/.test(location.hostname);
       // Full-screen video viewers (Reels, Stories, Shorts-style pages) and direct messages have no feed posts to filter,
       // and their DOM churns as each clip/message loads, so they only get the stylesheet and prompt checks.
-      var isImmersive=function(){return /^\/(reels?|stories|direct|shorts)\//.test(location.pathname)};
+      var isImmersive=function(){return /^\/(reels?|stories|direct|shorts)(\/|$)|^\/[^\/]+\/reel(\/|$)/i.test(location.pathname)};
+      var isPostDetail=function(){return /\/comments\//.test(location.pathname)};
       var isAuthPage=function(){return /(^|\/)(i\/flow|login|accounts\/login|uas\/login|checkpoint|challenge)(\/|$)/i.test(location.pathname)};
+      var deepActiveElement=function(){
+        var a=document.activeElement;
+        while(a&&a.shadowRoot&&a.shadowRoot.activeElement){a=a.shadowRoot.activeElement;}
+        return a;
+      };
+      var isEditableFocused=function(){
+        var a=deepActiveElement();
+        if(!a)return false;
+        if(a.isContentEditable)return true;
+        var t=a.tagName;
+        return t==='INPUT'||t==='TEXTAREA'||t==='SELECT';
+      };
       var lastScroll=0;
+      var lastScan=0;
       var lastPtrState=null;
+      var checkedPrompts=new WeakSet();
+      var checkedHeadings=new WeakSet();
+      var checkedShadowHosts=new WeakSet();
+      var scannedPosts=new WeakMap();
       var markScroll=function(){lastScroll=Date.now()};
       try{
         window.addEventListener('touchstart',function(ev){
           try{
-            var winTop=window.scrollY||window.pageYOffset||document.documentElement.scrollTop||(document.body&&document.body.scrollTop)||0;
+            var se=document.scrollingElement||document.documentElement;
+            var winTop=window.scrollY||window.pageYOffset||(se&&se.scrollTop)||(document.body&&document.body.scrollTop)||0;
             var allow=winTop<=2&&!isAuthPage()&&!isImmersive();
             if(allow){
               var el=ev.target;
-              if(el&&el.closest&&el.closest('[role="dialog"],[aria-modal="true"]')){allow=false;}
-              while(allow&&el&&el!==document.documentElement){
-                if((el.scrollTop||0)>2){allow=false;break;}
+              if(el&&el.closest&&el.closest('[role="dialog"],[aria-modal="true"],reddit-search-large')){allow=false;}
+              var depth=0;
+              while(allow&&el&&el!==document.documentElement&&el!==document.body&&depth<8){
+                depth++;
+                var tag=el.tagName;
+                if(tag!=='SPAN'&&tag!=='A'&&tag!=='IMG'&&tag!=='SVG'&&tag!=='PATH'&&tag!=='P'&&(el.scrollTop||0)>2){allow=false;break;}
                 el=el.parentElement;
               }
             }
@@ -612,6 +841,7 @@ private val ENGINE_JS =
         window.addEventListener('scroll',markScroll,{capture:true,passive:true});
         window.addEventListener('touchmove',markScroll,{capture:true,passive:true});
         window.addEventListener('wheel',markScroll,{capture:true,passive:true});
+        window.addEventListener('focusout',function(){schedule();},{capture:true,passive:true});
         window.addEventListener('click',function(ev){
           var t=ev.target;
           if(!t||!t.closest)return;
@@ -629,15 +859,17 @@ private val ENGINE_JS =
           (document.head||document.documentElement).appendChild(styleEl);
         }catch(e){}
       };
-      var canHide=function(e){
+      var canHide=function(e,allowPost){
         if(!e||!e.style||e===document.body||e===document.documentElement)return false;
         if(/^(MAIN|BODY|HTML|HEADER|NAV|FOOTER)$/i.test(e.tagName))return false;
         var role=e.getAttribute&&e.getAttribute('role');
         if(role==='main'||role==='navigation'||role==='banner'||role==='contentinfo'||e.id==='main-content')return false;
-        if(postSel&&e.querySelectorAll&&e.querySelectorAll(postSel).length>1)return false;
+        if(e.querySelector&&e.querySelector('[slot="text-body"],shreddit-post-text-body'))return false;
+        if(!allowPost&&postSel&&e.querySelector&&e.querySelector(postSel))return false;
+        if(allowPost&&postSel&&e.querySelectorAll&&e.querySelectorAll(postSel).length>1)return false;
         return true;
       };
-      var hide=function(e){if(canHide(e))e.style.setProperty('display','none','important')};
+      var hide=function(e,allowPost){if(canHide(e,allowPost))e.style.setProperty('display','none','important')};
       var clean=function(t){return (t||'').replace(/[\u200B-\u200D\uFEFF\u00A0]/g,' ').trim()};
       var bar=function(e){
         // Climb only through wrappers that hold nothing else clickable: a site header that also has
@@ -649,42 +881,48 @@ private val ENGINE_JS =
       var scanPromptsInRoot=function(root,host){
         if(!prompts)return;
         root.querySelectorAll('button,a,[role=button]').forEach(function(b){
-          if(b.getAttribute('data-cx-hidden'))return;
-          if(!prompts.test(clean(b.textContent)))return;
+          if(checkedPrompts.has(b)||b.getAttribute('data-cx-hidden'))return;
+          if(!prompts.test(clean(b.textContent))){checkedPrompts.add(b);return;}
           b.setAttribute('data-cx-hidden','1');
           var d=b.closest('[role=dialog]');
           if(d){
             if(d.querySelector('input,form,textarea,[data-testid*="login"],[data-testid*="Login"],[data-testid*="auth"]'))return;
-            hide(d);
+            hide(d,false);
             if(document.body)document.body.style.overflow='';
           }
-          else if(host&&bar(b)===b.getRootNode().firstElementChild){hide(host)}
-          else{hide(bar(b))}
+          else if(host&&bar(b)===b.getRootNode().firstElementChild){hide(host,false)}
+          else{hide(bar(b),false)}
         });
       };
-      var shadowBannerSel='configured-xpromo-modal,xpromo-app-selector,xpromo-bottom-sheet,xpromo-bottom-bar,xpromo-nsfw-blocking-container,community-barrier,shreddit-async-loader,faceplate-banner';
+      var shadowBannerSel='configured-xpromo-modal,xpromo-app-selector,xpromo-bottom-sheet,xpromo-bottom-bar,xpromo-nsfw-blocking-container,community-barrier,faceplate-banner,shreddit-async-loader[bundlename*="xpromo"],shreddit-async-loader[bundlename="bottom_sheet"],shreddit-async-loader[bundlename*="nsfw_blocking"],shreddit-async-loader[bundlename*="nsfw-blocking"],shreddit-async-loader[bundlename*="nsfw_modal"],shreddit-async-loader[bundlename*="barrier"]';
       var walkShadowRoots=function(root){
         root.querySelectorAll(shadowBannerSel).forEach(function(el){
           if(el.shadowRoot){
             if(css&&!el.shadowRoot.getElementById('cx-shadow-hide')){
               try{var s=document.createElement('style');s.id='cx-shadow-hide';s.textContent=css;el.shadowRoot.appendChild(s)}catch(e){}
             }
-            scanPromptsInRoot(el.shadowRoot,el);
+            if(!checkedShadowHosts.has(el)){
+              checkedShadowHosts.add(el);
+              scanPromptsInRoot(el.shadowRoot,el);
+            }
             walkShadowRoots(el.shadowRoot);
           }
         });
       };
       var scan=function(){
         ensureStyle();
+        if(isEditableFocused())return;
+        lastScan=Date.now();
         var auth=isAuthPage();
         var immersive=isImmersive()||auth;
         try{
-          if(postLabels&&postSel&&!immersive){
+          if(postLabels&&postSel&&!immersive&&!isPostDetail()){
             document.querySelectorAll(postSel).forEach(function(p){
               if(p.getAttribute('data-cx-hidden'))return;
               var len=(p.textContent||'').length;
-              if(p.__cxLen===len)return;
-              p.__cxLen=len;
+              var prevLen=scannedPosts.get(p);
+              if(prevLen!==undefined&&Math.abs(len-prevLen)<25)return;
+              scannedPosts.set(p,len);
               var t=p.querySelectorAll('span,div,a,p');
               for(var i=0;i<t.length;i++){
                 var el=t[i];
@@ -692,7 +930,7 @@ private val ENGINE_JS =
                 var txt=clean(el.textContent);
                 if(txt&&txt.length<=60&&postLabels.test(txt)&&!(excludeSel&&el.closest(excludeSel))){
                   var cell=(cellSel&&p.closest(cellSel))||p;
-                  hide(cell);
+                  hide(cell,true);
                   cell.setAttribute('data-cx-hidden','1');
                   p.setAttribute('data-cx-hidden','1');
                   break;
@@ -702,15 +940,17 @@ private val ENGINE_JS =
           }
           if(headingLabels&&!immersive){
             document.querySelectorAll('h1,h2,h3,h4,[role="heading"]').forEach(function(h){
-              if(h.getAttribute('data-cx-hidden'))return;
+              if(checkedHeadings.has(h)||h.getAttribute('data-cx-hidden'))return;
               var txt=clean(h.textContent);
               if(txt&&txt.length<=40&&headingLabels.test(txt)){
                 var m=h.closest(moduleSel);
                 if(m&&!m.querySelector('input,form,[data-testid*="login"],[data-testid*="Login"]')){
-                  hide(m);
+                  hide(m,false);
                   m.setAttribute('data-cx-hidden','1');
                 }
                 h.setAttribute('data-cx-hidden','1');
+              }else{
+                checkedHeadings.add(h);
               }
             });
           }
@@ -719,7 +959,7 @@ private val ENGINE_JS =
               if(t.getAttribute('data-cx-hidden'))return;
               if(tabLabels.test(clean(t.textContent))){
                 var w=t.closest('[role="presentation"]')||t;
-                hide(w);
+                hide(w,false);
                 w.setAttribute('data-cx-hidden','1');
                 t.setAttribute('data-cx-hidden','1');
               }
@@ -738,13 +978,18 @@ private val ENGINE_JS =
       setTimeout(scan,400);
       setTimeout(scan,1500);
       var timer=0;
-      // Scans wait until scrolling has paused, so they never compete with a fling or a Reel swipe.
-      var SCROLL_IDLE_MS=350;
+      // Scans wait until scrolling and typing pause, with a minimum gap so feeds scroll smoothly.
+      var SCROLL_IDLE_MS=420;
+      var MIN_SCAN_GAP_MS=hasShadowDom?550:350;
       var schedule=function(){
         if(timer)return;
         timer=setTimeout(function run(){
-          var sinceScroll=Date.now()-lastScroll;
+          var now=Date.now();
+          var sinceScroll=now-lastScroll;
           if(sinceScroll<SCROLL_IDLE_MS){timer=setTimeout(run,SCROLL_IDLE_MS-sinceScroll);return}
+          if(isEditableFocused()){timer=0;return}
+          var sinceScan=now-lastScan;
+          if(sinceScan<MIN_SCAN_GAP_MS){timer=setTimeout(run,MIN_SCAN_GAP_MS-sinceScan);return}
           timer=0;
           if(window.requestIdleCallback){
             requestIdleCallback(scan,{timeout:500});
@@ -753,7 +998,7 @@ private val ENGINE_JS =
           }else{
             scan();
           }
-        },300);
+        },320);
       };
       new MutationObserver(schedule).observe(document,{childList:true,subtree:true});
     })();

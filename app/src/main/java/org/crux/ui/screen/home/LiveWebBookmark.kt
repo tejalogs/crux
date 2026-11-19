@@ -13,16 +13,25 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
@@ -35,6 +44,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
@@ -45,6 +55,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -146,17 +157,21 @@ private val EXTRACT_BOOKMARK_POST_SCRIPT =
         var link = location.href;
         var media = [];
 
-        if (best && best.tagName && best.tagName.toLowerCase() === 'shreddit-post') {
-          title = (best.getAttribute('post-title') || '').trim();
-          var sub = (best.getAttribute('subreddit-prefixed-name') || '').trim();
-          var auth = (best.getAttribute('author') || '').trim();
+        var shPost = (best && best.tagName && best.tagName.toLowerCase() === 'shreddit-post')
+          ? best
+          : (best && best.querySelector ? best.querySelector('shreddit-post') : null);
+        if (shPost) {
+          title = (shPost.getAttribute('post-title') || '').trim();
+          var sub = (shPost.getAttribute('subreddit-prefixed-name') || '').trim();
+          var auth = (shPost.getAttribute('author') || '').trim();
           authorName = sub || (auth ? 'u/' + auth : 'Reddit');
           authorHandle = auth ? ('u/' + auth) : sub;
-          var pl = best.getAttribute('permalink') || best.getAttribute('content-href') || '';
+          var pl = shPost.getAttribute('permalink') || shPost.getAttribute('content-href') || '';
           if (pl) link = new URL(pl, location.origin).href;
-          var bodyEl = best.querySelector('[slot="text-body"], [id$="-post-rtjson-content"], p');
-          text = bodyEl ? (bodyEl.innerText || '').trim() : title;
-          var cHref = best.getAttribute('content-href') || '';
+          var bodyEl = shPost.querySelector('[slot="text-body"], [id$="-post-rtjson-content"], shreddit-post-text-body, p');
+          var bodyTxt = bodyEl ? (bodyEl.innerText || '').trim() : '';
+          text = bodyTxt || title;
+          var cHref = shPost.getAttribute('content-href') || '';
           if (/\.(jpg|jpeg|png|webp|gif)(\?|$)/i.test(cHref) || /i\.redd\.it|preview\.redd\.it/i.test(cHref)) {
             media.push(cHref);
           }
@@ -171,22 +186,33 @@ private val EXTRACT_BOOKMARK_POST_SCRIPT =
           }
           var tt = root.querySelector('[data-testid="tweetText"]');
           text = tt ? (tt.innerText || '').trim() : '';
-          var sl = root.querySelector('a[href*="/status/"]');
+          var sl = root.querySelector('a[href*="/status/"]:has(time)') || root.querySelector('a[href*="/status/"]');
           if (sl && sl.href) link = sl.href.split('?')[0];
           var avImg = root.querySelector('[data-testid*="UserAvatar"] img, img[src*="profile_images"]');
           if (avImg && avImg.src) avatar = avImg.src;
         } else if (host.indexOf('instagram.com') !== -1) {
+          var igPath = location.pathname || '';
+          var igUserMatch = igPath.match(/^\/([a-zA-Z0-9._]+)\/(?:reel|p)\//);
           var hdrLinks = root.querySelectorAll('header a, a[role="link"]');
           for (var h = 0; h < hdrLinks.length; h++) {
             var ht = (hdrLinks[h].innerText || '').trim();
-            if (ht && ht.length < 40 && ht.indexOf(' ') === -1) {
+            if (ht && ht.length < 40 && ht.indexOf(' ') === -1 && !/^(Follow|Following|Audio|Original)$/i.test(ht)) {
               authorName = ht;
               authorHandle = '@' + ht.replace(/^@/, '');
               break;
             }
           }
-          var igLink = root.querySelector('a[href*="/p/"], a[href*="/reel/"]');
-          if (igLink && igLink.href) link = igLink.href.split('?')[0];
+          if (!authorName && igUserMatch && igUserMatch[1]) {
+            authorName = igUserMatch[1];
+            authorHandle = '@' + igUserMatch[1];
+          }
+          var onIgDetail = /^\/(?:p|reels?)\/|^\/[^\/]+\/(?:p|reel)\//i.test(igPath);
+          if (onIgDetail) {
+            link = location.href.split('?')[0];
+          } else {
+            var igLink = root.querySelector('a[href*="/p/"], a[href*="/reel/"]');
+            if (igLink && igLink.href) link = igLink.href.split('?')[0];
+          }
           var igAv = root.querySelector('header img');
           if (igAv && igAv.src) avatar = igAv.src;
           var spans = root.querySelectorAll('span[dir="auto"], h1');
@@ -430,7 +456,7 @@ internal fun platformDisplayName(platformId: String): String =
         else -> platformId.replaceFirstChar { it.uppercase() }
     }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 internal fun SaveToBookmarkFolderSheet(
     post: ExtractedSocialPost,
@@ -444,6 +470,10 @@ internal fun SaveToBookmarkFolderSheet(
     val items by repository.items.collectAsState()
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scrollState = rememberScrollState()
+    val noteSectionRequester = remember { BringIntoViewRequester() }
+    var isNoteFocused by remember { mutableStateOf(false) }
+    val isImeVisible = WindowInsets.isImeVisible
 
     val existingItem = remember(items, post.id) { items.firstOrNull { it.id == post.id } }
     var selectedFolderId by remember(existingItem) {
@@ -451,6 +481,11 @@ internal fun SaveToBookmarkFolderSheet(
     }
     var noteText by remember(existingItem) {
         mutableStateOf(existingItem?.note.orEmpty())
+    }
+    LaunchedEffect(isNoteFocused, isImeVisible, scrollState.maxValue, noteText.length) {
+        if (isNoteFocused && isImeVisible) {
+            noteSectionRequester.bringIntoView()
+        }
     }
     var showCreateFolderDialog by remember { mutableStateOf(false) }
 
@@ -477,11 +512,13 @@ internal fun SaveToBookmarkFolderSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        contentWindowInsets = { BottomSheetDefaults.modalWindowInsets.union(WindowInsets.ime) },
     ) {
         Column(
             modifier =
                 Modifier
                     .fillMaxWidth()
+                    .verticalScroll(scrollState)
                     .padding(horizontal = 20.dp)
                     .padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -701,88 +738,104 @@ internal fun SaveToBookmarkFolderSheet(
                 }
             }
 
-            // Optional personal note
-            OutlinedTextField(
-                value = noteText,
-                onValueChange = { noteText = it },
-                modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Add a personal note or takeaway (optional)…") },
-                singleLine = false,
-                maxLines = 2,
-                shape = RoundedCornerShape(14.dp),
-            )
-
-            // Primary Save CTA + Optional Smart Reply button
-            val selectedFolderName =
-                folders.firstOrNull { it.id == selectedFolderId }?.name ?: "Quick Saves"
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically,
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .bringIntoViewRequester(noteSectionRequester),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                if (onSmartReply != null) {
-                    FilledTonalButton(
+                // Optional personal note
+                OutlinedTextField(
+                    value = noteText,
+                    onValueChange = { noteText = it },
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .onFocusChanged { focusState ->
+                                isNoteFocused = focusState.isFocused
+                                if (focusState.isFocused) {
+                                    scope.launch { noteSectionRequester.bringIntoView() }
+                                }
+                            },
+                    placeholder = { Text("Add a personal note or takeaway (optional)…") },
+                    singleLine = false,
+                    maxLines = 3,
+                    shape = RoundedCornerShape(14.dp),
+                )
+
+                // Primary Save CTA + Optional Smart Reply button
+                val selectedFolderName =
+                    folders.firstOrNull { it.id == selectedFolderId }?.name ?: "Quick Saves"
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    if (onSmartReply != null) {
+                        FilledTonalButton(
+                            onClick = {
+                                onDismiss()
+                                onSmartReply()
+                            },
+                            shape = RoundedCornerShape(14.dp),
+                            modifier = Modifier.height(50.dp),
+                        ) {
+                            FAIcon(
+                                imageVector = FontAwesomeIcons.Solid.WandMagicSparkles,
+                                contentDescription = null,
+                                modifier = Modifier.size(15.dp),
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Reply", fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+
+                    Button(
                         onClick = {
-                            onDismiss()
-                            onSmartReply()
+                            val item =
+                                ReadingListItem(
+                                    id = post.id,
+                                    title = post.title,
+                                    authorName = post.authorName,
+                                    authorHandle = post.authorHandle,
+                                    authorAvatarUrl = post.authorAvatarUrl,
+                                    contentText = post.contentText,
+                                    sourceUrl = post.sourceUrl,
+                                    platformId = post.platformId,
+                                    savedAtTimestamp = System.currentTimeMillis(),
+                                    mediaUrls = post.mediaUrls,
+                                    folderId = selectedFolderId,
+                                    note = noteText.trim(),
+                                )
+                            scope.launch {
+                                repository.save(item)
+                                prefetcher.prefetchItem(item)
+                                Toast
+                                    .makeText(
+                                        context,
+                                        "Saved to $selectedFolderName",
+                                        Toast.LENGTH_SHORT,
+                                    ).show()
+                                onDismiss()
+                            }
                         },
                         shape = RoundedCornerShape(14.dp),
-                        modifier = Modifier.height(50.dp),
+                        modifier = Modifier.weight(1f).height(50.dp),
                     ) {
                         FAIcon(
-                            imageVector = FontAwesomeIcons.Solid.WandMagicSparkles,
+                            imageVector = FontAwesomeIcons.Solid.Bookmark,
                             contentDescription = null,
                             modifier = Modifier.size(15.dp),
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Reply", fontWeight = FontWeight.SemiBold)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Save to $selectedFolderName",
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                     }
-                }
-
-                Button(
-                    onClick = {
-                        val item =
-                            ReadingListItem(
-                                id = post.id,
-                                title = post.title,
-                                authorName = post.authorName,
-                                authorHandle = post.authorHandle,
-                                authorAvatarUrl = post.authorAvatarUrl,
-                                contentText = post.contentText,
-                                sourceUrl = post.sourceUrl,
-                                platformId = post.platformId,
-                                savedAtTimestamp = System.currentTimeMillis(),
-                                mediaUrls = post.mediaUrls,
-                                folderId = selectedFolderId,
-                                note = noteText.trim(),
-                            )
-                        scope.launch {
-                            repository.save(item)
-                            prefetcher.prefetchItem(item)
-                            Toast
-                                .makeText(
-                                    context,
-                                    "Saved to $selectedFolderName",
-                                    Toast.LENGTH_SHORT,
-                                ).show()
-                            onDismiss()
-                        }
-                    },
-                    shape = RoundedCornerShape(14.dp),
-                    modifier = Modifier.weight(1f).height(50.dp),
-                ) {
-                    FAIcon(
-                        imageVector = FontAwesomeIcons.Solid.Bookmark,
-                        contentDescription = null,
-                        modifier = Modifier.size(15.dp),
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Save to $selectedFolderName",
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
                 }
             }
         }
@@ -813,7 +866,10 @@ internal fun CreateBookmarkFolderDialog(
             )
         },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
                 OutlinedTextField(
                     value = folderName,
                     onValueChange = { folderName = it },

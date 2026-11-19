@@ -1,9 +1,10 @@
 package org.crux.ui.screen.linkedin
 
-import android.content.Intent
 import android.net.Uri
+import android.os.Build
+import android.os.Message
 import android.view.View
-import android.view.ViewGroup.LayoutParams
+import android.webkit.ConsoleMessage
 import android.webkit.GeolocationPermissions
 import android.webkit.PermissionRequest
 import android.webkit.ValueCallback
@@ -13,44 +14,35 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -61,37 +53,26 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.zIndex
+import androidx.webkit.WebViewCompat
+import androidx.webkit.WebViewFeature
 import com.kevinnzou.web.WebView
 import com.kevinnzou.web.rememberWebViewState
 import compose.icons.FontAwesomeIcons
 import compose.icons.fontawesomeicons.Brands
 import compose.icons.fontawesomeicons.Solid
 import compose.icons.fontawesomeicons.brands.LinkedinIn
-import compose.icons.fontawesomeicons.solid.ArrowLeft
-import compose.icons.fontawesomeicons.solid.ArrowRight
 import compose.icons.fontawesomeicons.solid.ArrowUpRightFromSquare
 import compose.icons.fontawesomeicons.solid.Bookmark
 import compose.icons.fontawesomeicons.solid.EllipsisVertical
-import compose.icons.fontawesomeicons.solid.RotateRight
-import compose.icons.fontawesomeicons.solid.ShieldHalved
-import compose.icons.fontawesomeicons.solid.TrashCan
-import compose.icons.fontawesomeicons.solid.Xmark
 import kotlinx.coroutines.launch
 import org.crux.R
-import androidx.webkit.WebViewCompat
-import androidx.webkit.WebViewFeature
 import org.crux.data.datasource.linkedin.LinkedInFeedParser
 import org.crux.data.datasource.linkedin.LinkedInFeedService
-import org.crux.data.readinglist.ReadingListItem
-import org.crux.data.readinglist.ReadingListRepository
-import org.crux.di.koinInject
 import org.crux.ui.component.BackButton
 import org.crux.ui.component.CruxDropdownMenu
 import org.crux.ui.component.CruxScaffold
@@ -100,19 +81,28 @@ import org.crux.ui.component.FAIcon
 import org.crux.ui.screen.crux.CruxPlatform
 import org.crux.ui.screen.crux.LocalCruxConnections
 import org.crux.ui.screen.crux.isSignedIn
+import org.crux.ui.screen.home.ExtractedSocialPost
+import org.crux.ui.screen.home.FullscreenCustomVideoOverlay
+import org.crux.ui.screen.home.LiveWebPrivacyCounters
 import org.crux.ui.screen.home.LiveWebPrivacyStore
 import org.crux.ui.screen.home.LiveWebSite
+import org.crux.ui.screen.home.LocalLiveWebPages
+import org.crux.ui.screen.home.SaveToBookmarkFolderSheet
 import org.crux.ui.screen.home.WebSessionLifecycleSuspender
+import org.crux.ui.screen.home.blockedTrackerResponse
 import org.crux.ui.screen.home.clearSession
-import org.crux.ui.screen.home.cleanOutgoingLink
+import org.crux.ui.screen.home.computeWebViewCanGoBack
 import org.crux.ui.screen.home.configureWebViewHeadersAndDarkening
 import org.crux.ui.screen.home.cookieManager
+import org.crux.ui.screen.home.currentUiNightMask
+import org.crux.ui.screen.home.extractPostFromWebView
+import org.crux.ui.screen.home.handleCreateWindow
+import org.crux.ui.screen.home.handleMainFrameUrlOverride
+import org.crux.ui.screen.home.isExternalOAuthUrl
+import org.crux.ui.screen.home.navigateWebViewBackOrEscapeOAuth
 import org.crux.ui.screen.home.openInSystemBrowser
-import org.crux.ui.screen.home.openLinkOutsideWebView
+import org.crux.ui.screen.home.restoreUiModeNightMaskIfNeeded
 import org.crux.ui.screen.home.useProfileOf
-import java.io.ByteArrayInputStream
-
-private const val LINKEDIN_HOME_URL = "https://www.linkedin.com/feed/"
 
 internal fun isLinkedInHost(host: String?): Boolean = LinkedInFeedParser.isValidLinkedInHost(host)
 
@@ -143,13 +133,9 @@ internal fun LinkedInWebScreen(
     forSignIn: Boolean = false,
 ) {
     val context = LocalContext.current
-    val uriHandler = LocalUriHandler.current
-    val readingListRemovedMsg = stringResource(R.string.linkedin_reading_list_removed)
-    val readingListSavedMsg = stringResource(R.string.linkedin_reading_list_saved)
     val sessionClearedMsg = stringResource(R.string.linkedin_session_cleared)
     val webViewRef = remember { mutableStateOf<WebView?>(null) }
     WebSessionLifecycleSuspender(webView = webViewRef.value)
-    val readingListRepo by koinInject<ReadingListRepository>()
     val scope = rememberCoroutineScope()
     val targetUrl =
         remember(initialUrl, forSignIn) {
@@ -161,31 +147,31 @@ internal fun LinkedInWebScreen(
             }
         }
     val webViewState = rememberWebViewState(targetUrl)
-    val pages = org.crux.ui.screen.home.LocalLiveWebPages.current
-    val connections = org.crux.ui.screen.crux.LocalCruxConnections.current
+    val pages = LocalLiveWebPages.current
+    val connections = LocalCruxConnections.current
     val autoReturnOnSignIn =
         remember(forSignIn) {
-            forSignIn && !org.crux.ui.screen.crux.CruxPlatform.LinkedIn.isSignedIn()
+            forSignIn && !CruxPlatform.LinkedIn.isSignedIn()
         }
     var hasAutoReturned by remember { mutableStateOf(false) }
 
     var currentUrl by remember { mutableStateOf(targetUrl) }
-    val committedUrlHolder =
-        remember {
-            object {
-                @Volatile
-                var url: String? = targetUrl
-            }
-        }
-    val isSavedState by remember(currentUrl) { readingListRepo.isSaved(currentUrl) }.collectAsState(false)
     var canGoBack by remember { mutableStateOf(false) }
-    var canGoForward by remember { mutableStateOf(false) }
     var pageProgress by remember { mutableFloatStateOf(0f) }
     var isPageLoading by remember { mutableStateOf(true) }
     var showPrivacyDialog by remember { mutableStateOf(false) }
     var showClearConfirmDialog by remember { mutableStateOf(false) }
     var showOverflowMenu by remember { mutableStateOf(false) }
-    var isDockExpanded by remember { mutableStateOf(false) }
+    var pendingBookmarkPost by remember { mutableStateOf<ExtractedSocialPost?>(null) }
+    var customVideoView by remember { mutableStateOf<View?>(null) }
+    var customVideoCallback by remember { mutableStateOf<WebChromeClient.CustomViewCallback?>(null) }
+
+    fun exitFullscreenVideo() {
+        val cb = customVideoCallback
+        customVideoCallback = null
+        customVideoView = null
+        runCatching { cb?.onCustomViewHidden() }
+    }
 
     // Refreshes cookie-backed session state once LinkedIn login cookies are present.
     fun checkAndSyncSession() {
@@ -207,6 +193,7 @@ internal fun LinkedInWebScreen(
 
     DisposableEffect(Unit) {
         onDispose {
+            exitFullscreenVideo()
             LiveWebSite.LinkedIn.cookieManager().flush()
         }
     }
@@ -215,8 +202,19 @@ internal fun LinkedInWebScreen(
         checkAndSyncSession()
     }
 
-    BackHandler(enabled = canGoBack) {
-        webViewRef.value?.goBack()
+    BackHandler(enabled = customVideoView != null || canGoBack) {
+        if (customVideoView != null) {
+            exitFullscreenVideo()
+        } else {
+            webViewRef.value?.let { navigateWebViewBackOrEscapeOAuth(it, LiveWebSite.LinkedIn) }
+        }
+    }
+
+    pendingBookmarkPost?.let { postToSave ->
+        SaveToBookmarkFolderSheet(
+            post = postToSave,
+            onDismiss = { pendingBookmarkPost = null },
+        )
     }
 
     var filePathCallback by remember { mutableStateOf<ValueCallback<Array<Uri>>?>(null) }
@@ -234,7 +232,18 @@ internal fun LinkedInWebScreen(
             Column {
                 CruxTopAppBar(
                     navigationIcon = {
-                        BackButton(onBack = onBack)
+                        BackButton(
+                            onBack = {
+                                val wv = webViewRef.value
+                                if (customVideoView != null) {
+                                    exitFullscreenVideo()
+                                } else if (wv != null && isExternalOAuthUrl(wv.url)) {
+                                    navigateWebViewBackOrEscapeOAuth(wv, LiveWebSite.LinkedIn)
+                                } else {
+                                    onBack()
+                                }
+                            },
+                        )
                     },
                     title = {
                         Row(
@@ -266,19 +275,10 @@ internal fun LinkedInWebScreen(
                         }
                     },
                     actions = {
-                        var pendingBookmarkPost by remember {
-                            mutableStateOf<org.crux.ui.screen.home.ExtractedSocialPost?>(null)
-                        }
-                        pendingBookmarkPost?.let { postToSave ->
-                            org.crux.ui.screen.home.SaveToBookmarkFolderSheet(
-                                post = postToSave,
-                                onDismiss = { pendingBookmarkPost = null },
-                            )
-                        }
                         IconButton(
                             onClick = {
                                 val wv = webViewRef.value ?: return@IconButton
-                                org.crux.ui.screen.home.extractPostFromWebView(
+                                extractPostFromWebView(
                                     site = LiveWebSite.LinkedIn,
                                     webView = wv,
                                 ) { extracted ->
@@ -370,18 +370,30 @@ internal fun LinkedInWebScreen(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .padding(innerPadding),
+                    .padding(innerPadding)
+                    .imePadding(),
         ) {
+            val expectedNightMask = remember(context) { context.currentUiNightMask() }
+            val webBackgroundColor = MaterialTheme.colorScheme.background.toArgb()
+            LaunchedEffect(webViewRef.value, webBackgroundColor) {
+                webViewRef.value?.setBackgroundColor(webBackgroundColor)
+            }
             WebView(
                 state = webViewState,
                 modifier = Modifier.fillMaxSize(),
                 onCreated = { webView ->
+                    restoreUiModeNightMaskIfNeeded(webView.context, expectedNightMask)
+                    webView.post { restoreUiModeNightMaskIfNeeded(webView.context, expectedNightMask) }
                     webView.useProfileOf(LiveWebSite.LinkedIn)
+                    webView.setBackgroundColor(webBackgroundColor)
                     webView.isNestedScrollingEnabled = false
                     webView.overScrollMode = View.OVER_SCROLL_NEVER
                     webView.isVerticalScrollBarEnabled = false
                     webView.isHorizontalScrollBarEnabled = false
                     webViewRef.value = webView
+                    val privacyStore = LiveWebPrivacyStore.get(webView.context)
+                    val privacyCounters = LiveWebPrivacyCounters.get(webView.context.applicationContext)
+                    val config = privacyStore.configFor(LiveWebSite.LinkedIn)
                     @Suppress("DEPRECATION")
                     webView.settings.apply {
                         javaScriptEnabled = true
@@ -391,14 +403,18 @@ internal fun LinkedInWebScreen(
                         mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
                         allowFileAccess = false
                         allowContentAccess = true
+                        javaScriptCanOpenWindowsAutomatically = true
+                        setSupportMultipleWindows(true)
+                        mediaPlaybackRequiresUserGesture = config.blockAutoplay
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            safeBrowsingEnabled = true
+                        }
                         builtInZoomControls = false
                         displayZoomControls = false
                         loadWithOverviewMode = true
                         useWideViewPort = true
                     }
 
-                    val privacyStore = LiveWebPrivacyStore.get(webView.context)
-                    val config = privacyStore.configFor(LiveWebSite.LinkedIn)
                     val acceptThirdParty = !config.blockThirdPartyCookies
                     runCatching {
                         val globalCookieManager = android.webkit.CookieManager.getInstance()
@@ -421,22 +437,8 @@ internal fun LinkedInWebScreen(
                                 view: WebView?,
                                 request: WebResourceRequest?,
                             ): Boolean {
-                                val uri = request?.url ?: return false
-                                val rawUrl = uri.toString()
-                                val cleaned = if (config.cleanLinks) cleanOutgoingLink(rawUrl) else rawUrl
-                                val isRedirect = cleaned.substringBefore("?") != rawUrl.substringBefore("?")
-                                val host = uri.host
-                                if (isLinkedInHost(host) && !isRedirect) {
-                                    return false
-                                }
-                                val target = if (isRedirect) cleaned else rawUrl
-                                openLinkOutsideWebView(
-                                    context = view?.context ?: context,
-                                    url = target,
-                                    clean = config.cleanLinks,
-                                    openInReader = config.openInReader,
-                                )
-                                return true
+                                if (view == null || request == null) return false
+                                return handleMainFrameUrlOverride(view, request, LiveWebSite.LinkedIn, config)
                             }
 
                             override fun shouldInterceptRequest(
@@ -444,12 +446,8 @@ internal fun LinkedInWebScreen(
                                 request: WebResourceRequest?,
                             ): WebResourceResponse? =
                                 if (request != null && config.blocks(LiveWebSite.LinkedIn, request.url.host)) {
-                                    view?.context?.let {
-                                        org.crux.ui.screen.home.LiveWebPrivacyCounters
-                                            .get(it)
-                                            .recordBlockedRequest(LiveWebSite.LinkedIn)
-                                    }
-                                    org.crux.ui.screen.home.blockedTrackerResponse()
+                                    privacyCounters.recordBlockedRequest(LiveWebSite.LinkedIn)
+                                    blockedTrackerResponse()
                                 } else {
                                     super.shouldInterceptRequest(view, request)
                                 }
@@ -461,11 +459,9 @@ internal fun LinkedInWebScreen(
                             ) {
                                 super.onPageStarted(view, url, favicon)
                                 val committed = url ?: view?.url
-                                committedUrlHolder.url = committed
                                 committed?.let {
                                     currentUrl = it
-                                    canGoBack = view?.canGoBack() ?: false
-                                    canGoForward = view?.canGoForward() ?: false
+                                    canGoBack = computeWebViewCanGoBack(view?.canGoBack() ?: false, it)
                                 }
                                 isPageLoading = true
                             }
@@ -482,13 +478,11 @@ internal fun LinkedInWebScreen(
                                     }
                                 }
                                 val committed = url ?: view?.url
-                                committedUrlHolder.url = committed
                                 committed?.let {
                                     currentUrl = it
-                                    canGoBack = view?.canGoBack() ?: false
-                                    canGoForward = view?.canGoForward() ?: false
+                                    canGoBack = computeWebViewCanGoBack(view?.canGoBack() ?: false, it)
                                 }
-                                val host = committed?.let { Uri.parse(it).host }
+                                val host = committed?.let { runCatching { Uri.parse(it).host }.getOrNull() }
                                 if (LinkedInFeedParser.isValidLinkedInHost(host)) {
                                     checkAndSyncSession()
                                 }
@@ -501,11 +495,9 @@ internal fun LinkedInWebScreen(
                             ) {
                                 super.doUpdateVisitedHistory(view, url, isReload)
                                 val committed = url ?: view?.url
-                                committedUrlHolder.url = committed
                                 committed?.let {
                                     currentUrl = it
-                                    canGoBack = view?.canGoBack() ?: false
-                                    canGoForward = view?.canGoForward() ?: false
+                                    canGoBack = computeWebViewCanGoBack(view?.canGoBack() ?: false, it)
                                 }
                                 val host = committed?.let { runCatching { Uri.parse(it).host }.getOrNull() }
                                 if (LinkedInFeedParser.isValidLinkedInHost(host)) {
@@ -516,6 +508,44 @@ internal fun LinkedInWebScreen(
 
                     webView.webChromeClient =
                         object : WebChromeClient() {
+                            override fun onCreateWindow(
+                                view: WebView?,
+                                isDialog: Boolean,
+                                isUserGesture: Boolean,
+                                resultMsg: Message?,
+                            ): Boolean {
+                                if (view == null) return false
+                                return handleCreateWindow(view, LiveWebSite.LinkedIn, config, isUserGesture, resultMsg)
+                            }
+
+                            override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
+                                if (consoleMessage?.message() == "__crux_bm_tap__") {
+                                    webView.post {
+                                        extractPostFromWebView(LiveWebSite.LinkedIn, webView) { extracted ->
+                                            pendingBookmarkPost = extracted
+                                        }
+                                    }
+                                    return true
+                                }
+                                return super.onConsoleMessage(consoleMessage)
+                            }
+
+                            override fun onShowCustomView(
+                                customView: View?,
+                                callback: CustomViewCallback?,
+                            ) {
+                                if (customView == null || customVideoView != null) {
+                                    callback?.onCustomViewHidden()
+                                    return
+                                }
+                                customVideoView = customView
+                                customVideoCallback = callback
+                            }
+
+                            override fun onHideCustomView() {
+                                exitFullscreenVideo()
+                            }
+
                             override fun onProgressChanged(
                                 view: WebView?,
                                 newProgress: Int,
@@ -555,6 +585,10 @@ internal fun LinkedInWebScreen(
                         }
                 },
             )
+            FullscreenCustomVideoOverlay(
+                customView = customVideoView,
+                onExit = ::exitFullscreenVideo,
+            )
         }
     }
 
@@ -589,10 +623,12 @@ internal fun LinkedInWebScreen(
                 TextButton(
                     onClick = {
                         showClearConfirmDialog = false
-                        LiveWebSite.LinkedIn.clearSession()
+                        LiveWebSite.LinkedIn.clearSession(context)
                         webViewRef.value?.clearCache(true)
                         webViewRef.value?.clearHistory()
-                        webViewRef.value?.loadUrl(LINKEDIN_HOME_URL)
+                        pages?.clearAndReload(LiveWebSite.LinkedIn)
+                        connections?.refresh()
+                        webViewRef.value?.loadUrl(LiveWebSite.LinkedIn.startUrlForSession())
                         Toast
                             .makeText(
                                 context,

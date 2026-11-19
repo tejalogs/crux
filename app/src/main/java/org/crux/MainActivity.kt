@@ -4,6 +4,7 @@ import android.app.Activity
 import android.app.KeyguardManager
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
@@ -56,7 +57,9 @@ import org.crux.ui.component.FAIcon
 import org.crux.ui.component.platform.LocalWifiState
 import org.crux.ui.component.status.ProvideAndroidTimelineMediaActions
 import org.crux.ui.screen.home.LiveWebPrivacyStore
+import org.crux.ui.screen.home.restoreUiModeNightMaskIfNeeded
 import org.crux.ui.theme.CruxTheme
+import org.crux.ui.theme.LocalSystemDarkTheme
 import org.koin.android.ext.android.inject
 
 class MainActivity : ComponentActivity() {
@@ -68,6 +71,8 @@ class MainActivity : ComponentActivity() {
     }
 
     private var isAppUnlocked by mutableStateOf(false)
+    private var osNightModeMask: Int = Configuration.UI_MODE_NIGHT_UNDEFINED
+    private var isOsDarkTheme by mutableStateOf(false)
 
     private val lockLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -95,6 +100,8 @@ class MainActivity : ComponentActivity() {
 
     @OptIn(ExperimentalComposeUiApi::class, ExperimentalComposeApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
+        osNightModeMask = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
+        isOsDarkTheme = osNightModeMask == Configuration.UI_MODE_NIGHT_YES
         installSplashScreen().setKeepOnScreenCondition { keepSplashOnScreen }
         enableEdgeToEdge()
         ComposeUiFlags.isMediaQueryIntegrationEnabled = true
@@ -115,6 +122,7 @@ class MainActivity : ComponentActivity() {
 
             CompositionLocalProvider(
                 LocalWifiState provides wifiState,
+                LocalSystemDarkTheme provides isOsDarkTheme,
             ) {
                 ProvideAndroidMediaSavePicker {
                     ProvideAndroidTimelineMediaActions {
@@ -194,8 +202,18 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
     }
 
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        val newNightMask = newConfig.uiMode and Configuration.UI_MODE_NIGHT_MASK
+        if (newNightMask != Configuration.UI_MODE_NIGHT_UNDEFINED) {
+            osNightModeMask = newNightMask
+            isOsDarkTheme = newNightMask == Configuration.UI_MODE_NIGHT_YES
+        }
+    }
+
     override fun onResume() {
         super.onResume()
+        restoreUiModeNightMaskIfNeeded(this, osNightModeMask)
         downloadManager.onResume()
         val privacySettings = privacySettingsRepository.settings().value
         if (privacySettings.requireAppLock && !isAppUnlocked) {

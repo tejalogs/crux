@@ -1,0 +1,6 @@
+Crux 1.0.7
+- Fix Instagram Reels drifting left into blank space when swiping up after expanding a Reel description
+- Fix Reddit scroll lag, search reverse-typing on Android keyboards, and missing NSFW post descriptions
+- Fix LinkedIn & social OAuth back navigation so backing out of Google Sign-In returns cleanly to the login screen
+- Fix dark theme consistency after WebView initialization and keyboard overlap when typing bookmark notes
+- End-to-end standalone screen parity across Instagram, X, LinkedIn, and Reddit (fullscreen video, IME padding, popup links, app-bounce protection, X Spaces hiding, and LinkedIn Smart Reply)
