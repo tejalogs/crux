@@ -55,6 +55,16 @@ public object AppUpdateManager {
     private const val MAX_APK_BYTES = 150L * 1024 * 1024
     private const val MAX_RELEASE_JSON_BYTES = 1024 * 1024
 
+    /** The release metadata must point at this repository's own release downloads. */
+    internal fun isOwnReleaseAssetUrl(url: String?): Boolean {
+        val parsed = url?.let { runCatching { URL(it) }.getOrNull() } ?: return false
+        return parsed.protocol == "https" &&
+            parsed.host.equals("github.com", ignoreCase = true) &&
+            parsed.path.startsWith(RELEASE_DOWNLOAD_PATH)
+    }
+
+    private const val RELEASE_DOWNLOAD_PATH = "/tejalogs/crux/releases/download/"
+
     internal fun isTrustedDownloadUrl(url: String?): Boolean {
         val parsed = url?.trim()?.let { runCatching { URL(it) }.getOrNull() } ?: return false
         if (!parsed.protocol.equals("https", ignoreCase = true)) return false
@@ -150,7 +160,7 @@ public object AppUpdateManager {
                         val asset = assets.getJSONObject(i)
                         val assetName = asset.optString("name", "")
                         if (assetName.endsWith(".apk", ignoreCase = true)) {
-                            apkUrl = asset.optString("browser_download_url").takeIf(::isTrustedDownloadUrl)
+                            apkUrl = asset.optString("browser_download_url").takeIf(::isOwnReleaseAssetUrl)
                             apkSize = asset.optLong("size", 0L)
                             break
                         }
@@ -186,7 +196,7 @@ public object AppUpdateManager {
     ): Result<Unit> =
         withContext(Dispatchers.IO) {
             try {
-                require(isTrustedDownloadUrl(apkUrl)) { "Update link is not a GitHub release download." }
+                require(isOwnReleaseAssetUrl(apkUrl)) { "Update link is not a Crux release download." }
                 // Check unknown apps install permission on Android 8.0+
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     if (!activity.packageManager.canRequestPackageInstalls()) {

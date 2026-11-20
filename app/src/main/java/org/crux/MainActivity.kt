@@ -37,6 +37,7 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -173,13 +174,23 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /** Screenshot and recents protection: FLAG_SECURE follows the Privacy & Tweaks toggle, set before first draw. */
+    /**
+     * Screenshot and recents protection. FLAG_SECURE follows the Privacy & Tweaks toggle, and on
+     * Android 12 and below also App Lock, since there it is the only way to keep the last screen
+     * out of the Recents thumbnail. Set before first draw.
+     */
     private fun observeSecureWindow() {
         val store = LiveWebPrivacyStore.get(applicationContext)
-        applySecureWindow(store.settings.value.secureWindow)
+        val lockNeedsSecure = { requireLock: Boolean -> requireLock && Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU }
+        applySecureWindow(
+            store.settings.value.secureWindow ||
+                lockNeedsSecure(privacySettingsRepository.settings().value.requireAppLock),
+        )
         lifecycleScope.launch {
-            store.settings
-                .map { it.secureWindow }
+            combine(
+                store.settings.map { it.secureWindow },
+                privacySettingsRepository.settings().map { it.requireAppLock },
+            ) { secureWindow, requireLock -> secureWindow || lockNeedsSecure(requireLock) }
                 .distinctUntilChanged()
                 .collect { applySecureWindow(it) }
         }

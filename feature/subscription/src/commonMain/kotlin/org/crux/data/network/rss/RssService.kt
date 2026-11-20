@@ -1,7 +1,6 @@
 package org.crux.data.network.rss
 
 import com.fleeksoft.ksoup.Ksoup
-import io.ktor.client.request.get
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsChannel
 import io.ktor.http.HttpHeaders
@@ -14,7 +13,8 @@ import kotlinx.serialization.decodeFromString
 import nl.adaptivity.xmlutil.serialization.XML
 import org.crux.data.network.FaviconService
 import org.crux.data.network.PublicUrlValidator
-import org.crux.data.network.ktorClient
+import org.crux.data.network.getPublic
+import org.crux.data.network.publicWebClient
 import org.crux.data.network.rss.model.Feed
 import org.crux.data.repository.tryRun
 import org.crux.ui.model.mapper.link
@@ -22,17 +22,16 @@ import org.crux.ui.model.mapper.link
 private const val MAX_RSS_RESPONSE_BYTES: Long = 10L * 1024 * 1024
 
 internal object RssService {
-    private val client = ktorClient { }
+    private val client = publicWebClient()
 
     suspend fun fetch(url: String): Feed {
-        val safeUrl = PublicUrlValidator.requireSafePublicHttpUrl(url)
-        val response = client.get(safeUrl).decodedText()
+        val response = client.getPublic(url).decodedText()
         return parseFeedText(response)
     }
 
     suspend fun detectLinkSources(url: String): List<String> {
         val safeUrl = PublicUrlValidator.requireSafePublicHttpUrl(url)
-        return findFeedLinks(client.get(safeUrl).decodedText(), safeUrl)
+        return findFeedLinks(client.getPublic(safeUrl).decodedText(), safeUrl)
             .takeIf { it.isNotEmpty() }
             ?: throw IllegalArgumentException("No RSS or Atom feeds found at the provided URL: $safeUrl")
     }

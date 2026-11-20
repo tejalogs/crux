@@ -39,44 +39,46 @@ jobs:
         with:
           packages: platform-tools
 
-      - name: Apply Signing
+      - name: Run tests
+        run: ./gradlew :app:testDebugUnitTest :shared:jvmTest :feature:subscription:jvmTest :feature:agent:jvmTest
+
+      # Version comes from fdroid.properties; BUILD_VERSION/BUILD_NUMBER override it if set.
+      # Built unsigned: Gradle, plugins and dependencies never see the signing key.
+      - name: Build release APK (unsigned)
+        env:
+          CRUX_UNSIGNED_RELEASE: "true"
+        run: ./gradlew :app:assembleRelease --stacktrace
+
+      # The only step that receives the signing secrets. It runs no project code.
+      - name: Sign release APK
+        if: startsWith(github.ref, 'refs/tags/v')
         env:
           ALIAS: ${{ secrets.ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           KEY_STORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
           SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
-          REQUIRE_RELEASE_SIGNING: ${{ startsWith(github.ref, 'refs/tags/v') }}
-        run: bash ./.github/apply_signing.sh
+        run: bash ./.github/sign_apk.sh
 
-      - name: Run tests
-        run: ./gradlew :app:testDebugUnitTest :shared:jvmTest :feature:subscription:jvmTest :feature:agent:jvmTest
-
-      # Version comes from fdroid.properties; BUILD_VERSION/BUILD_NUMBER override it if set.
-      - name: Build release APK
-        run: ./gradlew :app:assembleRelease --stacktrace
-
-      - name: Verify Release APK Signing
+      - name: Verify release APK signing
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
-          APK=$(ls -1 app/build/outputs/apk/release/*.apk | head -n 1)
+          APK=dist/app-release.apk
           SDK_DIR="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
-          APKSIGNER=$(ls -1 "${SDK_DIR}/build-tools"/*/apksigner 2>/dev/null | sort -V | tail -n 1 || true)
-          if [[ -n "$APKSIGNER" ]]; then
-            CERT_INFO=$("$APKSIGNER" verify --print-certs "$APK")
-          else
-            CERT_INFO=$(keytool -printcert -jarfile "$APK")
-          fi
+          APKSIGNER=$(ls -1 "${SDK_DIR}/build-tools"/*/apksigner | sort -V | tail -n 1)
+          CERT_INFO=$("$APKSIGNER" verify --print-certs "$APK")
           echo "$CERT_INFO"
           if echo "$CERT_INFO" | grep -qi "Android Debug"; then
-            echo "ERROR: Tagged release APK was signed with an ephemeral Android Debug key!" >&2
+            echo "ERROR: Tagged release APK was signed with an Android Debug key!" >&2
             exit 1
           fi
+          (cd dist && sha256sum app-release.apk > SHA256SUMS && cat SHA256SUMS)
 
       - name: Upload APK
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: crux-release-apk
-          path: app/build/outputs/apk/release/*.apk
+          path: dist/*
 
   publish:
     needs: build
@@ -85,6 +87,8 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: write
+      id-token: write
+      attestations: write
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -94,6 +98,11 @@ jobs:
         with:
           name: crux-release-apk
           path: release-apk
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: release-apk/app-release.apk
 
       - name: Resolve Changelog Path
         id: changelog
@@ -111,7 +120,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          files: release-apk/*.apk
+          files: |
+            release-apk/app-release.apk
+            release-apk/SHA256SUMS
           name: Crux ${{ github.ref_name }}
           body_path: ${{ steps.changelog.outputs.path }}
           generate_release_notes: true

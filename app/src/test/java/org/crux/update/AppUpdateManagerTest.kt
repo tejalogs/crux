@@ -126,4 +126,12 @@ class AppUpdateManagerTest {
         assertTrue(debugMsg.contains("debug", ignoreCase = true))
         assertTrue(releaseMsg.contains("not signed with the same key", ignoreCase = true))
     }
+
+    @Test
+    fun ownReleaseAssetUrl_acceptsOnlyThisRepositoryReleases() {
+        assertTrue(AppUpdateManager.isOwnReleaseAssetUrl("https://github.com/tejalogs/crux/releases/download/v1.0.10/app-release.apk"))
+        assertFalse(AppUpdateManager.isOwnReleaseAssetUrl("https://github.com/someone/crux/releases/download/v9/app-release.apk"))
+        assertFalse(AppUpdateManager.isOwnReleaseAssetUrl("https://objects.githubusercontent.com/x/app-release.apk"))
+        assertFalse(AppUpdateManager.isOwnReleaseAssetUrl("http://github.com/tejalogs/crux/releases/download/v1/app.apk"))
+    }
 }

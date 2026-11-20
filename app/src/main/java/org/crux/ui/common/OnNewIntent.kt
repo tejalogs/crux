@@ -23,14 +23,21 @@ fun OnNewIntent(
     val context = LocalContext.current
     DisposableEffect(Unit) {
         val activity = (context.getActivity() as ComponentActivity)
-        val listener =
-            Consumer<Intent> {
-                onNewIntent(it)
+        // Each intent is handled once. Without the mark, re-entering composition would replay the
+        // activity's last intent (for example reopening a compose sheet another app prefilled).
+        val handleOnce: (Intent) -> Unit = { intent ->
+            if (!intent.getBooleanExtra(EXTRA_INTENT_HANDLED, false)) {
+                intent.putExtra(EXTRA_INTENT_HANDLED, true)
+                onNewIntent(intent)
             }
+        }
+        val listener = Consumer<Intent> { handleOnce(it) }
         activity.addOnNewIntentListener(listener)
         if (withOnCreateIntent) {
-            onNewIntent.invoke(activity.intent)
+            activity.intent?.let(handleOnce)
         }
         onDispose { activity.removeOnNewIntentListener(listener) }
     }
 }
+
+private const val EXTRA_INTENT_HANDLED = "org.crux.extra.INTENT_HANDLED"

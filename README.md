@@ -60,6 +60,14 @@ Crux supports **Android 8.0 (API 26)** and newer.
 Directly download the signed APK:
 👉 **[Download Crux v1.0.10 APK](https://github.com/tejalogs/crux/releases/tag/v1.0.10)** (65.3 MB)
 
+Verify a download: every release ships a `SHA256SUMS` file and a GitHub build-provenance attestation, and the APK is signed with this certificate:
+`SHA-256 57:2E:CC:66:D3:0C:C3:56:F7:AF:0A:BE:5B:9B:D9:18:3E:F4:17:B4:1E:D1:9B:18:AF:7D:E6:9F:4D:98:1C:7C`
+
+```bash
+apksigner verify --print-certs app-release.apk
+gh attestation verify app-release.apk -R tejalogs/crux
+```
+
 You can also visit the web showcase at **[tejalogs.github.io/crux](https://tejalogs.github.io/crux/)**.
 
 ---

@@ -316,12 +316,27 @@ internal fun parseExtractedSocialPost(
     overrideImageUrl: String? = null,
 ): ExtractedSocialPost {
     val safeFallbackUrl = fallbackUrl.takeIfWebUrl() ?: site.homeUrl
-    val safeOverrideImage = overrideImageUrl.takeIfWebUrl()
+    val safeOverrideImage = overrideImageUrl.takeIfPublicImageUrl()
     val platformId = site.bookmarkPlatformId()
     val defaultAuthor =
         when (site) {
             LiveWebSite.X -> "X"
             LiveWebSite.Instagram -> "Instagram"
+/**
+ * Images and avatars are loaded later by the image loader, so a page could otherwise point them
+ * at the phone's own network for tracking or probing. Social CDNs use HTTPS host names, never
+ * raw IP addresses or local names.
+ */
+internal fun String?.takeIfPublicImageUrl(): String? {
+    val url = takeIfWebUrl() ?: return null
+    val host = runCatching { java.net.URI(url).host }.getOrNull()?.lowercase()?.trimEnd('.') ?: return null
+    val isIpLiteral = host.startsWith("[") || host.all { it.isDigit() || it == '.' }
+    val isLocalName = host == "localhost" || !host.contains('.') || LOCAL_SUFFIXES.any { host.endsWith(it) }
+    return url.takeIf { it.startsWith("https://", ignoreCase = true) && !isIpLiteral && !isLocalName }
+}
+
+private val LOCAL_SUFFIXES = listOf(".local", ".localhost", ".internal", ".home.arpa", ".lan")
+
             LiveWebSite.LinkedIn -> "LinkedIn"
             LiveWebSite.Reddit -> "Reddit"
         }
@@ -339,13 +354,13 @@ internal fun parseExtractedSocialPost(
                 ?: text.lineSequence().firstOrNull().orEmpty().take(90)
         val authorName = obj["authorName"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() } ?: defaultAuthor
         val authorHandle = obj["authorHandle"]?.jsonPrimitive?.contentOrNull.orEmpty()
-        val avatar = obj["avatar"]?.jsonPrimitive?.contentOrNull.takeIfWebUrl()
+        val avatar = obj["avatar"]?.jsonPrimitive?.contentOrNull.takeIfPublicImageUrl()
         val mediaArr = obj["media"]?.jsonArray
         val mediaList =
             buildList {
                 if (safeOverrideImage != null) add(safeOverrideImage)
                 mediaArr?.forEach { elem ->
-                    val m = elem.jsonPrimitive.contentOrNull.takeIfWebUrl()
+                    val m = elem.jsonPrimitive.contentOrNull.takeIfPublicImageUrl()
                     if (m != null && m !in this) add(m)
                 }
             }

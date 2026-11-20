@@ -68,11 +68,14 @@ android {
             optimization {
                 enable = true
             }
-            if (hasSigningProps) {
-                signingConfig = signingConfigs.getByName("crux")
-            } else {
-                signingConfig = signingConfigs.getByName("debug")
-            }
+            // CI release builds stay unsigned so no build code ever sees the keystore; the
+            // workflow signs the finished APK with apksigner in a separate step.
+            signingConfig =
+                when {
+                    providers.environmentVariable("CRUX_UNSIGNED_RELEASE").orNull == "true" -> null
+                    hasSigningProps -> signingConfigs.getByName("crux")
+                    else -> signingConfigs.getByName("debug")
+                }
         }
     }
 

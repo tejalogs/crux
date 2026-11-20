@@ -124,7 +124,13 @@ internal class PlaybackService : MediaSessionService() {
                             if (controller.uid == Process.myUid()) {
                                 return super.onConnect(session, controller)
                             }
-                            // System media UI / Bluetooth / Auto receive read + transport controls only.
+                            // Other apps may not read or drive playback. System media controls,
+                            // Bluetooth and notification listeners are "trusted" controllers;
+                            // Android Auto and Wear OS connect through their own system apps.
+                            if (!controller.isTrusted && controller.packageName !in SYSTEM_MEDIA_CONTROLLERS) {
+                                return MediaSession.ConnectionResult.reject()
+                            }
+                            // Those controllers get read + transport controls only.
                             val restrictedPlayerCommands =
                                 Player.Commands
                                     .Builder()
@@ -157,3 +163,13 @@ internal class PlaybackService : MediaSessionService() {
         super.onDestroy()
     }
 }
+
+private val SYSTEM_MEDIA_CONTROLLERS =
+    setOf(
+        "com.android.systemui",
+        "com.android.bluetooth",
+        "com.google.android.projection.gearhead",
+        "com.google.android.wearable.app",
+        "com.google.android.apps.wear.companion",
+    )
+

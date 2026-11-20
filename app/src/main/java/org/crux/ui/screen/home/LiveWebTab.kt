@@ -638,6 +638,12 @@ internal class LiveWebPage(
     }
 
     fun scrollToTopOrReload() {
+        // Only read posts from the site itself, never from a page it navigated to.
+        val host = webView.url?.let { runCatching { java.net.URI(it).host }.getOrNull() }
+        if (!site.allows(host)) {
+            onResult(null)
+            return
+        }
         val nativeScrolled = webView.scrollY > 24 || webView.canScrollVertically(-1)
         webView.evaluateJavascript(
             """

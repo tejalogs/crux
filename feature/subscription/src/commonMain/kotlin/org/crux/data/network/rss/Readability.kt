@@ -4,8 +4,8 @@ import androidx.compose.runtime.Immutable
 import com.fleeksoft.ksoup.Ksoup
 import com.fleeksoft.ksoup.nodes.Element
 import io.ktor.client.HttpClient
-import io.ktor.client.plugins.expectSuccess
-import io.ktor.client.request.get
+import io.ktor.client.plugins.ResponseException
+import io.ktor.http.isSuccess
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -14,7 +14,8 @@ import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.Serializable
 import moe.tlaster.readability.Readability
 import org.crux.data.network.PublicUrlValidator
-import org.crux.data.network.ktorClient
+import org.crux.data.network.getPublic
+import org.crux.data.network.publicWebClient
 import org.crux.data.repository.tryRun
 import org.crux.ui.render.UiDateTime
 import org.crux.ui.render.parseHtml
@@ -24,13 +25,17 @@ import kotlin.native.HiddenFromObjC
 import kotlin.time.Instant
 
 internal class Readability(
-    private val client: HttpClient = ktorClient(),
+    private val client: HttpClient = publicWebClient(),
     private val parserDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) {
     suspend fun extract(url: String): DocumentData =
         withTimeoutOrNull(15_000) {
             val safeUrl = PublicUrlValidator.requireSafePublicHttpUrl(url)
-            val response = client.get(safeUrl) { expectSuccess = true }
+            // Redirects are followed (and re-checked) by getPublic, so only the final status matters.
+            val response = client.getPublic(safeUrl)
+            // Same exception type expectSuccess raised, so callers can still tell permanent
+            // (4xx) from temporary (5xx, 408, 429) failures by status.
+            if (!response.status.isSuccess()) throw ResponseException(response, "")
             val html = response.decodedBodyText()
             withContext(parserDispatcher) {
                 val article =

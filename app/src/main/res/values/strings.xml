@@ -126,7 +126,7 @@
     <string name="settings_ai_config_on_device_privacy">Zero data egress</string>
     <string name="settings_ai_config_on_device_privacy_desc">This engine runs entirely on your device and never sends your data over the internet. No external AI accounts or API keys required.</string>
     <string name="settings_ai_config_on_device_ollama">Localhost Ollama Endpoint</string>
-    <string name="settings_ai_config_on_device_ollama_desc">Optional loopback bridge for local desktop/Ollama server</string>
+    <string name="settings_ai_config_on_device_ollama_desc">Optional local Ollama server. Any app on this phone can listen on localhost, so only use one you run yourself.</string>
     <string name="settings_ai_config_on_device_ollama_hint">http://localhost:11434</string>
     <string name="settings_ai_config_type_openai">OpenAI-compatible API</string>
     <string name="settings_ai_config_value_empty_placeholder">Not set</string>

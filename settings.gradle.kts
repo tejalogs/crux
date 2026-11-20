@@ -16,7 +16,15 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        maven("https://jitpack.io")
+        // JitPack builds artifacts from any GitHub repo, so it may serve only the two libraries
+        // that live there, and those two may come from nowhere else.
+        exclusiveContent {
+            forRepository { maven("https://jitpack.io") }
+            filter {
+                includeModule("com.github.Tlaster", "NestedScrollView")
+                includeModule("com.github.tlaster", "swiper")
+            }
+        }
     }
 }
 

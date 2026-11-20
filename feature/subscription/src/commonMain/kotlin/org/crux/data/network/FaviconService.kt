@@ -1,7 +1,6 @@
 package org.crux.data.network
 
 import com.fleeksoft.ksoup.Ksoup
-import io.ktor.client.request.get
 import io.ktor.http.Url
 import org.crux.data.network.rss.decodedBodyText
 import org.crux.data.repository.tryRun
@@ -9,7 +8,7 @@ import org.crux.data.repository.tryRun
 private const val MAX_FAVICON_HTML_BYTES: Long = 2L * 1024 * 1024
 
 internal object FaviconService {
-    private val client = ktorClient { }
+    private val client = publicWebClient()
 
     suspend fun fetchIcon(url: String): String? {
         val actualUrl =
@@ -21,7 +20,7 @@ internal object FaviconService {
         if (!PublicUrlValidator.isSafePublicHttpUrl(actualUrl)) return null
         val webContent =
             tryRun {
-                client.get(actualUrl).decodedBodyText(maxBytes = MAX_FAVICON_HTML_BYTES)
+                client.getPublic(actualUrl).decodedBodyText(maxBytes = MAX_FAVICON_HTML_BYTES)
             }.getOrNull() ?: return null
         findFaviconUrl(actualUrl, webContent)?.takeIf { PublicUrlValidator.isSafePublicHttpUrl(it) }?.let {
             return it
@@ -31,7 +30,7 @@ internal object FaviconService {
         if (!PublicUrlValidator.isSafePublicHttpUrl(favIcon)) return null
         val hasFavIcon =
             tryRun {
-                val response = client.get(favIcon)
+                val response = client.getPublic(favIcon)
                 if (response.status.value !in 200..299) {
                     throw Exception("Failed to fetch favicon: ${response.status}")
                 }

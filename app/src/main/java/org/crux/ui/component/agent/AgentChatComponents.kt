@@ -1,5 +1,9 @@
 package org.crux.ui.component.agent
 
+import org.crux.ui.route.DeeplinkRoute
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.UriHandler
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -522,14 +526,40 @@ private fun AgentMarkdownText(
     color: Color,
     modifier: Modifier = Modifier,
 ) {
-    CompositionLocalProvider(LocalContentColor provides color) {
+    val uriHandler = LocalUriHandler.current
+    // Model output is untrusted (it can echo injected feed text): never load remote images from
+    // it, and let its links open only what content links may open.
+    val contentUriHandler =
+        remember(uriHandler) {
+            object : UriHandler {
+                override fun openUri(uri: String) {
+                    if (DeeplinkRoute.isSafeFromContent(uri)) uriHandler.openUri(uri)
+                }
+            }
+        }
+    val safeMarkdown = remember(markdown) { stripMarkdownImages(markdown) }
+    CompositionLocalProvider(
+        LocalContentColor provides color,
+        LocalUriHandler provides contentUriHandler,
+    ) {
         SelectionContainer {
             ComposeRichText(modifier = modifier) {
-                Markdown(content = markdown)
+                Markdown(content = safeMarkdown)
             }
         }
     }
 }
+
+private val MARKDOWN_IMAGE = Regex("""!\[([^\]]*)]\([^)]*\)""")
+private val MARKDOWN_IMAGE_REFERENCE = Regex("""!\[([^\]]*)]\[[^\]]*]""")
+private val HTML_IMAGE = Regex("""<img\b[^>]*>""", RegexOption.IGNORE_CASE)
+
+/** Replaces Markdown and HTML images with their alt text so nothing is fetched from the model's output. */
+internal fun stripMarkdownImages(markdown: String): String =
+    markdown
+        .replace(MARKDOWN_IMAGE) { it.groupValues[1] }
+        .replace(MARKDOWN_IMAGE_REFERENCE) { it.groupValues[1] }
+        .replace(HTML_IMAGE, "")
 
 @Composable
 private fun AgentPostCard(
