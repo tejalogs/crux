@@ -1,5 +1,11 @@
 package org.crux.ui.screen.status.action
 
+import androidx.compose.runtime.mutableIntStateOf
+import kotlinx.coroutines.CancellationException
+import org.crux.common.OnDeviceAI
+import org.crux.data.ai.scribe.CarouselReview
+import org.crux.data.ai.scribe.CarouselReviewer
+import org.koin.compose.koinInject
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -114,6 +120,8 @@ import org.crux.ui.screen.home.label
 import org.crux.ui.theme.screenHorizontalPadding
 import kotlin.math.absoluteValue
 
+private const val CAROUSEL_REVIEW_DEBOUNCE_MS = 1_500L
+
 private val LIVE_TAB_PLATFORM_IDS = setOf("instagram", "linkedin")
 
 /**
@@ -189,7 +197,8 @@ internal fun OmniScribeBottomSheet(
     var selectedCarouselTemplate by remember { mutableStateOf(CarouselTemplate.ObsidianGold) }
 
     val initialCarouselDeck =
-        remember(editedText, currentResult.contextArc, selectedCarouselTemplate, authorName, authorHandle) {
+        // The template only restyles slides, so switching it must not reset edits or AI fixes.
+        remember(editedText, currentResult.contextArc, authorName, authorHandle) {
             CarouselDeckGenerator.generateDeck(
                 text = editedText,
                 authorName = authorName,
@@ -215,6 +224,55 @@ internal fun OmniScribeBottomSheet(
                 slides = editableSlides.toList(),
             )
         }
+
+    // The fixed rules above build the deck; the on-device model only reviews it, fixes weak
+    // slides and gives direction. On-device only, so the article never leaves the phone here.
+    val onDeviceAI = koinInject<OnDeviceAI>()
+    var reviewStatus by remember { mutableStateOf(CarouselReviewStatus.Reviewing) }
+    var review by remember { mutableStateOf<CarouselReview?>(null) }
+    var slidesBeforeFixes by remember { mutableStateOf<List<CarouselSlide>?>(null) }
+    var reviewRun by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(initialCarouselDeck.slides, reviewRun) {
+        val ruleSlides = initialCarouselDeck.slides
+        review = null
+        slidesBeforeFixes = null
+        if (ruleSlides.isEmpty()) {
+            reviewStatus = CarouselReviewStatus.NoChanges
+            return@LaunchedEffect
+        }
+        reviewStatus = CarouselReviewStatus.Reviewing
+        delay(CAROUSEL_REVIEW_DEBOUNCE_MS) // wait for typing in the post text to settle
+        if (!onDeviceAI.isAvailable()) {
+            reviewStatus = CarouselReviewStatus.ModelMissing
+            return@LaunchedEffect
+        }
+        val raw =
+            try {
+                onDeviceAI.generate(CarouselReviewer.buildReviewPrompt(ruleSlides, initialText))
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                null
+            }
+        if (raw.isNullOrBlank()) {
+            reviewStatus = CarouselReviewStatus.Failed
+            return@LaunchedEffect
+        }
+        val parsed = CarouselReviewer.parseReview(raw, ruleSlides, initialText)
+        if (parsed == null) {
+            reviewStatus = CarouselReviewStatus.NoChanges
+            return@LaunchedEffect
+        }
+        review = parsed
+        // Only auto-apply onto untouched rule slides; never overwrite the user's own edits.
+        if (parsed.fixes.isNotEmpty() && editableSlides.toList() == ruleSlides) {
+            slidesBeforeFixes = ruleSlides
+            editableSlides.clear()
+            editableSlides.addAll(parsed.applyTo(ruleSlides))
+        }
+        reviewStatus = CarouselReviewStatus.Done
+    }
 
     val crossPostPlan =
         remember(selectedAccountKeys.toList(), selectedWebSites.toList(), attachCarouselToPost) {
@@ -568,6 +626,29 @@ internal fun OmniScribeBottomSheet(
         }
 
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+
+        CarouselAiReviewCard(
+            status = reviewStatus,
+            review = review,
+            fixesApplied = slidesBeforeFixes != null,
+            onUndoFixes = {
+                slidesBeforeFixes?.let { original ->
+                    editableSlides.clear()
+                    editableSlides.addAll(original)
+                }
+                slidesBeforeFixes = null
+            },
+            onApplyFixes = {
+                val current = review
+                if (current != null) {
+                    val before = editableSlides.toList()
+                    slidesBeforeFixes = before
+                    editableSlides.clear()
+                    editableSlides.addAll(current.applyTo(before))
+                }
+            },
+            onReviewAgain = { reviewRun++ },
+        )
 
         // 6. Interactive In-App Carousel Live-Preview Widget & Theme Studio
         InteractiveCarouselStudioWidget(
