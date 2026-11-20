@@ -1,7 +1,6 @@
 package org.crux.ui.screen.rss
 
 import android.app.Activity
-import android.app.KeyguardManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -44,36 +43,27 @@ import org.crux.R
 import org.crux.data.privacy.PrivacySettingsRepository
 import org.crux.ui.CruxApp
 import org.crux.ui.component.FAIcon
+import org.crux.ui.lock.AppLock
+import org.crux.ui.lock.AppLockCover
+import org.crux.ui.lock.deviceCredentialIntent
 import org.crux.ui.screen.home.LiveWebPrivacyStore
 import org.crux.ui.theme.CruxTheme
 import org.koin.android.ext.android.inject
 
 class AddRssSourceActivity : ComponentActivity() {
     private val privacySettingsRepository by inject<PrivacySettingsRepository>()
-    private var isUnlocked by mutableStateOf(false)
-
     private val lockLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            if (result.resultCode == Activity.RESULT_OK) {
-                isUnlocked = true
-            }
+            AppLock.onPromptResult(success = result.resultCode == Activity.RESULT_OK)
         }
 
-    private fun promptDeviceUnlock() {
-        val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
-        if (keyguardManager != null && keyguardManager.isDeviceSecure) {
-            @Suppress("DEPRECATION")
-            val intent =
-                keyguardManager.createConfirmDeviceCredentialIntent(
-                    getString(R.string.settings_privacy_app_lock),
-                    getString(R.string.settings_privacy_app_lock_description),
-                )
-            if (intent != null) {
-                lockLauncher.launch(intent)
-                return
-            }
+    private fun launchUnlockPrompt() {
+        val intent = deviceCredentialIntent()
+        if (intent == null) {
+            AppLock.onPromptUnavailable()
+            return
         }
-        isUnlocked = true
+        runCatching { lockLauncher.launch(intent) }.onFailure { AppLock.onPromptResult(success = false) }
     }
 
     private fun observeSecureWindow() {
@@ -151,47 +141,25 @@ class AddRssSourceActivity : ComponentActivity() {
             val privacySettings by privacySettingsRepository.settings().collectAsState()
             val isPrivacyLoaded by privacySettingsRepository.isLoaded.collectAsState()
             val requiresLock = privacySettings.requireAppLock
+            val locked = isPrivacyLoaded && requiresLock && !AppLock.isUnlocked
 
             LaunchedEffect(isPrivacyLoaded, requiresLock) {
-                if (isPrivacyLoaded && requiresLock && !isUnlocked) {
-                    promptDeviceUnlock()
-                }
+                if (isPrivacyLoaded && !requiresLock) AppLock.markUnlockedWithoutPrompt()
+            }
+            LaunchedEffect(locked, AppLock.autoPromptArmed) {
+                if (locked && AppLock.beginAutoPrompt()) launchUnlockPrompt()
             }
 
             if (!isPrivacyLoaded) {
                 CruxTheme {
                     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background))
                 }
-            } else if (requiresLock && !isUnlocked) {
+            } else if (locked) {
                 CruxTheme {
-                    Box(
-                        modifier =
-                            Modifier
-                                .fillMaxSize()
-                                .background(MaterialTheme.colorScheme.background)
-                                .padding(32.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(16.dp),
-                        ) {
-                            FAIcon(
-                                FontAwesomeIcons.Solid.Lock,
-                                contentDescription = null,
-                                modifier = Modifier.size(48.dp),
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                            Text(
-                                text = stringResource(R.string.settings_privacy_app_lock),
-                                style = MaterialTheme.typography.titleLarge,
-                                color = MaterialTheme.colorScheme.onBackground,
-                            )
-                            Button(onClick = { promptDeviceUnlock() }) {
-                                Text(stringResource(android.R.string.ok))
-                            }
-                        }
-                    }
+                    AppLockCover(
+                        onUnlock = { if (AppLock.beginManualPrompt()) launchUnlockPrompt() },
+                        onBack = { finish() },
+                    )
                 }
             } else {
                 CruxApp {
@@ -237,10 +205,13 @@ class AddRssSourceActivity : ComponentActivity() {
         }
     }
 
+    override fun onStart() {
+        super.onStart()
+        AppLock.onActivityStarted(lockEnabled = privacySettingsRepository.settings().value.requireAppLock)
+    }
+
     override fun onStop() {
         super.onStop()
-        if (privacySettingsRepository.settings().value.requireAppLock) {
-            isUnlocked = false
-        }
+        AppLock.onActivityStopped(changingConfigurations = isChangingConfigurations)
     }
 }

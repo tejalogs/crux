@@ -1,7 +1,6 @@
 package org.crux
 
 import android.app.Activity
-import android.app.KeyguardManager
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
@@ -9,6 +8,7 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
+import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
@@ -16,34 +16,25 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.ComposeRuntimeFlags
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ExperimentalComposeApi
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.ComposeUiFlags
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
-import compose.icons.FontAwesomeIcons
-import compose.icons.fontawesomeicons.Solid
-import compose.icons.fontawesomeicons.solid.Lock
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -53,8 +44,10 @@ import org.crux.common.AndroidDownloadManager
 import org.crux.common.ProvideAndroidMediaSavePicker
 import org.crux.data.privacy.PrivacySettingsRepository
 import org.crux.ui.AppContainer
-import org.crux.ui.component.FAIcon
 import org.crux.ui.component.platform.LocalWifiState
+import org.crux.ui.lock.AppLock
+import org.crux.ui.lock.AppLockCover
+import org.crux.ui.lock.deviceCredentialIntent
 import org.crux.ui.component.status.ProvideAndroidTimelineMediaActions
 import org.crux.ui.screen.home.LiveWebPrivacyStore
 import org.crux.ui.screen.home.restoreUiModeNightMaskIfNeeded
@@ -70,32 +63,21 @@ class MainActivity : ComponentActivity() {
         observeWifiStateAsFlow()
     }
 
-    private var isAppUnlocked by mutableStateOf(false)
     private var osNightModeMask: Int = Configuration.UI_MODE_NIGHT_UNDEFINED
     private var isOsDarkTheme by mutableStateOf(false)
 
     private val lockLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            if (result.resultCode == Activity.RESULT_OK) {
-                isAppUnlocked = true
-            }
+            AppLock.onPromptResult(success = result.resultCode == Activity.RESULT_OK)
         }
 
-    fun promptDeviceUnlock() {
-        val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
-        if (keyguardManager != null && keyguardManager.isDeviceSecure) {
-            @Suppress("DEPRECATION")
-            val intent =
-                keyguardManager.createConfirmDeviceCredentialIntent(
-                    getString(R.string.settings_privacy_app_lock),
-                    getString(R.string.settings_privacy_app_lock_description),
-                )
-            if (intent != null) {
-                lockLauncher.launch(intent)
-                return
-            }
+    private fun launchUnlockPrompt() {
+        val intent = deviceCredentialIntent()
+        if (intent == null) {
+            AppLock.onPromptUnavailable()
+            return
         }
-        isAppUnlocked = true
+        runCatching { lockLauncher.launch(intent) }.onFailure { AppLock.onPromptResult(success = false) }
     }
 
     @OptIn(ExperimentalComposeUiApi::class, ExperimentalComposeApi::class)
@@ -108,16 +90,26 @@ class MainActivity : ComponentActivity() {
         ComposeRuntimeFlags.isLinkBufferComposerEnabled = true
         super.onCreate(savedInstanceState)
         observeSecureWindow()
+        observeRecentsPreview()
         setContent {
             val wifiState by wifiStateFlow.collectAsState(false)
             val privacySettings by privacySettingsRepository.settings().collectAsState()
             val isPrivacyLoaded by privacySettingsRepository.isLoaded.collectAsState()
             val requiresLock = privacySettings.requireAppLock
+            val locked = isPrivacyLoaded && requiresLock && !AppLock.isUnlocked
+            // Content is composed only after the first unlock, then kept under the cover so
+            // re-locking never throws away open tabs, scroll positions or a pending file upload.
+            var contentStarted by remember { mutableStateOf(false) }
+            val showContent = contentStarted || (isPrivacyLoaded && !locked)
+            SideEffect { if (showContent) contentStarted = true }
 
             LaunchedEffect(isPrivacyLoaded, requiresLock) {
-                if (isPrivacyLoaded && requiresLock && !isAppUnlocked) {
+                if (isPrivacyLoaded && !requiresLock) AppLock.markUnlockedWithoutPrompt()
+            }
+            LaunchedEffect(locked, AppLock.autoPromptArmed) {
+                if (locked) {
                     keepSplashOnScreen = false
-                    promptDeviceUnlock()
+                    if (AppLock.beginAutoPrompt()) launchUnlockPrompt()
                 }
             }
 
@@ -137,54 +129,47 @@ class MainActivity : ComponentActivity() {
                                             .background(MaterialTheme.colorScheme.background),
                                 )
                             }
-                        } else if (requiresLock && !isAppUnlocked) {
-                            CruxTheme {
-                                Box(
-                                    modifier =
-                                        Modifier
-                                            .fillMaxSize()
-                                            .background(MaterialTheme.colorScheme.background)
-                                            .padding(32.dp),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        } else {
+                            Box(modifier = Modifier.fillMaxSize()) {
+                                if (showContent) {
+                                    Box(
+                                        modifier =
+                                            Modifier
+                                                .fillMaxSize()
+                                                .then(if (locked) Modifier.clearAndSetSemantics {} else Modifier),
                                     ) {
-                                        FAIcon(
-                                            FontAwesomeIcons.Solid.Lock,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(56.dp),
-                                            tint = MaterialTheme.colorScheme.primary,
+                                        AppContainer(
+                                            afterInit = {
+                                                keepSplashOnScreen = false
+                                            },
                                         )
-                                        Text(
-                                            text = stringResource(R.string.settings_privacy_app_lock),
-                                            style = MaterialTheme.typography.titleLarge,
-                                            color = MaterialTheme.colorScheme.onBackground,
+                                    }
+                                }
+                                if (locked) {
+                                    CruxTheme {
+                                        AppLockCover(
+                                            onUnlock = { if (AppLock.beginManualPrompt()) launchUnlockPrompt() },
+                                            onBack = { moveTaskToBack(true) },
                                         )
-                                        Text(
-                                            text = stringResource(R.string.settings_privacy_app_lock_description),
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
-                                        Button(
-                                            onClick = { promptDeviceUnlock() },
-                                        ) {
-                                            Text(stringResource(android.R.string.ok))
-                                        }
                                     }
                                 }
                             }
-                        } else {
-                            AppContainer(
-                                afterInit = {
-                                    keepSplashOnScreen = false
-                                },
-                            )
                         }
                     }
                 }
             }
+        }
+    }
+
+    /** With the app lock on, Android 13+ shows a blank card in Recents instead of the last screen. */
+    private fun observeRecentsPreview() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        lifecycleScope.launch {
+            privacySettingsRepository
+                .settings()
+                .map { it.requireAppLock }
+                .distinctUntilChanged()
+                .collect { setRecentsScreenshotEnabled(!it) }
         }
     }
 
@@ -222,22 +207,20 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onStart() {
+        super.onStart()
+        AppLock.onActivityStarted(lockEnabled = privacySettingsRepository.settings().value.requireAppLock)
+    }
+
     override fun onResume() {
         super.onResume()
         restoreUiModeNightMaskIfNeeded(this, osNightModeMask)
         downloadManager.onResume()
-        val privacySettings = privacySettingsRepository.settings().value
-        if (privacySettingsRepository.isLoaded.value && privacySettings.requireAppLock && !isAppUnlocked) {
-            promptDeviceUnlock()
-        }
     }
 
     override fun onStop() {
         super.onStop()
-        val privacySettings = privacySettingsRepository.settings().value
-        if (privacySettings.requireAppLock) {
-            isAppUnlocked = false
-        }
+        AppLock.onActivityStopped(changingConfigurations = isChangingConfigurations)
     }
 
     override fun onPause() {
