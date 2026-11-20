@@ -1,0 +1,6 @@
+Crux 1.0.10
+- App Lock fixed: cancelling no longer loops the unlock prompt, rotating or switching dark mode no longer re-locks, and locking keeps your open tabs instead of reloading the app
+- Back on the lock screen leaves Crux; Recents shows a blank card while App Lock is on (Android 13+)
+- Carousels from RSS: the on-device AI now reviews the slides, fixes weak ones and suggests a direction, with one-tap Undo. Runs fully on your phone
+- Switching carousel templates keeps your slide edits
+- Removed translation and the unused profile/post Insight screens to keep the app lean
