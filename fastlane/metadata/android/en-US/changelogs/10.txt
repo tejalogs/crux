@@ -1,0 +1,6 @@
+Crux 1.0.9
+- Security hardening release (end-to-end audit): external apps can no longer open privileged crux:// routes, and media sharing/downloads refuse local, private and file:// addresses
+- API keys and the vault key are now encrypted at rest (Android Keystore); encryption fails closed instead of falling back to plaintext
+- App Lock now waits for saved settings before showing content, including the RSS import screen
+- Stricter WebViews: same-site HTTPS start URLs, origin-scoped scripts, no popups without a tap, isolated Hardened Browser that clears on exit
+- Cleartext traffic blocked (except localhost for local AI), on-device AI model downloads verified by SHA-256, safer in-app updater and tighter CI supply chain
