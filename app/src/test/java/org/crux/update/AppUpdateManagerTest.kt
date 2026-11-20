@@ -1,5 +1,6 @@
 package org.crux.update
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -72,11 +73,32 @@ class AppUpdateManagerTest {
     fun trustedDownloadUrl_acceptsOnlyHttpsGithubHosts() {
         assertTrue(AppUpdateManager.isTrustedDownloadUrl("https://github.com/tejalogs/crux/releases/download/v1.0.2/crux.apk"))
         assertTrue(AppUpdateManager.isTrustedDownloadUrl("https://objects.githubusercontent.com/x/crux.apk"))
+        assertFalse(AppUpdateManager.isTrustedDownloadUrl("https://github.com/attacker/repo/releases/download/v1.0.2/evil.apk"))
         assertFalse(AppUpdateManager.isTrustedDownloadUrl("http://github.com/tejalogs/crux/crux.apk"))
         assertFalse(AppUpdateManager.isTrustedDownloadUrl("https://github.com.evil.example/crux.apk"))
         assertFalse(AppUpdateManager.isTrustedDownloadUrl("https://evil.example/crux.apk"))
         assertFalse(AppUpdateManager.isTrustedDownloadUrl("not a url"))
         assertFalse(AppUpdateManager.isTrustedDownloadUrl(null))
+    }
+
+    @Test
+    fun sanitizeReleaseUrl_allowsOnlyCruxRepoAndFallsBackOtherwise() {
+        assertEquals(
+            "https://github.com/tejalogs/crux/releases/tag/v1.0.8",
+            AppUpdateManager.sanitizeReleaseUrl("https://github.com/tejalogs/crux/releases/tag/v1.0.8"),
+        )
+        assertEquals(
+            org.crux.CruxLinks.RELEASES,
+            AppUpdateManager.sanitizeReleaseUrl("https://evil.example/phish"),
+        )
+        assertEquals(
+            org.crux.CruxLinks.RELEASES,
+            AppUpdateManager.sanitizeReleaseUrl("https://github.com/attacker/crux/releases/tag/v9.9.9"),
+        )
+        assertEquals(
+            org.crux.CruxLinks.RELEASES,
+            AppUpdateManager.sanitizeReleaseUrl("javascript:alert(1)"),
+        )
     }
 
     @Test

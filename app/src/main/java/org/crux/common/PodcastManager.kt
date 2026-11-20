@@ -3,9 +3,11 @@ package org.crux.common
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.os.Process
 import androidx.annotation.OptIn
 import androidx.compose.runtime.Stable
 import androidx.core.net.toUri
+import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
@@ -14,11 +16,13 @@ import androidx.media3.exoplayer.hls.HlsMediaSource
 import androidx.media3.session.MediaController
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
+import androidx.media3.session.SessionCommands
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.MoreExecutors
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import org.crux.data.network.PublicUrlValidator
 import org.crux.ui.model.UiPodcast
 import org.koin.core.annotation.Provided
 import org.koin.core.annotation.Single
@@ -34,6 +38,9 @@ internal class PodcastManager(
 
     @OptIn(UnstableApi::class)
     fun playPodcast(podcast: UiPodcast) {
+        if (!PublicUrlValidator.isSafePublicHttpUrl(podcast.playbackUrl)) {
+            return
+        }
         stopPodcast()
         _currentPodcast.value = podcast
         val sessionToken =
@@ -107,7 +114,34 @@ internal class PlaybackService : MediaSessionService() {
         mediaSession =
             MediaSession
                 .Builder(this, player)
-                .setCommandButtonsForMediaItems(
+                .setCallback(
+                    object : MediaSession.Callback {
+                        override fun onConnect(
+                            session: MediaSession,
+                            controller: MediaSession.ControllerInfo,
+                        ): MediaSession.ConnectionResult {
+                            // Only Crux's own process may set or change playback media items.
+                            if (controller.uid == Process.myUid()) {
+                                return super.onConnect(session, controller)
+                            }
+                            // System media UI / Bluetooth / Auto receive read + transport controls only.
+                            val restrictedPlayerCommands =
+                                Player.Commands
+                                    .Builder()
+                                    .addAll(
+                                        Player.COMMAND_PLAY_PAUSE,
+                                        Player.COMMAND_STOP,
+                                        Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM,
+                                        Player.COMMAND_GET_CURRENT_MEDIA_ITEM,
+                                        Player.COMMAND_GET_METADATA,
+                                    ).build()
+                            return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
+                                .setAvailableSessionCommands(SessionCommands.EMPTY)
+                                .setAvailablePlayerCommands(restrictedPlayerCommands)
+                                .build()
+                        }
+                    },
+                ).setCommandButtonsForMediaItems(
                     listOf(),
                 ).build()
     }

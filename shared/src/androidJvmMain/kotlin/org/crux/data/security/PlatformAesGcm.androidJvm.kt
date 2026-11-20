@@ -13,6 +13,11 @@ internal actual object PlatformAesGcm {
 
     private val secureRandom = SecureRandom()
 
+    actual fun randomBytes(size: Int): ByteArray {
+        require(size > 0) { "Random byte count must be positive" }
+        return ByteArray(size).also { secureRandom.nextBytes(it) }
+    }
+
     actual fun encrypt(
         key: ByteArray,
         plainBytes: ByteArray,

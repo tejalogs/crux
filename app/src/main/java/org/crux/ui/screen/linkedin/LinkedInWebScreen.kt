@@ -101,6 +101,7 @@ import org.crux.ui.screen.home.SaveToBookmarkFolderSheet
 import org.crux.ui.screen.home.WebSessionLifecycleSuspender
 import org.crux.ui.screen.home.attachSafeDownloadListener
 import org.crux.ui.screen.home.blockedTrackerResponse
+import org.crux.ui.screen.home.bridgeBookmarkMessage
 import org.crux.ui.screen.home.buildFileChooserIntent
 import org.crux.ui.screen.home.clearSession
 import org.crux.ui.screen.home.computeWebViewCanGoBack
@@ -109,6 +110,7 @@ import org.crux.ui.screen.home.cookieManager
 import org.crux.ui.screen.home.currentUiNightMask
 import org.crux.ui.screen.home.extractPostFromWebView
 import org.crux.ui.screen.home.formatCompactHostPath
+import org.crux.ui.screen.home.generateWebBridgeToken
 import org.crux.ui.screen.home.handleCreateWindow
 import org.crux.ui.screen.home.handleMainFrameUrlOverride
 import org.crux.ui.screen.home.isExternalOAuthUrl
@@ -116,6 +118,7 @@ import org.crux.ui.screen.home.navigateWebViewBackOrEscapeOAuth
 import org.crux.ui.screen.home.openInSystemBrowser
 import org.crux.ui.screen.home.parseFileChooserActivityResult
 import org.crux.ui.screen.home.restoreUiModeNightMaskIfNeeded
+import org.crux.ui.screen.home.sanitizeSiteInitialUrl
 import org.crux.ui.screen.home.useProfileOf
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -133,13 +136,10 @@ internal fun LinkedInWebScreen(
     val scope = rememberCoroutineScope()
     val targetUrl =
         remember(initialUrl, forSignIn) {
-            val clean = initialUrl?.trim()
-            if (!clean.isNullOrEmpty() && (clean.startsWith("http://") || clean.startsWith("https://"))) {
-                clean
-            } else {
-                LiveWebSite.LinkedIn.startUrlForSession()
-            }
+            sanitizeSiteInitialUrl(LiveWebSite.LinkedIn, initialUrl)
         }
+    val bridgeToken = remember { generateWebBridgeToken() }
+    val bookmarkBridgeMsg = remember(bridgeToken) { bridgeBookmarkMessage(bridgeToken) }
     val webViewState = rememberWebViewState(targetUrl)
     val pages = LocalLiveWebPages.current
     val connections = LocalCruxConnections.current
@@ -408,8 +408,11 @@ internal fun LinkedInWebScreen(
                         cacheMode = WebSettings.LOAD_DEFAULT
                         mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
                         allowFileAccess = false
-                        allowContentAccess = true
-                        javaScriptCanOpenWindowsAutomatically = true
+                        allowContentAccess = false
+                        setGeolocationEnabled(false)
+                        setAllowFileAccessFromFileURLs(false)
+                        setAllowUniversalAccessFromFileURLs(false)
+                        javaScriptCanOpenWindowsAutomatically = false
                         setSupportMultipleWindows(true)
                         mediaPlaybackRequiresUserGesture = config.blockAutoplay
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -431,8 +434,12 @@ internal fun LinkedInWebScreen(
                     cookieManager.setAcceptCookie(true)
                     cookieManager.setAcceptThirdPartyCookies(webView, acceptThirdParty)
                     if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
-                        config.documentStartScripts(LiveWebSite.LinkedIn).forEach { script ->
-                            WebViewCompat.addDocumentStartJavaScript(webView, script, setOf("*"))
+                        config.documentStartScripts(LiveWebSite.LinkedIn, bridgeToken).forEach { script ->
+                            WebViewCompat.addDocumentStartJavaScript(
+                                webView,
+                                script,
+                                LiveWebSite.LinkedIn.documentStartOriginRules,
+                            )
                         }
                     }
                     configureWebViewHeadersAndDarkening(webView.settings)
@@ -502,8 +509,12 @@ internal fun LinkedInWebScreen(
                             ) {
                                 super.onPageFinished(view, url)
                                 isPageLoading = false
-                                if (!WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
-                                    config.documentStartScripts(LiveWebSite.LinkedIn).forEach { script ->
+                                if (
+                                    !WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT) &&
+                                    !isExternalOAuthUrl(url ?: view?.url) &&
+                                    LiveWebSite.LinkedIn.allows(runCatching { java.net.URI((url ?: view?.url).orEmpty()).host }.getOrNull())
+                                ) {
+                                    config.documentStartScripts(LiveWebSite.LinkedIn, bridgeToken).forEach { script ->
                                         view?.evaluateJavascript(script, null)
                                     }
                                 }
@@ -549,7 +560,7 @@ internal fun LinkedInWebScreen(
                             }
 
                             override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
-                                if (consoleMessage?.message() == "__crux_bm_tap__") {
+                                if (consoleMessage?.message() == bookmarkBridgeMsg) {
                                     webView.post {
                                         extractPostFromWebView(LiveWebSite.LinkedIn, webView) { extracted ->
                                             pendingBookmarkPost = extracted

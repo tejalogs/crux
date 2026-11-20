@@ -30,6 +30,8 @@ internal object LogSanitizer {
             "api_key",
             "apiKey",
             "apikey",
+            "x-api-key",
+            "x-goog-api-key",
             "password",
             "passwd",
             "secret",
@@ -59,8 +61,9 @@ internal object LogSanitizer {
     private val keyPattern = sensitiveKeys.joinToString("|") { Regex.escape(it) }
 
     private val sensitiveHeaderPattern =
-        Regex("""(?im)^(\s*(?:authorization|cookie|set-cookie|x-csrf-token)\s*:\s*).*$""")
-    private val bearerPattern = Regex("""(?i)\b(Bearer)\s+[A-Za-z0-9._~+/\-=]+""")
+        Regex("""(?im)^(\s*(?:authorization|cookie|set-cookie|x-csrf-token|x-api-key|x-goog-api-key)\s*:\s*).*$""")
+    private val bearerPattern = Regex("""(?i)\b(Bearer|DeepL-Auth-Key)\s+[A-Za-z0-9._~+/\-:=]+""")
+    private val queryKeyPattern = Regex("""(?i)([?&]key=)([^&\s"'<>]+)""")
     private val quotedKeyValuePattern = Regex("""(?i)(["']($keyPattern)["']\s*:\s*["'])([^"']*)(["'])""")
     private val unquotedKeyValuePattern = Regex("""(?i)(\b($keyPattern)\b\s*:\s*)([^,\s}"']+)""")
     private val formKeyValuePattern = Regex("""(?i)(\b($keyPattern)\b\s*=\s*)([^&\s"'<>]+)""")
@@ -71,6 +74,10 @@ internal object LogSanitizer {
         sanitized =
             bearerPattern.replace(sanitized) { match ->
                 "${match.groupValues[1]} $REDACTED"
+            }
+        sanitized =
+            queryKeyPattern.replace(sanitized) { match ->
+                "${match.groupValues[1]}$REDACTED"
             }
         sanitized =
             quotedKeyValuePattern.replace(sanitized) { match ->

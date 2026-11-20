@@ -1,8 +1,14 @@
 package org.crux.data.security
 
+import okio.Buffer
+import org.crux.common.protobufSerializer
+import org.crux.data.datastore.EncryptedAppSettingsSerializer
+import org.crux.data.datastore.model.AppSettings
 import org.crux.data.io.InMemoryFileStorage
+import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
@@ -64,4 +70,56 @@ class CredentialCipherTest {
 
         assertEquals(secret, decryptedByB)
     }
+
+    @Test
+    fun corruptCiphertextFailsClosed() {
+        val cipher = CredentialCipher(fileStorage)
+        assertFailsWith<Throwable> {
+            cipher.decrypt("enc:v1:not_valid_ciphertext_payload")
+        }
+    }
+
+    @Test
+    fun appSettingsSerializerEncryptsApiKeysAtRestAndDecryptsOnRead() =
+        runTest {
+            val cipher = CredentialCipher(fileStorage)
+            val delegate = protobufSerializer(AppSettings(version = ""))
+            val serializer = EncryptedAppSettingsSerializer(delegate, cipher)
+
+            val original =
+                AppSettings(
+                    version = "1.0.8",
+                    aiConfig =
+                        AppSettings.AiConfig(
+                            type =
+                                AppSettings.AiConfig.Type.OpenAI(
+                                    serverUrl = "https://api.openai.com/v1",
+                                    apiKey = "sk-live-secret-openai-key",
+                                    model = "gpt-4o-mini",
+                                ),
+                        ),
+                    translateConfig =
+                        AppSettings.TranslateConfig(
+                            provider = AppSettings.TranslateConfig.Provider.DeepL(apiKey = "deepl-secret-token"),
+                        ),
+                )
+
+            val rawBuffer = Buffer()
+            serializer.writeTo(original, rawBuffer)
+            val rawBytes = rawBuffer.readByteArray()
+
+            // Verify plaintext API keys do NOT appear on disk and delegate reads encrypted envelopes.
+            val rawText = rawBytes.decodeToString()
+            assertFalse(rawText.contains("sk-live-secret-openai-key"))
+            assertFalse(rawText.contains("deepl-secret-token"))
+
+            val onDisk = delegate.readFrom(Buffer().write(rawBytes))
+            assertTrue(cipher.isEncrypted((onDisk.aiConfig.type as AppSettings.AiConfig.Type.OpenAI).apiKey))
+            assertTrue(cipher.isEncrypted((onDisk.translateConfig.provider as AppSettings.TranslateConfig.Provider.DeepL).apiKey))
+
+            // Verify reading through EncryptedAppSettingsSerializer restores original plaintext API keys.
+            val restored = serializer.readFrom(Buffer().write(rawBytes))
+            assertEquals("sk-live-secret-openai-key", (restored.aiConfig.type as AppSettings.AiConfig.Type.OpenAI).apiKey)
+            assertEquals("deepl-secret-token", (restored.translateConfig.provider as AppSettings.TranslateConfig.Provider.DeepL).apiKey)
+        }
 }

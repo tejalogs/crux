@@ -1,6 +1,7 @@
 package org.crux.ui.screen.media
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.UriHandler
 import kotlinx.collections.immutable.ImmutableList
@@ -10,6 +11,11 @@ import org.crux.common.MediaFileNamePolicy
 import org.crux.ui.model.UiMedia
 import org.crux.ui.model.UiState
 
+private fun isAllowedMediaScheme(url: String?): Boolean {
+    val trimmed = url?.trim()?.lowercase() ?: return false
+    return trimmed.startsWith("https://") || trimmed.startsWith("http://")
+}
+
 @Composable
 internal fun MediaScreen(
     uri: String,
@@ -18,12 +24,17 @@ internal fun MediaScreen(
     onDismiss: () -> Unit,
     toAltText: (UiMedia) -> Unit = {},
 ) {
+    if (!isAllowedMediaScheme(uri)) {
+        LaunchedEffect(uri) { onDismiss() }
+        return
+    }
+    val safePreviewUrl = previewUrl?.takeIf(::isAllowedMediaScheme) ?: uri
     RawMediaScreen(
         medias =
             persistentListOf(
                 UiMedia.Image(
                     url = uri,
-                    previewUrl = previewUrl ?: uri,
+                    previewUrl = safePreviewUrl,
                     description = null,
                     height = 0f,
                     width = 0f,

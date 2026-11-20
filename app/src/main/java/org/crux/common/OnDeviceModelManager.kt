@@ -36,6 +36,7 @@ import java.io.FileOutputStream
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
+import java.security.MessageDigest
 
 internal sealed interface OnDeviceModelState {
     val spec: OnDeviceModelSpec
@@ -136,6 +137,14 @@ internal class OnDeviceModelStore(
             part.delete()
             throw IOException("Downloaded file is not a valid .litertlm container.")
         }
+        val expectedHash = spec.sha256.trim().lowercase()
+        if (expectedHash.isNotEmpty()) {
+            val actualHash = sha256Hex(part)
+            if (!actualHash.equals(expectedHash, ignoreCase = true)) {
+                part.delete()
+                throw IOException("Downloaded model failed SHA-256 integrity verification.")
+            }
+        }
         val dest = finalFile(spec)
         if (dest.exists() && !dest.delete()) {
             throw IOException("Could not replace previous model file.")
@@ -158,6 +167,19 @@ internal class OnDeviceModelStore(
             ?.filter { it.isFile }
             ?.sumOf { it.length() }
             ?: 0L
+
+    fun sha256Hex(file: File): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+        val buffer = ByteArray(64 * 1024)
+        FileInputStream(file).use { input ->
+            while (true) {
+                val read = input.read(buffer)
+                if (read <= 0) break
+                digest.update(buffer, 0, read)
+            }
+        }
+        return digest.digest().joinToString("") { "%02x".format(it) }
+    }
 
     fun hasLiteRtLmHeader(file: File): Boolean {
         if (!file.exists() || !file.isFile || file.length() < LITERTLM_MAGIC.size) return false

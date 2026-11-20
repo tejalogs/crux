@@ -88,6 +88,11 @@ import compose.icons.fontawesomeicons.solid.Rss
 import compose.icons.fontawesomeicons.solid.Star
 import compose.icons.fontawesomeicons.solid.WandMagicSparkles
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.crux.common.OfflineMediaPrefetcher
 import org.crux.data.readinglist.BookmarkFolder
 import org.crux.data.readinglist.DEFAULT_BOOKMARK_FOLDER_ID
@@ -95,8 +100,6 @@ import org.crux.data.readinglist.ReadingListItem
 import org.crux.data.readinglist.ReadingListRepository
 import org.crux.di.koinInject
 import org.crux.ui.component.FAIcon
-import org.json.JSONArray
-import org.json.JSONObject
 
 internal data class ExtractedSocialPost(
     val id: String,
@@ -298,12 +301,22 @@ internal fun extractPostFromWebView(
     }
 }
 
+private fun String?.takeIfWebUrl(): String? {
+    val trimmed = this?.trim().orEmpty()
+    if (trimmed.isEmpty()) return null
+    val uri = runCatching { java.net.URI(trimmed) }.getOrNull() ?: return null
+    val scheme = uri.scheme?.lowercase()
+    return trimmed.takeIf { (scheme == "https" || scheme == "http") && !uri.host.isNullOrBlank() }
+}
+
 internal fun parseExtractedSocialPost(
     site: LiveWebSite,
     rawJsonResult: String?,
     fallbackUrl: String,
     overrideImageUrl: String? = null,
 ): ExtractedSocialPost {
+    val safeFallbackUrl = fallbackUrl.takeIfWebUrl() ?: site.homeUrl
+    val safeOverrideImage = overrideImageUrl.takeIfWebUrl()
     val platformId = site.bookmarkPlatformId()
     val defaultAuthor =
         when (site) {
@@ -316,28 +329,28 @@ internal fun parseExtractedSocialPost(
         val unwrapped =
             rawJsonResult
                 ?.takeIf { it != "null" && it.isNotBlank() }
-                ?.let { JSONArray("[$it]").getString(0) }
+                ?.let { Json.parseToJsonElement(it).jsonPrimitive.contentOrNull }
                 ?: throw IllegalArgumentException("Empty JS result")
-        val obj = JSONObject(unwrapped)
-        val url = obj.optString("url").takeIf { it.isNotBlank() } ?: fallbackUrl
-        val text = obj.optString("text").takeIf { it.isNotBlank() } ?: url
-        val title = obj.optString("title").takeIf { it.isNotBlank() } ?: text.lineSequence().firstOrNull().orEmpty().take(90)
-        val authorName = obj.optString("authorName").takeIf { it.isNotBlank() } ?: defaultAuthor
-        val authorHandle = obj.optString("authorHandle")
-        val avatar = obj.optString("avatar").takeIf { it.isNotBlank() }
-        val mediaArr = obj.optJSONArray("media")
+        val obj = Json.parseToJsonElement(unwrapped).jsonObject
+        val url = obj["url"]?.jsonPrimitive?.contentOrNull.takeIfWebUrl() ?: safeFallbackUrl
+        val text = obj["text"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() } ?: url
+        val title =
+            obj["title"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
+                ?: text.lineSequence().firstOrNull().orEmpty().take(90)
+        val authorName = obj["authorName"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() } ?: defaultAuthor
+        val authorHandle = obj["authorHandle"]?.jsonPrimitive?.contentOrNull.orEmpty()
+        val avatar = obj["avatar"]?.jsonPrimitive?.contentOrNull.takeIfWebUrl()
+        val mediaArr = obj["media"]?.jsonArray
         val mediaList =
             buildList {
-                if (!overrideImageUrl.isNullOrBlank()) add(overrideImageUrl)
-                if (mediaArr != null) {
-                    for (i in 0 until mediaArr.length()) {
-                        val m = mediaArr.optString(i)
-                        if (m.isNotBlank() && m !in this) add(m)
-                    }
+                if (safeOverrideImage != null) add(safeOverrideImage)
+                mediaArr?.forEach { elem ->
+                    val m = elem.jsonPrimitive.contentOrNull.takeIfWebUrl()
+                    if (m != null && m !in this) add(m)
                 }
             }
         ExtractedSocialPost(
-            id = if (!overrideImageUrl.isNullOrBlank()) "$url#$overrideImageUrl" else url,
+            id = if (safeOverrideImage != null) "$url#$safeOverrideImage" else url,
             title = title,
             authorName = authorName,
             authorHandle = authorHandle,
@@ -349,15 +362,15 @@ internal fun parseExtractedSocialPost(
         )
     }.getOrElse {
         ExtractedSocialPost(
-            id = overrideImageUrl ?: fallbackUrl,
+            id = safeOverrideImage ?: safeFallbackUrl,
             title = "$defaultAuthor Post",
             authorName = defaultAuthor,
             authorHandle = "",
             authorAvatarUrl = null,
-            contentText = fallbackUrl,
-            sourceUrl = fallbackUrl,
+            contentText = safeFallbackUrl,
+            sourceUrl = safeFallbackUrl,
             platformId = platformId,
-            mediaUrls = listOfNotNull(overrideImageUrl),
+            mediaUrls = listOfNotNull(safeOverrideImage),
         )
     }
 }

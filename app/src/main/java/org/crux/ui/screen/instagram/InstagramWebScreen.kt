@@ -103,6 +103,7 @@ import org.crux.ui.screen.home.SaveToBookmarkFolderSheet
 import org.crux.ui.screen.home.WebSessionLifecycleSuspender
 import org.crux.ui.screen.home.attachSafeDownloadListener
 import org.crux.ui.screen.home.blockedTrackerResponse
+import org.crux.ui.screen.home.bridgeBookmarkMessage
 import org.crux.ui.screen.home.buildFileChooserIntent
 import org.crux.ui.screen.home.clearSession
 import org.crux.ui.screen.home.computeWebViewCanGoBack
@@ -111,6 +112,7 @@ import org.crux.ui.screen.home.cookieManager
 import org.crux.ui.screen.home.currentUiNightMask
 import org.crux.ui.screen.home.extractPostFromWebView
 import org.crux.ui.screen.home.formatCompactHostPath
+import org.crux.ui.screen.home.generateWebBridgeToken
 import org.crux.ui.screen.home.handleCreateWindow
 import org.crux.ui.screen.home.handleMainFrameUrlOverride
 import org.crux.ui.screen.home.isExternalOAuthUrl
@@ -118,6 +120,7 @@ import org.crux.ui.screen.home.navigateWebViewBackOrEscapeOAuth
 import org.crux.ui.screen.home.openInSystemBrowser
 import org.crux.ui.screen.home.parseFileChooserActivityResult
 import org.crux.ui.screen.home.restoreUiModeNightMaskIfNeeded
+import org.crux.ui.screen.home.sanitizeSiteInitialUrl
 import org.crux.ui.screen.home.useProfileOf
 
 private const val INSTAGRAM_HOME_URL = "https://www.instagram.com"
@@ -135,8 +138,8 @@ internal fun isAdOrTrackingUrl(url: String): Boolean {
 
 internal fun extractInstagramProfile(url: String): String? {
     val uri = runCatching { Uri.parse(url) }.getOrNull() ?: return null
-    val host = uri.host?.lowercase().orEmpty()
-    if (!host.endsWith("instagram.com")) return null
+    val host = uri.host?.lowercase()?.trimEnd('.').orEmpty()
+    if (host != "instagram.com" && !host.endsWith(".instagram.com")) return null
     val segments = uri.pathSegments ?: return null
     if (segments.isEmpty()) return null
     val first = segments[0].lowercase()
@@ -179,13 +182,10 @@ internal fun InstagramWebScreen(
     val scope = rememberCoroutineScope()
     val targetUrl =
         remember(initialUrl, forSignIn) {
-            val clean = initialUrl?.trim()
-            if (!clean.isNullOrEmpty() && (clean.startsWith("http://") || clean.startsWith("https://"))) {
-                clean
-            } else {
-                LiveWebSite.Instagram.startUrlForSession()
-            }
+            sanitizeSiteInitialUrl(LiveWebSite.Instagram, initialUrl)
         }
+    val bridgeToken = remember { generateWebBridgeToken() }
+    val bookmarkBridgeMsg = remember(bridgeToken) { bridgeBookmarkMessage(bridgeToken) }
     val webViewState = rememberWebViewState(targetUrl)
     val pages = LocalLiveWebPages.current
     val connections = LocalCruxConnections.current
@@ -537,13 +537,13 @@ internal fun InstagramWebScreen(
                         databaseEnabled = true
                         mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
                         allowFileAccess = false
-                        allowContentAccess = true
+                        allowContentAccess = false
                         setGeolocationEnabled(false)
                         @Suppress("DEPRECATION")
                         setAllowFileAccessFromFileURLs(false)
                         @Suppress("DEPRECATION")
                         setAllowUniversalAccessFromFileURLs(false)
-                        javaScriptCanOpenWindowsAutomatically = true
+                        javaScriptCanOpenWindowsAutomatically = false
                         setSupportMultipleWindows(true)
                         mediaPlaybackRequiresUserGesture = config.blockAutoplay
                         @Suppress("DEPRECATION")
@@ -568,8 +568,12 @@ internal fun InstagramWebScreen(
                         setAcceptThirdPartyCookies(view, acceptThirdParty)
                     }
                     if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
-                        config.documentStartScripts(LiveWebSite.Instagram).forEach { script ->
-                            WebViewCompat.addDocumentStartJavaScript(view, script, setOf("*"))
+                        config.documentStartScripts(LiveWebSite.Instagram, bridgeToken).forEach { script ->
+                            WebViewCompat.addDocumentStartJavaScript(
+                                view,
+                                script,
+                                LiveWebSite.Instagram.documentStartOriginRules,
+                            )
                         }
                     }
                     configureWebViewHeadersAndDarkening(view.settings)
@@ -658,8 +662,12 @@ internal fun InstagramWebScreen(
                                     canGoBack = computeWebViewCanGoBack(view.canGoBack(), it)
                                 }
                                 isPageLoading = false
-                                if (!WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
-                                    config.documentStartScripts(LiveWebSite.Instagram).forEach { script ->
+                                if (
+                                    !WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT) &&
+                                    !isExternalOAuthUrl(committed) &&
+                                    LiveWebSite.Instagram.allows(runCatching { java.net.URI(committed.orEmpty()).host }.getOrNull())
+                                ) {
+                                    config.documentStartScripts(LiveWebSite.Instagram, bridgeToken).forEach { script ->
                                         view.evaluateJavascript(script, null)
                                     }
                                 }
@@ -680,7 +688,7 @@ internal fun InstagramWebScreen(
                             ): Boolean = handleCreateWindow(view, LiveWebSite.Instagram, config, isUserGesture, resultMsg)
 
                             override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
-                                if (consoleMessage?.message() == "__crux_bm_tap__") {
+                                if (consoleMessage?.message() == bookmarkBridgeMsg) {
                                     view.post {
                                         extractPostFromWebView(LiveWebSite.Instagram, view) { extracted ->
                                             pendingBookmarkPost = extracted

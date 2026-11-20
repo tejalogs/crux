@@ -840,7 +840,7 @@ private val ENGINE_JS =
             }
             if(lastPtrState!==allow){
               lastPtrState=allow;
-              console.debug(allow?'__crux_ptr:1':'__crux_ptr:0');
+              console.debug(allow?__BRIDGE_PTR_1__:__BRIDGE_PTR_0__);
             }
           }catch(e){}
         },{capture:true,passive:true});
@@ -854,7 +854,7 @@ private val ENGINE_JS =
           var p=t.closest('article[data-testid="tweet"],shreddit-post,div.feed-shared-update-v2,div[data-id*="activity"],article,[role="article"]');
           if(p){try{p.setAttribute('data-cx-tapped',String(Date.now()));}catch(e){}}
           var bm=t.closest('[data-testid="bookmark"],button[aria-label="Save" i],button[aria-label="Bookmark" i],div[role="button"]:has(svg[aria-label="Save" i]),shreddit-post [slot*="save"]');
-          if(bm){console.debug('__crux_bm_tap__');}
+          if(bm){console.debug(__BRIDGE_BM_TAP__);}
         },{capture:true,passive:true});
       }catch(e){}
       var ensureStyle=function(){
@@ -1036,6 +1036,17 @@ private fun calmMetricsCss(site: LiveWebSite): List<String> =
         }
     }
 
+internal fun bridgeBookmarkMessage(bridgeToken: String = ""): String =
+    if (bridgeToken.isEmpty()) "__crux_bm_tap__" else "__crux_${bridgeToken}_bm_tap__"
+
+internal fun bridgePtrMessage(
+    allow: Boolean,
+    bridgeToken: String = "",
+): String {
+    val suffix = if (allow) "1" else "0"
+    return if (bridgeToken.isEmpty()) "__crux_ptr:$suffix" else "__crux_${bridgeToken}_ptr:$suffix"
+}
+
 /**
  * Builds the one page script for [site] from the tweaks that are on, or null when there is
  * nothing to do. Pure: the same inputs always give the same script.
@@ -1044,6 +1055,7 @@ internal fun buildSiteScript(
     site: LiveWebSite,
     enabled: Set<SiteTweak>,
     hideEngagementCounts: Boolean = false,
+    bridgeToken: String = "",
 ): String? {
     val profile = site.scriptProfile()
     val rules = SiteTweak.forSite(site).filter { it in enabled }.map { it.rule }
@@ -1072,5 +1084,8 @@ internal fun buildSiteScript(
         .replace("__HEADINGLABELS__", escapeJs(labelPattern(headingLabels)))
         .replace("__TABLABELS__", escapeJs(labelPattern(tabLabels)))
         .replace("__PROMPTS__", escapeJs(labelPattern(promptLabels)))
+        .replace("__BRIDGE_BM_TAP__", escapeJs(bridgeBookmarkMessage(bridgeToken)))
+        .replace("__BRIDGE_PTR_0__", escapeJs(bridgePtrMessage(allow = false, bridgeToken = bridgeToken)))
+        .replace("__BRIDGE_PTR_1__", escapeJs(bridgePtrMessage(allow = true, bridgeToken = bridgeToken)))
         .replace("__JS__", js)
 }

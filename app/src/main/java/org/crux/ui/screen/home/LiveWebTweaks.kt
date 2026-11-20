@@ -149,9 +149,12 @@ internal data class LiveWebConfig(
     ): Boolean = shouldBlockHost(site, protection, host)
 
     /** Scripts to run at document start, in order. */
-    fun documentStartScripts(site: LiveWebSite): List<String> =
+    fun documentStartScripts(
+        site: LiveWebSite,
+        bridgeToken: String = "",
+    ): List<String> =
         listOfNotNull(
-            buildSiteScript(site, tweaks, hideEngagementCounts),
+            buildSiteScript(site, tweaks, hideEngagementCounts, bridgeToken),
             gpcScript().takeIf { protection == ProtectionLevel.Strict && sendGpc },
         )
 

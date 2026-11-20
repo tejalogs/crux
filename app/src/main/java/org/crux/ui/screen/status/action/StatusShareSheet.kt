@@ -777,9 +777,10 @@ private fun shareBitmapAsImage(
     if (bitmap.width <= 0 || bitmap.height <= 0) {
         return null
     }
+    val shareDir = File(context.cacheDir, "share").apply { mkdirs() }
     val file =
         File(
-            context.cacheDir,
+            shareDir,
             "status_share_${MediaFileNamePolicy.sanitizeFileName(statusKey)}_${System.currentTimeMillis()}.png",
         )
     FileOutputStream(file).use {

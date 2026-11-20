@@ -78,13 +78,29 @@ class AppUriHandlerTest {
     fun handlesActivityLaunchErrorsButDoesNotHideProgrammingErrors() {
         var failures = 0
         listOf(ActivityNotFoundException(), SecurityException()).forEach { failure ->
-            AppUriHandler(uriHandler { throw failure }) { failures++ }.openUri("custom://post")
+            AppUriHandler(uriHandler { throw failure }) { failures++ }.openUri("https://example.com/post")
         }
         assertEquals(2, failures)
 
         val handler = AppUriHandler(uriHandler { error("Unexpected failure") }) { failures++ }
-        assertThrows(IllegalStateException::class.java) { handler.openUri("custom://post") }
+        assertThrows(IllegalStateException::class.java) { handler.openUri("https://example.com/post") }
         assertEquals(2, failures)
+    }
+
+    @Test
+    fun blocksDangerousNonWebSchemesBeforeLaunching() {
+        var failures = 0
+        val handler = AppUriHandler(uriHandler { error("Must not launch dangerous scheme") }) { failures++ }
+        val dangerous =
+            listOf(
+                "file:///data/data/org.crux.social/files/.master_vault.key",
+                "content://org.crux.social.provider/cache/updates/crux-update.apk",
+                "intent://evil/#Intent;scheme=https;end",
+                "javascript:alert(1)",
+                "custom://untrusted",
+            )
+        dangerous.forEach(handler::openUri)
+        assertEquals(dangerous.size, failures)
     }
 
     private fun uriHandler(open: (String) -> Unit): UriHandler =

@@ -1,9 +1,17 @@
 package org.crux.ui.screen.home
 
 import android.content.res.Configuration
+import org.crux.common.downloadToFile
+import org.crux.ui.common.InternalDeeplinkToken
+import org.crux.ui.route.DeeplinkRoute
+import org.crux.ui.route.toUri
+import org.crux.ui.screen.settings.normalizeHardenedBrowserInput
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.File
 
 class LiveWebLinksTest {
     @Test
@@ -331,5 +339,90 @@ class LiveWebLinksTest {
         assertNull(formatCompactHostPath("about:blank"))
         assertNull(formatCompactHostPath(""))
         assertNull(formatCompactHostPath(null))
+    }
+
+    @Test
+    fun cleanOutgoingLinkBlocksSchemeSmugglingAndSpoofedLinkedInSuffixes() {
+        val smuggledCrux = "https://l.instagram.com/?u=crux%3A%2F%2Fabcdef"
+        assertEquals(smuggledCrux, cleanOutgoingLink(smuggledCrux))
+
+        val smuggledFile = "https://out.reddit.com/?url=file%3A%2F%2F%2Fetc%2Fpasswd"
+        assertEquals(smuggledFile, cleanOutgoingLink(smuggledFile))
+
+        val spoofedLinkedIn = "https://evillinkedin.com/safety/go?url=https%3A%2F%2Fexample.com"
+        assertEquals(spoofedLinkedIn, cleanOutgoingLink(spoofedLinkedIn))
+    }
+
+    @Test
+    fun sanitizeSiteInitialUrlEnforcesSameSiteHttpsOnly() {
+        assertEquals(
+            "https://www.instagram.com/natgeo/",
+            sanitizeSiteInitialUrl(LiveWebSite.Instagram, "http://www.instagram.com/natgeo/"),
+        )
+        assertEquals(
+            LiveWebSite.Instagram.startUrlForSession(),
+            sanitizeSiteInitialUrl(LiveWebSite.Instagram, "https://evil.example.com/phish"),
+        )
+        assertEquals(
+            LiveWebSite.X.startUrlForSession(),
+            sanitizeSiteInitialUrl(LiveWebSite.X, "javascript:alert(1)"),
+        )
+        assertEquals(
+            LiveWebSite.LinkedIn.startUrlForSession(),
+            sanitizeSiteInitialUrl(LiveWebSite.LinkedIn, "file:///etc/hosts"),
+        )
+    }
+
+    @Test
+    fun hardenedBrowserInputUpgradesHttpAndRejectsNonWebSchemes() {
+        assertEquals("https://example.com/path", normalizeHardenedBrowserInput("http://example.com/path"))
+        assertEquals("https://example.com", normalizeHardenedBrowserInput("example.com"))
+        assertNull(normalizeHardenedBrowserInput("file:///data/local/tmp"))
+        assertNull(normalizeHardenedBrowserInput("javascript://alert(1)"))
+        assertNull(normalizeHardenedBrowserInput("crux://abcdef"))
+    }
+
+    @Test
+    fun externalDeeplinksAllowOnlySafeEntryRoutesAndBlockPrivilegedInternalRoutes() {
+        val composeUri = DeeplinkRoute.Compose.Crux(initialText = "hello").toUri()
+        val loginUri = DeeplinkRoute.Login.toUri()
+        val mediaFileUri = DeeplinkRoute.Media.Image(uri = "file:///data/data/org.crux.social/files/x", previewUrl = null).toUri()
+        val rssInjectUri = DeeplinkRoute.Rss.Detail(url = "http://127.0.0.1/", descriptionHtml = "<b>spoof</b>").toUri()
+        val openDirectUri = DeeplinkRoute.OpenLinkDirectly(url = "https://evil.example").toUri()
+
+        assertTrue(InternalDeeplinkToken.isAllowedDeeplink(composeUri, isTrustedInternal = false))
+        assertTrue(InternalDeeplinkToken.isAllowedDeeplink(loginUri, isTrustedInternal = false))
+        assertFalse(InternalDeeplinkToken.isAllowedDeeplink(mediaFileUri, isTrustedInternal = false))
+        assertFalse(InternalDeeplinkToken.isAllowedDeeplink(rssInjectUri, isTrustedInternal = false))
+        assertFalse(InternalDeeplinkToken.isAllowedDeeplink(openDirectUri, isTrustedInternal = false))
+
+        // Trusted in-process stamped intents continue to work for internal navigation.
+        assertTrue(InternalDeeplinkToken.isAllowedDeeplink(mediaFileUri, isTrustedInternal = true))
+        assertTrue(InternalDeeplinkToken.isAllowedDeeplink(rssInjectUri, isTrustedInternal = true))
+        assertTrue(InternalDeeplinkToken.isAllowedDeeplink(openDirectUri, isTrustedInternal = true))
+    }
+
+    @Test
+    fun bookmarkExtractionStripsNonHttpSchemesFromUrlAvatarAndMedia() {
+        val raw =
+            "\"{\\\"title\\\":\\\"Post\\\",\\\"authorName\\\":\\\"Alice\\\",\\\"authorHandle\\\":\\\"@alice\\\"," +
+                "\\\"avatar\\\":\\\"file:///etc/passwd\\\",\\\"text\\\":\\\"Body\\\"," +
+                "\\\"url\\\":\\\"javascript:alert(1)\\\",\\\"media\\\":[\\\"file:///a.png\\\",\\\"https://pbs.twimg.com/img.jpg\\\"]}\""
+        val parsed = parseExtractedSocialPost(LiveWebSite.X, raw, "https://x.com/alice/status/1")
+        assertEquals("https://x.com/alice/status/1", parsed.sourceUrl)
+        assertNull(parsed.authorAvatarUrl)
+        assertEquals(listOf("https://pbs.twimg.com/img.jpg"), parsed.mediaUrls)
+    }
+
+    @Test
+    fun mediaShareDownloaderRefusesFileAndLoopbackUrls() {
+        val out = File.createTempFile("crux-share-test", ".tmp")
+        try {
+            assertFalse(downloadToFile("file:///etc/hosts", out, null))
+            assertFalse(downloadToFile("http://127.0.0.1:8080/secret.png", out, null))
+            assertFalse(downloadToFile("http://169.254.169.254/latest/meta-data/", out, null))
+        } finally {
+            out.delete()
+        }
     }
 }

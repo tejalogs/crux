@@ -208,6 +208,20 @@ internal enum class LiveWebSite(
     }
 
     /**
+     * Strict origin rules for `WebViewCompat.addDocumentStartJavaScript` so site tweak scripts
+     * only run on the platform's own HTTPS origins — never on Google/Apple OAuth, CAPTCHAs, or
+     * third-party iframes.
+     */
+    val documentStartOriginRules: Set<String>
+        get() =
+            when (this) {
+                Instagram -> setOf("https://instagram.com", "https://*.instagram.com")
+                LinkedIn -> setOf("https://linkedin.com", "https://*.linkedin.com")
+                X -> setOf("https://x.com", "https://*.x.com", "https://twitter.com", "https://*.twitter.com")
+                Reddit -> setOf("https://reddit.com", "https://*.reddit.com")
+            }
+
+    /**
      * Initial URL to load when opening a tab or standalone screen for this site.
      * Signed-out accounts (X, Instagram, LinkedIn) open their direct login flow so they never stall
      * on splash screens or broken signed-out root pages; Reddit opens `/new/` because it works signed out.

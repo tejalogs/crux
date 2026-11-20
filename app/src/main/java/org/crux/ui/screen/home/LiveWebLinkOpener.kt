@@ -7,6 +7,7 @@ import android.provider.Browser
 import android.widget.Toast
 import androidx.core.net.toUri
 import org.crux.R
+import org.crux.ui.common.InternalDeeplinkToken
 import org.crux.ui.route.DeeplinkRoute
 import org.crux.ui.route.Route
 import org.crux.ui.route.toUri
@@ -259,15 +260,20 @@ internal fun openLinkOutsideWebView(
         when (val target = resolveLinkTarget(url, clean)) {
             is LinkTarget.LiveWebScreen -> {
                 val link = target.route.initialLink() ?: url
-                Intent(Intent.ACTION_VIEW, DeeplinkRoute.OpenLinkDirectly(link).toUri().toUri()).setPackage(context.packageName)
+                InternalDeeplinkToken.stamp(
+                    Intent(Intent.ACTION_VIEW, DeeplinkRoute.OpenLinkDirectly(link).toUri().toUri())
+                        .setPackage(context.packageName),
+                )
             }
 
             is LinkTarget.SystemBrowser -> {
                 if (openInReader && isReaderEligibleUrl(target.url)) {
-                    Intent(
-                        Intent.ACTION_VIEW,
-                        DeeplinkRoute.Rss.Detail(url = target.url).toUri().toUri(),
-                    ).setPackage(context.packageName)
+                    InternalDeeplinkToken.stamp(
+                        Intent(
+                            Intent.ACTION_VIEW,
+                            DeeplinkRoute.Rss.Detail(url = target.url).toUri().toUri(),
+                        ).setPackage(context.packageName),
+                    )
                 } else {
                     Intent(Intent.ACTION_VIEW, target.url.toUri())
                         .putExtra(Browser.EXTRA_APPLICATION_ID, context.packageName)
@@ -303,6 +309,12 @@ internal fun openInSystemBrowser(
     url: String,
 ) {
     val link = cleanOutgoingLink(url.trim())
+    val parsed = runCatching { URI(link) }.getOrNull()
+    val scheme = parsed?.scheme?.lowercase()
+    if ((scheme != "https" && scheme != "http") || parsed.host.isNullOrBlank()) {
+        Toast.makeText(context, R.string.unable_to_open_link, Toast.LENGTH_SHORT).show()
+        return
+    }
     try {
         context.startActivity(
             Intent(Intent.ACTION_VIEW, link.toUri())

@@ -35,6 +35,8 @@ import org.crux.ui.model.onLoading
 import org.crux.ui.model.onSuccess
 import org.crux.ui.presenter.home.rss.ImportOPMLPresenter
 import org.crux.ui.theme.screenHorizontalPadding
+import java.io.ByteArrayOutputStream
+import java.io.IOException
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -95,6 +97,33 @@ internal fun OPMLImportSheet(
     }
 }
 
+private const val MAX_OPML_IMPORT_BYTES = 5 * 1024 * 1024
+
+internal fun readBoundedOpmlText(
+    context: Context,
+    uri: Uri,
+    maxBytes: Int = MAX_OPML_IMPORT_BYTES,
+): String {
+    if (!uri.scheme.equals("content", ignoreCase = true)) {
+        throw SecurityException("Only content:// OPML documents are supported.")
+    }
+    return context.contentResolver.openInputStream(uri)?.use { input ->
+        val out = ByteArrayOutputStream()
+        val buffer = ByteArray(8192)
+        var total = 0
+        while (true) {
+            val read = input.read(buffer)
+            if (read < 0) break
+            total += read
+            if (total > maxBytes) {
+                throw IOException("OPML file exceeds maximum allowed size (${maxBytes / (1024 * 1024)} MB).")
+            }
+            out.write(buffer, 0, read)
+        }
+        out.toString(Charsets.UTF_8.name())
+    } ?: ""
+}
+
 @Composable
 private fun presenter(
     uri: Uri,
@@ -107,11 +136,9 @@ private fun presenter(
             try {
                 val content =
                     withContext(Dispatchers.IO) {
-                        context.contentResolver.openInputStream(uri)?.use {
-                            it.bufferedReader().readText()
-                        }
+                        readBoundedOpmlText(context, uri)
                     }
-                if (content.isNullOrEmpty()) {
+                if (content.isEmpty()) {
                     UiState.Error(Exception("Empty content"))
                 } else {
                     UiState.Success(content)

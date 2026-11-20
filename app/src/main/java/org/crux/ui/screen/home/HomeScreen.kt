@@ -87,6 +87,7 @@ import org.crux.data.platform.LINKEDIN_PLATFORM_ID
 import org.crux.data.repository.NativeXRemoval
 import org.crux.data.repository.SettingsRepository
 import org.crux.model.AccountType
+import org.crux.ui.common.InternalDeeplinkToken
 import org.crux.ui.common.OnNewIntent
 import org.crux.ui.common.isLoginCallbackDeepLink
 import org.crux.ui.component.AvatarComponent
@@ -200,9 +201,10 @@ internal fun HomeScreen(afterInit: () -> Unit) {
                 }
             OnNewIntent(
                 withOnCreateIntent = true,
-            ) {
-                it.dataString
+            ) { incomingIntent ->
+                incomingIntent.dataString
                     ?.takeUnless { url -> url.isLoginCallbackDeepLink() }
+                    ?.takeIf { url -> InternalDeeplinkToken.isAllowedForIntent(url, incomingIntent) }
                     ?.let { url -> state.deeplinkPresenter.handle(url) }
             }
             LaunchedEffect(Unit) {

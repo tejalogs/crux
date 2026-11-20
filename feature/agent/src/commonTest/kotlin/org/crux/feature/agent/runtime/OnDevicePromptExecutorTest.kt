@@ -31,6 +31,12 @@ class OnDevicePromptExecutorTest {
         assertFalse(OnDevicePromptExecutor.isLoopback("https://cloud.gemma.dev"))
         assertFalse(OnDevicePromptExecutor.isLoopback("http://192.168.1.100:11434"))
         assertFalse(OnDevicePromptExecutor.isLoopback("http://10.0.0.2:11434"))
+        assertFalse(OnDevicePromptExecutor.isLoopback("http://127.evil.example/v1"))
+        assertFalse(OnDevicePromptExecutor.isLoopback("http://127.0.0.1.evil.example/v1"))
+        assertFalse(OnDevicePromptExecutor.isLoopback("http://localhost:80@evil.example/v1"))
+        assertFalse(OnDevicePromptExecutor.isLoopback("http://[::1]@evil.example/v1"))
+        assertFalse(OnDevicePromptExecutor.isLoopback("http://0.0.0.0:11434"))
+        assertFalse(OnDevicePromptExecutor.isLoopback("http://localhost\\@evil.example/"))
         assertFalse(OnDevicePromptExecutor.isLoopback(""))
     }
 

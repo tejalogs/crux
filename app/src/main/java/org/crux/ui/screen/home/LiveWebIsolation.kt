@@ -22,6 +22,7 @@ import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
 import java.net.URI
 import java.net.URLDecoder
+import java.security.SecureRandom
 import org.crux.ui.screen.crux.hasSession
 
 private const val ISOLATION_PREFS = "live_web_isolation"
@@ -229,19 +230,40 @@ private fun queryParam(
         // A malformed escape such as %zz throws; fall back to leaving the link as it was.
         ?.let { runCatching { URLDecoder.decode(it, "UTF-8") }.getOrNull() }
 
+private const val MAX_REDIRECT_UNWRAP_DEPTH = 3
+
 /** Follows the site's click-tracking redirect to the real link, then drops tracking parameters. */
-internal fun cleanOutgoingLink(url: String): String {
+internal fun cleanOutgoingLink(
+    url: String,
+    depth: Int = 0,
+): String {
     val uri = runCatching { URI(url) }.getOrNull() ?: return url
+    val host = uri.host?.lowercase()
     val target =
-        when {
-            uri.host == "l.instagram.com" -> queryParam(uri.rawQuery, "u")
-            uri.host == "out.reddit.com" -> queryParam(uri.rawQuery, "url")
-            uri.host == "l.facebook.com" || uri.host == "lm.facebook.com" -> queryParam(uri.rawQuery, "u")
-            uri.host?.endsWith("linkedin.com") == true &&
-                (uri.path?.startsWith("/safety/go") == true || uri.path?.startsWith("/redir/") == true) -> queryParam(uri.rawQuery, "url")
-            else -> null
+        if (depth < MAX_REDIRECT_UNWRAP_DEPTH) {
+            when {
+                host == "l.instagram.com" -> queryParam(uri.rawQuery, "u")
+                host == "out.reddit.com" -> queryParam(uri.rawQuery, "url")
+                host == "l.facebook.com" || host == "lm.facebook.com" -> queryParam(uri.rawQuery, "u")
+                (host == "linkedin.com" || host?.endsWith(".linkedin.com") == true) &&
+                    (uri.path?.startsWith("/safety/go") == true || uri.path?.startsWith("/redir/") == true) -> {
+                    queryParam(uri.rawQuery, "url")
+                }
+
+                else -> null
+            }
+        } else {
+            null
         }
-    if (target != null) return cleanOutgoingLink(target)
+    if (target != null) {
+        val targetUri = runCatching { URI(target.trim()) }.getOrNull()
+        val targetScheme = targetUri?.scheme?.lowercase()
+        if ((targetScheme == "http" || targetScheme == "https") && !targetUri.host.isNullOrBlank()) {
+            return cleanOutgoingLink(target.trim(), depth + 1)
+        }
+        // Refuse to unwrap into non-web schemes (crux://, file://, intent://, javascript:, etc.).
+        return url
+    }
     val query = uri.rawQuery ?: return url
     val xLink = isXHost(uri.host)
     val kept =
@@ -252,6 +274,32 @@ internal fun cleanOutgoingLink(url: String): String {
     val base = url.substringBefore("?")
     val fragment = uri.rawFragment?.let { "#$it" }.orEmpty()
     return if (kept.isEmpty()) "$base$fragment" else "$base?${kept.joinToString("&")}$fragment"
+}
+
+/**
+ * Validates and upgrades an initial URL intended for a standalone authenticated [site] WebView.
+ * Rejects non-HTTP(S) schemes and hosts outside [site.allows], falling back to [site.startUrlForSession].
+ */
+internal fun sanitizeSiteInitialUrl(
+    site: LiveWebSite,
+    initialUrl: String?,
+): String {
+    val trimmed = initialUrl?.trim().orEmpty()
+    if (trimmed.isEmpty()) return site.startUrlForSession()
+    val uri = runCatching { URI(trimmed) }.getOrNull() ?: return site.startUrlForSession()
+    val scheme = uri.scheme?.lowercase() ?: return site.startUrlForSession()
+    if ((scheme != "https" && scheme != "http") || !site.allows(uri.host)) {
+        return site.startUrlForSession()
+    }
+    return if (scheme == "http") "https://" + trimmed.substringAfter("://") else trimmed
+}
+
+private val bridgeTokenRandom = SecureRandom()
+
+internal fun generateWebBridgeToken(): String {
+    val bytes = ByteArray(16)
+    bridgeTokenRandom.nextBytes(bytes)
+    return bytes.joinToString("") { "%02x".format(it) }
 }
 
 /**

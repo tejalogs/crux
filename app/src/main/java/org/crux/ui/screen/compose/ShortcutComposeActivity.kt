@@ -5,6 +5,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.core.net.toUri
 import org.crux.MainActivity
+import org.crux.ui.common.InternalDeeplinkToken
 import org.crux.ui.route.DeeplinkRoute
 import org.crux.ui.route.toUri
 
@@ -41,14 +42,16 @@ class ShortcutComposeActivity : ComponentActivity() {
                 }
             }
         startActivity(
-            Intent(
-                Intent.ACTION_VIEW,
-                DeeplinkRoute.Compose
-                    .Crux(initialText = text)
-                    .toUri()
-                    .toUri(),
-            ).setClass(this, MainActivity::class.java)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
+            InternalDeeplinkToken.stamp(
+                Intent(
+                    Intent.ACTION_VIEW,
+                    DeeplinkRoute.Compose
+                        .Crux(initialText = text)
+                        .toUri()
+                        .toUri(),
+                ).setClass(this, MainActivity::class.java)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
+            ),
         )
         finish()
     }

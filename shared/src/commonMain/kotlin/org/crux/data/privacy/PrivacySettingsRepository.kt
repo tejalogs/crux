@@ -30,6 +30,9 @@ public class PrivacySettingsRepository internal constructor(
      * half-initialised state; [observe] replaces it as soon as the real value is available.
      */
     private val cached: MutablePrivacyState = MutablePrivacyState()
+    private val loadedState = kotlinx.coroutines.flow.MutableStateFlow(false)
+
+    public val isLoaded: StateFlow<Boolean> = loadedState
 
     public fun settings(): StateFlow<PrivacySettings> = cached.flow
 
@@ -41,8 +44,10 @@ public class PrivacySettingsRepository internal constructor(
                 cached.update(next)
                 // Publish to the synchronous read path the request pipeline uses.
                 PrivacyPolicyCache.install { next }
+                loadedState.value = true
             }
         }
+        loadedState.value = true
     }
 
     /** Loads once, for callers that need the value before the first flow emission. */
@@ -52,6 +57,7 @@ public class PrivacySettingsRepository internal constructor(
             .also {
                 cached.update(it)
                 PrivacyPolicyCache.install { it }
+                loadedState.value = true
             }
 
     /** Persists [settings], then updates the cache so the next request observes it. */

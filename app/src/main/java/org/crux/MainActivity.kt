@@ -111,10 +111,11 @@ class MainActivity : ComponentActivity() {
         setContent {
             val wifiState by wifiStateFlow.collectAsState(false)
             val privacySettings by privacySettingsRepository.settings().collectAsState()
+            val isPrivacyLoaded by privacySettingsRepository.isLoaded.collectAsState()
             val requiresLock = privacySettings.requireAppLock
 
-            LaunchedEffect(requiresLock) {
-                if (requiresLock && !isAppUnlocked) {
+            LaunchedEffect(isPrivacyLoaded, requiresLock) {
+                if (isPrivacyLoaded && requiresLock && !isAppUnlocked) {
                     keepSplashOnScreen = false
                     promptDeviceUnlock()
                 }
@@ -126,7 +127,17 @@ class MainActivity : ComponentActivity() {
             ) {
                 ProvideAndroidMediaSavePicker {
                     ProvideAndroidTimelineMediaActions {
-                        if (requiresLock && !isAppUnlocked) {
+                        if (!isPrivacyLoaded) {
+                            // Hold splash screen & neutral surface until persisted privacy/lock policy loads.
+                            CruxTheme {
+                                Box(
+                                    modifier =
+                                        Modifier
+                                            .fillMaxSize()
+                                            .background(MaterialTheme.colorScheme.background),
+                                )
+                            }
+                        } else if (requiresLock && !isAppUnlocked) {
                             CruxTheme {
                                 Box(
                                     modifier =
@@ -216,7 +227,7 @@ class MainActivity : ComponentActivity() {
         restoreUiModeNightMaskIfNeeded(this, osNightModeMask)
         downloadManager.onResume()
         val privacySettings = privacySettingsRepository.settings().value
-        if (privacySettings.requireAppLock && !isAppUnlocked) {
+        if (privacySettingsRepository.isLoaded.value && privacySettings.requireAppLock && !isAppUnlocked) {
             promptDeviceUnlock()
         }
     }

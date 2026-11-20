@@ -505,16 +505,22 @@ internal class AndroidDownloadManager(
         if (!directory.exists() && !directory.mkdirs()) {
             return false
         }
-        val file = File(directory, fileName)
+        val safeFileName = MediaFileNamePolicy.safeLocalFileName(fileName, fallback = "media")
+        val file = File(directory, safeFileName)
+        val canonicalDir = runCatching { directory.canonicalFile }.getOrNull() ?: return false
+        val canonicalFile = runCatching { file.canonicalFile }.getOrNull() ?: return false
+        if (canonicalFile.parentFile != canonicalDir) {
+            return false
+        }
         val success =
             try {
-                FileOutputStream(file).use(writer)
+                FileOutputStream(canonicalFile).use(writer)
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to write public Downloads output: $file", e)
+                Log.e(TAG, "Failed to write public Downloads output: $canonicalFile", e)
                 false
             }
         if (!success) {
-            file.delete()
+            canonicalFile.delete()
         }
         return success
     }

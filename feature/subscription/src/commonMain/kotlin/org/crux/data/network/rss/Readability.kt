@@ -13,6 +13,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.Serializable
 import moe.tlaster.readability.Readability
+import org.crux.data.network.PublicUrlValidator
 import org.crux.data.network.ktorClient
 import org.crux.data.repository.tryRun
 import org.crux.ui.render.UiDateTime
@@ -28,7 +29,8 @@ internal class Readability(
 ) {
     suspend fun extract(url: String): DocumentData =
         withTimeoutOrNull(15_000) {
-            val response = client.get(url) { expectSuccess = true }
+            val safeUrl = PublicUrlValidator.requireSafePublicHttpUrl(url)
+            val response = client.get(safeUrl) { expectSuccess = true }
             val html = response.decodedBodyText()
             withContext(parserDispatcher) {
                 val article =

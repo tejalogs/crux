@@ -261,6 +261,10 @@ internal class LiveWebPage(
 ) {
     private val appContext = context.applicationContext
     private val privacyCounters = LiveWebPrivacyCounters.get(appContext)
+    private val bridgeToken = generateWebBridgeToken()
+    private val bookmarkBridgeMsg = bridgeBookmarkMessage(bridgeToken)
+    private val ptrDisableBridgeMsg = bridgePtrMessage(allow = false, bridgeToken = bridgeToken)
+    private val ptrEnableBridgeMsg = bridgePtrMessage(allow = true, bridgeToken = bridgeToken)
     private var pendingRestoreScrollY = initialScrollY.coerceAtLeast(0)
 
     var canGoBack by mutableStateOf(false)
@@ -324,7 +328,7 @@ internal class LiveWebPage(
             settings.displayZoomControls = false
             settings.builtInZoomControls = false
             settings.setSupportMultipleWindows(true)
-            settings.javaScriptCanOpenWindowsAutomatically = true
+            settings.javaScriptCanOpenWindowsAutomatically = false
             settings.mediaPlaybackRequiresUserGesture = config.blockAutoplay
             hardenWebSettings(site, config.blockThirdPartyCookies)
             if (site == LiveWebSite.Reddit && SiteTweak.RedditUnblurNsfw in config.tweaks) {
@@ -335,10 +339,10 @@ internal class LiveWebPage(
                     cm.flush()
                 }
             }
-            val documentStartScripts = config.documentStartScripts(site)
+            val documentStartScripts = config.documentStartScripts(site, bridgeToken)
             if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
                 documentStartScripts.forEach { script ->
-                    WebViewCompat.addDocumentStartJavaScript(this, script, setOf("*"))
+                    WebViewCompat.addDocumentStartJavaScript(this, script, site.documentStartOriginRules)
                 }
             }
             configureWebViewHeadersAndDarkening(settings)
@@ -413,9 +417,13 @@ internal class LiveWebPage(
                             view.post { view.loadUrl(site.startUrlForSession()) }
                             return
                         }
-                        // Fallback for WebViews that cannot inject at document start. Each script guards itself.
-                        if (!WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
-                            config.documentStartScripts(site).forEach { view.evaluateJavascript(it, null) }
+                        // Fallback for WebViews that cannot inject at document start. Scope to site's own origins.
+                        if (
+                            !WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT) &&
+                            !isExternalOAuthUrl(url) &&
+                            site.allows(runCatching { java.net.URI(url.orEmpty()).host }.getOrNull())
+                        ) {
+                            config.documentStartScripts(site, bridgeToken).forEach { view.evaluateJavascript(it, null) }
                         }
                         val scrollToRestore = pendingRestoreScrollY
                         if (scrollToRestore > 0) {
@@ -488,19 +496,19 @@ internal class LiveWebPage(
 
                     override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
                         when (consoleMessage?.message()) {
-                            "__crux_bm_tap__" -> {
+                            bookmarkBridgeMsg -> {
                                 this@LiveWebPage.webView.post {
                                     onNativeBookmarkTap?.invoke()
                                 }
                                 return true
                             }
 
-                            "__crux_ptr:0" -> {
+                            ptrDisableBridgeMsg -> {
                                 canPullToRefresh = false
                                 return true
                             }
 
-                            "__crux_ptr:1" -> {
+                            ptrEnableBridgeMsg -> {
                                 canPullToRefresh = true
                                 return true
                             }
@@ -683,6 +691,7 @@ private fun WebView.hardenWebSettings(
     settings.domStorageEnabled = true
     settings.databaseEnabled = true
     settings.allowFileAccess = false
+    settings.allowContentAccess = false
     settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
         settings.safeBrowsingEnabled = true
@@ -1395,6 +1404,7 @@ internal fun handleCreateWindow(
     isUserGesture: Boolean,
     resultMsg: Message?,
 ): Boolean {
+    if (!isUserGesture) return false
     // Fast path: if the user tapped a link with an explicit target URL, route it directly.
     val hitUrl = parentWebView.hitTestResult.extra
     if (!hitUrl.isNullOrEmpty() && (hitUrl.startsWith("http://") || hitUrl.startsWith("https://"))) {
@@ -1504,6 +1514,15 @@ internal fun handleCreateWindow(
                         site.cookieManager().flush()
                     }
                 }
+            // Guarantee cleanup if the popup never navigates away from about:blank.
+            postDelayed(
+                {
+                    if (parent == null) {
+                        runCatching { destroy() }
+                    }
+                },
+                15_000L,
+            )
         }
     transport.webView = popupWebView
     resultMsg.sendToTarget()

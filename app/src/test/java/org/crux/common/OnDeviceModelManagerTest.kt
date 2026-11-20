@@ -23,6 +23,8 @@ class OnDeviceModelManagerTest {
         for (spec in models) {
             assertTrue("Expected .litertlm filename for ${spec.modelId}", spec.fileName.endsWith(".litertlm"))
             assertTrue("Expected positive size for ${spec.modelId}", spec.downloadSizeBytes > 0L)
+            assertTrue("Expected 64-char hex SHA-256 for ${spec.modelId}", spec.sha256.matches(Regex("^[0-9a-f]{64}$")))
+            assertFalse("Model URL must be pinned to a commit SHA, not /resolve/main/", spec.downloadUrl.contains("/resolve/main/"))
             assertTrue("Untrusted URL for ${spec.modelId}", ModelDownloadNetwork.isTrustedModelUrl(spec.downloadUrl))
             assertEquals(spec, OnDeviceModelSpec.findById(spec.modelId))
             assertEquals(spec, OnDeviceModelSpec.findById(spec.displayName.lowercase()))
@@ -66,15 +68,19 @@ class OnDeviceModelManagerTest {
     }
 
     @Test
-    fun modelStoreValidatesLiteRtLmHeaderAndFinalizesAtomically() {
+    fun modelStoreValidatesLiteRtLmHeaderAndSha256AndFinalizesAtomically() {
         val dir = tempFolder.newFolder("models")
         val store = OnDeviceModelStore(modelsDir = dir, minValidModelBytes = 16L)
-        val spec = OnDeviceModelSpec.Qwen3Compact
+        val payload = "LITERTLM".encodeToByteArray() + ByteArray(24)
+        val part = store.partFile(OnDeviceModelSpec.Qwen3Compact)
+        part.writeBytes(payload)
+        val matchingHash = store.sha256Hex(part)
+        val spec = OnDeviceModelSpec.Qwen3Compact.copy(sha256 = matchingHash)
+        part.delete()
 
         assertEquals(OnDeviceModelState.NotDownloaded(spec, 0L), store.inspectIdleState(spec))
 
-        val part = store.partFile(spec)
-        part.writeBytes("LITERTLM".encodeToByteArray() + ByteArray(24))
+        part.writeBytes(payload)
         assertEquals(32L, store.partialBytes(spec))
         assertNull(store.installedModelFile(spec))
 
@@ -82,6 +88,15 @@ class OnDeviceModelManagerTest {
             store.finalizePartFile(spec, expectedTotalBytes = 64L)
         }
 
+        // Mismatched SHA-256 must fail closed and remove the tampered .part file.
+        val tamperedSpec = spec.copy(sha256 = "0".repeat(64))
+        assertThrows(IOException::class.java) {
+            store.finalizePartFile(tamperedSpec, expectedTotalBytes = 32L)
+        }
+        assertFalse(part.exists())
+
+        // Matching SHA-256 succeeds and finalizes atomically.
+        part.writeBytes(payload)
         val installed = store.finalizePartFile(spec, expectedTotalBytes = 32L)
         assertTrue(installed.exists())
         assertFalse(part.exists())

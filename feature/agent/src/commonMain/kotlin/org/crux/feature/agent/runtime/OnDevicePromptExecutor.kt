@@ -12,10 +12,12 @@ import ai.koog.prompt.llm.LLMProvider
 import ai.koog.prompt.llm.LLModel
 import ai.koog.prompt.message.Message
 import ai.koog.prompt.streaming.StreamFrame
+import io.ktor.http.Url
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.emitAll
 import org.crux.data.datastore.model.AppSettings
+import org.crux.data.network.PublicUrlValidator
 
 /**
  * Sovereign On-Device Prompt Executor for Gemma 4 Edge.
@@ -139,26 +141,35 @@ internal class OnDevicePromptExecutor(
 
     companion object {
         fun isLoopback(endpoint: String): Boolean {
-            val clean = endpoint.trim().lowercase()
-            if (clean.isBlank()) return false
-            val hostAndPort =
-                clean
-                    .removePrefix("http://")
-                    .removePrefix("https://")
-                    .substringBefore('/')
+            val clean = endpoint.trim()
+            if (clean.isEmpty()) return false
+            if (clean.any { it.isWhitespace() || it.code < 0x20 || it == '\\' }) return false
 
-            val host =
-                if (hostAndPort.startsWith('[')) {
-                    hostAndPort.substringAfter('[').substringBefore(']')
+            val candidate =
+                if (clean.contains("://")) {
+                    clean
                 } else {
-                    hostAndPort.substringBefore(':')
+                    "http://$clean"
                 }
+            val parsed = runCatching { Url(candidate) }.getOrNull() ?: return false
+            val scheme = parsed.protocol.name.lowercase()
+            if (scheme != "http" && scheme != "https") return false
+            if (!parsed.user.isNullOrEmpty() || !parsed.password.isNullOrEmpty()) return false
 
-            return host == "localhost" ||
-                host == "127.0.0.1" ||
-                host == "::1" ||
-                host == "0.0.0.0" ||
-                host.startsWith("127.")
+            // Reject raw '@' inside the authority segment so userinfo tricks cannot bypass loopback checks.
+            val authority =
+                candidate
+                    .substringAfter("://")
+                    .substringBefore('/')
+                    .substringBefore('?')
+                    .substringBefore('#')
+            if (authority.contains('@')) return false
+
+            val host = parsed.host.trim().trimStart('[').trimEnd(']').lowercase().trimEnd('.')
+            if (host.isEmpty()) return false
+            if (host == "localhost" || host == "::1" || host == "0:0:0:0:0:0:0:1") return true
+            val ipv4 = PublicUrlValidator.parseStrictIpv4(host) ?: return false
+            return ipv4[0] == 127
         }
     }
 }

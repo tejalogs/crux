@@ -35,6 +35,7 @@ internal sealed interface LinkTarget {
 }
 
 private val WEB_SCHEMES = setOf("http", "https")
+private val SAFE_EXTERNAL_SCHEMES = setOf("mailto", "tel", "sms")
 
 // Feeds often carry links with unescaped spaces or pipes that java.net.URI rejects but browsers accept.
 private val LENIENT_WEB_LINK = Regex("^https?://[^/?#\\s]+.*", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
@@ -73,9 +74,16 @@ internal fun resolveLinkTarget(
             ?: return if (LENIENT_WEB_LINK.matches(link)) LinkTarget.SystemBrowser(link) else LinkTarget.Invalid
     val scheme = uri.scheme?.lowercase()
     if (scheme.isNullOrEmpty()) return LinkTarget.Invalid
-    if (scheme !in WEB_SCHEMES) return LinkTarget.SystemBrowser(link)
+    if (scheme !in WEB_SCHEMES) {
+        return if (scheme in SAFE_EXTERNAL_SCHEMES) LinkTarget.SystemBrowser(link) else LinkTarget.Invalid
+    }
     if (uri.host.isNullOrEmpty()) return LinkTarget.Invalid
     val target = if (clean) cleanOutgoingLink(link) else link
+    val targetUri = runCatching { URI(target) }.getOrNull()
+    val targetScheme = targetUri?.scheme?.lowercase()
+    if (targetScheme !in WEB_SCHEMES || targetUri?.host.isNullOrEmpty()) {
+        return LinkTarget.Invalid
+    }
     liveWebLinkRoute(target)?.let { return LinkTarget.LiveWebScreen(it) }
     return LinkTarget.SystemBrowser(target)
 }

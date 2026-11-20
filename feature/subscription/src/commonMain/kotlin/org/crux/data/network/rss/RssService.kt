@@ -1,33 +1,41 @@
 package org.crux.data.network.rss
 
 import com.fleeksoft.ksoup.Ksoup
-import io.ktor.client.call.body
 import io.ktor.client.request.get
 import io.ktor.client.statement.HttpResponse
+import io.ktor.client.statement.bodyAsChannel
 import io.ktor.http.HttpHeaders
 import io.ktor.http.URLBuilder
 import io.ktor.http.Url
 import io.ktor.http.takeFrom
+import io.ktor.utils.io.readBuffer
+import kotlinx.io.readByteArray
 import kotlinx.serialization.decodeFromString
 import nl.adaptivity.xmlutil.serialization.XML
 import org.crux.data.network.FaviconService
+import org.crux.data.network.PublicUrlValidator
 import org.crux.data.network.ktorClient
 import org.crux.data.network.rss.model.Feed
 import org.crux.data.repository.tryRun
 import org.crux.ui.model.mapper.link
 
+private const val MAX_RSS_RESPONSE_BYTES: Long = 10L * 1024 * 1024
+
 internal object RssService {
     private val client = ktorClient { }
 
     suspend fun fetch(url: String): Feed {
-        val response = client.get(url).decodedText()
+        val safeUrl = PublicUrlValidator.requireSafePublicHttpUrl(url)
+        val response = client.get(safeUrl).decodedText()
         return parseFeedText(response)
     }
 
-    suspend fun detectLinkSources(url: String): List<String> =
-        findFeedLinks(client.get(url).decodedText(), url)
+    suspend fun detectLinkSources(url: String): List<String> {
+        val safeUrl = PublicUrlValidator.requireSafePublicHttpUrl(url)
+        return findFeedLinks(client.get(safeUrl).decodedText(), safeUrl)
             .takeIf { it.isNotEmpty() }
-            ?: throw IllegalArgumentException("No RSS or Atom feeds found at the provided URL: $url")
+            ?: throw IllegalArgumentException("No RSS or Atom feeds found at the provided URL: $safeUrl")
+    }
 
     /**
      * The feed's icon, found from the feed that was already downloaded: its own icon, else the
@@ -56,8 +64,12 @@ internal object RssService {
 }
 
 /** The body as text in the charset the server, the XML declaration or the page's meta tag names. */
-internal suspend fun HttpResponse.decodedBodyText(): String {
-    val bytes = body<ByteArray>()
+internal suspend fun HttpResponse.decodedBodyText(maxBytes: Long = MAX_RSS_RESPONSE_BYTES): String {
+    val packet = bodyAsChannel().readBuffer(maxBytes + 1L)
+    val bytes = packet.readByteArray()
+    if (bytes.size.toLong() > maxBytes) {
+        throw IllegalStateException("Response exceeds maximum allowed size ($maxBytes bytes).")
+    }
     return decodeResponseBody(
         bytes = bytes,
         headerCharset =

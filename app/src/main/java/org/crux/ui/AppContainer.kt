@@ -57,6 +57,7 @@ fun CruxApp(content: @Composable () -> Unit) {
         remember(context, originalUriHandler) {
             AppUriHandler(
                 fallback = originalUriHandler,
+                context = context,
                 onFailure = { Toast.makeText(context, R.string.unable_to_open_link, Toast.LENGTH_SHORT).show() },
                 onLinkCleaned = { original, cleaned ->
                     LiveWebPrivacyCounters.get(context).recordLinkCleaned(original, cleaned)

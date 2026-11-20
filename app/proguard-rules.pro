@@ -115,6 +115,13 @@
 -keep class okio.** { *; }
 -keep class io.github.kdroidfilter.** { *; }
 
+# Strip verbose/debug/info Logcat statements in release builds
+-assumenosideeffects class android.util.Log {
+    public static int v(...);
+    public static int d(...);
+    public static int i(...);
+}
+
 # Suppress harmless build-time warnings
 -dontwarn com.google.auto.value.**
 -dontwarn io.opentelemetry.**

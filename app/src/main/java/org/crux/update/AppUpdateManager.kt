@@ -45,18 +45,40 @@ public object AppUpdateManager {
     @Volatile
     public var pendingPromptUpdate: AppReleaseInfo? = null
 
-    // GitHub serves release assets from github.com and redirects to one of these CDN hosts.
-    private val TRUSTED_DOWNLOAD_HOSTS =
+    private val TRUSTED_CDN_HOSTS =
         setOf(
-            "github.com",
             "objects.githubusercontent.com",
             "release-assets.githubusercontent.com",
         )
+    private const val TRUSTED_REPO_RELEASE_PREFIX = "/tejalogs/crux/releases/download/"
+    private const val TRUSTED_RELEASE_PAGE_PREFIX = "https://github.com/tejalogs/crux/"
     private const val MAX_APK_BYTES = 150L * 1024 * 1024
+    private const val MAX_RELEASE_JSON_BYTES = 1024 * 1024
 
     internal fun isTrustedDownloadUrl(url: String?): Boolean {
-        val parsed = url?.let { runCatching { URL(it) }.getOrNull() } ?: return false
-        return parsed.protocol == "https" && parsed.host.lowercase() in TRUSTED_DOWNLOAD_HOSTS
+        val parsed = url?.trim()?.let { runCatching { URL(it) }.getOrNull() } ?: return false
+        if (!parsed.protocol.equals("https", ignoreCase = true)) return false
+        if (!parsed.userInfo.isNullOrEmpty()) return false
+        val host = parsed.host.lowercase()
+        return when (host) {
+            "github.com" -> parsed.path.startsWith(TRUSTED_REPO_RELEASE_PREFIX)
+            in TRUSTED_CDN_HOSTS -> true
+            else -> false
+        }
+    }
+
+    internal fun sanitizeReleaseUrl(url: String?): String {
+        val candidate = url?.trim() ?: return CruxLinks.RELEASES
+        val parsed = runCatching { URL(candidate) }.getOrNull() ?: return CruxLinks.RELEASES
+        if (
+            parsed.protocol.equals("https", ignoreCase = true) &&
+            parsed.host.equals("github.com", ignoreCase = true) &&
+            parsed.userInfo.isNullOrEmpty() &&
+            candidate.startsWith(TRUSTED_RELEASE_PAGE_PREFIX)
+        ) {
+            return candidate
+        }
+        return CruxLinks.RELEASES
     }
 
     public fun isNewerVersion(
@@ -96,13 +118,28 @@ public object AppUpdateManager {
                     return@withContext UpdateCheckResult.Error("Server returned code ${connection.responseCode}")
                 }
 
-                val responseBody = connection.inputStream.bufferedReader().use { it.readText() }
+                val responseBody =
+                    connection.inputStream.use { input ->
+                        val out = java.io.ByteArrayOutputStream()
+                        val buf = ByteArray(8192)
+                        var total = 0
+                        while (true) {
+                            val read = input.read(buf)
+                            if (read < 0) break
+                            total += read
+                            if (total > MAX_RELEASE_JSON_BYTES) {
+                                error("Release metadata response is unexpectedly large.")
+                            }
+                            out.write(buf, 0, read)
+                        }
+                        out.toString(Charsets.UTF_8.name())
+                    }
                 val json = JSONObject(responseBody)
 
                 val tagName = json.optString("tag_name", "")
                 val name = json.optString("name", tagName)
                 val body = json.optString("body", "No changelog provided.")
-                val htmlUrl = json.optString("html_url", CruxLinks.RELEASES)
+                val htmlUrl = sanitizeReleaseUrl(json.optString("html_url", CruxLinks.RELEASES))
 
                 val assets = json.optJSONArray("assets")
                 var apkUrl: String? = null

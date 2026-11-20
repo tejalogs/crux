@@ -99,4 +99,28 @@ class LogSanitizerTest {
 
         assertEquals(sanitized, LogSanitizer.sanitize(sanitized))
     }
+
+    @Test
+    fun sanitizeRedactsApiKeyHeadersQueryParamsAndDeepLTokens() {
+        val log =
+            """
+            GET https://translation.googleapis.com/language/translate/v2?key=AIzaFakeSecret12345&format=text
+            Authorization: DeepL-Auth-Key deepl-secret:fx
+            X-Api-Key: secret-x-api-key
+            X-Goog-Api-Key: secret-goog-key
+            Inline DeepL-Auth-Key inline-secret:fx token
+            """.trimIndent()
+
+        val sanitized = LogSanitizer.sanitize(log)
+
+        assertFalse(sanitized.contains("AIzaFakeSecret12345"))
+        assertFalse(sanitized.contains("deepl-secret"))
+        assertFalse(sanitized.contains("secret-x-api-key"))
+        assertFalse(sanitized.contains("secret-goog-key"))
+        assertFalse(sanitized.contains("inline-secret"))
+        assertContains(sanitized, "?key=[REDACTED]&format=text")
+        assertContains(sanitized, "X-Api-Key: [REDACTED]")
+        assertContains(sanitized, "X-Goog-Api-Key: [REDACTED]")
+        assertContains(sanitized, "DeepL-Auth-Key [REDACTED]")
+    }
 }

@@ -289,7 +289,16 @@ internal fun LiveWebScreen(
     val context = LocalContext.current
     val pages = LocalLiveWebPages.current
     val connections = LocalCruxConnections.current
-    val customUrl = initialUrl?.takeIf { it.isNotBlank() }
+    val customUrl =
+        remember(site, initialUrl) {
+            initialUrl
+                ?.trim()
+                ?.takeIf { it.isNotEmpty() }
+                ?.let { raw ->
+                    val sanitized = sanitizeSiteInitialUrl(site, raw)
+                    sanitized.takeIf { it != site.startUrlForSession() || raw.equals(it, ignoreCase = true) }
+                }
+        }
     val startUrl =
         remember(site, customUrl, forSignIn) {
             when {

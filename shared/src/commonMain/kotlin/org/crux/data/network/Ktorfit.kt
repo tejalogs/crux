@@ -10,11 +10,13 @@ import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.logging.LogLevel
 import io.ktor.client.plugins.logging.Logging
 import io.ktor.client.request.HttpRequestBuilder
+import io.ktor.http.HttpHeaders
 import kotlinx.serialization.json.Json
 import org.crux.common.BuildConfig
 import org.crux.common.JSON
 import org.crux.data.privacy.installPrivacy
 import org.crux.data.repository.DebugRepository
+import org.crux.data.repository.LogSanitizer
 import kotlin.experimental.ExperimentalObjCRefinement
 import kotlin.native.HiddenFromObjC
 
@@ -57,6 +59,14 @@ public fun ktorClient(
         installPrivacy()
         install(Logging) {
             logger = CruxLogger
+            sanitizeHeader { header ->
+                header.equals(HttpHeaders.Authorization, ignoreCase = true) ||
+                    header.equals(HttpHeaders.Cookie, ignoreCase = true) ||
+                    header.equals(HttpHeaders.SetCookie, ignoreCase = true) ||
+                    header.equals("X-Api-Key", ignoreCase = true) ||
+                    header.equals("X-Goog-Api-Key", ignoreCase = true) ||
+                    header.equals("X-Csrf-Token", ignoreCase = true)
+            }
             filter {
                 (BuildConfig.debug || DebugRepository.isEnabled) && !it.isMediaUpload()
             }
@@ -84,9 +94,10 @@ internal fun HttpRequestBuilder.isMediaUpload(): Boolean {
 
 internal data object CruxLogger : io.ktor.client.plugins.logging.Logger {
     override fun log(message: String) {
+        val sanitized = LogSanitizer.sanitize(message)
         if (BuildConfig.debug) {
-            println(message)
+            println(sanitized)
         }
-        DebugRepository.log(message)
+        DebugRepository.log(sanitized)
     }
 }

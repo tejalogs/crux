@@ -423,7 +423,7 @@ private class GoogleCloudTranslationEngine(
                     httpClient
                         .post {
                             url("https://translation.googleapis.com/language/translate/v2")
-                            parameter("key", config.apiKey)
+                            header("X-Goog-Api-Key", config.apiKey)
                             contentType(ContentType.Application.Json)
                             setBody(
                                 GoogleCloudTranslateV2Request(
