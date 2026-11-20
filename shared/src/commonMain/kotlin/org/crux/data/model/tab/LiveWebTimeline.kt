@@ -61,6 +61,16 @@ public object LiveWebTimelineSpecs {
             loaderFactory = remoteLoaderFactory { NoLiveWebPostsLoader },
         )
 
+    public val mastodon: TimelineSpec<LiveWebTimelineData> =
+        TimelineSpec(
+            id = TimelineSpecIds.WEB_MASTODON,
+            title = UiStrings.List,
+            icon = UiIcon.Mastodon.asType(),
+            serializer = LiveWebTimelineData.serializer(),
+            targetId = { it.site },
+            loaderFactory = remoteLoaderFactory { NoLiveWebPostsLoader },
+        )
+
     public val xCandidate: TimelineCandidate<LiveWebTimelineData> =
         x.candidate(
             data = LiveWebTimelineData("x"),
@@ -87,6 +97,13 @@ public object LiveWebTimelineSpecs {
             data = LiveWebTimelineData("linkedin"),
             title = UiText.Raw("LinkedIn"),
             icon = IconType.Material(UiIcon.LinkedIn),
+        )
+
+    public val mastodonCandidate: TimelineCandidate<LiveWebTimelineData> =
+        mastodon.candidate(
+            data = LiveWebTimelineData("mastodon"),
+            title = UiText.Raw("Mastodon"),
+            icon = IconType.Material(UiIcon.Mastodon),
         )
 }
 

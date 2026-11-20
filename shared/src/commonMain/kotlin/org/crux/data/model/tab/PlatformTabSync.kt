@@ -31,6 +31,7 @@ internal fun platformTabs(): List<PlatformTab> =
         PlatformTab("Instagram", LiveWebTimelineSpecs.instagramCandidate.toUiTimelineTabItem(), "@instagram.com"),
         PlatformTab("LinkedIn", LiveWebTimelineSpecs.linkedinCandidate.toUiTimelineTabItem(), "@linkedin.com"),
         PlatformTab("Reddit", LiveWebTimelineSpecs.redditCandidate.toUiTimelineTabItem()),
+        PlatformTab("Mastodon", LiveWebTimelineSpecs.mastodonCandidate.toUiTimelineTabItem()),
     )
 
 /** The "All RSS" pill, built without the subscription module that owns the spec. */

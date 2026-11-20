@@ -91,6 +91,7 @@ private fun SiteTweak.labelRes(): Int =
         SiteTweak.RedditAi -> R.string.web_tweak_reddit_ai
         SiteTweak.RedditTrending -> R.string.web_tweak_reddit_trending
         SiteTweak.RedditUnblurNsfw -> R.string.web_tweak_reddit_unblur_nsfw
+        SiteTweak.MastodonTrending -> R.string.web_tweak_mastodon_trending
     }
 
 @StringRes

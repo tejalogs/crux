@@ -7,6 +7,8 @@ import java.net.URI
 private val INSTAGRAM_LINK_HOSTS = setOf("instagram.com", "www.instagram.com", "m.instagram.com")
 private val LINKEDIN_LINK_HOSTS = setOf("linkedin.com", "www.linkedin.com", "m.linkedin.com")
 private val X_LINK_HOSTS = setOf("x.com", "www.x.com", "mobile.x.com", "twitter.com", "www.twitter.com", "mobile.twitter.com")
+private val MASTODON_LINK_HOSTS = setOf("mastodon.social")
+
 private val REDDIT_LINK_HOSTS =
     setOf("reddit.com", "www.reddit.com", "old.reddit.com", "new.reddit.com", "m.reddit.com", "np.reddit.com", "redd.it")
 
@@ -53,6 +55,7 @@ internal fun liveWebLinkRoute(url: String): Route? {
         in LINKEDIN_LINK_HOSTS -> Route.LinkedInWeb(initialUrl = link)
         in X_LINK_HOSTS -> Route.LiveWeb(site = LiveWebSite.X.name, initialUrl = link)
         in REDDIT_LINK_HOSTS -> Route.LiveWeb(site = LiveWebSite.Reddit.name, initialUrl = link)
+        in MASTODON_LINK_HOSTS -> Route.LiveWeb(site = LiveWebSite.Mastodon.name, initialUrl = link)
         else -> null
     }
 }

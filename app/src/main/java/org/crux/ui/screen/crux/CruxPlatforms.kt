@@ -19,6 +19,7 @@ import compose.icons.fontawesomeicons.Brands
 import compose.icons.fontawesomeicons.Solid
 import compose.icons.fontawesomeicons.brands.Instagram
 import compose.icons.fontawesomeicons.brands.LinkedinIn
+import compose.icons.fontawesomeicons.brands.Mastodon
 import compose.icons.fontawesomeicons.brands.RedditAlien
 import compose.icons.fontawesomeicons.brands.XTwitter
 import compose.icons.fontawesomeicons.solid.SquareRss
@@ -87,6 +88,16 @@ internal enum class CruxPlatform(
         canPost = true,
         worksSignedOut = true,
     ),
+
+    // Kept last: enabled platforms may be stored by position.
+    Mastodon(
+        displayName = "Mastodon",
+        brandColor = Color(0xFF6364FF),
+        tagline = R.string.crux_platform_mastodon_tagline,
+        site = LiveWebSite.Mastodon,
+        canPost = true,
+        worksSignedOut = true,
+    ),
     ;
 
     val icon: ImageVector
@@ -96,6 +107,7 @@ internal enum class CruxPlatform(
                 Instagram -> FontAwesomeIcons.Brands.Instagram
                 LinkedIn -> FontAwesomeIcons.Brands.LinkedinIn
                 Reddit -> FontAwesomeIcons.Brands.RedditAlien
+                Mastodon -> FontAwesomeIcons.Brands.Mastodon
                 Rss -> FontAwesomeIcons.Solid.SquareRss
             }
 
@@ -106,7 +118,7 @@ internal enum class CruxPlatform(
                 Instagram -> Route.InstagramWeb()
                 LinkedIn -> Route.LinkedInWeb()
                 Rss -> Route.Rss.Sources
-                X, Reddit -> Route.LiveWeb(name)
+                X, Reddit, Mastodon -> Route.LiveWeb(name)
             }
 
     /** Direct sign-in route that opens the platform's login page and auto-returns on completion. */
@@ -118,6 +130,7 @@ internal enum class CruxPlatform(
                 Rss -> Route.Rss.Sources
                 X -> Route.LiveWeb(name, initialUrl = LiveWebSite.X.loginUrl, forSignIn = true)
                 Reddit -> Route.LiveWeb(name, initialUrl = LiveWebSite.Reddit.loginUrl, forSignIn = true)
+                Mastodon -> Route.LiveWeb(name, initialUrl = LiveWebSite.Mastodon.loginUrl, forSignIn = true)
             }
 
     companion object {

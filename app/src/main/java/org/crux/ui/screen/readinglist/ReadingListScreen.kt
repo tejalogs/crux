@@ -778,6 +778,10 @@ private fun openBookmarkSource(
             onNavigate(Route.LiveWeb(site = LiveWebSite.Reddit.name, initialUrl = cleaned))
         }
 
+        LiveWebSite.Mastodon.allows(host) || normPlatform == "mastodon" -> {
+            onNavigate(Route.LiveWeb(site = LiveWebSite.Mastodon.name, initialUrl = cleaned))
+        }
+
         else -> {
             openLinkOutsideWebView(
                 context = context,

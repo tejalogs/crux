@@ -107,6 +107,11 @@ internal fun LiveWebSite.shareUrl(
         LiveWebSite.Instagram -> {
             null
         }
+
+        LiveWebSite.Mastodon -> {
+            val body = listOf(text, url).filter { it.isNotBlank() }.joinToString("\n\n")
+            "https://mastodon.social/share?text=${body.encoded()}"
+        }
     }
 
 private const val REDDIT_TITLE_LIMIT = 300

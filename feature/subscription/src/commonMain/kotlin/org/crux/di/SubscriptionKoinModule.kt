@@ -28,6 +28,7 @@ internal class SubscriptionKoinModule {
                     LiveWebTimelineSpecs.reddit +
                     LiveWebTimelineSpecs.x +
                     LiveWebTimelineSpecs.instagram +
-                    LiveWebTimelineSpecs.linkedin,
+                    LiveWebTimelineSpecs.linkedin +
+                    LiveWebTimelineSpecs.mastodon,
         )
 }

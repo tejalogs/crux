@@ -71,6 +71,7 @@ import compose.icons.fontawesomeicons.Brands
 import compose.icons.fontawesomeicons.Solid
 import compose.icons.fontawesomeicons.brands.Instagram
 import compose.icons.fontawesomeicons.brands.LinkedinIn
+import compose.icons.fontawesomeicons.brands.Mastodon
 import compose.icons.fontawesomeicons.brands.RedditAlien
 import compose.icons.fontawesomeicons.brands.XTwitter
 import compose.icons.fontawesomeicons.solid.Bolt
@@ -119,6 +120,7 @@ internal fun LiveWebSite.bookmarkPlatformId(): String =
         LiveWebSite.Instagram -> "instagram"
         LiveWebSite.LinkedIn -> "linkedin"
         LiveWebSite.Reddit -> "reddit"
+        LiveWebSite.Mastodon -> "mastodon"
     }
 
 /**
@@ -225,6 +227,17 @@ private val EXTRACT_BOOKMARK_POST_SCRIPT =
             if (st.length > longest.length && st !== authorName) longest = st;
           }
           text = longest;
+        } else if (host.indexOf('mastodon.social') !== -1) {
+          var mName = root.querySelector('.display-name__html, .display-name strong');
+          if (mName) authorName = (mName.innerText || '').trim();
+          var mAcct = root.querySelector('.display-name__account');
+          if (mAcct) authorHandle = (mAcct.innerText || '').trim();
+          var mBody = root.querySelector('.status__content__text, .status__content');
+          if (mBody) text = (mBody.innerText || '').trim();
+          var mLink = root.querySelector('a.status__relative-time, a.detailed-status__datetime');
+          if (mLink && mLink.href) link = mLink.href.split('?')[0];
+          var mAv = root.querySelector('.account__avatar img, .status__avatar img');
+          if (mAv && mAv.src) avatar = mAv.src;
         } else if (host.indexOf('linkedin.com') !== -1) {
           var actName = root.querySelector('.update-components-actor__title span[ aria-hidden="true" ], .update-components-actor__name, .feed-shared-actor__name, [data-tracking-control-name*="actor"]');
           if (actName) authorName = (actName.innerText || '').trim().split('\n')[0];
@@ -309,19 +322,6 @@ private fun String?.takeIfWebUrl(): String? {
     return trimmed.takeIf { (scheme == "https" || scheme == "http") && !uri.host.isNullOrBlank() }
 }
 
-internal fun parseExtractedSocialPost(
-    site: LiveWebSite,
-    rawJsonResult: String?,
-    fallbackUrl: String,
-    overrideImageUrl: String? = null,
-): ExtractedSocialPost {
-    val safeFallbackUrl = fallbackUrl.takeIfWebUrl() ?: site.homeUrl
-    val safeOverrideImage = overrideImageUrl.takeIfPublicImageUrl()
-    val platformId = site.bookmarkPlatformId()
-    val defaultAuthor =
-        when (site) {
-            LiveWebSite.X -> "X"
-            LiveWebSite.Instagram -> "Instagram"
 /**
  * Images and avatars are loaded later by the image loader, so a page could otherwise point them
  * at the phone's own network for tracking or probing. Social CDNs use HTTPS host names, never
@@ -337,8 +337,22 @@ internal fun String?.takeIfPublicImageUrl(): String? {
 
 private val LOCAL_SUFFIXES = listOf(".local", ".localhost", ".internal", ".home.arpa", ".lan")
 
+internal fun parseExtractedSocialPost(
+    site: LiveWebSite,
+    rawJsonResult: String?,
+    fallbackUrl: String,
+    overrideImageUrl: String? = null,
+): ExtractedSocialPost {
+    val safeFallbackUrl = fallbackUrl.takeIfWebUrl() ?: site.homeUrl
+    val safeOverrideImage = overrideImageUrl.takeIfPublicImageUrl()
+    val platformId = site.bookmarkPlatformId()
+    val defaultAuthor =
+        when (site) {
+            LiveWebSite.X -> "X"
+            LiveWebSite.Instagram -> "Instagram"
             LiveWebSite.LinkedIn -> "LinkedIn"
             LiveWebSite.Reddit -> "Reddit"
+            LiveWebSite.Mastodon -> "Mastodon"
         }
     return runCatching {
         val unwrapped =
@@ -446,6 +460,11 @@ internal fun SocialPlatformBadge(
                     Brush.linearGradient(listOf(Color(0xFFFF4500), Color(0xFFFF6830)))
             }
 
+            "mastodon" -> {
+                FontAwesomeIcons.Brands.Mastodon to
+                    Brush.linearGradient(listOf(Color(0xFF6364FF), Color(0xFF563ACC)))
+            }
+
             "rss" -> {
                 FontAwesomeIcons.Solid.Rss to
                     Brush.linearGradient(listOf(Color(0xFFF26522), Color(0xFFFF9900)))
@@ -507,6 +526,7 @@ internal fun platformDisplayName(platformId: String): String =
         "instagram" -> "Instagram"
         "linkedin" -> "LinkedIn"
         "reddit" -> "Reddit"
+        "mastodon" -> "Mastodon"
         "rss" -> "RSS Feed"
         else -> platformId.replaceFirstChar { it.uppercase() }
     }

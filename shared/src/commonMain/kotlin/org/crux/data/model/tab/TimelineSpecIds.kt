@@ -14,6 +14,7 @@ public object TimelineSpecIds {
 
     public const val LOCAL_FOLLOWS: String = "local.follows"
     public const val WEB_REDDIT: String = "web.reddit"
+    public const val WEB_MASTODON: String = "web.mastodon"
     public const val WEB_X: String = "web.x"
     public const val WEB_INSTAGRAM: String = "web.instagram"
     public const val WEB_LINKEDIN: String = "web.linkedin"

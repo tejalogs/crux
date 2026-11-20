@@ -648,6 +648,7 @@
     <string name="crux_platform_instagram_tagline">Photos and stories from people you follow.</string>
     <string name="crux_platform_linkedin_tagline">Your professional network and industry news.</string>
     <string name="crux_platform_reddit_tagline">Communities on every topic. Works signed out too.</string>
+    <string name="crux_platform_mastodon_tagline">The open, ad-free social web on mastodon.social. Browse signed out too.</string>
     <string name="crux_platform_rss_tagline">Blogs, newsletters and news sites, in a quiet reader.</string>
     <string name="crux_status_not_added">Not added</string>
     <string name="crux_status_rss">No account needed</string>
@@ -817,6 +818,7 @@
     <string name="web_tweak_reddit_recommended">Hide recommended and \"because you visited\" posts</string>
     <string name="web_tweak_reddit_ai">Hide Reddit Answers &amp; AI summaries</string>
     <string name="web_tweak_reddit_trending">Hide \"Trending Today\"</string>
+    <string name="web_tweak_mastodon_trending">Hide trending hashtags and news</string>
     <string name="web_tweak_reddit_unblur_nsfw">Unblur NSFW previews without prompt</string>
     <string name="web_tweak_reddit_unblur_nsfw_description">On by default so mature previews and 18+ communities load without app-nag walls.</string>
 

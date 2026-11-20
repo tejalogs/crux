@@ -263,7 +263,15 @@ internal fun LiveWebSite.scriptProfile(): SiteScriptProfile =
         LiveWebSite.LinkedIn -> LINKEDIN_PROFILE
         LiveWebSite.X -> X_PROFILE
         LiveWebSite.Reddit -> REDDIT_PROFILE
+        LiveWebSite.Mastodon -> MASTODON_PROFILE
     }
+
+// Mastodon: one article per status; no ads or promoted posts to hide.
+private val MASTODON_PROFILE =
+    SiteScriptProfile(
+        postSelector = "article,.status",
+        labelExcludeSelector = ".status__content",
+    )
 
 private const val IG_APP_PROMPT_JS =
     "document.querySelectorAll('div[role=dialog]').forEach(function(d){" +
@@ -603,6 +611,20 @@ internal val SiteTweak.rule: TweakRule
                             "[id*=\"reddit-answers\"]",
                         ),
                     headingLabels = listOf("Reddit Answers", "Ask Reddit Answers"),
+                )
+            }
+
+            SiteTweak.MastodonTrending -> {
+                TweakRule(
+                    css =
+                        listOf(
+                            ".getting-started__trends",
+                            ".trends",
+                            ".explore__links",
+                            "a[href=\"/explore/tags\"]",
+                            "a[href=\"/explore/links\"]",
+                        ),
+                    headingLabels = listOf("Trending now", "Trending hashtags", "News"),
                 )
             }
 
@@ -1033,6 +1055,10 @@ private fun calmMetricsCss(site: LiveWebSite): List<String> =
 
         LiveWebSite.Reddit -> {
             listOf("[data-testid=\"vote-count\"]", "faceplate-number")
+        }
+
+        LiveWebSite.Mastodon -> {
+            listOf(".status__action-bar .icon-button__counter")
         }
     }
 

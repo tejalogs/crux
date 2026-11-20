@@ -47,6 +47,8 @@ internal enum class SiteTweak(
     RedditAi(LiveWebSite.Reddit),
     RedditTrending(LiveWebSite.Reddit),
     RedditUnblurNsfw(LiveWebSite.Reddit, defaultOn = true),
+
+    MastodonTrending(LiveWebSite.Mastodon),
     ;
 
     companion object {

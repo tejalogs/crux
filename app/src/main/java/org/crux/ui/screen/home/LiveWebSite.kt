@@ -199,6 +199,24 @@ internal enum class LiveWebSite(
         sessionCookies = setOf("reddit_session"),
         pullToRefresh = true,
     ),
+
+    // Kept last: saved settings may store sites by position.
+    Mastodon(
+        // The root opens the home timeline when signed in and the public Explore page when not.
+        homeUrl = "https://mastodon.social/",
+        loginUrl = "https://mastodon.social/auth/sign_in",
+        aiPrivacyUrl = "https://mastodon.social/settings/privacy",
+        tabIdSuffix = "",
+        allowedHosts = setOf("mastodon.social"),
+        // Mastodon runs no ad or analytics trackers.
+        trackerHosts = emptySet(),
+        // Browsable signed out and has no anti-tamper checks, like Reddit.
+        defaultProtection = ProtectionLevel.Strict,
+        cookieDomains = setOf("mastodon.social"),
+        // _session_id is created at sign-in (session activation); visitors only get _mastodon_session.
+        sessionCookies = setOf("_session_id"),
+        pullToRefresh = true,
+    ),
     ;
 
     fun allows(host: String?): Boolean {
@@ -219,6 +237,7 @@ internal enum class LiveWebSite(
                 LinkedIn -> setOf("https://linkedin.com", "https://*.linkedin.com")
                 X -> setOf("https://x.com", "https://*.x.com", "https://twitter.com", "https://*.twitter.com")
                 Reddit -> setOf("https://reddit.com", "https://*.reddit.com")
+                Mastodon -> setOf("https://mastodon.social", "https://*.mastodon.social")
             }
 
     /**

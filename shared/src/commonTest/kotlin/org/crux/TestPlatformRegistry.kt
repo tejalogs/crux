@@ -86,6 +86,7 @@ private val testExtraTimelineSpecs: List<TimelineSpec<out TimelineSpec.Data>> =
         CommonTimelineSpecs.list,
         LiveWebTimelineSpecs.x,
         LiveWebTimelineSpecs.reddit,
+        LiveWebTimelineSpecs.mastodon,
         LiveWebTimelineSpecs.instagram,
         LiveWebTimelineSpecs.linkedin,
         rssTimelineSpec(),

@@ -139,6 +139,10 @@ internal fun liveWebSiteForTabId(id: String): LiveWebSite? =
             LiveWebSite.Reddit
         }
 
+        id.startsWith("${TimelineSpecIds.WEB_MASTODON}:") -> {
+            LiveWebSite.Mastodon
+        }
+
         id.startsWith("${TimelineSpecIds.WEB_INSTAGRAM}:") -> {
             LiveWebSite.Instagram
         }
@@ -634,16 +638,16 @@ internal class LiveWebPage(
 
     /** Same as tapping a feed pill again: back to the top, or reload if already there. */
     fun readPostInView(onResult: (LiveWebPost?) -> Unit) {
-        webView.evaluateJavascript(READ_POST_SCRIPT) { result -> onResult(parseLiveWebPost(result)) }
-    }
-
-    fun scrollToTopOrReload() {
         // Only read posts from the site itself, never from a page it navigated to.
         val host = webView.url?.let { runCatching { java.net.URI(it).host }.getOrNull() }
         if (!site.allows(host)) {
             onResult(null)
             return
         }
+        webView.evaluateJavascript(READ_POST_SCRIPT) { result -> onResult(parseLiveWebPost(result)) }
+    }
+
+    fun scrollToTopOrReload() {
         val nativeScrolled = webView.scrollY > 24 || webView.canScrollVertically(-1)
         webView.evaluateJavascript(
             """

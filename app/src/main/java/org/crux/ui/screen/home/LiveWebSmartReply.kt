@@ -40,8 +40,8 @@ internal const val READ_POST_SCRIPT = """
   if(!best)return '';
   // Reddit wraps each shreddit-post in an article; the details are on the inner element.
   var post=best.querySelector('shreddit-post')||best;
-  var body=post.querySelector('[slot="text-body"],shreddit-post-text-body,[data-testid=tweetText],.update-components-text,.feed-shared-update-v2__description,.attributed-text-segment-list__content');
-  var name=post.querySelector('[data-testid=User-Name],.update-components-actor__title span[aria-hidden="true"],.update-components-actor__name,.feed-shared-actor__name,a[href]');
+  var body=post.querySelector('[slot="text-body"],shreddit-post-text-body,[data-testid=tweetText],.update-components-text,.feed-shared-update-v2__description,.attributed-text-segment-list__content,.status__content__text,.status__content');
+  var name=post.querySelector('[data-testid=User-Name],.update-components-actor__title span[aria-hidden="true"],.update-components-actor__name,.feed-shared-actor__name,.display-name__html,a[href]');
   var title=post.getAttribute('post-title');
   var bodyText=body?clean(body.innerText):'';
   var headline=title?clean(title):'';

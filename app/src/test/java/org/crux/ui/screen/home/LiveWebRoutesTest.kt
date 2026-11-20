@@ -2,7 +2,9 @@ package org.crux.ui.screen.home
 
 import org.crux.ui.route.Route
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class LiveWebRoutesTest {
@@ -47,6 +49,7 @@ class LiveWebRoutesTest {
     fun staticAndLegacyTabIdsResolveToTheirSite() {
         assertEquals(LiveWebSite.X, liveWebSiteForTabId("web.x:x"))
         assertEquals(LiveWebSite.Reddit, liveWebSiteForTabId("web.reddit:reddit"))
+        assertEquals(LiveWebSite.Mastodon, liveWebSiteForTabId("web.mastodon:mastodon"))
         assertEquals(LiveWebSite.Instagram, liveWebSiteForTabId("web.instagram:instagram"))
         assertEquals(LiveWebSite.LinkedIn, liveWebSiteForTabId("web.linkedin:linkedin"))
         // Pills saved before the static ones existed.
@@ -147,4 +150,19 @@ class LiveWebRoutesTest {
             resolveLinkTarget("https://example.com/a b|c"),
         )
     }
+
+    @Test
+    fun mastodonLinksOpenInTheMastodonTabOnly() {
+        assertEquals(
+            Route.LiveWeb(site = LiveWebSite.Mastodon.name, initialUrl = "https://mastodon.social/@Gargron"),
+            liveWebLinkRoute("https://mastodon.social/@Gargron"),
+        )
+        assertTrue(LiveWebSite.Mastodon.allows("files.mastodon.social"))
+        assertFalse(LiveWebSite.Mastodon.allows("mastodon.social.evil.example"))
+        assertEquals(
+            "https://mastodon.social/share?text=Hello%0A%0Ahttps%3A%2F%2Fa.com",
+            LiveWebSite.Mastodon.shareUrl("Hello", "https://a.com"),
+        )
+    }
 }
+
