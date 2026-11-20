@@ -603,17 +603,24 @@ internal class AgentToolsTest {
     fun composeToolPublishesAfterConfirmation() =
         runTest {
             val dataSource = StubComposeDataSource(accountKey = MicroBlogKey("alice", "example.social"))
-            val tool = composePostTool(dataSource)
-
-            val result =
-                tool.execute(
-                    ComposePostTool.Args(
-                        content = "hello from agent",
-                        accountId = "alice",
-                        accountHost = "example.social",
-                        confirmed = true,
-                    ),
+            val store = AgentToolInputRequestStore()
+            val args =
+                ComposePostTool.Args(
+                    content = "hello from agent",
+                    accountId = "alice",
+                    accountHost = "example.social",
                 )
+            val payload = confirmPayload(store) { composePostTool(dataSource, store).execute(args) }
+            assertFalse(dataSource.composed)
+
+            // The model alone claiming confirmation must not post.
+            composePostTool(dataSource).execute(args.copy(confirmed = true))
+            assertFalse(dataSource.composed)
+            // Nor may it swap the text after the user confirmed.
+            composePostTool(dataSource, userPrompt = payload).execute(args.copy(content = "injected", confirmed = true))
+            assertFalse(dataSource.composed)
+
+            val result = composePostTool(dataSource, userPrompt = payload).execute(args.copy(confirmed = true))
 
             assertTrue(result.contains("Post sent successfully."))
             assertTrue(dataSource.composed)
@@ -661,29 +668,30 @@ internal class AgentToolsTest {
         runTest {
             val targetPost = createPost(statusKey = MicroBlogKey("post-quote", "example.social"))
             val dataSource = StubComposeDataSource(accountKey = MicroBlogKey("alice", "example.social"))
-            val tool =
-                composePostTool(
-                    dataSource = dataSource,
-                    status =
-                        AgentToolContext.StatusContext(
-                            postDataSource = StubPostDataSource,
-                            statusKey = targetPost.statusKey,
-                            currentPlatformId = "Mastodon",
-                            currentPost = targetPost,
-                        ),
+            val status =
+                AgentToolContext.StatusContext(
+                    postDataSource = StubPostDataSource,
+                    statusKey = targetPost.statusKey,
+                    currentPlatformId = "Mastodon",
+                    currentPost = targetPost,
                 )
+            val args =
+                ComposePostTool.Args(
+                    content = "quote from agent",
+                    action = "quote",
+                    accountId = "alice",
+                    accountHost = "example.social",
+                    useCurrentStatus = true,
+                )
+            val store = AgentToolInputRequestStore()
+            val payload =
+                confirmPayload(store) {
+                    composePostTool(dataSource = dataSource, inputRequestStore = store, status = status).execute(args)
+                }
 
             val result =
-                tool.execute(
-                    ComposePostTool.Args(
-                        content = "quote from agent",
-                        action = "quote",
-                        accountId = "alice",
-                        accountHost = "example.social",
-                        useCurrentStatus = true,
-                        confirmed = true,
-                    ),
-                )
+                composePostTool(dataSource = dataSource, status = status, userPrompt = payload)
+                    .execute(args.copy(confirmed = true))
 
             assertTrue(result.contains("Post sent successfully."))
             assertTrue(dataSource.composed)
@@ -751,7 +759,7 @@ internal class AgentToolsTest {
     }
 
     @Test
-    fun listPostActionsFiltersUiAndTranslateActions() =
+    fun listPostActionsFiltersUiActions() =
         runTest {
             val accountKey = MicroBlogKey("alice", "example.social")
             val targetPost =
@@ -771,7 +779,7 @@ internal class AgentToolsTest {
                                 accountKey = accountKey,
                             ),
                             ActionMenu.Item(
-                                text = ActionMenu.Item.Text.Localized(ActionMenu.Item.Text.Localized.Type.Translate),
+                                text = ActionMenu.Item.Text.Localized(ActionMenu.Item.Text.Localized.Type.More),
                                 clickEvent = ClickEvent.Noop,
                             ),
                             ActionMenu.Item(
@@ -794,7 +802,7 @@ internal class AgentToolsTest {
             val result = tool.execute(ListPostActionsTool.Args(useCurrentStatus = true))
 
             assertTrue(result.contains("actionName=Like"))
-            assertFalse(result.contains("Translate"))
+            assertFalse(result.contains("actionName=More"))
             assertFalse(result.contains("Share"))
             val request = assertNotNull(inputRequestStore.snapshot())
             assertEquals(1, request.options.size)
@@ -881,25 +889,28 @@ internal class AgentToolsTest {
                         ),
                 )
             val handledEvents = mutableListOf<PostEvent>()
-            val tool =
-                ExecutePostActionTool(
-                    session =
-                        postActionSession(
-                            post = targetPost,
-                            dataSource = StubPostActionDataSource,
-                            accountKey = accountKey,
-                        ),
-                    actionHandler = { _, postEvent -> handledEvents += postEvent },
-                )
-
-            val result =
-                tool.execute(
-                    ExecutePostActionTool.Args(
-                        actionName = "bookmark",
-                        useCurrentStatus = true,
-                        confirmed = true,
+            fun tool(
+                store: AgentToolInputRequestStore = AgentToolInputRequestStore(),
+                userPrompt: String = "",
+            ) = ExecutePostActionTool(
+                session =
+                    postActionSession(
+                        post = targetPost,
+                        dataSource = StubPostActionDataSource,
+                        accountKey = accountKey,
+                        inputRequestStore = store,
+                        userPrompt = userPrompt,
                     ),
-                )
+                actionHandler = { _, postEvent -> handledEvents += postEvent },
+            )
+            val args = ExecutePostActionTool.Args(actionName = "bookmark", useCurrentStatus = true)
+            val store = AgentToolInputRequestStore()
+            val payload = confirmPayload(store) { tool(store).execute(args) }
+
+            tool().execute(args.copy(confirmed = true))
+            assertTrue(handledEvents.isEmpty())
+
+            val result = tool(userPrompt = payload).execute(args.copy(confirmed = true))
 
             assertTrue(result.contains("Post action executed successfully."))
             assertEquals(listOf<PostEvent>(event), handledEvents)
@@ -1023,23 +1034,28 @@ internal class AgentToolsTest {
                     supportedTypes = setOf(RelationActionType.Follow),
                 )
             val handledActions = mutableListOf<Pair<RelationAction, MicroBlogKey>>()
-            val tool =
-                ExecuteRelationActionTool(
-                    session = relationSession(dataSource = dataSource),
-                    actionHandler = { _, action, targetUserKey, _ -> handledActions += action to targetUserKey },
+            fun tool(
+                store: AgentToolInputRequestStore = AgentToolInputRequestStore(),
+                userPrompt: String = "",
+            ) = ExecuteRelationActionTool(
+                session = relationSession(dataSource = dataSource, inputRequestStore = store, userPrompt = userPrompt),
+                actionHandler = { _, action, targetUserKey, _ -> handledActions += action to targetUserKey },
+            )
+            val args =
+                ExecuteRelationActionTool.Args(
+                    action = "unfollow",
+                    targetUserId = userKey.id,
+                    targetUserHost = userKey.host,
+                    accountId = accountKey.id,
+                    accountHost = accountKey.host,
                 )
+            val store = AgentToolInputRequestStore()
+            val payload = confirmPayload(store) { tool(store).execute(args) }
 
-            val result =
-                tool.execute(
-                    ExecuteRelationActionTool.Args(
-                        action = "unfollow",
-                        targetUserId = userKey.id,
-                        targetUserHost = userKey.host,
-                        accountId = accountKey.id,
-                        accountHost = accountKey.host,
-                        confirmed = true,
-                    ),
-                )
+            tool().execute(args.copy(confirmed = true))
+            assertTrue(handledActions.isEmpty())
+
+            val result = tool(userPrompt = payload).execute(args.copy(confirmed = true))
 
             assertTrue(result.contains("Relation action submitted."))
             assertEquals(listOf(RelationAction.Unfollow to userKey), handledActions)
@@ -1280,6 +1296,7 @@ internal class AgentToolsTest {
     private fun composePostTool(
         dataSource: StubComposeDataSource,
         inputRequestStore: AgentToolInputRequestStore = AgentToolInputRequestStore(),
+        userPrompt: String = "",
         messagePartStore: AgentToolMessagePartStore = AgentToolMessagePartStore(),
         status: AgentToolContext.StatusContext? = null,
     ): ComposePostTool =
@@ -1299,6 +1316,7 @@ internal class AgentToolsTest {
                 userTargets = emptyList(),
                 messagePartStore = messagePartStore,
                 inputRequestStore = inputRequestStore,
+                userPrompt = userPrompt,
             ),
         )
 }
@@ -1454,6 +1472,7 @@ private fun postActionSession(
     dataSource: PostDataSource,
     accountKey: MicroBlogKey,
     inputRequestStore: AgentToolInputRequestStore = AgentToolInputRequestStore(),
+    userPrompt: String = "",
 ): AgentToolSession =
     AgentToolSession(
         status =
@@ -1476,12 +1495,14 @@ private fun postActionSession(
         userTargets = emptyList(),
         messagePartStore = AgentToolMessagePartStore(),
         inputRequestStore = inputRequestStore,
+        userPrompt = userPrompt,
     )
 
 private fun relationSession(
     dataSource: StubRelationDataSource,
     messagePartStore: AgentToolMessagePartStore = AgentToolMessagePartStore(),
     inputRequestStore: AgentToolInputRequestStore = AgentToolInputRequestStore(),
+    userPrompt: String = "",
 ): AgentToolSession =
     AgentToolSession(
         status = null,
@@ -1499,7 +1520,14 @@ private fun relationSession(
         userTargets = emptyList(),
         messagePartStore = messagePartStore,
         inputRequestStore = inputRequestStore,
+        userPrompt = userPrompt,
     )
+
+/** Runs [first] unconfirmed and returns the confirm button payload the tool offered. */
+private suspend fun confirmPayload(store: AgentToolInputRequestStore, first: suspend () -> Unit): String {
+    first()
+    return assertNotNull(store.snapshot()).options.first { it.id == "confirm" }.value.trim()
+}
 
 private fun subscriptionSession(
     dataSource: SubscriptionDataSource,

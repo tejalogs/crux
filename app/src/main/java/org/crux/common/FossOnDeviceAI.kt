@@ -3,7 +3,6 @@ package org.crux.common
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import org.crux.data.ai.SovereignOnDeviceSummarizer
-import org.crux.data.ai.SovereignOnDeviceTranslator
 import org.koin.core.annotation.Single
 
 @Single(binds = [OnDeviceAI::class])
@@ -56,60 +55,6 @@ internal class FossOnDeviceAI(
         )
     }
 
-    override suspend fun translate(
-        source: String,
-        targetLanguage: String,
-        prompt: String,
-    ): String? {
-        val trimmed = source.trim()
-        if (trimmed.isEmpty()) return null
-
-        if (liteRtLmRuntime.hasInstalledModel()) {
-            if (prompt.contains("[INSIGHT]:") || prompt.contains("OUTPUT FORMAT:")) {
-                liteRtLmRuntime
-                    .generate(
-                        prompt = prompt,
-                        systemPrompt = SMART_REPLY_SYSTEM_PROMPT,
-                        maxOutputTokens = 320,
-                        temperature = 0.75,
-                    )?.let { return it }
-            } else {
-                val effectivePrompt =
-                    when {
-                        prompt.isBlank() -> {
-                            "Translate the following text into natural $targetLanguage. Output ONLY the translation:\n\n$trimmed"
-                        }
-
-                        prompt.contains(trimmed.take(32)) -> {
-                            prompt
-                        }
-
-                        else -> {
-                            "$prompt\n\n$trimmed"
-                        }
-                    }
-                val generated =
-                    liteRtLmRuntime
-                        .generate(
-                            prompt = effectivePrompt,
-                            systemPrompt = TRANSLATE_SYSTEM_PROMPT,
-                            maxOutputTokens = 1024,
-                            temperature = 0.2,
-                        )?.let(::stripMarkdownCodeFences)
-
-                if (!generated.isNullOrBlank()) {
-                    val expectsTemplateMarkers = trimmed.contains("<<<") || trimmed.contains("{{T")
-                    val preservedTemplateMarkers = !expectsTemplateMarkers || generated.contains("<<<") || generated.contains("{{T")
-                    if (preservedTemplateMarkers) {
-                        return generated
-                    }
-                }
-            }
-        }
-
-        return SovereignOnDeviceTranslator.translate(trimmed, targetLanguage, prompt)
-    }
-
     override suspend fun tldr(
         source: String,
         targetLanguage: String,
@@ -140,22 +85,11 @@ internal class FossOnDeviceAI(
         return SovereignOnDeviceSummarizer.summarize(trimmed, targetLanguage)
     }
 
-    private fun stripMarkdownCodeFences(raw: String): String =
-        raw
-            .trim()
-            .removePrefix("```json")
-            .removePrefix("```text")
-            .removePrefix("```")
-            .removeSuffix("```")
-            .trim()
-
     companion object {
         private const val DEFAULT_ASSISTANT_SYSTEM_PROMPT =
             "You are Crux's private on-device AI assistant running locally. Be accurate, helpful, and concise."
         private const val SMART_REPLY_SYSTEM_PROMPT =
             "You write short, authentic social media replies in the exact requested output tag format without preamble or commentary."
-        private const val TRANSLATE_SYSTEM_PROMPT =
-            "You are a precise translation engine. Output only the translated result and preserve all control headers (<<<...>>>) and markers ({{...}}) unchanged."
         private const val TLDR_SYSTEM_PROMPT =
             "You write ultra-concise plain-text summaries under 200 characters with no markdown or preamble."
     }

@@ -513,7 +513,7 @@ class PostContextRemoteMediatorTest : RobolectricTest() {
         }
 
     private suspend fun assertPresentationMatchesLegacy(contextLoader: PostContextLoader) {
-        val legacyMediator = TimelineRemoteMediator(contextLoader, db, allowLongText = true)
+        val legacyMediator = TimelineRemoteMediator(contextLoader, db)
         assertIs<RemoteMediator.MediatorResult.Success>(legacyMediator.load(LoadType.REFRESH, state))
         assertIs<RemoteMediator.MediatorResult.Success>(legacyMediator.load(LoadType.APPEND, state))
         val expected =

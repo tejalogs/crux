@@ -51,9 +51,6 @@ internal fun EntryProviderScope<NavKey>.settingsSelectEntryBuilder(
             toColorSpace = {
                 navigate(Route.Settings.ColorSpace)
             },
-            toTranslationConfig = {
-                navigate(Route.Settings.TranslationConfig)
-            },
             onBack = onBack,
         )
     }
@@ -286,16 +283,6 @@ internal fun EntryProviderScope<NavKey>.settingsSelectEntryBuilder(
         )
     ) {
         AiConfigScreen(
-            onBack = onBack
-        )
-    }
-
-    entry<Route.Settings.TranslationConfig>(
-        metadata = ListDetailSceneStrategy.detailPane(
-            sceneKey = "Settings"
-        )
-    ) {
-        TranslationConfigScreen(
             onBack = onBack
         )
     }

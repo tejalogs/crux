@@ -50,13 +50,7 @@
     <string name="user_mute_with_parameter">%1$s némítása</string>
     <string name="user_block_with_parameter">%1$s tiltása</string>
     <string name="reply_to">Válasz neki: %1$s</string>
-    <string name="status_detail_translate">Fordítás</string>
     <string name="status_detail_tldr">Összegzés</string>
-    <string name="translation_badge_translated">Lefordítva</string>
-    <string name="translation_badge_translating">Fordítás…</string>
-    <string name="translation_badge_failed">A fordítás sikertelen</string>
-    <string name="translation_retry">Újrafordítás</string>
-    <string name="translation_show_original">Eredeti megjelenítése</string>
     <string name="user_follow_edit_list">Hozzáadás/eltávolítás a listáról</string>
     <string name="list_empty">Nincsenek listák</string>
     <string name="vote">Szavazás</string>

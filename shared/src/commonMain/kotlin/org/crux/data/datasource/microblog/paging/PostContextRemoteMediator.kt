@@ -22,8 +22,6 @@ import org.crux.data.database.cache.connect
 import org.crux.data.database.cache.mapper.saveToDatabase
 import org.crux.data.database.cache.model.DbPagingKey
 import org.crux.data.database.cache.model.DbStatus
-import org.crux.data.translation.NoopPreTranslationService
-import org.crux.data.translation.PreTranslationService
 import org.crux.model.AccountType
 import org.crux.ui.model.UiTimelineV2
 
@@ -32,8 +30,7 @@ internal class PostContextRemoteMediator(
     private val loader: PostContextLoader,
     private val database: CacheDatabase,
     notifyError: (Throwable) -> Unit = {},
-    preTranslationService: PreTranslationService = NoopPreTranslationService,
-) : TimelineRemoteMediator(loader, database, true, notifyError, preTranslationService) {
+) : TimelineRemoteMediator(loader, database, notifyError) {
     private val mutableLoadStates = MutableStateFlow(LoadStates(LoadState.Loading, LoadState.Loading, LoadState.Loading))
     val loadStates = mutableLoadStates.asStateFlow()
     private val writes = Mutex()
@@ -298,7 +295,6 @@ internal class PostContextRemoteMediator(
         savedRows.forEach { postVersions[it.timeline.statusId] = revision }
         if (update.before != null) sideVersions[true] = revision
         if (update.after != null) sideVersions[false] = revision
-        enqueuePreTranslation(savedRows)
         return update
     }
 }

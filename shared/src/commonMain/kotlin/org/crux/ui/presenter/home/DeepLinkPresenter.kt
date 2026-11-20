@@ -12,14 +12,12 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import org.crux.common.deeplink.PlatformDeepLinkMatcher
-import org.crux.data.database.cache.model.TranslationDisplayMode
 import org.crux.data.datasource.microblog.datasource.PostDataSource
 import org.crux.data.datastore.model.LinkOpenDefaultMethod
 import org.crux.data.datastore.model.methodFor
 import org.crux.data.repository.AccountRepository
 import org.crux.data.repository.SettingsRepository
 import org.crux.data.repository.accountServiceFlow
-import org.crux.data.translation.PreTranslationService
 import org.crux.di.koinInject
 import org.crux.model.AccountType
 import org.crux.model.PlatformRegistry
@@ -33,7 +31,6 @@ public class DeepLinkPresenter(
     private val onLink: (String) -> Unit,
 ) : PresenterBase<DeepLinkPresenter.State>() {
     private val accountRepository: AccountRepository by koinInject()
-    private val preTranslationService: PreTranslationService by koinInject()
     private val platformRegistry: PlatformRegistry by koinInject()
     private val settingsRepository: SettingsRepository by koinInject()
 
@@ -72,42 +69,6 @@ public class DeepLinkPresenter(
                                         service.postEventHandler.handleEvent(event.postEvent)
                                     }
                                 }
-                            }
-
-                            event.translationEvent is DeeplinkEvent.TranslationEvent.RetryTranslation -> {
-                                with(event.translationEvent) {
-                                    preTranslationService.setStatusDisplayMode(
-                                        accountType = AccountType.Specific(event.accountKey),
-                                        statusKey = statusKey,
-                                        mode = TranslationDisplayMode.Translated,
-                                    )
-                                    preTranslationService.retryStatus(
-                                        accountType = AccountType.Specific(event.accountKey),
-                                        statusKey = statusKey,
-                                    )
-                                }
-                            }
-
-                            event.translationEvent is DeeplinkEvent.TranslationEvent.Translate -> {
-                                with(event.translationEvent) {
-                                    preTranslationService.setStatusDisplayMode(
-                                        accountType = AccountType.Specific(event.accountKey),
-                                        statusKey = statusKey,
-                                        mode = TranslationDisplayMode.Translated,
-                                    )
-                                    preTranslationService.retryStatus(
-                                        accountType = AccountType.Specific(event.accountKey),
-                                        statusKey = statusKey,
-                                    )
-                                }
-                            }
-
-                            event.translationEvent is DeeplinkEvent.TranslationEvent.ShowOriginal -> {
-                                preTranslationService.setStatusDisplayMode(
-                                    accountType = AccountType.Specific(event.accountKey),
-                                    statusKey = event.translationEvent.statusKey,
-                                    mode = TranslationDisplayMode.Original,
-                                )
                             }
                         }
                     }

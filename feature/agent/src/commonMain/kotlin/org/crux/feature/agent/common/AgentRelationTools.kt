@@ -223,7 +223,15 @@ internal class ExecuteRelationActionTool(
         if (!target.supports(action)) {
             return "${target.platformId} account ${target.accountKey} does not support ${action.label}."
         }
-        if (!args.confirmed) {
+        val buttonConfirmed =
+            session.buttonConfirmed(
+                args.confirmed,
+                "event=relation_confirmed",
+                "action=${action.id}",
+                "accountId=${target.accountKey.id}",
+                "targetUserId=${user.userKey.id}",
+            )
+        if (!buttonConfirmed) {
             val requestId = "relation-confirm:${target.accountKey}:${user.userKey}:${action.id}"
             val prompt =
                 buildString {

@@ -108,7 +108,7 @@ internal enum class SettingsCategory(
 ) {
     SocialAndWeb(R.string.settings_category_platforms, "platforms browser links"),
     AppearanceAndReader(R.string.settings_category_appearance, "appearance reader"),
-    Intelligence(R.string.settings_category_smart, "smart ai translation language"),
+    Intelligence(R.string.settings_category_smart, "smart ai language"),
     PrivacyAndData(R.string.settings_category_privacy, "privacy storage about"),
 }
 
@@ -186,7 +186,6 @@ internal fun SettingsScreen(
     toColorSpace: () -> Unit,
     toLocalFilter: () -> Unit,
     toAiConfig: () -> Unit,
-    toTranslationConfig: () -> Unit,
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -221,8 +220,6 @@ internal fun SettingsScreen(
     val languageSubtitle = stringResource(id = R.string.settings_language_description)
     val aiTitle = stringResource(id = R.string.settings_ai_config_title)
     val aiSubtitle = stringResource(id = R.string.settings_ai_config_description)
-    val translationTitle = stringResource(id = R.string.settings_translation_title)
-    val translationSubtitle = stringResource(id = R.string.settings_translation_description)
     val privacyTitle = stringResource(id = R.string.privacy_hub_title)
     val privacySubtitle = stringResource(id = R.string.privacy_hub_subtitle)
     val privacyBadge =
@@ -357,21 +354,6 @@ internal fun SettingsScreen(
                         icon = FontAwesomeIcons.Solid.Robot,
                         iconColor = ThemeIconData.Color.ForestGreen,
                         onClick = toAiConfig,
-                    ),
-                )
-                add(
-                    SettingsDestinationEntry(
-                        hubItem =
-                            SettingsHubItem(
-                                id = "translation",
-                                category = SettingsCategory.Intelligence,
-                                title = translationTitle,
-                                subtitle = translationSubtitle,
-                                keywords = listOf("translate", "language", "auto translate", "deepl", "google", "libretranslate"),
-                            ),
-                        icon = FontAwesomeIcons.Solid.Language,
-                        iconColor = ThemeIconData.Color.SapphireBlue,
-                        onClick = toTranslationConfig,
                     ),
                 )
                 add(

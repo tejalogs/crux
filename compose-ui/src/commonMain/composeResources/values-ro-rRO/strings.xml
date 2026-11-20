@@ -51,13 +51,7 @@
     <string name="user_mute_with_parameter">Ignoră %1$s</string>
     <string name="user_block_with_parameter">Blochează %1$s</string>
     <string name="reply_to">Răspuns pentru %1$s</string>
-    <string name="status_detail_translate">Tradu</string>
     <string name="status_detail_tldr">Rezumat</string>
-    <string name="translation_badge_translated">Tradus</string>
-    <string name="translation_badge_translating">Se traduce…</string>
-    <string name="translation_badge_failed">Traducere eșuată</string>
-    <string name="translation_retry">Reîncearcă traducerea</string>
-    <string name="translation_show_original">Arată originalul</string>
     <string name="user_follow_edit_list">Adaugă/Elimină din listă</string>
     <string name="list_empty">Nicio listă</string>
     <string name="vote">Votează</string>

@@ -51,13 +51,7 @@
     <string name="user_mute_with_parameter">Приглушити %1$s</string>
     <string name="user_block_with_parameter">Заблокувати %1$s</string>
     <string name="reply_to">Відповісти %1$s</string>
-    <string name="status_detail_translate">Перекласти</string>
     <string name="status_detail_tldr">Узагальнити</string>
-    <string name="translation_badge_translated">Перекладено</string>
-    <string name="translation_badge_translating">Перекладається…</string>
-    <string name="translation_badge_failed">Помилка перекладу</string>
-    <string name="translation_retry">Повторити переклад</string>
-    <string name="translation_show_original">Показати оригінал</string>
     <string name="user_follow_edit_list">Додати/видалити зі списку</string>
     <string name="list_empty">Немає списків</string>
     <string name="vote">Голосувати</string>

@@ -51,13 +51,7 @@
     <string name="user_mute_with_parameter">Σίγαση %1$s</string>
     <string name="user_block_with_parameter">Αποκλεισμός %1$s</string>
     <string name="reply_to">Απάντηση στον/στην %1$s</string>
-    <string name="status_detail_translate">Μετάφραση</string>
     <string name="status_detail_tldr">Σύνοψη</string>
-    <string name="translation_badge_translated">Μεταφράστηκε</string>
-    <string name="translation_badge_translating">Μετάφραση…</string>
-    <string name="translation_badge_failed">Η μετάφραση απέτυχε</string>
-    <string name="translation_retry">Δοκιμάστε ξανά τη μετάφραση</string>
-    <string name="translation_show_original">Εμφάνιση πρωτοτύπου</string>
     <string name="user_follow_edit_list">Προσθήκη/Αφαίρεση από λίστα</string>
     <string name="list_empty">Δεν υπάρχουν λίστες</string>
     <string name="vote">Ψηφίστε</string>

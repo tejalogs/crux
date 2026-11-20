@@ -2,24 +2,18 @@ package org.crux.data.datasource.microblog.handler
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import org.crux.common.Cacheable
 import org.crux.data.database.cache.CacheDatabase
 import org.crux.data.database.cache.connect
 import org.crux.data.database.cache.mapper.saveToDatabase
 import org.crux.data.database.cache.model.DbStatus
-import org.crux.data.database.cache.model.TranslationDisplayOptions
 import org.crux.data.datasource.microblog.loader.PostLoader
 import org.crux.data.datasource.microblog.paging.TimelinePagingMapper
-import org.crux.data.datastore.AppDataStore
 import org.crux.data.repository.tryRun
-import org.crux.data.translation.PreTranslationService
-import org.crux.data.translation.TranslationSettingsSupport
 import org.crux.di.koinInject
 import org.crux.model.AccountType
 import org.crux.model.DbAccountType
@@ -34,17 +28,8 @@ public class PostHandler(
 ) {
     private val database: CacheDatabase by koinInject()
     private val coroutineScope: CoroutineScope by koinInject()
-    private val appDataStore: AppDataStore by koinInject()
-    private val preTranslationService: PreTranslationService by koinInject()
 
-    private val translationDisplayFlow by lazy {
-        TranslationSettingsSupport.displayOptionsFlow(appDataStore)
-    }
-
-    public fun post(
-        postKey: MicroBlogKey,
-        translationDisplay: PostTranslationDisplay = PostTranslationDisplay.UserSettings,
-    ): Cacheable<UiTimelineV2> {
+    public fun post(postKey: MicroBlogKey): Cacheable<UiTimelineV2> {
         val pagingKey = "post_only_$postKey"
         return Cacheable(
             fetchSource = {
@@ -56,10 +41,6 @@ public class PostHandler(
                             pagingKey,
                         )
                     saveToDatabase(database, listOf(item))
-                    preTranslationService.enqueueStatuses(
-                        listOfNotNull(item.status.status.data) + item.status.references.mapNotNull { it.status?.data },
-                        allowLongText = true,
-                    )
                 }
             },
             cacheSource = {
@@ -71,19 +52,16 @@ public class PostHandler(
                     database
                         .pagingTimelineDao()
                         .get(pagingKey, accountType = dbAccountType),
-                    translationDisplay.optionsFlow(translationDisplayFlow),
-                ) { status, timelineStatus, translationDisplayOptions ->
+                ) { status, timelineStatus ->
                     timelineStatus?.let {
                         TimelinePagingMapper.toUi(
                             item = it,
                             pagingKey = pagingKey,
-                            translationDisplayOptions = translationDisplayOptions,
                         )
                     } ?: status?.let {
                         TimelinePagingMapper.toUi(
                             item = it,
                             pagingKey = pagingKey,
-                            translationDisplayOptions = translationDisplayOptions,
                         )
                     }
                 }.filterNotNull()
@@ -112,26 +90,3 @@ public class PostHandler(
             }
         }
 }
-
-@HiddenFromObjC
-public enum class PostTranslationDisplay {
-    UserSettings,
-    Original,
-}
-
-private fun PostTranslationDisplay.optionsFlow(userSettingsFlow: Flow<TranslationDisplayOptions>): Flow<TranslationDisplayOptions> =
-    when (this) {
-        PostTranslationDisplay.UserSettings -> {
-            userSettingsFlow
-        }
-
-        PostTranslationDisplay.Original -> {
-            flowOf(
-                TranslationDisplayOptions(
-                    translationEnabled = false,
-                    autoDisplayEnabled = false,
-                    providerCacheKey = "",
-                ),
-            )
-        }
-    }

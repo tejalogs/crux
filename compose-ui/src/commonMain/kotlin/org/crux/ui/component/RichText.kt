@@ -1,5 +1,6 @@
 package org.crux.ui.component
 
+import org.crux.ui.route.DeeplinkRoute
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -156,7 +157,9 @@ public fun RichText(
                                                                 if (it.pressed != it.previousPressed) it.consume()
                                                             }
                                                         if (up != null) {
-                                                            uriHandler.openUri(annotation.item)
+                                                            if (DeeplinkRoute.isSafeFromContent(annotation.item)) {
+                                                                uriHandler.openUri(annotation.item)
+                                                            }
                                                         }
                                                     }
                                                 }
@@ -219,7 +222,9 @@ public fun RichText(
                                                 it
                                             } else {
                                                 it.clickable {
-                                                    uriHandler.openUri(content.href)
+                                                    if (DeeplinkRoute.isSafeFromContent(content.href)) {
+                                                        uriHandler.openUri(content.href)
+                                                    }
                                                 }
                                             }
                                         },

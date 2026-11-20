@@ -133,7 +133,7 @@ class AppearancePatchTest {
             TimelineAppearance(
                 showMedia = false,
                 showNumbers = false,
-                aiConfig = TimelineAppearance.AiConfig(translation = true, tldr = true),
+                aiConfig = TimelineAppearance.AiConfig(tldr = true),
                 lineLimit = 9,
                 showTranslateButton = false,
             )
@@ -155,7 +155,7 @@ class AppearancePatchTest {
                 showNumbers = false,
                 postActionFixedWidth = false,
                 timelineDisplayMode = TimelineDisplayMode.Gallery,
-                aiConfig = TimelineAppearance.AiConfig(translation = true, tldr = true),
+                aiConfig = TimelineAppearance.AiConfig(tldr = true),
                 lineLimit = 9,
                 showTranslateButton = false,
             ),
@@ -183,7 +183,7 @@ class AppearancePatchTest {
             TimelineAppearance(
                 showNumbers = true,
                 absoluteTimestamp = false,
-                aiConfig = TimelineAppearance.AiConfig(translation = true),
+                aiConfig = TimelineAppearance.AiConfig(tldr = true),
                 lineLimit = 7,
             )
 
@@ -193,7 +193,7 @@ class AppearancePatchTest {
                 showEmojiReactions = false,
                 expandContentWarning = true,
                 absoluteTimestamp = true,
-                aiConfig = TimelineAppearance.AiConfig(translation = true),
+                aiConfig = TimelineAppearance.AiConfig(tldr = true),
                 lineLimit = 7,
             ),
             item.resolveTimelineAppearance(base),

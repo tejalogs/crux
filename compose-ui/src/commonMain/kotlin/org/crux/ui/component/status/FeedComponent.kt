@@ -1,6 +1,5 @@
 package org.crux.ui.component.status
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -22,7 +21,6 @@ import org.crux.ui.component.NetworkImage
 import org.crux.ui.component.accessibleDescription
 import org.crux.ui.component.platform.PlatformText
 import org.crux.ui.model.ClickContext
-import org.crux.ui.model.TranslationDisplayState
 import org.crux.ui.model.UiTimelineV2
 import org.crux.ui.theme.PlatformTheme
 import org.crux.ui.theme.screenHorizontalPadding
@@ -66,11 +64,6 @@ internal fun FeedComponent(
                 modifier = Modifier.weight(1f),
                 maxLines = 1,
             )
-            AnimatedVisibility(data.translationDisplayState != TranslationDisplayState.Hidden) {
-                TranslationDisplayBadge(
-                    state = data.translationDisplayState,
-                )
-            }
             data.actualCreatedAt?.let {
                 DateTimeText(
                     it,

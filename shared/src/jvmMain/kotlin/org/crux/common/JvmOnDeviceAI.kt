@@ -9,26 +9,11 @@ import com.sun.jna.ptr.PointerByReference
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.crux.data.ai.SovereignOnDeviceSummarizer
-import org.crux.data.ai.SovereignOnDeviceTranslator
 import org.koin.core.annotation.Single
 
 @Single(binds = [OnDeviceAI::class])
 internal class JvmOnDeviceAI : OnDeviceAI {
     override suspend fun isAvailable(): Boolean = true
-
-    override suspend fun translate(
-        source: String,
-        targetLanguage: String,
-        prompt: String,
-    ): String? =
-        withContext(Dispatchers.IO) {
-            val bridgeResult = FoundationModelsBridge.generate(prompt)
-            if (!bridgeResult.isNullOrBlank()) {
-                bridgeResult
-            } else {
-                SovereignOnDeviceTranslator.translate(source, targetLanguage, prompt)
-            }
-        }
 
     override suspend fun tldr(
         source: String,

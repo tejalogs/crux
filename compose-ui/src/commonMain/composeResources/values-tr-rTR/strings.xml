@@ -50,13 +50,7 @@
     <string name="user_mute_with_parameter">%1$s kişisini sessize al</string>
     <string name="user_block_with_parameter">%1$s kişisini engelle</string>
     <string name="reply_to">%1$s kişisine yanıt ver</string>
-    <string name="status_detail_translate">Çevir</string>
     <string name="status_detail_tldr">Özetle</string>
-    <string name="translation_badge_translated">Çevrildi</string>
-    <string name="translation_badge_translating">Çevriliyor…</string>
-    <string name="translation_badge_failed">Çeviri başarısız</string>
-    <string name="translation_retry">Çeviriyi tekrar dene</string>
-    <string name="translation_show_original">Orijinali göster</string>
     <string name="user_follow_edit_list">Listeye ekle/çıkar</string>
     <string name="list_empty">Liste yok</string>
     <string name="vote">Oy Ver</string>

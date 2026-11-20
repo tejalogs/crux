@@ -14,7 +14,6 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filterIsInstance
-import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
@@ -25,39 +24,21 @@ import kotlinx.coroutines.test.setMain
 import okio.FileSystem
 import org.crux.RobolectricTest
 import org.crux.common.CacheState
-import org.crux.common.Locale
 import org.crux.common.OnDeviceAI
 import org.crux.common.TestFormatter
 import org.crux.common.collectAsState
-import org.crux.common.decodeJson
 import org.crux.createTestFileSystem
 import org.crux.createTestRootPath
 import org.crux.data.database.cache.CacheDatabase
 import org.crux.data.database.cache.mapper.toDbUser
 import org.crux.data.database.cache.mapper.upsertUser
-import org.crux.data.database.cache.model.DbTranslation
 import org.crux.data.database.cache.model.DbUser
-import org.crux.data.database.cache.model.TranslationEntityType
-import org.crux.data.database.cache.model.TranslationPayload
-import org.crux.data.database.cache.model.TranslationStatus
-import org.crux.data.database.cache.model.sourceHash
-import org.crux.data.database.cache.model.translationEntityKey
-import org.crux.data.database.cache.model.translationPayload
 import org.crux.data.database.createDatabaseDriver
 import org.crux.data.datasource.microblog.loader.UserLoader
 import org.crux.data.datastore.AppDataStore
-import org.crux.data.datastore.model.AppSettings
 import org.crux.data.io.OkioFileStorage
 import org.crux.data.network.ai.AiCompletionService
 import org.crux.data.network.ai.OpenAIService
-import org.crux.data.translation.OnlinePreTranslationService
-import org.crux.data.translation.PreTranslationBatchDocument
-import org.crux.data.translation.PreTranslationBatchPayload
-import org.crux.data.translation.PreTranslationService
-import org.crux.data.translation.PreTranslationStoreSupport
-import org.crux.data.translation.aiPreTranslateConfig
-import org.crux.data.translation.cacheKey
-import org.crux.data.translation.canonicalTranslationLanguage
 import org.crux.deleteTestRootPath
 import org.crux.di.startKoin
 import org.crux.di.testSingle
@@ -69,8 +50,6 @@ import org.crux.ui.model.UiHandle
 import org.crux.ui.model.UiProfile
 import org.crux.ui.model.UiState
 import org.crux.ui.model.toUi
-import org.crux.ui.render.TranslationDocument
-import org.crux.ui.render.TranslationTokenKind
 import org.crux.ui.render.toUiPlainText
 import org.koin.core.context.stopKoin
 import org.koin.dsl.module
@@ -80,7 +59,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -95,9 +73,6 @@ class UserHandlerTest : RobolectricTest() {
     private lateinit var onDeviceAI: FakeOnDeviceAI
 
     private val accountKey = MicroBlogKey(id = "account-1", host = "test.social")
-    private val aiTranslationProviderCacheKey =
-        AppSettings.TranslateConfig.Provider.AI
-            .cacheKey()
 
     @BeforeTest
     fun setup() {
@@ -124,9 +99,6 @@ class UserHandlerTest : RobolectricTest() {
                     testSingle<OnDeviceAI> { onDeviceAI }
                     testSingle { openAIService }
                     testSingle { aiCompletionService }
-                    testSingle<PreTranslationService> {
-                        OnlinePreTranslationService(db, appDataStore, aiCompletionService, scope)
-                    }
                     testSingle<PlatformFormatter> { TestFormatter() }
                 },
             )
@@ -355,237 +327,6 @@ class UserHandlerTest : RobolectricTest() {
             assertEquals(atHandleProfile.key, atHandleHit.userKey)
         }
 
-    @Test
-    fun resolvedUsersUseTranslatedDescriptionWhenPreTranslationEnabled() =
-        runTest {
-            val profile =
-                createProfile(id = "eve", host = "test.social", handle = "@eve@test.social").copy(
-                    description = "Original bio".toUiPlainText(),
-                )
-            db.userDao().insert(
-                DbUser(
-                    userKey = profile.key,
-                    name = profile.name.raw,
-                    canonicalHandle = profile.handle.canonical,
-                    host = "test.social",
-                    content = profile,
-                ),
-            )
-            appDataStore.appSettingsStore.updateData {
-                it.copy(
-                    language = "zh-CN",
-                    translateConfig = aiPreTranslateConfig(),
-                    aiConfig =
-                        AppSettings.AiConfig(),
-                )
-            }
-            db.translationDao().insert(
-                DbTranslation(
-                    entityType = TranslationEntityType.Profile,
-                    entityKey = profile.translationEntityKey(),
-                    targetLanguage = Locale.language,
-                    sourceHash = profile.translationPayload().sourceHash(aiTranslationProviderCacheKey),
-                    status = TranslationStatus.Completed,
-                    payload = TranslationPayload(description = "翻译后的简介".toUiPlainText()),
-                    updatedAt = 1L,
-                ),
-            )
-
-            val cacheable = handler.userById("eve")
-
-            val latest =
-                cacheable.data
-                    .filterIsInstance<CacheState.Success<UiProfile>>()
-                    .first()
-                    .data
-
-            assertEquals("翻译后的简介", latest.description?.raw)
-
-            loader.nextByHandleAndHost = profile
-            val resolved =
-                handler
-                    .userByHandleAndHost(UiHandle("EVE", "test.social"))
-                    .toUi()
-                    .first { it !is UiState.Loading }
-            assertEquals("翻译后的简介", assertIs<UiState.Success<UiProfile>>(resolved).data.description?.raw)
-        }
-
-    @Test
-    fun userByIdRefreshStoresPreTranslationIntoDatabase() =
-        runTest {
-            val expected =
-                createProfile(id = "pretranslate", host = "test.social", handle = "@pretranslate@test.social").copy(
-                    description = "Original profile bio".toUiPlainText(),
-                )
-            loader.nextById = expected
-            appDataStore.appSettingsStore.updateData {
-                it.copy(
-                    language = "zh-CN",
-                    translateConfig = aiPreTranslateConfig(),
-                    aiConfig =
-                        AppSettings.AiConfig(
-                            type = AppSettings.AiConfig.Type.OnDevice(),
-                        ),
-                )
-            }
-
-            val cacheable = handler.userById("pretranslate")
-            val refreshState = cacheable.refreshState.drop(1).first()
-            assertTrue(refreshState is LoadState.NotLoading)
-
-            val saved =
-                db
-                    .translationDao()
-                    .find(
-                        entityType = TranslationEntityType.Profile,
-                        entityKey = expected.translationEntityKey(),
-                        targetLanguage = Locale.language,
-                    ).filterNotNull()
-                    .first { it.status == TranslationStatus.Completed }
-
-            assertEquals("Original profile bio (${Locale.language})", saved.payload?.description?.raw)
-        }
-
-    @Test
-    fun userByIdRefreshSkipsProfilePreTranslationForExcludedLanguage() =
-        runTest {
-            val excludedLanguage = nonTargetLanguageTag()
-            val expected =
-                createProfile(id = "excluded-pretranslate", host = "test.social", handle = "@excluded-pretranslate@test.social").copy(
-                    description = "Original profile bio".toUiPlainText(),
-                    sourceLanguages = persistentListOf(excludedLanguage),
-                )
-            loader.nextById = expected
-            appDataStore.appSettingsStore.updateData {
-                it.copy(
-                    language = "zh-CN",
-                    translateConfig =
-                        aiPreTranslateConfig().copy(
-                            autoTranslateExcludedLanguages = listOf(excludedLanguage),
-                        ),
-                    aiConfig =
-                        AppSettings.AiConfig(
-                            type = AppSettings.AiConfig.Type.OnDevice(),
-                        ),
-                )
-            }
-
-            val cacheable = handler.userById("excluded-pretranslate")
-            val refreshState = cacheable.refreshState.drop(1).first()
-            assertTrue(refreshState is LoadState.NotLoading)
-
-            val saved =
-                db
-                    .translationDao()
-                    .find(
-                        entityType = TranslationEntityType.Profile,
-                        entityKey = expected.translationEntityKey(),
-                        targetLanguage = Locale.language,
-                    ).filterNotNull()
-                    .first { it.status == TranslationStatus.Skipped }
-
-            assertEquals(TranslationStatus.Skipped, saved.status)
-            assertEquals(PreTranslationStoreSupport.SKIPPED_EXCLUDED_LANGUAGE_REASON, saved.statusReason)
-            assertNull(saved.payload)
-        }
-
-    @Test
-    fun userByIdRefreshRetriesFailedPreTranslationOnNextLoad() =
-        runTest {
-            val expected =
-                createProfile(id = "retry-translation", host = "test.social", handle = "@retry-translation@test.social").copy(
-                    description = "Retry profile bio".toUiPlainText(),
-                )
-            loader.nextById = expected
-            appDataStore.appSettingsStore.updateData {
-                it.copy(
-                    language = "zh-CN",
-                    translateConfig = aiPreTranslateConfig(),
-                    aiConfig =
-                        AppSettings.AiConfig(
-                            type = AppSettings.AiConfig.Type.OnDevice(),
-                        ),
-                )
-            }
-
-            onDeviceAI.failTranslation = true
-            handler
-                .userById("retry-translation")
-                .refreshState
-                .drop(1)
-                .first()
-
-            val failed =
-                db
-                    .translationDao()
-                    .find(
-                        entityType = TranslationEntityType.Profile,
-                        entityKey = expected.translationEntityKey(),
-                        targetLanguage = Locale.language,
-                    ).filterNotNull()
-                    .first { it.status == TranslationStatus.Failed }
-            assertEquals(1, failed.attemptCount)
-
-            onDeviceAI.failTranslation = false
-            handler
-                .userById("retry-translation")
-                .refreshState
-                .drop(1)
-                .first()
-
-            val completed =
-                db
-                    .translationDao()
-                    .find(
-                        entityType = TranslationEntityType.Profile,
-                        entityKey = expected.translationEntityKey(),
-                        targetLanguage = Locale.language,
-                    ).filterNotNull()
-                    .first { it.status == TranslationStatus.Completed }
-            assertEquals(2, completed.attemptCount)
-            assertEquals("Retry profile bio (${Locale.language})", completed.payload?.description?.raw)
-        }
-
-    @Test
-    fun userByIdRefreshAutoRetriesTransientPreTranslationFailure() =
-        runTest {
-            val expected =
-                createProfile(id = "auto-retry-translation", host = "test.social", handle = "@auto-retry-translation@test.social").copy(
-                    description = "Auto retry profile bio".toUiPlainText(),
-                )
-            loader.nextById = expected
-            appDataStore.appSettingsStore.updateData {
-                it.copy(
-                    language = "zh-CN",
-                    translateConfig = aiPreTranslateConfig(),
-                    aiConfig =
-                        AppSettings.AiConfig(
-                            type = AppSettings.AiConfig.Type.OnDevice(),
-                        ),
-                )
-            }
-
-            onDeviceAI.remainingTranslationFailures = 1
-            handler
-                .userById("auto-retry-translation")
-                .refreshState
-                .drop(1)
-                .first()
-
-            val completed =
-                db
-                    .translationDao()
-                    .find(
-                        entityType = TranslationEntityType.Profile,
-                        entityKey = expected.translationEntityKey(),
-                        targetLanguage = Locale.language,
-                    ).filterNotNull()
-                    .first { it.status == TranslationStatus.Completed }
-            assertEquals(1, completed.attemptCount)
-            assertEquals(2, onDeviceAI.translationCallCount)
-            assertEquals("Auto retry profile bio (${Locale.language})", completed.payload?.description?.raw)
-        }
-
     private fun createProfile(
         id: String,
         host: String,
@@ -633,77 +374,11 @@ class UserHandlerTest : RobolectricTest() {
 }
 
 private class FakeOnDeviceAI : OnDeviceAI {
-    var failTranslation: Boolean = false
-    var remainingTranslationFailures: Int = 0
-    var translationCallCount: Int = 0
-
     override suspend fun isAvailable(): Boolean = true
-
-    override suspend fun translate(
-        source: String,
-        targetLanguage: String,
-        prompt: String,
-    ): String? {
-        translationCallCount++
-        if (remainingTranslationFailures > 0) {
-            remainingTranslationFailures--
-            error("translation failed")
-        }
-        if (failTranslation) {
-            error("translation failed")
-        }
-        val document = source.decodeJson(PreTranslationBatchDocument.serializer())
-        return org.crux.data.translation.AiPlaceholderTranslationSupport
-            .buildPromptTemplate(
-                document.copy(
-                    items =
-                        document.items.map { item ->
-                            item.copy(
-                                status = org.crux.data.translation.PreTranslationBatchItemStatus.Completed,
-                                payload = requireNotNull(item.payload).translated(targetLanguage),
-                                reason = null,
-                            )
-                        },
-                ),
-            )
-    }
 
     override suspend fun tldr(
         source: String,
         targetLanguage: String,
         prompt: String,
     ): String? = null
-}
-
-private fun PreTranslationBatchPayload.translated(targetLanguage: String): PreTranslationBatchPayload =
-    PreTranslationBatchPayload(
-        content = content?.translated(targetLanguage),
-        contentWarning = contentWarning?.translated(targetLanguage),
-        title = title?.translated(targetLanguage),
-        description = description?.translated(targetLanguage),
-    )
-
-private fun TranslationDocument.translated(targetLanguage: String): TranslationDocument =
-    copy(
-        blocks =
-            blocks.map { block ->
-                block.copy(
-                    tokens =
-                        block.tokens.map { token ->
-                            if (token.kind == TranslationTokenKind.Translatable) {
-                                token.copy(text = "${token.text} ($targetLanguage)")
-                            } else {
-                                token
-                            }
-                        },
-                )
-            },
-    )
-
-private fun nonTargetLanguageTag(): String {
-    val target = requireNotNull(canonicalTranslationLanguage(Locale.language))
-    return listOf("fr-FR", "de-DE", "es-ES", "ja-JP", "zh-CN")
-        .first { candidate ->
-            canonicalTranslationLanguage(candidate) != target
-        }
 }

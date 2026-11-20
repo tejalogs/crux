@@ -25,6 +25,7 @@ public enum class PostActionFamily {
     Quote,
     Like,
     React,
+    // Unused since translation was removed; kept for stored-settings compatibility (enum is serialized by position).
     Translate,
     Bookmark,
     Favorite,
@@ -62,7 +63,6 @@ public data class PostActionLayoutConfig(
 
         public val DefaultOverflow: SerializableImmutableList<PostActionFamily> =
             persistentListOf(
-                PostActionFamily.Translate,
                 PostActionFamily.Bookmark,
                 PostActionFamily.Favorite,
                 PostActionFamily.Share,
@@ -170,9 +170,6 @@ public sealed class ActionMenu {
                     MuteWithHandleParameter,
                     AcceptFollowRequest,
                     RejectFollowRequest,
-                    RetryTranslation,
-                    Translate,
-                    ShowOriginal,
                     Favorite,
                     UnFavorite,
                     SmartReply,
@@ -271,7 +268,6 @@ public object PostActionLayoutHelpers {
             PostActionFamily.Repost,
             PostActionFamily.Like,
             PostActionFamily.React,
-            PostActionFamily.Translate,
             PostActionFamily.Bookmark,
             PostActionFamily.Favorite,
             PostActionFamily.Share,

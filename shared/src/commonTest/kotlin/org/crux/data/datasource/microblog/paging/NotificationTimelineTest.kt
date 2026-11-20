@@ -14,7 +14,6 @@ import org.crux.common.PlatformDispatchers
 import org.crux.data.database.cache.CacheDatabase
 import org.crux.data.database.cache.TimelineRevisionCallback
 import org.crux.data.database.cache.mapper.saveToDatabase
-import org.crux.data.database.cache.model.TranslationDisplayOptions
 import org.crux.data.database.createDatabaseDriver
 import org.crux.memoryDatabaseBuilder
 import org.crux.model.AccountType
@@ -38,7 +37,6 @@ import kotlin.time.Instant
 @OptIn(ExperimentalPagingApi::class)
 class NotificationTimelineTest : RobolectricTest() {
     private lateinit var database: CacheDatabase
-    private val options = TranslationDisplayOptions(false, false, "")
     private val pagingKey = "notifications"
 
     @BeforeTest
@@ -102,7 +100,7 @@ class NotificationTimelineTest : RobolectricTest() {
             val rendered =
                 TimelinePagingMapper
                     .toPageItems(stored, identities, pagingKey, mutableMapOf())
-                    .map { assertIs<UiTimelineV2.TimelinePostItem>(it.toUi(options)) }
+                    .map { assertIs<UiTimelineV2.TimelinePostItem>(it.toUi()) }
             assertEquals(2, rendered.map { it.itemKey }.distinct().size)
             assertEquals(setOf("like", "repost"), rendered.map { it.presentation.notificationKey?.id }.toSet())
             assertEquals(
@@ -198,7 +196,6 @@ class NotificationTimelineTest : RobolectricTest() {
                     ): PagingResult<UiTimelineV2> = response(request)
                 },
             database = database,
-            allowLongText = false,
         )
 
     private suspend fun load(
@@ -220,7 +217,7 @@ class NotificationTimelineTest : RobolectricTest() {
 
     private suspend fun read() =
         database.pagingTimelineDao().getTimelinePage(pagingKey, 0, 20).map {
-            assertIs<UiTimelineV2.TimelinePostItem>(TimelinePagingMapper.toUi(it, pagingKey, options))
+            assertIs<UiTimelineV2.TimelinePostItem>(TimelinePagingMapper.toUi(it, pagingKey))
         }
 
     private fun notification(

@@ -51,13 +51,7 @@
     <string name="user_mute_with_parameter">Silenciar %1$s</string>
     <string name="user_block_with_parameter">Bloquear %1$s</string>
     <string name="reply_to">Responder a %1$s</string>
-    <string name="status_detail_translate">Traduzir</string>
     <string name="status_detail_tldr">Resumir</string>
-    <string name="translation_badge_translated">Traduzido</string>
-    <string name="translation_badge_translating">A traduzir…</string>
-    <string name="translation_badge_failed">Falha na tradução</string>
-    <string name="translation_retry">Tentar tradução novamente</string>
-    <string name="translation_show_original">Mostrar original</string>
     <string name="user_follow_edit_list">Adicionar/Remover da lista</string>
     <string name="list_empty">Sem listas</string>
     <string name="vote">Votar</string>

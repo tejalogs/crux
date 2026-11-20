@@ -50,13 +50,7 @@
     <string name="user_mute_with_parameter">Silenciar %1$s</string>
     <string name="user_block_with_parameter">Bloquejar %1$s</string>
     <string name="reply_to">Respondre a %1$s</string>
-    <string name="status_detail_translate">Traduir</string>
     <string name="status_detail_tldr">Resumir</string>
-    <string name="translation_badge_translated">Traduït</string>
-    <string name="translation_badge_translating">Traduint…</string>
-    <string name="translation_badge_failed">La traducció ha fallat</string>
-    <string name="translation_retry">Reintentar traducció</string>
-    <string name="translation_show_original">Mostra l\'original</string>
     <string name="user_follow_edit_list">Afegir/Treure de la llista</string>
     <string name="list_empty">No hi ha llistes</string>
     <string name="vote">Votar</string>

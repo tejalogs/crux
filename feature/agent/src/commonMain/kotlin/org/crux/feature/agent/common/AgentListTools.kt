@@ -232,7 +232,7 @@ internal class CreateListTool(
             session.listTargets.resolveSingleListTarget(args.accountId, args.accountHost, args.platforms, session.platformRegistry)
                 ?: return ambiguousListAccountMessage(args.platforms)
         val metadata = ListMetaData(title = title, description = args.description.trim().takeIf { it.isNotBlank() })
-        if (!args.confirmed) {
+        if (!session.buttonConfirmed(args.confirmed, "event=create_list_confirmed", "accountId=${target.accountKey.id}")) {
             return target.listConfirmation(
                 store = session.inputRequestStore,
                 requestId = "list-create:${target.accountKey}:$title",
@@ -277,7 +277,7 @@ internal class UpdateListTool(
             session.listTargets.resolveSingleListTarget(args.accountId, args.accountHost, args.platforms, session.platformRegistry)
                 ?: return ambiguousListAccountMessage(args.platforms)
         val metadata = ListMetaData(title = title, description = args.description.trim().takeIf { it.isNotBlank() })
-        if (!args.confirmed) {
+        if (!session.buttonConfirmed(args.confirmed, "event=update_list_confirmed", "accountId=${target.accountKey.id}")) {
             return target.listConfirmation(
                 store = session.inputRequestStore,
                 requestId = "list-update:${target.accountKey}:$listId",
@@ -318,7 +318,7 @@ internal class DeleteListTool(
         val target =
             session.listTargets.resolveSingleListTarget(args.accountId, args.accountHost, args.platforms, session.platformRegistry)
                 ?: return ambiguousListAccountMessage(args.platforms)
-        if (!args.confirmed) {
+        if (!session.buttonConfirmed(args.confirmed, "event=delete_list_confirmed", "accountId=${target.accountKey.id}")) {
             return target.simpleListConfirmation(
                 store = session.inputRequestStore,
                 requestId = "list-delete:${target.accountKey}:$listId",
@@ -361,7 +361,7 @@ internal class AddListMemberTool(
         val target =
             session.listTargets.resolveSingleListTarget(args.accountId, args.accountHost, args.platforms, session.platformRegistry)
                 ?: return ambiguousListAccountMessage(args.platforms)
-        if (!args.confirmed) {
+        if (!session.buttonConfirmed(args.confirmed, "event=add_list_member_confirmed", "accountId=${target.accountKey.id}")) {
             return target.memberConfirmation(
                 store = session.inputRequestStore,
                 requestId = "list-add-member:${target.accountKey}:$listId:$userKey",
@@ -409,7 +409,7 @@ internal class RemoveListMemberTool(
         val target =
             session.listTargets.resolveSingleListTarget(args.accountId, args.accountHost, args.platforms, session.platformRegistry)
                 ?: return ambiguousListAccountMessage(args.platforms)
-        if (!args.confirmed) {
+        if (!session.buttonConfirmed(args.confirmed, "event=remove_list_member_confirmed", "accountId=${target.accountKey.id}")) {
             return target.memberConfirmation(
                 store = session.inputRequestStore,
                 requestId = "list-remove-member:${target.accountKey}:$listId:$userKey",

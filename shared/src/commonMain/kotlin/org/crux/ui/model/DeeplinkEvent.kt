@@ -12,6 +12,7 @@ import org.crux.model.MicroBlogKey
 @OptIn(ExperimentalSerializationApi::class)
 internal data class DeeplinkEvent(
     val accountKey: MicroBlogKey,
+    // Unused since translation was removed; kept so the wire-format field order stays stable.
     val translationEvent: TranslationEvent? = null,
     val postEvent: PostEvent? = null,
 ) {

@@ -12,8 +12,6 @@ import org.crux.data.database.cache.model.DbStatusWithUser
 import org.crux.data.database.cache.model.DbTimelineItemPresentationReference
 import org.crux.data.database.cache.model.DbTimelineItemPresentationReferenceWithStatus
 import org.crux.data.database.cache.model.DbTimelineItemPresentationType
-import org.crux.data.database.cache.model.TranslationDisplayOptions
-import org.crux.data.database.cache.model.applyTranslation
 import org.crux.model.DbAccountType
 import org.crux.model.MicroBlogKey
 import org.crux.model.ReferenceType
@@ -155,13 +153,11 @@ internal object TimelinePagingMapper {
     fun toUi(
         item: DbPagingTimelineWithStatus,
         pagingKey: String,
-        translationDisplayOptions: TranslationDisplayOptions,
     ): UiTimelineV2 {
         val root =
             toUi(
                 item = item.status,
                 pagingKey = pagingKey,
-                translationDisplayOptions = translationDisplayOptions,
             )
         val post = root.asTimelinePostItem()?.post
         return if (post != null) {
@@ -171,7 +167,6 @@ internal object TimelinePagingMapper {
                     buildPresentation(
                         item = item,
                         pagingKey = pagingKey,
-                        translationDisplayOptions = translationDisplayOptions,
                     ),
                 itemKey = item.timeline.notificationKey?.let { item.timeline._id } ?: "${pagingKey}_${item.statusData.id}",
             )
@@ -196,7 +191,6 @@ internal object TimelinePagingMapper {
         require(items.size == identities.size)
 
         val contentByStatusId = LinkedHashMap<String, UiTimelineV2>(items.size * 4)
-        val translationsByStatusId = LinkedHashMap<String, List<org.crux.data.database.cache.model.DbTranslation>>()
 
         fun registerStatus(status: DbStatusWithUser?) {
             if (status == null) {
@@ -209,13 +203,10 @@ internal object TimelinePagingMapper {
                         .canonicalizeProfiles(canonicalProfiles)
                         .withItemKey("${pagingKey}_${data.id}")
             }
-            if (status.translations.isNotEmpty()) {
-                translationsByStatusId[data.id] = status.translations
-            }
         }
 
         items.forEach { item ->
-            registerStatus(DbStatusWithUser(item.statusData, item.statusTranslations))
+            registerStatus(DbStatusWithUser(item.statusData))
             item.references.forEach { registerStatus(it.status) }
             item.presentationReferences.forEach { reference ->
                 registerStatus(reference.status?.status)
@@ -223,12 +214,6 @@ internal object TimelinePagingMapper {
             }
         }
 
-        val sharedTranslations =
-            if (translationsByStatusId.isEmpty()) {
-                emptyMap()
-            } else {
-                translationsByStatusId
-            }
         return ArrayList<TimelinePageItem>(items.size).also { result ->
             items.forEachIndexed { index, item ->
                 val root = contentByStatusId.getValue(item.statusData.id)
@@ -253,7 +238,6 @@ internal object TimelinePagingMapper {
                     TimelinePageItem(
                         identity = identities[index],
                         baseItem = baseItem,
-                        translationsByStatusId = sharedTranslations,
                     )
             }
         }
@@ -276,13 +260,11 @@ internal object TimelinePagingMapper {
     fun toUi(
         item: DbStatusWithReference,
         pagingKey: String,
-        translationDisplayOptions: TranslationDisplayOptions,
     ): UiTimelineV2 {
         val root =
             dbStatusWithUserToUiTimeline(
                 data = item.status,
                 pagingKey = pagingKey,
-                translationDisplayOptions = translationDisplayOptions,
             )
         return when (root) {
             is UiTimelineV2.TimelinePostItem -> {
@@ -292,7 +274,7 @@ internal object TimelinePagingMapper {
             is UiTimelineV2.Post -> {
                 val presentation =
                     semanticPresentation(item.references) {
-                        dbStatusWithUserToUiTimeline(it, pagingKey, translationDisplayOptions) as? UiTimelineV2.Post
+                        dbStatusWithUserToUiTimeline(it, pagingKey) as? UiTimelineV2.Post
                     }
                 if (presentation.quotes.isEmpty() && presentation.repost == null) {
                     root
@@ -310,7 +292,6 @@ internal object TimelinePagingMapper {
                                 dbStatusWithUserToUiTimeline(
                                     data = it,
                                     pagingKey = pagingKey,
-                                    translationDisplayOptions = translationDisplayOptions,
                                 ) as? UiTimelineV2.Post
                             }
                         }
@@ -328,7 +309,6 @@ internal object TimelinePagingMapper {
     private fun buildPresentation(
         item: DbPagingTimelineWithStatus,
         pagingKey: String,
-        translationDisplayOptions: TranslationDisplayOptions,
     ): UiTimelineV2.PostPresentation {
         val references =
             item.presentationReferences
@@ -339,13 +319,12 @@ internal object TimelinePagingMapper {
                             toUi(
                                 item = it,
                                 pagingKey = pagingKey,
-                                translationDisplayOptions = translationDisplayOptions,
                             ).asTimelinePostItem()
                     }
                 }
         val semantic =
             semanticPresentation(item.references) {
-                dbStatusWithUserToUiTimeline(it, pagingKey, translationDisplayOptions) as? UiTimelineV2.Post
+                dbStatusWithUserToUiTimeline(it, pagingKey) as? UiTimelineV2.Post
             }
         return UiTimelineV2.PostPresentation(
             message = item.timeline.message,
@@ -810,14 +789,8 @@ internal object TimelinePagingMapper {
     private fun dbStatusWithUserToUiTimeline(
         data: DbStatusWithUser,
         pagingKey: String,
-        translationDisplayOptions: TranslationDisplayOptions,
     ): UiTimelineV2 {
         val rootItemKey = "${pagingKey}_${data.data.id}"
-        val root =
-            data.data.content.applyTranslation(
-                options = translationDisplayOptions,
-                translations = data.translations,
-            )
-        return root.withItemKey(rootItemKey)
+        return data.data.content.withItemKey(rootItemKey)
     }
 }

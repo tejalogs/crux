@@ -12,7 +12,6 @@ import android.webkit.WebChromeClient
 import android.webkit.WebChromeClient.FileChooserParams
 import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
-import android.webkit.WebStorage
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.FrameLayout
@@ -20,6 +19,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
@@ -87,6 +87,12 @@ internal fun normalizeHardenedBrowserInput(raw: String): String? {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun HardenedBrowserScreen(onBack: () -> Unit) {
+    // Without separate WebView profiles this browser would share the signed-in sites' cookie jar,
+    // so it is not offered at all rather than pretending to be isolated.
+    if (!WebViewFeature.isFeatureSupported(WebViewFeature.MULTI_PROFILE)) {
+        HardenedBrowserUnavailable(onBack = onBack)
+        return
+    }
     val context = LocalContext.current
     val inputUrlState = remember { mutableStateOf("") }
     val currentUrlState = remember { mutableStateOf("") }
@@ -109,8 +115,6 @@ internal fun HardenedBrowserScreen(onBack: () -> Unit) {
                     profile.cookieManager.removeAllCookies(null)
                     profile.cookieManager.flush()
                     profile.webStorage.deleteAllData()
-                } else {
-                    WebStorage.getInstance().deleteAllData()
                 }
             }
         }
@@ -312,3 +316,36 @@ internal fun HardenedBrowserScreen(onBack: () -> Unit) {
         }
     }
 }
+
+@Composable
+private fun HardenedBrowserUnavailable(onBack: () -> Unit) {
+    val context = LocalContext.current
+    BackHandler(onBack = onBack)
+    androidx.compose.foundation.layout.Box(
+        modifier =
+            androidx.compose.ui.Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .padding(32.dp),
+        contentAlignment = androidx.compose.ui.Alignment.Center,
+    ) {
+        androidx.compose.foundation.layout.Column(
+            horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+            verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(16.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.hardened_browser_unavailable),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onBackground,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            )
+            androidx.compose.material3.Button(onClick = { openInSystemBrowser(context, "https://duckduckgo.com") }) {
+                Text(stringResource(R.string.hardened_browser_open_system))
+            }
+            androidx.compose.material3.TextButton(onClick = onBack) {
+                Text(stringResource(android.R.string.cancel))
+            }
+        }
+    }
+}
+

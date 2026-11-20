@@ -51,13 +51,7 @@
     <string name="user_mute_with_parameter">Demp %1$s</string>
     <string name="user_block_with_parameter">Blokker %1$s</string>
     <string name="reply_to">Svar til %1$s</string>
-    <string name="status_detail_translate">Oversett</string>
     <string name="status_detail_tldr">Oppsummer</string>
-    <string name="translation_badge_translated">Oversatt</string>
-    <string name="translation_badge_translating">Oversetter…</string>
-    <string name="translation_badge_failed">Oversettelse mislyktes</string>
-    <string name="translation_retry">Prøv oversettelse på nytt</string>
-    <string name="translation_show_original">Vis original</string>
     <string name="user_follow_edit_list">Legg til/fjern fra liste</string>
     <string name="list_empty">Ingen lister</string>
     <string name="vote">Stem</string>

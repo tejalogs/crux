@@ -50,13 +50,7 @@
     <string name="user_mute_with_parameter">Ẩn %1$s</string>
     <string name="user_block_with_parameter">Chặn %1$s</string>
     <string name="reply_to">Trả lời %1$s</string>
-    <string name="status_detail_translate">Dịch</string>
     <string name="status_detail_tldr">Tóm tắt</string>
-    <string name="translation_badge_translated">Đã dịch</string>
-    <string name="translation_badge_translating">Đang dịch…</string>
-    <string name="translation_badge_failed">Lỗi khi dịch</string>
-    <string name="translation_retry">Thử dịch lại</string>
-    <string name="translation_show_original">Hiện bản gốc</string>
     <string name="user_follow_edit_list">Thêm/Xóa khỏi danh sách</string>
     <string name="list_empty">Không có danh sách</string>
     <string name="vote">Bình chọn</string>

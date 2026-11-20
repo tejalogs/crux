@@ -50,13 +50,7 @@
     <string name="user_mute_with_parameter">Demp %1$s</string>
     <string name="user_block_with_parameter">Blokkeer %1$s</string>
     <string name="reply_to">Antwoord aan %1$s</string>
-    <string name="status_detail_translate">Vertaal</string>
     <string name="status_detail_tldr">Opsom</string>
-    <string name="translation_badge_translated">Vertaal</string>
-    <string name="translation_badge_translating">Vertaal tans…</string>
-    <string name="translation_badge_failed">Vertaling het misluk</string>
-    <string name="translation_retry">Probeer vertaling weer</string>
-    <string name="translation_show_original">Wys oorspronklike</string>
     <string name="user_follow_edit_list">Voeg by/verwyder uit lys</string>
     <string name="list_empty">Geen lyste nie</string>
     <string name="vote">Stem</string>

@@ -31,14 +31,9 @@
     <string name="compose_notification_error">Failed to send post</string>
     <string name="status_reply_placeholder_user">Reply to @%1$s…</string>
     <string name="status_reply_placeholder_generic">Post your reply…</string>
-    <string name="profile_insight_title">Profile insight</string>
     <string name="profile_blocked_gate_title">Blocked profile</string>
     <string name="profile_blocked_gate_description">You blocked this user. Their tabs and timeline are hidden until you choose to show them.</string>
     <string name="profile_blocked_gate_show">Show</string>
-    <string name="status_insight_input_placeholder">Ask a follow-up…</string>
-    <string name="status_insight_send">Send</string>
-    <string name="status_insight_analyzing">Analyzing this post…</string>
-    <string name="profile_insight_analyzing">Analyzing this profile…</string>
     <string name="status_insight_trace_loading_post_context">Loading post context…</string>
     <string name="status_insight_trace_post_context_loaded">Post context loaded</string>
     <string name="status_insight_trace_preparing_images">Preparing images…</string>
@@ -140,9 +135,7 @@
     <string name="settings_ai_config_model">Model</string>
     <string name="settings_ai_config_model_description">Choose a model from this endpoint</string>
     <string name="settings_ai_config_model_select">Select model</string>
-    <string name="settings_ai_config_search_language">Search language</string>
     <string name="common_loading">Loading…</string>
-    <string name="settings_ai_config_model_loading">Loading models…</string>
     <string name="settings_ai_config_model_error">Failed to load models</string>
     <string name="settings_ai_config_model_no_models">No models</string>
     <string name="settings_ai_config_model_manual_input">Enter a model name manually</string>
@@ -157,35 +150,7 @@
     <string name="settings_ai_config_agent_description">Show AI Agent entry points in relevant places when an OpenAI-compatible model is configured.</string>
     <string name="settings_ai_config_enable_tldr">Enable AI summaries</string>
     <string name="settings_ai_config_tldr_description">Summarize long posts with AI. Available for posts longer than 500 characters.</string>
-    <string name="settings_ai_config_enable_pre_translation">Enable auto-translate</string>
-    <string name="settings_ai_config_pre_translation_description">Translate newly loaded timeline and profile content in the background and cache the results. This can use a large number of tokens.</string>
-    <string name="settings_translation_prefer_platform">Prefer platform translations</string>
-    <string name="settings_translation_prefer_platform_description">Use a platform-provided translation when one is available during auto-translate.</string>
-    <string name="settings_translation_show_original_with_translation">Show original with translation</string>
-    <string name="settings_translation_show_original_with_translation_description">Display the original text before its translation.</string>
-    <string name="settings_ai_config_translate_prompt">Translation Prompt</string>
     <string name="settings_ai_config_tldr_prompt">Summary Prompt</string>
-    <string name="settings_ai_config_translate_provider">Translation Provider</string>
-    <string name="settings_ai_config_translate_provider_description">Choose which service translates content</string>
-    <string name="settings_ai_config_translate_provider_ai">AI</string>
-    <string name="settings_ai_config_translate_provider_google_web">Google Translate (Web)</string>
-    <string name="settings_ai_config_translate_provider_deepl">DeepL</string>
-    <string name="settings_ai_config_translate_provider_deepl_api_key">DeepL API Key</string>
-    <string name="settings_ai_config_translate_provider_deepl_use_pro">DeepL Pro endpoint</string>
-    <string name="settings_ai_config_translate_provider_deepl_use_pro_description">Use api.deepl.com instead of the free api-free.deepl.com endpoint.</string>
-    <string name="settings_ai_config_translate_provider_google_cloud">Google Cloud Translate</string>
-    <string name="settings_ai_config_translate_provider_google_cloud_api_key">Google Cloud API Key</string>
-    <string name="settings_ai_config_translate_provider_libretranslate">LibreTranslate</string>
-    <string name="settings_ai_config_translate_provider_libretranslate_base_url">LibreTranslate Base URL</string>
-    <string name="settings_ai_config_translate_provider_libretranslate_api_key">LibreTranslate API Key</string>
-    <string name="settings_translation_title">Translation</string>
-    <string name="settings_translation_description">Choose translation services and auto-translate behavior</string>
-    <string name="settings_translation_auto_excluded_languages">Languages to skip for auto-translate</string>
-    <string name="settings_translation_ai_test_title">AI translation test</string>
-    <string name="settings_translation_ai_test_description">Translate a short rich-text sample with the current AI translation settings.</string>
-    <string name="settings_translation_ai_test_action">Test translation</string>
-    <string name="settings_translation_ai_test_original">Sample text</string>
-    <string name="settings_translation_ai_test_result">Translated text</string>
     <string name="settings_language_title">Language</string>
     <string name="settings_language_description">Change Crux\'s app language</string>
 
@@ -300,6 +265,9 @@
     <string name="settings_privacy_scrub_tracking_description">Remove parameters such as utm_source and fbclid from the addresses Crux fetches for feeds and articles</string>
     <string name="settings_privacy_app_lock">Biometric &amp; Device Lock</string>
     <string name="settings_privacy_app_lock_description">Require device PIN, fingerprint, or face unlock when opening Crux</string>
+    <string name="app_lock_unlock">Unlock</string>
+    <string name="hardened_browser_unavailable">This phone\'s WebView can\'t keep the hardened browser separate from your signed-in sites, so it\'s turned off to protect those sessions. Update Android System WebView, or use your regular browser.</string>
+    <string name="hardened_browser_open_system">Open regular browser</string>
     <string name="settings_privacy_traffic_log_title">Traffic log</string>
     <string name="settings_privacy_traffic_log_open_description">See every host Crux contacted and what was removed</string>
     <string name="settings_privacy_traffic_log_empty">No requests recorded yet. Open a feed and come back.</string>
@@ -456,8 +424,6 @@
     <string name="rss_detail_share">Share link</string>
     <string name="rss_detail_tldr">Summarize</string>
     <string name="rss_detail_tldr_error">Failed to summarize</string>
-    <string name="rss_detail_translate">Translate</string>
-    <string name="rss_detail_translate_error">Failed to translate</string>
     <string name="article_content_gate_subscription_title">Support required</string>
     <string name="article_content_gate_subscription_description">This article is only available to supporters. Open it in the browser to support the creator and read the full content.</string>
     <string name="article_content_gate_subscription_description_with_fee">This article is only available to supporters from ¥%1$d. Open it in the browser to support the creator and read the full content.</string>
@@ -607,6 +573,22 @@
     <string name="privacy_hub_subtitle">App lock, site protection and a log of Crux\'s own requests</string>
 
     <!-- OmniScribe / Carousel -->
+    <string name="carousel_ai_review_title">On-device AI review</string>
+    <string name="carousel_ai_review_running">Reviewing your slides on this phone…</string>
+    <string name="carousel_ai_review_no_changes">Looks good. No fixes needed.</string>
+    <string name="carousel_ai_review_model_missing">Download an on-device model in Settings → AI to get a review. Your slides are ready without it.</string>
+    <string name="carousel_ai_review_failed">The review didn\'t work this time. Your slides are unchanged.</string>
+    <string name="carousel_ai_review_undo">Undo fixes</string>
+    <string name="carousel_ai_review_apply">Apply fixes</string>
+    <string name="carousel_ai_review_again">Review again</string>
+    <plurals name="carousel_ai_review_fixed">
+        <item quantity="one">Fixed %d slide</item>
+        <item quantity="other">Fixed %d slides</item>
+    </plurals>
+    <plurals name="carousel_ai_review_fixes_ready">
+        <item quantity="one">%d fix ready</item>
+        <item quantity="other">%d fixes ready</item>
+    </plurals>
     <string name="omni_scribe_format_post">Format post and carousel</string>
     <string name="omni_scribe_source_post">Source post</string>
     <string name="omni_scribe_voice_style">Voice and style</string>
@@ -865,16 +847,6 @@
     <string name="storage_never">Never</string>
     <string name="rss_create_post_title">Create post from this article</string>
     <string name="rss_create_post_description">Draft a post or carousel from the article text</string>
-    <string name="translation_disclosure_title">Send text to translate?</string>
-    <string name="translation_disclosure_message">The text of this article will be sent to %1$s to be translated. Crux has no servers of its own, so nothing else receives it. You will not be asked again for this provider.</string>
-    <string name="translation_disclosure_continue">Continue</string>
-    <string name="translation_disclosure_change_provider">Change provider</string>
-    <string name="translation_provider_google">Google Translate</string>
-    <string name="translation_provider_deepl">DeepL</string>
-    <string name="translation_provider_google_cloud">Google Cloud Translation</string>
-    <string name="translation_provider_libre">LibreTranslate server</string>
-    <string name="translation_provider_ai_server">your AI server</string>
-    <string name="translation_destination_with_host">%1$s (%2$s)</string>
     <string name="omni_scribe_header_article">Article to social post • 4-slide carousel</string>
     <string name="omni_scribe_header_standalone">Standalone post • Context and carousel</string>
     <string name="omni_scribe_standalone">Standalone</string>
@@ -968,7 +940,7 @@
     <string name="settings_search_hint">Search settings…</string>
     <string name="settings_search_clear">Clear search</string>
     <string name="settings_search_empty">No settings matched \"%1$s\"</string>
-    <string name="settings_search_empty_hint">Try theme, reader, cookies, translation or cache.</string>
+    <string name="settings_search_empty_hint">Try theme, reader, cookies or cache.</string>
     <string name="settings_search_reset">Reset search</string>
     <string name="settings_color_space_title">Color tokens</string>
     <string name="settings_color_space_subtitle">Inspect the Material 3 color roles in use</string>
@@ -1023,7 +995,7 @@
     <string name="appearance_reader_preview_body">Long articles open in your chosen paper tone, typeface and page mode. Tap the left or right margin to turn pages, or the center to show the top bar.</string>
     <string name="rss_detail_article_fallback_title">Article</string>
     <string name="on_device_models_section_title">Local open-weights models (.litertlm)</string>
-    <string name="on_device_models_section_subtitle">Download real quantized models once to run smart replies, summaries, translation, and chat offline on your device.</string>
+    <string name="on_device_models_section_subtitle">Download real quantized models once to run smart replies, summaries, and chat offline on your device.</string>
     <string name="on_device_models_storage_summary">%1$s used • %2$s free</string>
     <string name="on_device_runtime_ready">Runtime ready • %1$s on %2$s (%3$dms)</string>
     <string name="on_device_runtime_loading">Loading %1$s on %2$s…</string>

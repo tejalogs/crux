@@ -25,8 +25,6 @@ import org.crux.data.database.cache.model.DbStatusWithUser
 import org.crux.data.database.cache.model.DbTimelineItemPresentationReference
 import org.crux.data.database.cache.model.DbTimelineItemPresentationReferenceWithStatus
 import org.crux.data.database.cache.model.DbTimelineItemPresentationType
-import org.crux.data.database.cache.model.DbTranslation
-import org.crux.data.database.cache.model.TranslationEntityType
 import org.crux.model.AccountType
 import org.crux.model.DbAccountType
 import org.crux.model.MicroBlogKey
@@ -79,12 +77,6 @@ private const val TIMELINE_WITH_STATUS_QUERY =
         "DbStatus.id AS status_id " +
         "FROM DbPagingTimeline " +
         "INNER JOIN DbStatus ON DbStatus.id = DbPagingTimeline.statusId "
-
-private fun DbStatus.withTranslations(translationsByStatusId: Map<String, List<DbTranslation>>) =
-    DbStatusWithUser(
-        data = this,
-        translations = translationsByStatusId[id].orEmpty(),
-    )
 
 internal suspend fun PagingTimelineDao.getTimelinePageInCurrentTransaction(
     pagingKey: String,
@@ -145,20 +137,9 @@ internal suspend fun PagingTimelineDao.getTimelinePageInCurrentTransaction(
         batchStart = batchEnd
     }
 
-    val translationsByStatusId = HashMap<String, MutableList<DbTranslation>>()
-    val allStatusIds = statusById.keys.toList()
-    batchStart = 0
-    while (batchStart < allStatusIds.size) {
-        val batchEnd = minOf(batchStart + QUERY_BATCH_SIZE, allStatusIds.size)
-        getPageTranslations(allStatusIds.subList(batchStart, batchEnd)).forEach { translation ->
-            translationsByStatusId.getOrPut(translation.entityKey, ::ArrayList) += translation
-        }
-        batchStart = batchEnd
-    }
-
     val hydratedStatusById = HashMap<String, DbStatusWithUser>(statusById.size)
     statusById.forEach { (statusId, status) ->
-        hydratedStatusById[statusId] = status.withTranslations(translationsByStatusId)
+        hydratedStatusById[statusId] = DbStatusWithUser(data = status)
     }
     val semanticByRoot = HashMap<String, MutableList<DbStatusReference>>()
     semanticReferences.forEach { reference ->
@@ -266,15 +247,6 @@ internal interface PagingTimelineDao {
 
     @Query("SELECT * FROM DbStatus WHERE id IN (:ids)")
     suspend fun getPageStatuses(ids: List<String>): List<DbStatus>
-
-    @Query(
-        "SELECT * FROM DbTranslation " +
-            "WHERE entityType = :entityType AND entityKey IN (:entityKeys)",
-    )
-    suspend fun getPageTranslations(
-        entityKeys: List<String>,
-        entityType: TranslationEntityType = TranslationEntityType.Status,
-    ): List<DbTranslation>
 
     @Transaction
     suspend fun getTimelinePage(

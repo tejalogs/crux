@@ -193,8 +193,7 @@ internal class SaveSubscriptionSourceTool(
         }
         val candidate = candidates.single()
         val buttonConfirmed =
-            args.confirmed &&
-                session.latestInputConfirms("event=subscription_save_confirmed", "url=${candidate.url}")
+            session.buttonConfirmed(args.confirmed, "event=subscription_save_confirmed", "url=${candidate.url}")
         if (!buttonConfirmed) {
             val requestId = "subscription-save:${candidate.type.name}:${candidate.url}"
             val prompt = candidate.saveConfirmationMessage(requestId)
@@ -274,8 +273,7 @@ internal class DeleteSubscriptionSourceTool(
                     action = "delete",
                 )
         val buttonConfirmed =
-            args.confirmed &&
-                session.latestInputConfirms("event=subscription_delete_confirmed", "sourceId=${source.id}")
+            session.buttonConfirmed(args.confirmed, "event=subscription_delete_confirmed", "sourceId=${source.id}")
         if (!buttonConfirmed) {
             val requestId = "subscription-delete:${source.id}"
             val prompt = source.deleteConfirmationMessage(requestId)
@@ -854,18 +852,6 @@ private fun UiRssSource.deleteConfirmationMessage(requestId: String): String =
         appendLine("title=${title.orEmpty()}")
         appendLine("icon=${favIcon.orEmpty()}")
     }.trim()
-
-/**
- * True only when the latest user turn is the confirmation button payload for this exact
- * action. Lines are matched whole so `url=https://a.example` cannot match a longer URL.
- */
-private fun AgentToolSession.latestInputConfirms(
-    event: String,
-    vararg markers: String,
-): Boolean {
-    val lines = userPrompt.lineSequence().map { it.trim() }.toSet()
-    return event in lines && "confirmed=true" in lines && markers.all { it in lines }
-}
 
 private fun StringBuilder.appendSubscriptionSourceArgs(
     source: UiRssSource,

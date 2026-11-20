@@ -4,7 +4,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.scene.DialogSceneStrategy
-import org.crux.ui.component.BottomSheetSceneStrategy
 import org.crux.ui.route.Route
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -47,14 +46,6 @@ internal fun EntryProviderScope<NavKey>.profileEntryBuilder(
                     )
                 )
             },
-            onProfileInsightClick = {
-                navigate(
-                    Route.Profile.Insight(
-                        accountType = args.accountType,
-                        userKey = it,
-                    )
-                )
-            },
         )
     }
     entry<Route.Profile.User> { args ->
@@ -89,14 +80,6 @@ internal fun EntryProviderScope<NavKey>.profileEntryBuilder(
                     Route.Profile.Fans(
                         userKey = it,
                         accountType = args.accountType,
-                    )
-                )
-            },
-            onProfileInsightClick = {
-                navigate(
-                    Route.Profile.Insight(
-                        accountType = args.accountType,
-                        userKey = it,
                     )
                 )
             },
@@ -138,14 +121,6 @@ internal fun EntryProviderScope<NavKey>.profileEntryBuilder(
                     )
                 )
             },
-            onProfileInsightClick = {
-                navigate(
-                    Route.Profile.Insight(
-                        accountType = args.accountType,
-                        userKey = it,
-                    )
-                )
-            },
         )
     }
     
@@ -178,16 +153,6 @@ internal fun EntryProviderScope<NavKey>.profileEntryBuilder(
                     )
                 )
             }
-        )
-    }
-
-    entry<Route.Profile.Insight>(
-        metadata = BottomSheetSceneStrategy.bottomSheet()
-    ) { args ->
-        ProfileInsightSheet(
-            accountType = args.accountType,
-            userKey = args.userKey,
-            navigate = navigate,
         )
     }
 

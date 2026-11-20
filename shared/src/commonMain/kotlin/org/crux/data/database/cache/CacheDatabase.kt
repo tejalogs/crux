@@ -7,7 +7,7 @@ import androidx.room3.RoomDatabase
 import androidx.room3.RoomDatabaseConstructor
 import androidx.room3.withWriteTransaction
 
-internal const val CACHE_DATABASE_VERSION = 48
+internal const val CACHE_DATABASE_VERSION = 49
 
 @Database(
     entities = [
@@ -28,7 +28,6 @@ internal const val CACHE_DATABASE_VERSION = 48
         org.crux.data.database.cache.model.DbListPaging::class,
         org.crux.data.database.cache.model.DbListMember::class,
         org.crux.data.database.cache.model.DbUserRelation::class,
-        org.crux.data.database.cache.model.DbTranslation::class,
     ],
     version = CACHE_DATABASE_VERSION,
     exportSchema = false,
@@ -40,7 +39,6 @@ internal const val CACHE_DATABASE_VERSION = 48
     org.crux.data.database.cache.model.StatusConverter::class,
     org.crux.data.database.cache.model.DbStatusContentConverter::class,
     org.crux.data.database.cache.model.ListContentConverters::class,
-    org.crux.data.database.cache.model.TranslationConverters::class,
 )
 @ConstructedBy(CacheDatabaseConstructor::class)
 internal abstract class CacheDatabase : RoomDatabase() {
@@ -57,8 +55,6 @@ internal abstract class CacheDatabase : RoomDatabase() {
     abstract fun messageDao(): org.crux.data.database.cache.dao.MessageDao
 
     abstract fun listDao(): org.crux.data.database.cache.dao.ListDao
-
-    abstract fun translationDao(): org.crux.data.database.cache.dao.TranslationDao
 }
 
 // The Room compiler generates the `actual` implementations.

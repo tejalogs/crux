@@ -51,13 +51,7 @@
     <string name="user_mute_with_parameter">Tysta %1$s</string>
     <string name="user_block_with_parameter">Blockera %1$s</string>
     <string name="reply_to">Svara till %1$s</string>
-    <string name="status_detail_translate">Översätt</string>
     <string name="status_detail_tldr">Sammanfatta</string>
-    <string name="translation_badge_translated">Översatt</string>
-    <string name="translation_badge_translating">Översätter…</string>
-    <string name="translation_badge_failed">Översättning misslyckades</string>
-    <string name="translation_retry">Försök igen</string>
-    <string name="translation_show_original">Visa original</string>
     <string name="user_follow_edit_list">Lägg till/Ta bort från lista</string>
     <string name="list_empty">Inga listor</string>
     <string name="vote">Rösta</string>

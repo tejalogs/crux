@@ -13,7 +13,6 @@
     <string name="compose_title">Skryf</string>
     <string name="compose_notification_success">Pos gestuur</string>
     <string name="compose_notification_error">Kon nie pos stuur nie</string>
-    <string name="status_insight_send">Stuur</string>
     <string name="agent_chat_send">Stuur</string>
     <string name="settings_title">Instellings</string>
     <string name="settings_appearance_theme_group_title">Tema</string>
@@ -45,7 +44,6 @@
     <string name="settings_ai_config_api_key_hint">Voer API-sleutel in</string>
     <string name="settings_ai_config_model_description">Kies \'n model vanaf hierdie eindpunt</string>
     <string name="settings_ai_config_model_select">Kies model</string>
-    <string name="settings_ai_config_model_loading">Laai modelle…</string>
     <string name="settings_ai_config_model_error">Kon nie modelle laai nie</string>
     <string name="settings_ai_config_model_no_models">Geen modelle nie</string>
     <string name="settings_ai_config_model_manual_input">Voer \'n modelnaam handmatig in</string>
@@ -57,27 +55,7 @@
     <string name="settings_ai_config_extra_body">Ekstra liggaam</string>
     <string name="settings_ai_config_enable_tldr">Aktiveer KI-opsommings</string>
     <string name="settings_ai_config_tldr_description">Som lang poste op met KI. Beskikbaar vir poste langer as 500 karakters.</string>
-    <string name="settings_ai_config_enable_pre_translation">Aktiveer outo-vertaling</string>
-    <string name="settings_ai_config_pre_translation_description">Vertaal nuut gelaaide tydlyn- en profielinhoud in die agtergrond en kas die resultate. Dit kan \'n groot aantal tekens gebruik.</string>
-    <string name="settings_ai_config_translate_prompt">Vertaalaanmaning</string>
     <string name="settings_ai_config_tldr_prompt">Opsomming-aanmaning</string>
-    <string name="settings_ai_config_translate_provider">Vertalingverskaffer</string>
-    <string name="settings_ai_config_translate_provider_description">Kies watter diens inhoud vertaal</string>
-    <string name="settings_ai_config_translate_provider_ai">KI</string>
-    <string name="settings_ai_config_translate_provider_deepl_api_key">DeepL API-sleutel</string>
-    <string name="settings_ai_config_translate_provider_deepl_use_pro">DeepL Pro-eindpunt</string>
-    <string name="settings_ai_config_translate_provider_deepl_use_pro_description">Gebruik api.deepl.com in plaas van die gratis api-free.deepl.com-eindpunt.</string>
-    <string name="settings_ai_config_translate_provider_google_cloud_api_key">Google Cloud API-sleutel</string>
-    <string name="settings_ai_config_translate_provider_libretranslate_base_url">LibreTranslate Basis-URL</string>
-    <string name="settings_ai_config_translate_provider_libretranslate_api_key">LibreTranslate API-sleutel</string>
-    <string name="settings_translation_title">Vertaling</string>
-    <string name="settings_translation_description">Kies vertaaldienste en outo-vertaling gedrag</string>
-    <string name="settings_translation_auto_excluded_languages">Tale om oor te slaan vir outo-vertaling</string>
-    <string name="settings_translation_ai_test_title">KI-vertalingstoets</string>
-    <string name="settings_translation_ai_test_description">Vertaal \'n kort ryk-teks-monster met die huidige KI-vertalinginstellings.</string>
-    <string name="settings_translation_ai_test_action">Toets vertaling</string>
-    <string name="settings_translation_ai_test_original">Monsterteks</string>
-    <string name="settings_translation_ai_test_result">Vertaalde teks</string>
     <string name="settings_language_title">Taal</string>
     <string name="settings_language_description">Verander Crux se toepassingstaal</string>
     <string name="login_expired">Sessie het verval</string>
@@ -227,8 +205,6 @@
     <string name="rss_detail_share">Deel skakel</string>
     <string name="rss_detail_tldr">Som op</string>
     <string name="rss_detail_tldr_error">Kon nie opsom nie</string>
-    <string name="rss_detail_translate">Vertaal</string>
-    <string name="rss_detail_translate_error">Kon nie vertaal nie</string>
     <string name="emoji_picker_recent">Onlangs</string>
     <string name="emoji_picker_search">Soek</string>
     <string name="podcast_host">Gasheer</string>
@@ -288,10 +264,6 @@
     <string name="status_share_sheet_theme_title">Tema</string>
     <string name="channel_title">Kanaal</string>
     <string name="app_name" translatable="false">Crux</string>
-    <string name="profile_insight_title">Profielinsig</string>
-    <string name="status_insight_input_placeholder">Vra ’n opvolgvraag…</string>
-    <string name="status_insight_analyzing">Ontleed hierdie plasing...</string>
-    <string name="profile_insight_analyzing">Ontleed hierdie profiel…</string>
     <string name="status_insight_trace_loading_post_context">Laai plasingskonteks...</string>
     <string name="status_insight_trace_post_context_loaded">Plasingskonteks gelaai</string>
     <string name="status_insight_trace_preparing_images">Berei beelde voor...</string>
@@ -336,10 +308,6 @@
     <string name="settings_ai_config_reasoning_effort_medium">Medium</string>
     <string name="settings_ai_config_enable_agent">Aktiveer AI Agent</string>
     <string name="settings_ai_config_agent_description">Wanneer dit geaktiveer is, sal die AI Agent-funksie op die relevante plekke in die app verskyn wanneer n OpenAI-versoenbare model ingestel is.</string>
-    <string name="settings_ai_config_translate_provider_google_web">Google Translate (Web)</string>
-    <string name="settings_ai_config_translate_provider_deepl">DeepL</string>
-    <string name="settings_ai_config_translate_provider_google_cloud">Google Cloud Translate</string>
-    <string name="settings_ai_config_translate_provider_libretranslate">LibreTranslate</string>
     <string name="settings_appearance_expand_content_warning">Inhoud achter waarschuwingen tonen</string>
     <string name="settings_appearance_expand_content_warning_description">Toon altijd inhoud die door waarschuwingen is verborgen</string>
     <string name="illustrations_title">Illustrasies</string>
@@ -432,10 +400,6 @@
     <string name="settings_post_action_fixed_width_description">Hou aksieknoppies met tellings op ’n konsekwente wydte</string>
     <string name="settings_refresh_home_timeline_on_launch">Dateer tuistydlyn op wanneer dit begin</string>
     <string name="settings_refresh_home_timeline_on_launch_description">Haal nuwe plasings wanneer Crux oopmaak</string>
-    <string name="settings_translation_prefer_platform">Verkies platformvertalings</string>
-    <string name="settings_translation_prefer_platform_description">Gebruik ’n vertaling wat deur die platform verskaf word wanneer een tydens outomatiese vertaling beskikbaar is.</string>
-    <string name="settings_translation_show_original_with_translation">Wys oorspronklike met vertaling</string>
-    <string name="settings_translation_show_original_with_translation_description">Wys die oorspronklike teks voor die vertaling daarvan</string>
     <string name="status_share_crosspost">Kruisplasing</string>
     <string name="status_share_crosspost_failed">Kon nie kruisplasing voorberei nie</string>
 </resources>

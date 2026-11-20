@@ -34,12 +34,6 @@ class LocalModelPromptExecutorTest {
 
         override suspend fun hasDownloadedModel(): Boolean = downloaded
 
-        override suspend fun translate(
-            source: String,
-            targetLanguage: String,
-            prompt: String,
-        ): String? = null
-
         override suspend fun tldr(
             source: String,
             targetLanguage: String,

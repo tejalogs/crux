@@ -10,7 +10,6 @@ import org.crux.ui.screen.status.action.AltTextSheet
 import org.crux.ui.screen.status.action.DeleteStatusConfirmDialog
 import org.crux.ui.screen.status.action.OmniScribeBottomSheet
 import org.crux.ui.screen.status.action.SmartReplyBottomSheet
-import org.crux.ui.screen.status.action.StatusInsightSheet
 import org.crux.ui.screen.status.action.StatusShareSheet
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -57,16 +56,6 @@ internal fun EntryProviderScope<NavKey>.statusEntryBuilder(
             fxShareUrl = args.fxShareUrl,
             fixvxShareUrl = args.fixvxShareUrl,
             onBack = onBack
-        )
-    }
-
-    entry<Route.Status.Insight>(
-        metadata = BottomSheetSceneStrategy.bottomSheet()
-    ) { args ->
-        StatusInsightSheet(
-            accountType = args.accountType,
-            statusKey = args.statusKey,
-            navigate = navigate,
         )
     }
 

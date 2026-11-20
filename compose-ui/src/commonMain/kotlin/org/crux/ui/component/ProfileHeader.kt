@@ -1,7 +1,6 @@
 package org.crux.ui.component
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -61,8 +60,6 @@ import org.crux.ui.component.platform.PlatformFilledTonalButton
 import org.crux.ui.component.platform.PlatformOutlinedButton
 import org.crux.ui.component.platform.PlatformText
 import org.crux.ui.component.platform.isBigScreen
-import org.crux.ui.component.status.TranslationDisplayBadge
-import org.crux.ui.model.TranslationDisplayState
 import org.crux.ui.model.UiProfile
 import org.crux.ui.model.UiRelation
 import org.crux.ui.model.UiState
@@ -344,11 +341,6 @@ private fun ProfileHeaderSuccess(
                         )
                     }
                 }
-            }
-            AnimatedVisibility(user.translationDisplayState != TranslationDisplayState.Hidden) {
-                TranslationDisplayBadge(
-                    state = user.translationDisplayState,
-                )
             }
         },
         content = {

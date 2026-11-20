@@ -9,7 +9,6 @@ import org.crux.data.database.cache.connect
 import org.crux.data.database.cache.mapper.saveToDatabase
 import org.crux.data.database.cache.model.DbPagingKey
 import org.crux.data.database.cache.model.DbPagingTimelineWithStatus
-import org.crux.data.database.cache.model.TranslationDisplayOptions
 import org.crux.data.datasource.microblog.paging.CacheableRemoteLoader
 import org.crux.data.datasource.microblog.paging.PagingRequest
 import org.crux.data.datasource.microblog.paging.PagingResult
@@ -265,7 +264,6 @@ internal class MixedRemoteMediator(
         TimelinePagingMapper.toUi(
             item = item,
             pagingKey = item.timeline.pagingKey,
-            translationDisplayOptions = TIME_STAGING_TRANSLATION_OPTIONS,
         )
 
     override suspend fun sortId(data: UiTimelineV2): Long? =
@@ -496,11 +494,5 @@ internal class MixedRemoteMediator(
         private const val MIXED_NEXT_KEY = "mixed_next_key"
         private const val SORT_ID_TIE_BUCKET = 10_000L
         private const val TIME_STAGING_SUFFIX = ":time_staging:"
-        private val TIME_STAGING_TRANSLATION_OPTIONS =
-            TranslationDisplayOptions(
-                translationEnabled = false,
-                autoDisplayEnabled = false,
-                providerCacheKey = "",
-            )
     }
 }

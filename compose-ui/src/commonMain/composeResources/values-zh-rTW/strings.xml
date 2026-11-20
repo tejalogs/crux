@@ -55,13 +55,7 @@
     <string name="user_mute_with_parameter">靜音 %1$s</string>
     <string name="user_block_with_parameter">封鎖 %1$s</string>
     <string name="reply_to">回覆 %1$s</string>
-    <string name="status_detail_translate">翻譯</string>
     <string name="status_detail_tldr">總結</string>
-    <string name="translation_badge_translated">已翻譯</string>
-    <string name="translation_badge_translating">正在翻譯…</string>
-    <string name="translation_badge_failed">翻譯失敗</string>
-    <string name="translation_retry">重試翻譯</string>
-    <string name="translation_show_original">顯示原文</string>
     <string name="user_follow_edit_list">加入/移除自列表</string>
     <string name="list_empty">沒有列表</string>
     <string name="vote">投票</string>

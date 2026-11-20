@@ -51,13 +51,7 @@
     <string name="user_mute_with_parameter">Игнорировать %1$s</string>
     <string name="user_block_with_parameter">Заблокировать %1$s</string>
     <string name="reply_to">Ответ пользователю %1$s</string>
-    <string name="status_detail_translate">Перевести</string>
     <string name="status_detail_tldr">Краткое содержание</string>
-    <string name="translation_badge_translated">Переведено</string>
-    <string name="translation_badge_translating">Перевод…</string>
-    <string name="translation_badge_failed">Ошибка перевода</string>
-    <string name="translation_retry">Повторить перевод</string>
-    <string name="translation_show_original">Показать оригинал</string>
     <string name="user_follow_edit_list">Добавить/удалить из списка</string>
     <string name="list_empty">Списков нет</string>
     <string name="vote">Голосовать</string>

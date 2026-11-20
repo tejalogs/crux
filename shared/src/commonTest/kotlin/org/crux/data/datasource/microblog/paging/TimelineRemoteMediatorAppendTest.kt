@@ -136,7 +136,6 @@ class TimelineRemoteMediatorAppendTest : RobolectricTest() {
                 ): PagingResult<UiTimelineV2> = response(request)
             },
         database = database,
-        allowLongText = false,
     )
 
     private suspend fun TimelineRemoteMediator.loadPage(type: LoadType) {

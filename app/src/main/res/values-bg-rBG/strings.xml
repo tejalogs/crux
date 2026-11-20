@@ -13,7 +13,6 @@
     <string name="compose_title">Създаване</string>
     <string name="compose_notification_success">Публикацията е изпратена</string>
     <string name="compose_notification_error">Неуспешно изпращане на публикация</string>
-    <string name="status_insight_send">Изпращане</string>
     <string name="agent_chat_send">Изпращане</string>
     <string name="settings_title">Настройки</string>
     <string name="settings_appearance_theme_group_title">Тема</string>
@@ -46,7 +45,6 @@
     <string name="settings_ai_config_model">Модел</string>
     <string name="settings_ai_config_model_description">Изберете модел от тази крайна точка</string>
     <string name="settings_ai_config_model_select">Избор на модел</string>
-    <string name="settings_ai_config_model_loading">Зареждане на модели…</string>
     <string name="settings_ai_config_model_error">Неуспешно зареждане на модели</string>
     <string name="settings_ai_config_model_no_models">Няма модели</string>
     <string name="settings_ai_config_model_manual_input">Въведете име на модел ръчно</string>
@@ -59,29 +57,7 @@
     <string name="settings_ai_config_extra_body">Допълнително тяло (Extra Body)</string>
     <string name="settings_ai_config_enable_tldr">Активиране на ИИ резюмета</string>
     <string name="settings_ai_config_tldr_description">Обобщаване на дълги публикации с ИИ. Налично за публикации, по-дълги от 500 знака.</string>
-    <string name="settings_ai_config_enable_pre_translation">Активиране на автоматичен превод</string>
-    <string name="settings_ai_config_pre_translation_description">Превод на новозаредено съдържание от времевата линия и профила във фонов режим и кеширане на резултатите. Това може да използва голям брой токени.</string>
-    <string name="settings_ai_config_translate_prompt">Промпт за превод</string>
     <string name="settings_ai_config_tldr_prompt">Промпт за резюме</string>
-    <string name="settings_ai_config_translate_provider">Доставчик на превод</string>
-    <string name="settings_ai_config_translate_provider_description">Изберете коя услуга да превежда съдържанието</string>
-    <string name="settings_ai_config_translate_provider_ai">ИИ</string>
-    <string name="settings_ai_config_translate_provider_google_web">Google Преводач (Web)</string>
-    <string name="settings_ai_config_translate_provider_deepl_api_key">DeepL API ключ</string>
-    <string name="settings_ai_config_translate_provider_deepl_use_pro">DeepL Pro крайна точка</string>
-    <string name="settings_ai_config_translate_provider_deepl_use_pro_description">Използване на api.deepl.com вместо безплатната api-free.deepl.com крайна точка.</string>
-    <string name="settings_ai_config_translate_provider_google_cloud">Google Cloud Преводач</string>
-    <string name="settings_ai_config_translate_provider_google_cloud_api_key">Google Cloud API ключ</string>
-    <string name="settings_ai_config_translate_provider_libretranslate_base_url">LibreTranslate базов URL</string>
-    <string name="settings_ai_config_translate_provider_libretranslate_api_key">LibreTranslate API ключ</string>
-    <string name="settings_translation_title">Превод</string>
-    <string name="settings_translation_description">Избор на услуги за превод и поведение на автоматичния превод</string>
-    <string name="settings_translation_auto_excluded_languages">Езици за пропускане при автоматичен превод</string>
-    <string name="settings_translation_ai_test_title">Тест на ИИ превод</string>
-    <string name="settings_translation_ai_test_description">Превод на кратка мостра от текст с богати възможности (rich-text) с текущите настройки за ИИ превод.</string>
-    <string name="settings_translation_ai_test_action">Тестване на превода</string>
-    <string name="settings_translation_ai_test_original">Примерен текст</string>
-    <string name="settings_translation_ai_test_result">Преведен текст</string>
     <string name="settings_language_title">Език</string>
     <string name="settings_language_description">Промяна на езика на приложението Crux</string>
     <string name="login_expired">Сесията за вход изтече</string>
@@ -231,8 +207,6 @@
     <string name="rss_detail_share">Споделяне на връзката</string>
     <string name="rss_detail_tldr">Обобщаване</string>
     <string name="rss_detail_tldr_error">Неуспешно обобщаване</string>
-    <string name="rss_detail_translate">Превод</string>
-    <string name="rss_detail_translate_error">Неуспешен превод</string>
     <string name="emoji_picker_recent">Скорошни</string>
     <string name="emoji_picker_search">Търсене</string>
     <string name="podcast_host">Хост</string>
@@ -292,10 +266,6 @@
     <string name="status_share_sheet_theme_title">Тема</string>
     <string name="channel_title">Канал</string>
     <string name="app_name" translatable="false">Crux</string>
-    <string name="profile_insight_title">Прозрение за профила</string>
-    <string name="status_insight_input_placeholder">Задайте последващ въпрос…</string>
-    <string name="status_insight_analyzing">Анализиране на тази публикация...</string>
-    <string name="profile_insight_analyzing">Анализиране на този профил…</string>
     <string name="status_insight_trace_loading_post_context">Зареждане на контекста на публикацията...</string>
     <string name="status_insight_trace_post_context_loaded">Контекстът на публикацията е зареден</string>
     <string name="status_insight_trace_preparing_images">Подготовка на изображения...</string>
@@ -338,8 +308,6 @@
     <string name="agent_chat_thinking">Мислене...</string>
     <string name="settings_ai_config_enable_agent">Активиране на AI Agent</string>
     <string name="settings_ai_config_agent_description">След активиране функцията AI Agent ще се показва на съответните места в приложението, когато е настроен OpenAI-съвместим модел.</string>
-    <string name="settings_ai_config_translate_provider_deepl">DeepL</string>
-    <string name="settings_ai_config_translate_provider_libretranslate">LibreTranslate</string>
     <string name="settings_appearance_expand_content_warning">Показывать содержимое за предупреждениями</string>
     <string name="settings_appearance_expand_content_warning_description">Всегда раскрывать содержимое, скрытое предупреждениями</string>
     <string name="illustrations_title">Илюстрации</string>
@@ -432,10 +400,6 @@
     <string name="settings_post_action_fixed_width_description">Поддържане на постоянна ширина на бутоните за действия с броячи</string>
     <string name="settings_refresh_home_timeline_on_launch">Обновяване на началната хронология при стартиране</string>
     <string name="settings_refresh_home_timeline_on_launch_description">Извличане на нови публикации при отваряне на Crux</string>
-    <string name="settings_translation_prefer_platform">Предпочитане на преводите от платформата</string>
-    <string name="settings_translation_prefer_platform_description">Използване на предоставен от платформата превод, когато е наличен при автоматичен превод.</string>
-    <string name="settings_translation_show_original_with_translation">Показване на оригинала с превода</string>
-    <string name="settings_translation_show_original_with_translation_description">Показване на оригиналния текст преди превода му</string>
     <string name="status_share_crosspost">Кръстосано публикуване</string>
     <string name="status_share_crosspost_failed">Кръстосаното публикуване не може да бъде подготвено</string>
 </resources>

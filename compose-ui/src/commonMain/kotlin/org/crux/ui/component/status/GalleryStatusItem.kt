@@ -47,7 +47,6 @@ import org.crux.ui.component.RichText
 import org.crux.ui.component.placeholder
 import org.crux.ui.component.platform.PlatformText
 import org.crux.ui.model.ClickContext
-import org.crux.ui.model.TranslationDisplayState
 import org.crux.ui.model.UiMedia
 import org.crux.ui.model.UiTimelineV2
 import org.crux.ui.model.toUiImage
@@ -106,18 +105,7 @@ private fun GalleryPostTile(
     val appearance = LocalTimelineAppearance.current
     var isMenuExpanded by remember(post.itemKey) { mutableStateOf(false) }
     var revealedSensitive by remember(post.itemKey) { mutableStateOf(false) }
-    val showOriginalWithTranslation = appearance.aiConfig.showOriginalWithTranslation
-    val translation = post.content.translation
-    val visibleContent =
-        if (post.translationDisplayState == TranslationDisplayState.Translated && translation != null) {
-            if (showOriginalWithTranslation) {
-                listOf(post.content.original, translation)
-            } else {
-                listOf(translation)
-            }
-        } else {
-            listOf(post.content.original)
-        }
+    val visibleContent = listOf(post.content.original)
     val likeCount =
         remember(post.actions) {
             post.actions

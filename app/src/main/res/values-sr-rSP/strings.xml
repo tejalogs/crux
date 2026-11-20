@@ -14,7 +14,6 @@
     <string name="compose_title">Састави</string>
     <string name="compose_notification_success">Објава је послата</string>
     <string name="compose_notification_error">Слање објаве није успело</string>
-    <string name="status_insight_send">Пошаљи</string>
     <string name="agent_chat_send">Пошаљи</string>
     <string name="settings_title">Подешавања</string>
     <string name="settings_appearance_theme_group_title">Тема</string>
@@ -47,7 +46,6 @@
     <string name="settings_ai_config_model">Модел</string>
     <string name="settings_ai_config_model_description">Одаберите модел са ове крајње тачке</string>
     <string name="settings_ai_config_model_select">Одабери модел</string>
-    <string name="settings_ai_config_model_loading">Учитавање модела…</string>
     <string name="settings_ai_config_model_error">Учитавање модела није успело</string>
     <string name="settings_ai_config_model_no_models">Нема модела</string>
     <string name="settings_ai_config_model_manual_input">Ручно унесите назив модела</string>
@@ -60,29 +58,7 @@
     <string name="settings_ai_config_extra_body">Додатно тело (JSON)</string>
     <string name="settings_ai_config_enable_tldr">Омогући ВИ резимее</string>
     <string name="settings_ai_config_tldr_description">Сумирајте дуге објаве помоћу ВИ. Доступно за објаве дуже од 500 знакова.</string>
-    <string name="settings_ai_config_enable_pre_translation">Омогући аутоматско превођење</string>
-    <string name="settings_ai_config_pre_translation_description">Преводите новоучитани садржај временске линије и профила у позадини и кеширајте резултате. Ово може потрошити велики број токена.</string>
-    <string name="settings_ai_config_translate_prompt">Упит за превођење</string>
     <string name="settings_ai_config_tldr_prompt">Упит за резиме</string>
-    <string name="settings_ai_config_translate_provider">Провајдер превода</string>
-    <string name="settings_ai_config_translate_provider_description">Одаберите коју услугу користите за превод садржаја</string>
-    <string name="settings_ai_config_translate_provider_ai">ВИ</string>
-    <string name="settings_ai_config_translate_provider_google_web">Google преводилац (веб)</string>
-    <string name="settings_ai_config_translate_provider_deepl_api_key">DeepL API кључ</string>
-    <string name="settings_ai_config_translate_provider_deepl_use_pro">DeepL Pro крајња тачка</string>
-    <string name="settings_ai_config_translate_provider_deepl_use_pro_description">Користите api.deepl.com уместо бесплатне api-free.deepl.com крајње тачке.</string>
-    <string name="settings_ai_config_translate_provider_google_cloud">Google Cloud превод</string>
-    <string name="settings_ai_config_translate_provider_google_cloud_api_key">Google Cloud API кључ</string>
-    <string name="settings_ai_config_translate_provider_libretranslate_base_url">LibreTranslate основни URL</string>
-    <string name="settings_ai_config_translate_provider_libretranslate_api_key">LibreTranslate API кључ</string>
-    <string name="settings_translation_title">Превод</string>
-    <string name="settings_translation_description">Одаберите услуге превођења и понашање аутоматског превода</string>
-    <string name="settings_translation_auto_excluded_languages">Језици које треба прескочити за аутоматски превод</string>
-    <string name="settings_translation_ai_test_title">ВИ тест превода</string>
-    <string name="settings_translation_ai_test_description">Преведите кратак узорак текста са тренутним ВИ подешавањима превода.</string>
-    <string name="settings_translation_ai_test_action">Тестирај превод</string>
-    <string name="settings_translation_ai_test_original">Узорак текста</string>
-    <string name="settings_translation_ai_test_result">Преведени текст</string>
     <string name="settings_language_title">Језик</string>
     <string name="settings_language_description">Промените језик апликације Crux</string>
     <string name="login_expired">Сесија пријаве је истекла</string>
@@ -232,8 +208,6 @@
     <string name="rss_detail_share">Подели линк</string>
     <string name="rss_detail_tldr">Сумирај</string>
     <string name="rss_detail_tldr_error">Сумирање није успело</string>
-    <string name="rss_detail_translate">Преведи</string>
-    <string name="rss_detail_translate_error">Превођење није успело</string>
     <string name="emoji_picker_recent">Недавно</string>
     <string name="emoji_picker_search">Претрага</string>
     <string name="podcast_host">Хост</string>
@@ -293,10 +267,6 @@
     <string name="status_share_sheet_theme_title">Тема</string>
     <string name="channel_title">Канал</string>
     <string name="app_name" translatable="false">Crux</string>
-    <string name="profile_insight_title">Увид у профил</string>
-    <string name="status_insight_input_placeholder">Поставите додатно питање…</string>
-    <string name="status_insight_analyzing">Анализирање ове објаве...</string>
-    <string name="profile_insight_analyzing">Анализирање овог профила…</string>
     <string name="status_insight_trace_loading_post_context">Учитавање контекста објаве...</string>
     <string name="status_insight_trace_post_context_loaded">Контекст објаве је учитан</string>
     <string name="status_insight_trace_preparing_images">Припрема слика...</string>
@@ -339,8 +309,6 @@
     <string name="agent_chat_thinking">Размишљање...</string>
     <string name="settings_ai_config_enable_agent">Омогући AI Agent</string>
     <string name="settings_ai_config_agent_description">Када се омогући, функција AI Agent ће се појавити на релевантним местима у апликацији када је подешен модел компатибилан са OpenAI.</string>
-    <string name="settings_ai_config_translate_provider_deepl">DeepL</string>
-    <string name="settings_ai_config_translate_provider_libretranslate">LibreTranslate</string>
     <string name="settings_appearance_expand_content_warning">Показывать содержимое за предупреждениями</string>
     <string name="settings_appearance_expand_content_warning_description">Всегда раскрывать содержимое, скрытое предупреждениями</string>
     <string name="illustrations_title">Илустрације</string>
@@ -433,10 +401,6 @@
     <string name="settings_post_action_fixed_width_description">Задржи уједначену ширину дугмади радњи са бројачима</string>
     <string name="settings_refresh_home_timeline_on_launch">Освежи почетну временску линију при покретању</string>
     <string name="settings_refresh_home_timeline_on_launch_description">Преузми нове објаве када се Crux отвори</string>
-    <string name="settings_translation_prefer_platform">Дај предност преводима платформе</string>
-    <string name="settings_translation_prefer_platform_description">Користи превод који обезбеђује платформа када је доступан током аутоматског превођења.</string>
-    <string name="settings_translation_show_original_with_translation">Прикажи оригинал са преводом</string>
-    <string name="settings_translation_show_original_with_translation_description">Прикажи оригинални текст пре његовог превода</string>
     <string name="status_share_crosspost">Унакрсна објава</string>
     <string name="status_share_crosspost_failed">Припрема унакрсне објаве није успела</string>
 </resources>

@@ -51,13 +51,7 @@
     <string name="user_mute_with_parameter">Mykistä %1$s</string>
     <string name="user_block_with_parameter">Estä %1$s</string>
     <string name="reply_to">Vastaus käyttäjälle %1$s</string>
-    <string name="status_detail_translate">Käännä</string>
     <string name="status_detail_tldr">Tiivistä</string>
-    <string name="translation_badge_translated">Käännetty</string>
-    <string name="translation_badge_translating">Käännetään…</string>
-    <string name="translation_badge_failed">Kääntäminen epäonnistui</string>
-    <string name="translation_retry">Yritä kääntämistä uudelleen</string>
-    <string name="translation_show_original">Näytä alkuperäinen</string>
     <string name="user_follow_edit_list">Lisää/poista listalta</string>
     <string name="list_empty">Ei listoja</string>
     <string name="vote">Äänestä</string>

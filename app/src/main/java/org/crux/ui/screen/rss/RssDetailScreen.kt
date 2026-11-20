@@ -30,7 +30,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -100,7 +99,6 @@ import org.crux.data.network.rss.DocumentData
 import org.crux.data.readinglist.ReadingListItem
 import org.crux.data.readinglist.ReadingListRepository
 import org.crux.data.repository.SettingsRepository
-import org.crux.data.translation.TranslationDisclosure
 import org.crux.model.AccountType
 import org.crux.model.MicroBlogKey
 import org.crux.ui.component.BackButton
@@ -121,7 +119,6 @@ import org.crux.ui.model.onLoading
 import org.crux.ui.model.onSuccess
 import org.crux.ui.model.takeSuccessOr
 import org.crux.ui.presenter.home.rss.RssDetailPresenter
-import org.crux.ui.presenter.home.rss.RssDetailTranslatePresenter
 import org.crux.ui.presenter.invoke
 import org.crux.ui.presenter.server.AiTLDRPresenter
 import org.crux.ui.render.parseHtml
@@ -152,36 +149,9 @@ internal fun RssDetailScreen(
     descriptionHtml: String? = null,
     descriptionTitle: String? = null,
     fallbackHtml: String? = null,
-    toTranslationSettings: () -> Unit = {},
 ) {
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
     val state by producePresenter(url) { presenter(url, descriptionHtml, descriptionTitle, fallbackHtml) }
-    val settingsRepository = koinInject<SettingsRepository>()
-    val disclosureScope = rememberCoroutineScope()
-    var disclosureDismissed by remember(url) { mutableStateOf(false) }
-    state.disclosureDestination?.let { destination ->
-        if (state.enableTranslate || (state.isAutoTranslate && !disclosureDismissed)) {
-            TranslationDisclosureDialog(
-                destination = destination,
-                onContinue = {
-                    disclosureScope.launch {
-                        settingsRepository.updateAppSettings {
-                            copy(translateConfig = TranslationDisclosure.acknowledge(translateConfig, destination))
-                        }
-                    }
-                },
-                onCancel = {
-                    state.setEnableTranslate(false)
-                    disclosureDismissed = true
-                },
-                onChangeProvider = {
-                    state.setEnableTranslate(false)
-                    disclosureDismissed = true
-                    toTranslationSettings()
-                },
-            )
-        }
-    }
     val uriHandler = LocalUriHandler.current
     val context = LocalContext.current
     val readingListRepo = koinInject<ReadingListRepository>()
@@ -394,15 +364,6 @@ internal fun RssDetailScreen(
                                 openInSystemBrowser(context, url)
                             },
                         )
-                        if (state.data.isSuccess && !state.isAutoTranslate && !state.enableTranslate) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.rss_detail_translate)) },
-                                onClick = {
-                                    showMoreMenu = false
-                                    state.setEnableTranslate(true)
-                                },
-                            )
-                        }
                     }
                 }
             },
@@ -484,15 +445,7 @@ internal fun RssDetailScreen(
                     ) {
                         state.data
                             .onSuccess { documentData ->
-                                // Show translated title if available, otherwise original
-                                val rawTitle = descriptionTitle?.takeIf { it.isNotBlank() } ?: documentData.title
-                                val displayTitle =
-                                    state.translateState?.translatedTitle?.let { titleState ->
-                                        when (titleState) {
-                                            is UiState.Success -> titleState.data
-                                            else -> rawTitle
-                                        }
-                                    } ?: rawTitle
+                                val displayTitle = descriptionTitle?.takeIf { it.isNotBlank() } ?: documentData.title
                                 MaybeSelectable(enabled = !paged) {
                                     Text(
                                         text = displayTitle,
@@ -623,37 +576,11 @@ internal fun RssDetailScreen(
                                         }
                                     }
                                 }
-                                // Show translation loading indicator
-                                state.translateState?.translatedHtml?.onLoading {
-                                    LinearWavyProgressIndicator(
-                                        modifier =
-                                            Modifier
-                                                .fillMaxWidth(),
-                                    )
-                                }
                                 MaybeSelectable(enabled = !paged) {
-                                    val displayData =
-                                        state.translateState?.translatedHtml?.let { htmlState ->
-                                            when (htmlState) {
-                                                is UiState.Success -> data.copy(content = htmlState.data)
-                                                else -> data
-                                            }
-                                        } ?: data
                                     RssRichText(
-                                        element = remember(displayData.content, url) { parseHtml(displayData.content, baseUri = url) },
+                                        element = remember(data.content, url) { parseHtml(data.content, baseUri = url) },
                                         imageHeader = state.headers,
                                         textStyle = bodyStyle,
-                                    )
-                                }
-                                // Show translation error if any
-                                state.translateState?.translatedHtml?.onError {
-                                    Text(
-                                        text = stringResource(R.string.rss_detail_translate_error),
-                                        color = MaterialTheme.colorScheme.error,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        modifier =
-                                            Modifier
-                                                .clickable { state.refreshTranslate() },
                                     )
                                 }
                                 if (data.textContent.isNotBlank()) {
@@ -828,21 +755,8 @@ private fun presenter(
     val enableTldr by remember {
         settingsRepository.appSettings.map { it.aiConfig.tldr }
     }.collectAsUiState()
-    val preTranslate by remember {
-        settingsRepository.appSettings.map { it.translateConfig.preTranslate }
-    }.collectAsUiState()
-    // Null until the settings are read; nothing is translated before the one-time disclosure is accepted.
-    val gate by remember {
-        settingsRepository.appSettings.map { settings ->
-            TranslationGate(
-                destination = TranslationDisclosure.destination(settings)?.takeIf { TranslationDisclosure.isRequired(settings) },
-            )
-        }
-    }.collectAsState(initial = null)
     var showTldr by remember { mutableStateOf(false) }
     var tldrRefreshKey by remember { mutableIntStateOf(0) }
-    var enableTranslate by remember { mutableStateOf(false) }
-    var translateRefreshKey by remember { mutableIntStateOf(0) }
     val tldrState =
         if (showTldr) {
             key(tldrRefreshKey, state.data) {
@@ -856,42 +770,11 @@ private fun presenter(
         } else {
             null
         }
-    // Determine if translation should be active:
-    // auto-translate (preTranslate=true) or manually triggered
-    val isAutoTranslate = preTranslate is UiState.Success && (preTranslate as UiState.Success<Boolean>).data
-    val shouldTranslate = (isAutoTranslate || enableTranslate) && gate?.destination == null && gate != null
-    val translateState: RssDetailTranslatePresenter.State? =
-        if (shouldTranslate) {
-            when (val dataState = state.data) {
-                is UiState.Success -> {
-                    key(translateRefreshKey) {
-                        remember(dataState.data.content, dataState.data.title) {
-                            RssDetailTranslatePresenter(
-                                htmlContent = dataState.data.content,
-                                title = dataState.data.title,
-                                targetLanguage = Locale.current.toLanguageTag(),
-                            )
-                        }.invoke()
-                    }
-                }
-
-                else -> {
-                    null
-                }
-            }
-        } else {
-            null
-        }
     object : RssDetailPresenter.State by state {
         val headers = headers
         val enableTldr = enableTldr
-        val preTranslate = preTranslate
-        val isAutoTranslate = isAutoTranslate
         val tldrState = tldrState
         val showTldr = showTldr
-        val translateState = translateState
-        val enableTranslate = enableTranslate
-        val disclosureDestination: TranslationDisclosure.Destination? = gate?.destination
 
         fun setShowTldr(value: Boolean) {
             showTldr = value
@@ -900,65 +783,5 @@ private fun presenter(
         fun refreshTldr() {
             tldrRefreshKey++
         }
-
-        fun setEnableTranslate(value: Boolean) {
-            enableTranslate = value
-        }
-
-        fun refreshTranslate() {
-            translateRefreshKey++
-        }
     }
-}
-
-private data class TranslationGate(
-    val destination: TranslationDisclosure.Destination?,
-)
-
-@Composable
-internal fun TranslationDisclosureDialog(
-    destination: TranslationDisclosure.Destination,
-    onContinue: () -> Unit,
-    onCancel: () -> Unit,
-    onChangeProvider: (() -> Unit)?,
-) {
-    val provider =
-        stringResource(
-            when (destination.kind) {
-                TranslationDisclosure.Kind.GoogleWeb -> R.string.translation_provider_google
-                TranslationDisclosure.Kind.DeepL -> R.string.translation_provider_deepl
-                TranslationDisclosure.Kind.GoogleCloud -> R.string.translation_provider_google_cloud
-                TranslationDisclosure.Kind.LibreTranslate -> R.string.translation_provider_libre
-                TranslationDisclosure.Kind.AiServer -> R.string.translation_provider_ai_server
-            },
-        )
-    val label =
-        destination.host
-            ?.takeIf { it.isNotEmpty() }
-            ?.let { stringResource(R.string.translation_destination_with_host, provider, it) }
-            ?: provider
-    AlertDialog(
-        onDismissRequest = onCancel,
-        title = { Text(text = stringResource(R.string.translation_disclosure_title)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(text = stringResource(R.string.translation_disclosure_message, label))
-                if (onChangeProvider != null) {
-                    TextButton(onClick = onChangeProvider) {
-                        Text(text = stringResource(R.string.translation_disclosure_change_provider))
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onContinue) {
-                Text(text = stringResource(R.string.translation_disclosure_continue))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onCancel) {
-                Text(text = stringResource(android.R.string.cancel))
-            }
-        },
-    )
 }

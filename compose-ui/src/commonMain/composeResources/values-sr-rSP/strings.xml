@@ -50,13 +50,7 @@
     <string name="user_mute_with_parameter">Utišaj %1$s</string>
     <string name="user_block_with_parameter">Blokiraj %1$s</string>
     <string name="reply_to">Odgovori korisniku %1$s</string>
-    <string name="status_detail_translate">Prevedi</string>
     <string name="status_detail_tldr">Sumiraj</string>
-    <string name="translation_badge_translated">Prevedeno</string>
-    <string name="translation_badge_translating">Prevođenje…</string>
-    <string name="translation_badge_failed">Prevođenje nije uspelo</string>
-    <string name="translation_retry">Pokušaj ponovo</string>
-    <string name="translation_show_original">Prikaži original</string>
     <string name="user_follow_edit_list">Dodaj/Ukloni sa liste</string>
     <string name="list_empty">Nema listi</string>
     <string name="vote">Glasaj</string>

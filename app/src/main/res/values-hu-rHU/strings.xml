@@ -13,7 +13,6 @@
     <string name="compose_title">Létrehozás</string>
     <string name="compose_notification_success">Bejegyzés elküldve</string>
     <string name="compose_notification_error">Nem sikerült elküldeni a bejegyzést</string>
-    <string name="status_insight_send">Küldés</string>
     <string name="agent_chat_send">Küldés</string>
     <string name="settings_title">Beállítások</string>
     <string name="settings_appearance_theme_group_title">Téma</string>
@@ -46,7 +45,6 @@
     <string name="settings_ai_config_model">Modell</string>
     <string name="settings_ai_config_model_description">Válassz egy modellt erről a végpontról</string>
     <string name="settings_ai_config_model_select">Modell kiválasztása</string>
-    <string name="settings_ai_config_model_loading">Modellek betöltése…</string>
     <string name="settings_ai_config_model_error">Nem sikerült betölteni a modelleket</string>
     <string name="settings_ai_config_model_no_models">Nincsenek modellek</string>
     <string name="settings_ai_config_model_manual_input">Modell név megadása kézzel</string>
@@ -59,29 +57,7 @@
     <string name="settings_ai_config_extra_body">Extra Body (JSON)</string>
     <string name="settings_ai_config_enable_tldr">MI összegzések engedélyezése</string>
     <string name="settings_ai_config_tldr_description">Hosszú bejegyzések összegzése MI-vel. Az 500 karakternél hosszabb bejegyzésekhez érhető el.</string>
-    <string name="settings_ai_config_enable_pre_translation">Automatikus fordítás engedélyezése</string>
-    <string name="settings_ai_config_pre_translation_description">Újonnan betöltött idővonal és profil tartalom fordítása a háttérben és az eredmények tárolása. Ez sok tokent fogyaszthat.</string>
-    <string name="settings_ai_config_translate_prompt">Fordítási utasítás</string>
     <string name="settings_ai_config_tldr_prompt">Összegzési utasítás</string>
-    <string name="settings_ai_config_translate_provider">Fordítási szolgáltató</string>
-    <string name="settings_ai_config_translate_provider_description">Válaszd ki, melyik szolgáltatás fordítsa a tartalmat</string>
-    <string name="settings_ai_config_translate_provider_ai">MI</string>
-    <string name="settings_ai_config_translate_provider_google_web">Google Fordító (Web)</string>
-    <string name="settings_ai_config_translate_provider_deepl_api_key">DeepL API kulcs</string>
-    <string name="settings_ai_config_translate_provider_deepl_use_pro">DeepL Pro végpont</string>
-    <string name="settings_ai_config_translate_provider_deepl_use_pro_description">Az api.deepl.com használata az ingyenes api-free.deepl.com helyett.</string>
-    <string name="settings_ai_config_translate_provider_google_cloud">Google Cloud Fordító</string>
-    <string name="settings_ai_config_translate_provider_google_cloud_api_key">Google Cloud API kulcs</string>
-    <string name="settings_ai_config_translate_provider_libretranslate_base_url">LibreTranslate alap URL</string>
-    <string name="settings_ai_config_translate_provider_libretranslate_api_key">LibreTranslate API kulcs</string>
-    <string name="settings_translation_title">Fordítás</string>
-    <string name="settings_translation_description">Fordítási szolgáltatások és automatikus fordítás beállítása</string>
-    <string name="settings_translation_auto_excluded_languages">Kihagyandó nyelvek az automatikus fordításnál</string>
-    <string name="settings_translation_ai_test_title">MI fordítás teszt</string>
-    <string name="settings_translation_ai_test_description">Rövid minta szöveg fordítása a jelenlegi MI beállításokkal.</string>
-    <string name="settings_translation_ai_test_action">Fordítás tesztelése</string>
-    <string name="settings_translation_ai_test_original">Minta szöveg</string>
-    <string name="settings_translation_ai_test_result">Lefordított szöveg</string>
     <string name="settings_language_title">Nyelv</string>
     <string name="settings_language_description">A Crux alkalmazás nyelvének módosítása</string>
     <string name="login_expired">A bejelentkezési munkamenet lejárt</string>
@@ -230,8 +206,6 @@
     <string name="rss_detail_share">Link megosztása</string>
     <string name="rss_detail_tldr">Összegzés</string>
     <string name="rss_detail_tldr_error">Nem sikerült összegezni</string>
-    <string name="rss_detail_translate">Fordítás</string>
-    <string name="rss_detail_translate_error">Nem sikerült lefordítani</string>
     <string name="emoji_picker_recent">Legutóbbi</string>
     <string name="emoji_picker_search">Keresés</string>
     <string name="podcast_host">Házigazda</string>
@@ -291,10 +265,6 @@
     <string name="status_share_sheet_theme_title">Téma</string>
     <string name="channel_title">Csatorna</string>
     <string name="app_name" translatable="false">Crux</string>
-    <string name="profile_insight_title">Profilelemzés</string>
-    <string name="status_insight_input_placeholder">Tegyen fel egy követő kérdést…</string>
-    <string name="status_insight_analyzing">Bejegyzés elemzése...</string>
-    <string name="profile_insight_analyzing">Profil elemzése…</string>
     <string name="status_insight_trace_loading_post_context">Bejegyzéskörnyezet betöltése...</string>
     <string name="status_insight_trace_post_context_loaded">Bejegyzéskörnyezet betöltve</string>
     <string name="status_insight_trace_preparing_images">Képek előkészítése...</string>
@@ -337,8 +307,6 @@
     <string name="agent_chat_thinking">Gondolkodás...</string>
     <string name="settings_ai_config_enable_agent">AI Agent engedélyezése</string>
     <string name="settings_ai_config_agent_description">Engedélyezés után az AI Agent funkció megjelenik az alkalmazás megfelelő helyein, ha OpenAI-kompatibilis modell van beállítva.</string>
-    <string name="settings_ai_config_translate_provider_deepl">DeepL</string>
-    <string name="settings_ai_config_translate_provider_libretranslate">LibreTranslate</string>
     <string name="settings_appearance_expand_content_warning">Inhalt hinter Inhaltswarnungen anzeigen</string>
     <string name="settings_appearance_expand_content_warning_description">Durch Inhaltswarnungen verborgene Beiträge immer anzeigen</string>
     <string name="illustrations_title">Illusztrációk</string>
@@ -432,10 +400,6 @@
     <string name="settings_post_action_fixed_width_description">A számlálóval rendelkező műveletgombok azonos szélességének megtartása</string>
     <string name="settings_refresh_home_timeline_on_launch">Kezdő idővonal frissítése indításkor</string>
     <string name="settings_refresh_home_timeline_on_launch_description">Új bejegyzések lekérése a Crux megnyitásakor</string>
-    <string name="settings_translation_prefer_platform">Platformfordítások előnyben részesítése</string>
-    <string name="settings_translation_prefer_platform_description">Automatikus fordításkor a platform által biztosított fordítás használata, ha elérhető.</string>
-    <string name="settings_translation_show_original_with_translation">Eredeti megjelenítése a fordítással</string>
-    <string name="settings_translation_show_original_with_translation_description">Az eredeti szöveg megjelenítése a fordítása előtt</string>
     <string name="status_share_crosspost">Keresztbejegyzés</string>
     <string name="status_share_crosspost_failed">A keresztbejegyzés előkészítése sikertelen</string>
 </resources>

@@ -18,16 +18,6 @@ public class AiCompletionService internal constructor(
             onDeviceAI.generate(prompt)
         }
 
-    public suspend fun translate(
-        config: AppSettings.AiConfig,
-        source: String,
-        targetLanguage: String,
-        prompt: String,
-    ): String? =
-        complete(config.type, prompt) {
-            onDeviceAI.translate(source, targetLanguage, prompt)
-        }
-
     public suspend fun tldr(
         config: AppSettings.AiConfig,
         source: String,

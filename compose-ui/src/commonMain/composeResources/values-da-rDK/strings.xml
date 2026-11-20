@@ -51,13 +51,7 @@
     <string name="user_mute_with_parameter">Sæt %1$s på lydløs</string>
     <string name="user_block_with_parameter">Bloker %1$s</string>
     <string name="reply_to">Svar til %1$s</string>
-    <string name="status_detail_translate">Oversæt</string>
     <string name="status_detail_tldr">Opsummér</string>
-    <string name="translation_badge_translated">Oversat</string>
-    <string name="translation_badge_translating">Oversætter…</string>
-    <string name="translation_badge_failed">Oversættelse mislykkedes</string>
-    <string name="translation_retry">Prøv overførsel igen</string>
-    <string name="translation_show_original">Vis original</string>
     <string name="user_follow_edit_list">Tilføj/fjern fra liste</string>
     <string name="list_empty">Ingen lister</string>
     <string name="vote">Stem</string>

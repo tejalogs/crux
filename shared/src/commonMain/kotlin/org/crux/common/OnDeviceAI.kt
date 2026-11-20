@@ -12,12 +12,6 @@ public interface OnDeviceAI {
 
     public suspend fun activeModelDisplayName(): String? = null
 
-    public suspend fun translate(
-        source: String,
-        targetLanguage: String,
-        prompt: String,
-    ): String?
-
     public suspend fun tldr(
         source: String,
         targetLanguage: String,

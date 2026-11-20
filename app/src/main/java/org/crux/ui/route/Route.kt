@@ -46,12 +46,6 @@ internal sealed interface Route : NavKey {
         ) : Status
 
         @Serializable
-        data class Insight(
-            val accountType: AccountType,
-            val statusKey: MicroBlogKey,
-        ) : Status
-
-        @Serializable
         data class OmniScribe(
             val statusKey: MicroBlogKey,
             val accountType: AccountType,
@@ -129,9 +123,6 @@ internal sealed interface Route : NavKey {
 
         @Serializable
         data object AiConfig : Settings
-
-        @Serializable
-        data object TranslationConfig : Settings
 
         @Serializable
         data object ColorPicker : Settings
@@ -284,12 +275,6 @@ internal sealed interface Route : NavKey {
 
         @Serializable
         data class Fans(
-            val accountType: AccountType,
-            val userKey: MicroBlogKey,
-        ) : Profile
-
-        @Serializable
-        data class Insight(
             val accountType: AccountType,
             val userKey: MicroBlogKey,
         ) : Profile
@@ -520,13 +505,6 @@ internal sealed interface Route : NavKey {
                     Status.Detail(
                         statusKey = deeplinkRoute.statusKey,
                         accountType = deeplinkRoute.accountType,
-                    )
-                }
-
-                is DeeplinkRoute.Status.Insight -> {
-                    Status.Insight(
-                        accountType = deeplinkRoute.accountType,
-                        statusKey = deeplinkRoute.statusKey,
                     )
                 }
 

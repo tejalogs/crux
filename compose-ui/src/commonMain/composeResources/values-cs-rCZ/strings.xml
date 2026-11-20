@@ -51,13 +51,7 @@
     <string name="user_mute_with_parameter">Skrýt %1$s</string>
     <string name="user_block_with_parameter">Blokovat %1$s</string>
     <string name="reply_to">Odpověď pro %1$s</string>
-    <string name="status_detail_translate">Přeložit</string>
     <string name="status_detail_tldr">Shrnout</string>
-    <string name="translation_badge_translated">Přeloženo</string>
-    <string name="translation_badge_translating">Překládání…</string>
-    <string name="translation_badge_failed">Překlad selhal</string>
-    <string name="translation_retry">Zkusit překlad znovu</string>
-    <string name="translation_show_original">Zobrazit originál</string>
     <string name="user_follow_edit_list">Přidat/Odebrat ze seznamu</string>
     <string name="list_empty">Žádné seznamy</string>
     <string name="vote">Hlasovat</string>

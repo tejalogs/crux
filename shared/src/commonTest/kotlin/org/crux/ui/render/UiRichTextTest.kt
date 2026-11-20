@@ -115,7 +115,7 @@ class UiRichTextTest {
     }
 
     @Test
-    fun toTranslatableText_flattens_runs_into_plain_text() {
+    fun toFlatText_flattens_runs_into_plain_text() {
         val decoded =
             parseHtml(
                 """
@@ -126,7 +126,7 @@ class UiRichTextTest {
                 """.trimIndent(),
             ).toUi()
 
-        assertEquals("Hello\n@friend world:wave:\nCaption", decoded.toTranslatableText())
+        assertEquals("Hello\n@friend world:wave:\nCaption", decoded.toFlatText())
     }
 
     @Test

@@ -26,18 +26,15 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import org.crux.common.InAppNotification
 import org.crux.common.Message
 import org.crux.common.PagingState
-import org.crux.common.PlatformDispatchers
 import org.crux.common.emptyFlow
 import org.crux.common.onEmpty
 import org.crux.common.onError
 import org.crux.common.onSuccess
 import org.crux.common.toPagingState
 import org.crux.data.database.cache.CacheDatabase
-import org.crux.data.database.cache.model.TranslationDisplayOptions
 import org.crux.data.datasource.microblog.offsetPagingConfig
 import org.crux.data.datasource.microblog.paging.CacheableRemoteLoader
 import org.crux.data.datasource.microblog.paging.NotSupportRemoteLoader
@@ -52,7 +49,6 @@ import org.crux.data.datasource.microblog.paging.TimelineRemoteMediator
 import org.crux.data.datasource.microblog.paging.notSupported
 import org.crux.data.datasource.microblog.paging.toTimelinePagingSource
 import org.crux.data.datasource.microblog.pagingConfig
-import org.crux.data.datastore.AppDataStore
 import org.crux.data.model.tab.TimelineFilterConfig
 import org.crux.data.model.tab.TimelinePostContent
 import org.crux.data.model.tab.TimelinePostKind
@@ -62,8 +58,6 @@ import org.crux.data.repository.LoginExpiredException
 import org.crux.data.repository.MxgaRepository
 import org.crux.data.repository.SettingsRepository
 import org.crux.data.repository.isMxgaMatch
-import org.crux.data.translation.PreTranslationService
-import org.crux.data.translation.TranslationSettingsSupport
 import org.crux.di.koinInject
 import org.crux.model.PlatformRegistry
 import org.crux.model.ReferenceType
@@ -74,7 +68,6 @@ import org.crux.ui.presenter.PresenterBase
 import org.crux.web.shared.WebPresenter
 
 public class TimelinePresenterOptions(
-    public val allowLongTextTranslationDisplay: (RemoteLoader<UiTimelineV2>) -> Boolean = { false },
     public val transform: suspend (UiTimelineV2) -> UiTimelineV2 = { it },
 )
 
@@ -87,8 +80,6 @@ public open class TimelinePresenter : PresenterBase<TimelineState> {
     private val options: TimelinePresenterOptions
 
     private val database: CacheDatabase by koinInject()
-    private val appDataStore: AppDataStore by koinInject()
-    private val preTranslationService: PreTranslationService by koinInject()
     private val settingsRepository: SettingsRepository by koinInject()
     private val mxgaRepository: MxgaRepository by koinInject()
     private val platformRegistry: PlatformRegistry by koinInject()
@@ -117,10 +108,6 @@ public open class TimelinePresenter : PresenterBase<TimelineState> {
             .distinctUntilChanged()
     }
 
-    private val translationSettingsFlow: Flow<TranslationDisplayOptions> by lazy {
-        TranslationSettingsSupport.displayOptionsFlow(appDataStore)
-    }
-
     public constructor(
         tabId: String? = null,
         loader: Flow<RemoteLoader<UiTimelineV2>> = flowOf(notSupported()),
@@ -132,9 +119,6 @@ public open class TimelinePresenter : PresenterBase<TimelineState> {
         this.timelineTabItemId = tabId
         this.isHomeTimeline = isHomeTimeline
     }
-
-    internal open fun allowLongTextTranslationDisplay(loader: RemoteLoader<UiTimelineV2>): Boolean =
-        options.allowLongTextTranslationDisplay(loader)
 
     @OptIn(ExperimentalCoroutinesApi::class)
     internal fun createPager(scope: CoroutineScope): Flow<PagingData<UiTimelineV2>> =
@@ -149,15 +133,8 @@ public open class TimelinePresenter : PresenterBase<TimelineState> {
                     is CacheableRemoteLoader<UiTimelineV2> -> {
                         cachePager(
                             loader = remoteLoader,
-                        ).cachedIn(scope).flatMapLatest { pagingData ->
-                            translationSettingsFlow
-                                .map { translationDisplayOptions ->
-                                    withContext(PlatformDispatchers.IO) {
-                                        pagingData.map { item ->
-                                            item.toUi(translationDisplayOptions)
-                                        }
-                                    }
-                                }
+                        ).cachedIn(scope).map { pagingData ->
+                            pagingData.map { item -> item.toUi() }
                         }
                     }
 
@@ -189,7 +166,6 @@ public open class TimelinePresenter : PresenterBase<TimelineState> {
 
     private fun cachePager(loader: CacheableRemoteLoader<UiTimelineV2>): Flow<PagingData<TimelinePageItem>> =
         run {
-            val allowLongText = allowLongTextTranslationDisplay(loader)
             val pageCache = TimelineDbPageCache()
             val notifyError: (Throwable) -> Unit = { e ->
                 if (e is LoginExpiredException) {
@@ -201,15 +177,12 @@ public open class TimelinePresenter : PresenterBase<TimelineState> {
                     PostContextRemoteMediator(
                         loader = loader,
                         database = database,
-                        preTranslationService = preTranslationService,
                         notifyError = notifyError,
                     ).also { contextMediator.value = it }
                 } else {
                     TimelineRemoteMediator(
                         loader = loader,
                         database = database,
-                        allowLongText = allowLongText,
-                        preTranslationService = preTranslationService,
                         notifyError = notifyError,
                         refreshOnInitialize = {
                             shouldRefreshTimelineOnInitialize(isHomeTimeline) {

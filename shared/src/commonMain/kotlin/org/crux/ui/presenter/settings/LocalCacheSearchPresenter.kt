@@ -16,7 +16,6 @@ import org.crux.common.PagingState
 import org.crux.common.toPagingState
 import org.crux.data.ai.SemanticEmbeddingEngine
 import org.crux.data.database.cache.CacheDatabase
-import org.crux.data.database.cache.model.TranslationDisplayOptions
 import org.crux.data.datasource.microblog.paging.TimelinePagingMapper
 import org.crux.data.datasource.microblog.pagingConfig
 import org.crux.data.repository.AccountRepository
@@ -69,7 +68,6 @@ public class LocalCacheSearchPresenter : PresenterBase<LocalCacheSearchPresenter
                             TimelinePagingMapper.toUi(
                                 item = dbItem,
                                 pagingKey = LOCAL_CACHE_SEARCH_PAGING_KEY,
-                                translationDisplayOptions = localCacheTranslationDisplayOptions,
                             )
                         } catch (e: Exception) {
                             null
@@ -120,7 +118,6 @@ public class LocalCacheSearchPresenter : PresenterBase<LocalCacheSearchPresenter
                             TimelinePagingMapper.toUi(
                                 item = it,
                                 pagingKey = it.timeline.pagingKey,
-                                translationDisplayOptions = localCacheTranslationDisplayOptions,
                             )
                         }
                     }
@@ -137,7 +134,6 @@ public class LocalCacheSearchPresenter : PresenterBase<LocalCacheSearchPresenter
                                 TimelinePagingMapper.toUi(
                                     item = it,
                                     pagingKey = LOCAL_CACHE_SEARCH_PAGING_KEY,
-                                    translationDisplayOptions = localCacheTranslationDisplayOptions,
                                 )
                             }
                         }
@@ -216,12 +212,5 @@ public class LocalCacheSearchPresenter : PresenterBase<LocalCacheSearchPresenter
         }
     }
 }
-
-private val localCacheTranslationDisplayOptions =
-    TranslationDisplayOptions(
-        translationEnabled = false,
-        autoDisplayEnabled = false,
-        providerCacheKey = "",
-    )
 
 private const val LOCAL_CACHE_SEARCH_PAGING_KEY = "local_cache_search"

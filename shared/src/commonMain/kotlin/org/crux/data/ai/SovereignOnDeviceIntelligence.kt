@@ -1,8 +1,5 @@
 package org.crux.data.ai
 
-import org.crux.data.ai.scribe.SmartReplyEngine
-import org.crux.data.ai.scribe.SmartReplyTone
-
 /**
  * Sovereign On-Device Text Summarizer.
  *
@@ -76,78 +73,4 @@ public object SovereignOnDeviceSummarizer {
             .lowercase()
             .split(Regex("[\\s\\p{Punct}]+"))
             .filter { it.length >= 2 }
-}
-
-/**
- * Sovereign On-Device Template-Aware Translator.
- *
- * Complies strictly with Crux's translation template format, preserving
- * control headers (`<<<B0>>>`, `<<<E0>>>`, etc.) and control markers
- * (`{{T0}}`, `{{L1}}`, etc.) while ensuring zero cloud egress.
- */
-public object SovereignOnDeviceTranslator {
-    private val CONTROL_LINE_REGEX = Regex("^<<<.*>>>$")
-    private val CONTROL_MARKER_REGEX = Regex("\\{\\{[TL][0-9]+\\}\\}")
-
-    public fun translate(
-        source: String,
-        targetLanguage: String,
-        prompt: String,
-    ): String {
-        if (prompt.contains("[INSIGHT]:") || prompt.contains("OUTPUT FORMAT:")) {
-            val authorName =
-                Regex("""(?:POST\s+)?AUTHOR:\s*([^\n(@]+)""")
-                    .find(prompt)
-                    ?.groupValues
-                    ?.get(1)
-                    ?.trim()
-                    .orEmpty()
-            val authorHandle =
-                Regex("""@([^\s\n)]+)""")
-                    .find(prompt)
-                    ?.groupValues
-                    ?.get(1)
-                    ?.trim()
-                    .orEmpty()
-            val mediaDesc =
-                Regex(
-                    """(?:ATTACHED MEDIA / VISUAL CONTENT|MEDIA DESCRIPTION)[^\n]*\n([^\n]+)""",
-                ).find(prompt)?.groupValues?.get(1)?.trim().orEmpty()
-            val parentCtx =
-                Regex(
-                    """(?:PARENT THREAD / CONTEXT|PARENT DISCUSSION CONTEXT)[^\n]*\n([^\n]+)""",
-                ).find(prompt)?.groupValues?.get(1)?.trim().orEmpty()
-
-            return SmartReplyEngine.generateGemmaRefinedOutput(
-                postText = source,
-                authorName = authorName,
-                authorHandle = authorHandle,
-                mediaDescription = mediaDesc,
-                parentDiscussionContext = parentCtx,
-                tone = SmartReplyTone.entries.firstOrNull { prompt.contains(it.promptDirective) } ?: SmartReplyTone.Practitioner,
-            )
-        }
-
-        val lines = source.lines()
-        val isTemplate = lines.any { it.trim().matches(CONTROL_LINE_REGEX) }
-
-        if (!isTemplate) {
-            // Not a structured template: return trimmed source or fallback
-            return source.trim()
-        }
-
-        val output = StringBuilder()
-        for (line in lines) {
-            val trimmed = line.trim()
-            if (trimmed.matches(CONTROL_LINE_REGEX)) {
-                // Control header lines must remain strictly unchanged
-                output.appendLine(trimmed)
-            } else {
-                // Content line with markers like {{T0}} and {{L1}}
-                output.appendLine(line)
-            }
-        }
-
-        return output.toString().trimEnd()
-    }
 }

@@ -11,7 +11,6 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filterIsInstance
-import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -21,10 +20,8 @@ import okio.FileSystem
 import org.crux.RobolectricTest
 import org.crux.common.CacheState
 import org.crux.common.Cacheable
-import org.crux.common.Locale
 import org.crux.common.OnDeviceAI
 import org.crux.common.TestFormatter
-import org.crux.common.decodeJson
 import org.crux.createTestFileSystem
 import org.crux.createTestRootPath
 import org.crux.data.database.cache.CacheDatabase
@@ -32,8 +29,6 @@ import org.crux.data.database.cache.mapper.saveToDatabase
 import org.crux.data.database.cache.model.DbPagingTimeline
 import org.crux.data.database.cache.model.DbStatus
 import org.crux.data.database.cache.model.DbStatusReference
-import org.crux.data.database.cache.model.TranslationEntityType
-import org.crux.data.database.cache.model.TranslationStatus
 import org.crux.data.database.createDatabaseDriver
 import org.crux.data.datasource.microblog.ActionMenu
 import org.crux.data.datasource.microblog.DatabaseUpdater
@@ -44,13 +39,9 @@ import org.crux.data.datasource.microblog.paging.TimelineDbPageCache
 import org.crux.data.datasource.microblog.paging.TimelineDbPageLoader
 import org.crux.data.datasource.microblog.paging.TimelinePagingMapper
 import org.crux.data.datastore.AppDataStore
-import org.crux.data.datastore.model.AppSettings
 import org.crux.data.io.OkioFileStorage
 import org.crux.data.network.ai.AiCompletionService
 import org.crux.data.network.ai.OpenAIService
-import org.crux.data.translation.OnlinePreTranslationService
-import org.crux.data.translation.PreTranslationService
-import org.crux.data.translation.aiPreTranslateConfig
 import org.crux.deleteTestRootPath
 import org.crux.di.startKoin
 import org.crux.di.testSingle
@@ -66,8 +57,6 @@ import org.crux.ui.model.UiTranslatableText
 import org.crux.ui.model.asTimelinePostItem
 import org.crux.ui.model.contentPostOrNull
 import org.crux.ui.model.mapper.instagramLike
-import org.crux.ui.render.TranslationDocument
-import org.crux.ui.render.TranslationTokenKind
 import org.crux.ui.render.toUi
 import org.crux.ui.render.toUiPlainText
 import org.koin.core.context.stopKoin
@@ -132,9 +121,6 @@ class PostHandlerTest : RobolectricTest() {
                     testSingle<OnDeviceAI> { onDeviceAI }
                     testSingle { openAIService }
                     testSingle { aiCompletionService }
-                    testSingle<PreTranslationService> {
-                        OnlinePreTranslationService(db, appDataStore, aiCompletionService, detachedScope)
-                    }
                     testSingle<PlatformFormatter> { TestFormatter() }
                 },
             )
@@ -394,7 +380,7 @@ class PostHandlerTest : RobolectricTest() {
             assertEquals(listOf(quote.statusKey), references.references.mapNotNull { it.status?.data?.statusKey })
             val cacheable =
                 PostHandler(accountType, fakeLoader)
-                    .post(postKey, PostTranslationDisplay.Original)
+                    .post(postKey)
             val cached = cacheable.firstSuccess()
 
             assertEquals(0, fakeLoader.statusCallCount)
@@ -435,7 +421,7 @@ class PostHandlerTest : RobolectricTest() {
                     presentation = UiTimelineV2.PostPresentation(quotes = persistentListOf(quote), repost = original),
                 )
             saveToDatabase(db, listOf(TimelinePagingMapper.toDb(repost, "home")))
-            val cached = PostHandler(accountType, fakeLoader).post(postKey, PostTranslationDisplay.Original).firstSuccess()
+            val cached = PostHandler(accountType, fakeLoader).post(postKey).firstSuccess()
             assertEquals(0, fakeLoader.statusCallCount)
             assertEquals(
                 listOf(quote.statusKey),
@@ -473,7 +459,7 @@ class PostHandlerTest : RobolectricTest() {
             )
 
             val handler = PostHandler(accountType = accountType, loader = fakeLoader)
-            val cacheable = handler.post(postKey, translationDisplay = PostTranslationDisplay.Original)
+            val cacheable = handler.post(postKey)
 
             val timelineItem =
                 assertNotNull(
@@ -523,7 +509,7 @@ class PostHandlerTest : RobolectricTest() {
             )
 
             val handler = PostHandler(accountType = accountType, loader = fakeLoader)
-            val cacheable = handler.post(postKey, translationDisplay = PostTranslationDisplay.Original)
+            val cacheable = handler.post(postKey)
 
             assertNotNull(
                 withTimeoutOrNull(5_000) {
@@ -806,52 +792,6 @@ class PostHandlerTest : RobolectricTest() {
             assertTrue(pagingExists)
         }
 
-    @Test
-    fun postRefreshPreTranslatesLongTextWhenOpenedInDetail() =
-        runTest {
-            startTestKoin(this@runTest)
-            appDataStore.appSettingsStore.updateData {
-                it.copy(
-                    language = "zh-CN",
-                    translateConfig = aiPreTranslateConfig(),
-                    aiConfig =
-                        AppSettings.AiConfig(
-                            type = AppSettings.AiConfig.Type.OnDevice(),
-                        ),
-                )
-            }
-
-            val longText = buildString { repeat(520) { append('长') } }
-            fakeLoader.nextStatus = createPost(statusKey = postKey, text = longText)
-            val handler = PostHandler(accountType = accountType, loader = fakeLoader)
-            val cacheable = handler.post(postKey)
-
-            val refreshState = cacheable.refreshState.drop(1).first()
-            assertTrue(refreshState is androidx.paging.LoadState.NotLoading)
-
-            val savedStatus = db.statusDao().get(postKey, accountType).first()
-            assertNotNull(savedStatus)
-            val translation =
-                db
-                    .translationDao()
-                    .find(
-                        entityType = TranslationEntityType.Status,
-                        entityKey = savedStatus.id,
-                        targetLanguage = Locale.language,
-                    ).filterNotNull()
-                    .first { it.status == TranslationStatus.Completed }
-            assertEquals("$longText (${Locale.language})", translation.payload?.content?.raw)
-
-            val translated =
-                cacheable.data
-                    .filterIsInstance<CacheState.Success<UiTimelineV2>>()
-                    .map { it.data.asTimelinePostItem()?.displayPost }
-                    .filterNotNull()
-                    .first { it.content.translation?.raw == "$longText (${Locale.language})" }
-            assertEquals(longText, translated.content.original.raw)
-            assertEquals("$longText (${Locale.language})", translated.content.translation?.raw)
-        }
-
     private suspend fun Cacheable<UiTimelineV2>.firstSuccess(predicate: (UiTimelineV2) -> Boolean = { true }): UiTimelineV2 =
         data
             .filterIsInstance<CacheState.Success<UiTimelineV2>>()
@@ -923,61 +863,9 @@ class PostHandlerTest : RobolectricTest() {
 private class FakePostOnDeviceAI : OnDeviceAI {
     override suspend fun isAvailable(): Boolean = true
 
-    override suspend fun translate(
-        source: String,
-        targetLanguage: String,
-        prompt: String,
-    ): String? {
-        val document =
-            source.decodeJson(
-                org.crux.data.translation.PreTranslationBatchDocument
-                    .serializer(),
-            )
-        return org.crux.data.translation.AiPlaceholderTranslationSupport
-            .buildPromptTemplate(
-                document.copy(
-                    items =
-                        document.items.map { item ->
-                            item.copy(
-                                status = org.crux.data.translation.PreTranslationBatchItemStatus.Completed,
-                                payload = requireNotNull(item.payload).translated(targetLanguage),
-                                reason = null,
-                            )
-                        },
-                ),
-            )
-    }
-
     override suspend fun tldr(
         source: String,
         targetLanguage: String,
         prompt: String,
     ): String? = null
 }
-
-private fun org.crux.data.translation.PreTranslationBatchPayload.translated(
-    targetLanguage: String,
-): org.crux.data.translation.PreTranslationBatchPayload =
-    org.crux.data.translation.PreTranslationBatchPayload(
-        content = content?.translated(targetLanguage),
-        contentWarning = contentWarning?.translated(targetLanguage),
-        title = title?.translated(targetLanguage),
-        description = description?.translated(targetLanguage),
-    )
-
-private fun TranslationDocument.translated(targetLanguage: String): TranslationDocument =
-    copy(
-        blocks =
-            blocks.map { block ->
-                block.copy(
-                    tokens =
-                        block.tokens.map { token ->
-                            if (token.kind == TranslationTokenKind.Translatable) {
-                                token.copy(text = "${token.text} ($targetLanguage)")
-                            } else {
-                                token
-                            }
-                        },
-                )
-            },
-    )

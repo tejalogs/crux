@@ -9,6 +9,7 @@ public data class AppSettings(
     val version: String,
     val aiConfig: AiConfig = AiConfig(),
     val language: String = "",
+    // Unused since translation was removed; kept for stored-settings compatibility.
     val translateConfig: TranslateConfig = TranslateConfig(),
     val linkOpenDefaults: LinkOpenDefaults = LinkOpenDefaults(),
     val mxgaEnabled: Boolean = false,
@@ -66,6 +67,7 @@ public data class AppSettings(
         }
     }
 
+    // Unused since translation was removed; kept for stored-settings compatibility.
     @Serializable
     public data class TranslateConfig(
         val preTranslate: Boolean = false,
@@ -114,6 +116,7 @@ public data class AppSettings(
         val translation: Boolean = false,
         val tldr: Boolean = false,
         val type: Type = Type.OnDevice(),
+        // Unused since translation was removed; kept for stored-settings compatibility.
         val translatePrompt: String = AiPromptDefaults.TRANSLATE_PROMPT,
         val tldrPrompt: String = AiPromptDefaults.TLDR_PROMPT,
         @Deprecated(

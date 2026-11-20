@@ -60,12 +60,6 @@ public sealed class DeeplinkRoute {
         ) : Status()
 
         @Serializable
-        public data class Insight(
-            val accountType: AccountType,
-            val statusKey: MicroBlogKey,
-        ) : Status()
-
-        @Serializable
         public data class OmniScribe(
             val statusKey: MicroBlogKey,
             val accountType: AccountType,
@@ -269,6 +263,30 @@ public sealed class DeeplinkRoute {
             }.getOrNull()
 
         public fun isDeeplink(uri: String): Boolean = uri.startsWith("$APPSCHEMA://")
+
+        /**
+         * Whether a link found inside feed, post or article content may be opened. Ordinary web
+         * links are fine; an in-app link is allowed only for plain navigation (profiles, search,
+         * opening a post, starting a post, login). Prefilled AI sheets, media viewers, article
+         * HTML, moderation and account routes can only come from Crux's own buttons, so a crafted
+         * crux:// link in content cannot open them.
+         */
+        public fun isSafeFromContent(uri: String): Boolean {
+            val trimmed = uri.trim()
+            if (!isDeeplink(trimmed)) return true
+            return when (parse(trimmed)) {
+                is Profile.User,
+                is Profile.UserNameWithHost,
+                is Search,
+                is Status.Detail,
+                is Compose.New,
+                is Compose.Crux,
+                is Login,
+                -> true
+
+                else -> false
+            }
+        }
     }
 }
 

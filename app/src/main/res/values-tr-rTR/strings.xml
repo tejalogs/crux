@@ -13,7 +13,6 @@
     <string name="compose_title">Oluştur</string>
     <string name="compose_notification_success">Gönderi gönderildi</string>
     <string name="compose_notification_error">Gönderi gönderilemedi</string>
-    <string name="status_insight_send">Gönder</string>
     <string name="agent_chat_send">Gönder</string>
     <string name="settings_title">Ayarlar</string>
     <string name="settings_appearance_theme_group_title">Tema</string>
@@ -46,7 +45,6 @@
     <string name="settings_ai_config_model">Model</string>
     <string name="settings_ai_config_model_description">Bu uç noktadan bir model seçin</string>
     <string name="settings_ai_config_model_select">Model seç</string>
-    <string name="settings_ai_config_model_loading">Modeller yükleniyor…</string>
     <string name="settings_ai_config_model_error">Modeller yüklenemedi</string>
     <string name="settings_ai_config_model_no_models">Model yok</string>
     <string name="settings_ai_config_model_manual_input">Manuel olarak bir model adı girin</string>
@@ -59,28 +57,7 @@
     <string name="settings_ai_config_extra_body">Ek Gövde (Extra Body)</string>
     <string name="settings_ai_config_enable_tldr">AI özetlerini etkinleştir</string>
     <string name="settings_ai_config_tldr_description">Uzun gönderileri AI ile özetleyin. 500 karakterden uzun gönderiler için mevcuttur.</string>
-    <string name="settings_ai_config_enable_pre_translation">Otomatik çeviriyi etkinleştir</string>
-    <string name="settings_ai_config_pre_translation_description">Yeni yüklenen zaman akışı ve profil içeriğini arka planda çevirin ve sonuçları önbelleğe alın. Bu, çok sayıda jeton (token) tüketebilir.</string>
-    <string name="settings_ai_config_translate_prompt">Çeviri Komutu</string>
     <string name="settings_ai_config_tldr_prompt">Özet Komutu</string>
-    <string name="settings_ai_config_translate_provider">Çeviri Sağlayıcı</string>
-    <string name="settings_ai_config_translate_provider_description">İçeriği hangi hizmetin çevireceğini seçin</string>
-    <string name="settings_ai_config_translate_provider_google_web">Google Çeviri (Web)</string>
-    <string name="settings_ai_config_translate_provider_deepl_api_key">DeepL API Anahtarı</string>
-    <string name="settings_ai_config_translate_provider_deepl_use_pro">DeepL Pro uç noktası</string>
-    <string name="settings_ai_config_translate_provider_deepl_use_pro_description">Ücretsiz api-free.deepl.com uç noktası yerine api.deepl.com adresini kullanın.</string>
-    <string name="settings_ai_config_translate_provider_google_cloud">Google Cloud Çeviri</string>
-    <string name="settings_ai_config_translate_provider_google_cloud_api_key">Google Cloud API Anahtarı</string>
-    <string name="settings_ai_config_translate_provider_libretranslate_base_url">LibreTranslate Temel URL</string>
-    <string name="settings_ai_config_translate_provider_libretranslate_api_key">LibreTranslate API Anahtarı</string>
-    <string name="settings_translation_title">Çeviri</string>
-    <string name="settings_translation_description">Çeviri hizmetlerini ve otomatik çeviri davranışını seçin</string>
-    <string name="settings_translation_auto_excluded_languages">Otomatik çeviri için atlanacak diller</string>
-    <string name="settings_translation_ai_test_title">AI çeviri testi</string>
-    <string name="settings_translation_ai_test_description">Mevcut AI çeviri ayarlarıyla kısa bir zengin metin örneğini çevirin.</string>
-    <string name="settings_translation_ai_test_action">Çeviriyi test et</string>
-    <string name="settings_translation_ai_test_original">Örnek metin</string>
-    <string name="settings_translation_ai_test_result">Çevrilmiş metin</string>
     <string name="settings_language_title">Dil</string>
     <string name="settings_language_description">Crux\'in uygulama dilini değiştir</string>
     <string name="login_expired">Giriş oturumu sona erdi</string>
@@ -230,8 +207,6 @@
     <string name="rss_detail_share">Bağlantıyı paylaş</string>
     <string name="rss_detail_tldr">Özetle</string>
     <string name="rss_detail_tldr_error">Özetlenemedi</string>
-    <string name="rss_detail_translate">Çevir</string>
-    <string name="rss_detail_translate_error">Çevrilemedi</string>
     <string name="emoji_picker_recent">Son kullanılanlar</string>
     <string name="emoji_picker_search">Ara</string>
     <string name="podcast_host">Ev Sahibi</string>
@@ -291,10 +266,6 @@
     <string name="status_share_sheet_theme_title">Tema</string>
     <string name="channel_title">Kanal</string>
     <string name="app_name" translatable="false">Crux</string>
-    <string name="profile_insight_title">Profil içgörüsü</string>
-    <string name="status_insight_input_placeholder">Takip sorusu sor…</string>
-    <string name="status_insight_analyzing">Bu gönderi analiz ediliyor...</string>
-    <string name="profile_insight_analyzing">Bu profil analiz ediliyor…</string>
     <string name="status_insight_trace_loading_post_context">Gönderi bağlamı yükleniyor...</string>
     <string name="status_insight_trace_post_context_loaded">Gönderi bağlamı yüklendi</string>
     <string name="status_insight_trace_preparing_images">Görseller hazırlanıyor...</string>
@@ -337,9 +308,6 @@
     <string name="agent_chat_thinking">Düşünüyor...</string>
     <string name="settings_ai_config_enable_agent">AI Agent’ı etkinleştir</string>
     <string name="settings_ai_config_agent_description">Etkinleştirildiğinde, OpenAI uyumlu bir model yapılandırılmışsa AI Agent özelliği uygulamadaki ilgili yerlerde görünür.</string>
-    <string name="settings_ai_config_translate_provider_ai">AI</string>
-    <string name="settings_ai_config_translate_provider_deepl">DeepL</string>
-    <string name="settings_ai_config_translate_provider_libretranslate">LibreTranslate</string>
     <string name="settings_appearance_expand_content_warning">Mostrar contenido detrás de advertencias</string>
     <string name="settings_appearance_expand_content_warning_description">Revelar siempre el contenido oculto por advertencias</string>
     <string name="illustrations_title">İllüstrasyonlar</string>
@@ -432,10 +400,6 @@
     <string name="settings_post_action_fixed_width_description">Sayaçlı işlem düğmelerini tutarlı bir genişlikte tut</string>
     <string name="settings_refresh_home_timeline_on_launch">Başlangıçta ana sayfa zaman akışını yenile</string>
     <string name="settings_refresh_home_timeline_on_launch_description">Crux açıldığında yeni gönderileri getir</string>
-    <string name="settings_translation_prefer_platform">Platform çevirilerini tercih et</string>
-    <string name="settings_translation_prefer_platform_description">Otomatik çeviri sırasında platform tarafından sağlanan bir çeviri varsa onu kullan.</string>
-    <string name="settings_translation_show_original_with_translation">Orijinali çeviriyle birlikte göster</string>
-    <string name="settings_translation_show_original_with_translation_description">Çevirisinden önce orijinal metni göster</string>
     <string name="status_share_crosspost">Çapraz gönderi</string>
     <string name="status_share_crosspost_failed">Çapraz gönderi hazırlanamadı</string>
 </resources>

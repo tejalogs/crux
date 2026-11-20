@@ -219,16 +219,16 @@ class PostActionLayoutConfigTest {
     @Test
     fun existingDisabledAndNoopActionsKeepTheirState() {
         val disabled = action(PostActionFamily.Reply, UiIcon.Reply).copy(enabled = false)
-        val translating = action(PostActionFamily.Translate, UiIcon.Translate).copy(clickEvent = ClickEvent.Noop)
+        val noop = action(PostActionFamily.Share, UiIcon.Share).copy(clickEvent = ClickEvent.Noop)
         val config =
             PostActionLayoutConfig(
                 enabled = true,
-                primary = persistentListOf(PostActionFamily.Reply, PostActionFamily.Translate, PostActionFamily.Like),
+                primary = persistentListOf(PostActionFamily.Reply, PostActionFamily.Share, PostActionFamily.Like),
             )
 
         assertEquals(
-            listOf<ActionMenu>(disabled, translating),
-            persistentListOf(disabled, translating).applyPostActionLayout(config),
+            listOf<ActionMenu>(disabled, noop),
+            persistentListOf(disabled, noop).applyPostActionLayout(config),
         )
     }
 
@@ -287,31 +287,6 @@ class PostActionLayoutConfigTest {
             ),
         ).forEach { config ->
             assertEquals(actions, actions.applyPostActionLayout(config))
-        }
-    }
-
-    @Test
-    fun availableTranslationActionsKeepTheirOriginalState() {
-        listOf(
-            ActionMenu.Item.Text.Localized.Type.Translate,
-            ActionMenu.Item.Text.Localized.Type.RetryTranslation,
-            ActionMenu.Item.Text.Localized.Type.ShowOriginal,
-        ).forEach { type ->
-            val translate =
-                ActionMenu.Item(
-                    icon = UiIcon.Translate,
-                    text = ActionMenu.Item.Text.Localized(type),
-                    actionFamily = PostActionFamily.Translate,
-                )
-            val actions = persistentListOf(ActionMenu.Group(displayItem = moreItem(), actions = persistentListOf(translate)))
-            val result =
-                actions.applyPostActionLayout(
-                    PostActionLayoutConfig(enabled = true, primary = persistentListOf(PostActionFamily.Translate)),
-                )
-
-            val displayed = assertIs<ActionMenu.Item>(result.single())
-            assertEquals(translate, displayed)
-            assertTrue(displayed.enabled)
         }
     }
 

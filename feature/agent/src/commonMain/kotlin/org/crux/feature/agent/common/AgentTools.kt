@@ -1090,7 +1090,7 @@ internal fun List<AgentPostActionTarget>.postActionGuidance(): String =
         $accountLines
         - Use list_post_actions when the user asks what can be done to a post, or when the target action is ambiguous.
         - Use execute_post_action when the user asks to like, unlike, repost, unrepost, bookmark, unbookmark, favorite, unfavorite, react, unreact, vote in a poll, accept a follow request, reject a follow request, or otherwise execute an available post action.
-        - Do not use post action tools for translate, show original, share, fx share, or more-menu UI operations.
+        - Do not use post action tools for share, fx share, or more-menu UI operations.
         - Use compose_post for reply, comment, and quote because those actions require text content.
         - Always require confirmation before executing execute_post_action. Do not call execute_post_action with confirmed=true unless the latest user message clearly confirms the exact action and target post already shown.
         """
@@ -1268,3 +1268,27 @@ private const val AGENT_ATTACHMENT_GUIDANCE =
     - Do not explain the marker syntax to the user.
     - Example placement: write a short sentence, then put the exact marker copied from the tool result on the next line.
     """
+
+/**
+ * True only when the model asked to act AND the latest user turn is the confirmation button
+ * payload for this exact action. A model-supplied confirmed=true alone (for example from text
+ * injected through a post, article or notification) never performs a side effect.
+ * Lines are matched whole so `id=1` cannot match `id=12`.
+ */
+internal fun AgentToolSession.buttonConfirmed(
+    modelConfirmed: Boolean,
+    event: String,
+    vararg markers: String,
+): Boolean {
+    if (!modelConfirmed) return false
+    val lines = userPrompt.lineSequence().map { it.trim() }.toSet()
+    return event in lines && "confirmed=true" in lines && markers.all { it in lines }
+}
+
+/** The text after the `content:` line of the confirmation payload, as the user confirmed it. */
+internal fun AgentToolSession.confirmedContent(): String? =
+    userPrompt.lineSequence().toList().let { lines ->
+        val start = lines.indexOfFirst { it.trim() == "content:" }
+        if (start < 0) null else lines.drop(start + 1).joinToString("\n").trim()
+    }
+

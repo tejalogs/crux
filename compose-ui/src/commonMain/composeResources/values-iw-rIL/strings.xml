@@ -50,13 +50,7 @@
     <string name="user_mute_with_parameter">השתק את %1$s</string>
     <string name="user_block_with_parameter">חסום את %1$s</string>
     <string name="reply_to">תגובה ל-%1$s</string>
-    <string name="status_detail_translate">תרגום</string>
     <string name="status_detail_tldr">סיכום</string>
-    <string name="translation_badge_translated">תורגם</string>
-    <string name="translation_badge_translating">מתרגם…</string>
-    <string name="translation_badge_failed">התרגום נכשל</string>
-    <string name="translation_retry">נסה לתרגם שוב</string>
-    <string name="translation_show_original">הצג מקור</string>
     <string name="user_follow_edit_list">הוסף/הסר מרשימה</string>
     <string name="list_empty">אין רשימות</string>
     <string name="vote">הצבעה</string>

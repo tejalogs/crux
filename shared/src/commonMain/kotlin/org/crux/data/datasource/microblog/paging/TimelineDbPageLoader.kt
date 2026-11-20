@@ -249,7 +249,6 @@ internal class TimelineDbPageLoader(
                         "DbStatus",
                         "status_reference",
                         "timeline_item_presentation_reference",
-                        "DbTranslation",
                         emitInitialState = true,
                     ).collect {
                         if (ready.complete(Unit)) {

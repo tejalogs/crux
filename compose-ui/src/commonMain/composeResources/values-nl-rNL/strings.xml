@@ -51,13 +51,7 @@
     <string name="user_mute_with_parameter">%1$s dempen</string>
     <string name="user_block_with_parameter">%1$s blokkeren</string>
     <string name="reply_to">Antwoorden aan %1$s</string>
-    <string name="status_detail_translate">Vertalen</string>
     <string name="status_detail_tldr">Samenvatten</string>
-    <string name="translation_badge_translated">Vertaald</string>
-    <string name="translation_badge_translating">Vertalen…</string>
-    <string name="translation_badge_failed">Vertaling mislukt</string>
-    <string name="translation_retry">Vertaling opnieuw proberen</string>
-    <string name="translation_show_original">Toon origineel</string>
     <string name="user_follow_edit_list">Toevoegen/verwijderen uit lijst</string>
     <string name="list_empty">Geen lijsten</string>
     <string name="vote">Stemmen</string>

@@ -50,13 +50,7 @@
     <string name="user_mute_with_parameter">%1$s 뮤트</string>
     <string name="user_block_with_parameter">%1$s 차단</string>
     <string name="reply_to">%1$s에게 답글 남기기</string>
-    <string name="status_detail_translate">번역</string>
     <string name="status_detail_tldr">요약</string>
-    <string name="translation_badge_translated">번역됨</string>
-    <string name="translation_badge_translating">번역 중…</string>
-    <string name="translation_badge_failed">번역 실패</string>
-    <string name="translation_retry">번역 재시도</string>
-    <string name="translation_show_original">원본 보기</string>
     <string name="user_follow_edit_list">리스트 추가/제거</string>
     <string name="list_empty">리스트가 없습니다</string>
     <string name="vote">투표</string>

@@ -119,7 +119,14 @@ internal class ComposePostTool(
         ) {
             return "Post text exceeds the platform limits."
         }
-        if (!args.confirmed) {
+        val buttonConfirmed =
+            session.buttonConfirmed(
+                args.confirmed,
+                "event=compose_confirmed",
+                "action=${action.label}",
+                "accountId=${target.accountKey.id}",
+            ) && session.confirmedContent() == data.content.trim()
+        if (!buttonConfirmed) {
             val userPreview = target.loadUserPreview()
             val inputRequest =
                 target.confirmationInputRequest(

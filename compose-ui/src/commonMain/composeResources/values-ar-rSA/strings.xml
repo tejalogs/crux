@@ -51,13 +51,7 @@
     <string name="user_mute_with_parameter">كتم %1$s</string>
     <string name="user_block_with_parameter">حظر %1$s</string>
     <string name="reply_to">الرد على %1$s</string>
-    <string name="status_detail_translate">ترجمة</string>
     <string name="status_detail_tldr">تلخيص</string>
-    <string name="translation_badge_translated">مترجم</string>
-    <string name="translation_badge_translating">جاري الترجمة…</string>
-    <string name="translation_badge_failed">فشلت الترجمة</string>
-    <string name="translation_retry">إعادة محاولة الترجمة</string>
-    <string name="translation_show_original">عرض الأصل</string>
     <string name="user_follow_edit_list">إضافة/إزالة من القائمة</string>
     <string name="list_empty">لا توجد قوائم</string>
     <string name="vote">تصويت</string>

@@ -50,13 +50,7 @@
     <string name="user_mute_with_parameter">Заглуши %1$s</string>
     <string name="user_block_with_parameter">Блокирай %1$s</string>
     <string name="reply_to">Отговор на %1$s</string>
-    <string name="status_detail_translate">Превод</string>
     <string name="status_detail_tldr">Обобщение</string>
-    <string name="translation_badge_translated">Преведено</string>
-    <string name="translation_badge_translating">Превежда се…</string>
-    <string name="translation_badge_failed">Преводът е неуспешен</string>
-    <string name="translation_retry">Повторен опит за превод</string>
-    <string name="translation_show_original">Покажи оригинала</string>
     <string name="user_follow_edit_list">Добави/Премахни от списък</string>
     <string name="list_empty">Няма списъци</string>
     <string name="vote">Гласуване</string>

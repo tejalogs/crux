@@ -33,7 +33,6 @@ import compose.icons.fontawesomeicons.solid.Gear
 import compose.icons.fontawesomeicons.solid.Globe
 import compose.icons.fontawesomeicons.solid.Heart
 import compose.icons.fontawesomeicons.solid.House
-import compose.icons.fontawesomeicons.solid.Language
 import compose.icons.fontawesomeicons.solid.List
 import compose.icons.fontawesomeicons.solid.MagnifyingGlass
 import compose.icons.fontawesomeicons.solid.Message
@@ -167,7 +166,6 @@ public fun UiIcon.toImageVector(): ImageVector =
 
         UiIcon.Weibo -> FontAwesomeIcons.Brands.Weibo
 
-        UiIcon.Translate -> FontAwesomeIcons.Solid.Language
 
         UiIcon.Pixelfed -> FontAwesomeIcons.Solid.Camera
 

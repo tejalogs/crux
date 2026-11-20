@@ -1,6 +1,5 @@
 package org.crux.ui.component.status
 
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
@@ -47,7 +46,6 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.UriHandler
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.intl.Locale
 import androidx.compose.ui.text.style.TextOverflow
@@ -63,12 +61,9 @@ import compose.icons.fontawesomeicons.solid.At
 import compose.icons.fontawesomeicons.solid.Ellipsis
 import compose.icons.fontawesomeicons.solid.Globe
 import compose.icons.fontawesomeicons.solid.Image
-import compose.icons.fontawesomeicons.solid.Language
 import compose.icons.fontawesomeicons.solid.Lock
 import compose.icons.fontawesomeicons.solid.LockOpen
 import compose.icons.fontawesomeicons.solid.Reply
-import compose.icons.fontawesomeicons.solid.Robot
-import compose.icons.fontawesomeicons.solid.TriangleExclamation
 import compose.icons.fontawesomeicons.solid.Tv
 import compose.icons.fontawesomeicons.solid.WandMagicSparkles
 import kotlinx.collections.immutable.ImmutableList
@@ -107,15 +102,8 @@ import org.crux.compose.ui.retweet_remove
 import org.crux.compose.ui.share
 import org.crux.compose.ui.show_media
 import org.crux.compose.ui.status_detail_tldr
-import org.crux.compose.ui.status_detail_translate
 import org.crux.compose.ui.status_open_post
 import org.crux.compose.ui.status_smart_reply
-import org.crux.compose.ui.status_view_insight
-import org.crux.compose.ui.translation_badge_failed
-import org.crux.compose.ui.translation_badge_translated
-import org.crux.compose.ui.translation_badge_translating
-import org.crux.compose.ui.translation_retry
-import org.crux.compose.ui.translation_show_original
 import org.crux.compose.ui.unfavourite
 import org.crux.compose.ui.unlike
 import org.crux.compose.ui.user_block
@@ -140,26 +128,22 @@ import org.crux.ui.component.EmojiImage
 import org.crux.ui.component.FAIcon
 import org.crux.ui.component.HorizontalDivider
 import org.crux.ui.component.LocalTimelineAppearance
-import org.crux.ui.component.LocalTranslationDisclosure
 import org.crux.ui.component.PlatformProvenancePill
 import org.crux.ui.component.RichText
 import org.crux.ui.component.placeholder
 import org.crux.ui.component.platform.PlatformCard
 import org.crux.ui.component.platform.PlatformCheckbox
-import org.crux.ui.component.platform.PlatformCircularProgressIndicator
 import org.crux.ui.component.platform.PlatformDropdownMenu
 import org.crux.ui.component.platform.PlatformDropdownMenuDivider
 import org.crux.ui.component.platform.PlatformDropdownMenuItem
 import org.crux.ui.component.platform.PlatformDropdownMenuScope
 import org.crux.ui.component.platform.PlatformFilledTonalButton
-import org.crux.ui.component.platform.PlatformIconButton
 import org.crux.ui.component.platform.PlatformRadioButton
 import org.crux.ui.component.platform.PlatformText
 import org.crux.ui.component.platform.PlatformTextButton
 import org.crux.ui.component.platform.PlatformTextStyle
 import org.crux.ui.component.toImageVector
 import org.crux.ui.model.ClickContext
-import org.crux.ui.model.TranslationDisplayState
 import org.crux.ui.model.UiCard
 import org.crux.ui.model.UiPoll
 import org.crux.ui.model.UiTimelineV2
@@ -310,13 +294,6 @@ public fun CommonStatusComponent(
                                     tint = PlatformTheme.colorScheme.caption,
                                 )
                             }
-                            AnimatedVisibility(
-                                visible = item.translationDisplayState != TranslationDisplayState.Hidden,
-                            ) {
-                                TranslationDisplayBadge(
-                                    state = item.translationDisplayState,
-                                )
-                            }
                             if (appearanceSettings.showPlatformLogo) {
                                 PlatformProvenancePill(
                                     platformId = item.platformId,
@@ -335,32 +312,6 @@ public fun CommonStatusComponent(
                                     style = PlatformTheme.typography.caption,
                                     color = PlatformTheme.colorScheme.caption,
                                 )
-                            }
-                            if (appearanceSettings.aiConfig.agent) {
-                                PlatformIconButton(
-                                    onClick = {
-                                        uriHandler.openUri(
-                                            DeeplinkRoute
-                                                .Status
-                                                .Insight(
-                                                    accountType = item.accountType,
-                                                    statusKey = item.statusKey,
-                                                ).toUri(),
-                                        )
-                                    },
-                                    modifier =
-                                        Modifier
-                                            .size(24.dp),
-                                ) {
-                                    FAIcon(
-                                        imageVector = FontAwesomeIcons.Solid.Robot,
-                                        contentDescription = stringResource(Res.string.status_view_insight),
-                                        modifier =
-                                            Modifier
-                                                .size(PlatformTheme.typography.caption.fontSize.value.dp),
-                                        tint = PlatformTheme.colorScheme.caption,
-                                    )
-                                }
                             }
                         }
                     }
@@ -438,7 +389,6 @@ public fun CommonStatusComponent(
                                 poll = item.poll,
                                 maxLines = Int.MAX_VALUE,
                                 showExpandButton = showExpandButton,
-                                translationDisplayed = item.translationDisplayState == TranslationDisplayState.Translated,
                             )
                         }
                     }
@@ -449,12 +399,11 @@ public fun CommonStatusComponent(
                         poll = item.poll,
                         maxLines = maxLines,
                         showExpandButton = showExpandButton,
-                        translationDisplayed = item.translationDisplayState == TranslationDisplayState.Translated,
                     )
                 }
 
                 if (isDetail && !item.content.original.isEmpty && appearanceSettings.showTranslateButton) {
-                    TranslationComponent(
+                    StatusAiActionsComponent(
                         item = item,
                         statusKey = item.stableItemKey,
                         contentWarning = item.contentWarning?.original,
@@ -820,69 +769,7 @@ private fun StatusReactionComponent(
 }
 
 @Composable
-internal fun TranslationDisplayBadge(
-    state: TranslationDisplayState,
-    modifier: Modifier = Modifier,
-) {
-    val description =
-        when (state) {
-            TranslationDisplayState.Translating -> {
-                stringResource(Res.string.translation_badge_translating)
-            }
-
-            TranslationDisplayState.Translated -> {
-                stringResource(Res.string.translation_badge_translated)
-            }
-
-            TranslationDisplayState.Failed -> {
-                stringResource(Res.string.translation_badge_failed)
-            }
-
-            TranslationDisplayState.Hidden -> {
-                null
-            }
-        }
-    Row(
-        modifier =
-            modifier.semantics {
-                description?.let { contentDescription = it }
-            },
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        FAIcon(
-            FontAwesomeIcons.Solid.Language,
-            contentDescription = null,
-            tint = PlatformTheme.colorScheme.caption,
-        )
-        AnimatedContent(state) { state ->
-            when (state) {
-                TranslationDisplayState.Translating -> {
-                    PlatformCircularProgressIndicator(
-                        modifier = Modifier.size(12.dp),
-                        color = PlatformTheme.colorScheme.caption,
-                    )
-                }
-
-                TranslationDisplayState.Translated -> {}
-
-                TranslationDisplayState.Failed -> {
-                    FAIcon(
-                        FontAwesomeIcons.Solid.TriangleExclamation,
-                        contentDescription = null,
-                        tint = PlatformTheme.colorScheme.caption,
-                        modifier = Modifier.size(12.dp),
-                    )
-                }
-
-                TranslationDisplayState.Hidden -> {}
-            }
-        }
-    }
-}
-
-@Composable
-private fun TranslationComponent(
+private fun StatusAiActionsComponent(
     item: UiTimelineV2.Post,
     statusKey: String,
     contentWarning: UiRichText?,
@@ -890,34 +777,14 @@ private fun TranslationComponent(
     content: UiRichText,
 ) {
     val timelineAppearance = LocalTimelineAppearance.current
-    var enabledTranslate by rememberSaveable("translate-$statusKey") {
-        mutableStateOf(false)
-    }
     var enabledTldr by rememberSaveable("tldr-$statusKey") {
         mutableStateOf(false)
     }
     val uriHandler = LocalUriHandler.current
-    val requestTranslation = LocalTranslationDisclosure.current
     Row(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        PlatformTextButton(
-            onClick = {
-                if (!enabledTranslate) {
-                    // The one-time "where does translated text go" prompt comes first when it is due.
-                    val start = { enabledTranslate = true }
-                    if (requestTranslation != null) requestTranslation(start) else start()
-                }
-            },
-        ) {
-            PlatformText(
-                text =
-                    stringResource(
-                        resource = Res.string.status_detail_translate,
-                    ),
-            )
-        }
         if (timelineAppearance.aiConfig.tldr && content.isLongText) {
             PlatformTextButton(
                 onClick = {
@@ -989,47 +856,6 @@ private fun TranslationComponent(
         state
             .onSuccess {
                 PlatformText(text = it)
-            }.onLoading {
-                PlatformText(
-                    text = "Lores ipsum dolor sit amet",
-                    modifier = Modifier.placeholder(true),
-                )
-            }.onError {
-                PlatformText(text = it.message ?: "Error")
-            }
-    }
-    if (enabledTranslate) {
-        Spacer(modifier = Modifier.height(4.dp))
-        val state by producePresenter(
-            "translate_${contentWarning}_${rawContent}_${Locale.current.language}_${timelineAppearance.aiConfig.translation}",
-        ) {
-            statusTranslatePresenter(
-                item = item,
-                contentWarning = contentWarning,
-                content = content,
-                targetLanguage = Locale.current.language,
-            )
-        }
-        state.contentWarning
-            ?.onSuccess {
-                RichText(
-                    text = it,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }?.onLoading {
-                PlatformText(
-                    text = "Lores ipsum dolor sit amet",
-                    modifier = Modifier.placeholder(true),
-                )
-            }?.onError {
-                PlatformText(text = it.message ?: "Error")
-            }
-        state.text
-            .onSuccess {
-                RichText(
-                    text = it,
-                    modifier = Modifier.fillMaxWidth(),
-                )
             }.onLoading {
                 PlatformText(
                     text = "Lores ipsum dolor sit amet",
@@ -1378,9 +1204,6 @@ private fun ActionMenu.Item.Text.asString(): String =
                     ActionMenu.Item.Text.Localized.Type.MuteWithHandleParameter -> Res.string.user_mute_with_parameter
                     ActionMenu.Item.Text.Localized.Type.AcceptFollowRequest -> Res.string.more
                     ActionMenu.Item.Text.Localized.Type.RejectFollowRequest -> Res.string.more
-                    ActionMenu.Item.Text.Localized.Type.RetryTranslation -> Res.string.translation_retry
-                    ActionMenu.Item.Text.Localized.Type.Translate -> Res.string.status_detail_translate
-                    ActionMenu.Item.Text.Localized.Type.ShowOriginal -> Res.string.translation_show_original
                     ActionMenu.Item.Text.Localized.Type.Favorite -> Res.string.favourite
                     ActionMenu.Item.Text.Localized.Type.UnFavorite -> Res.string.unfavourite
                     ActionMenu.Item.Text.Localized.Type.SmartReply -> Res.string.status_smart_reply
@@ -1433,36 +1256,11 @@ private fun StatusContentComponent(
     poll: UiPoll?,
     maxLines: Int?,
     showExpandButton: Boolean,
-    translationDisplayed: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val appearanceSettings = LocalTimelineAppearance.current
-    val showOriginalWithTranslation = appearanceSettings.aiConfig.showOriginalWithTranslation
-    val translation = content.translation
-    val visibleContent =
-        if (translationDisplayed && translation != null) {
-            if (showOriginalWithTranslation) {
-                listOf(content.original, translation)
-            } else {
-                listOf(translation)
-            }
-        } else {
-            listOf(content.original)
-        }
-    val visibleContentWarning =
-        contentWarning
-            ?.let { warning ->
-                val warningTranslation = warning.translation
-                if (translationDisplayed && warningTranslation != null) {
-                    if (showOriginalWithTranslation) {
-                        listOf(warning.original, warningTranslation)
-                    } else {
-                        listOf(warningTranslation)
-                    }
-                } else {
-                    listOf(warning.original)
-                }
-            }.orEmpty()
+    val visibleContent = listOf(content.original)
+    val visibleContentWarning = contentWarning?.let { listOf(it.original) }.orEmpty()
     val effectiveMaxLines = (maxLines ?: appearanceSettings.lineLimit).coerceAtLeast(1)
     val collapseThresholdLines = maxLines?.coerceAtLeast(1) ?: 15
     var expanded by rememberSaveable {

@@ -158,7 +158,7 @@ public fun String.toUiPlainText(sourceLanguages: List<String> = emptyList()): Ui
         imageUrls = persistentListOf<String>(),
     )
 
-public fun UiRichText.toTranslatableText(): String {
+public fun UiRichText.toFlatText(): String {
     val builder = StringBuilder()
     var appendedTextBlock = false
     renderRuns.forEach { content ->

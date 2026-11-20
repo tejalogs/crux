@@ -9,7 +9,6 @@ import org.crux.common.PlatformDispatchers
 import org.crux.data.database.cache.mapper.saveToDatabase
 import org.crux.data.database.cache.model.DbStatus
 import org.crux.data.database.cache.model.DbStatusReference
-import org.crux.data.database.cache.model.TranslationDisplayOptions
 import org.crux.data.database.createDatabaseDriver
 import org.crux.data.datasource.microblog.paging.TimelineDbPageCache
 import org.crux.data.datasource.microblog.paging.TimelineDbPageLoader
@@ -234,15 +233,9 @@ class TimelineDatabaseWriteAmplificationTest : RobolectricTest() {
                     assertEquals(updatedQuote, presentationQuote)
                 }
                 val projectedAfter = pageLoader.load(offset = 0, limit = items.size)
-                val displayOptions =
-                    TranslationDisplayOptions(
-                        translationEnabled = false,
-                        autoDisplayEnabled = false,
-                        providerCacheKey = "test",
-                    )
                 projectedAfter.forEachIndexed { index, item ->
                     assertTrue(item !== projectedBefore[index])
-                    val rendered = item.toUi(displayOptions) as UiTimelineV2.TimelinePostItem
+                    val rendered = item.toUi() as UiTimelineV2.TimelinePostItem
                     assertEquals(
                         "updated quote body",
                         rendered.presentation.quotes
@@ -343,9 +336,8 @@ class TimelineDatabaseWriteAmplificationTest : RobolectricTest() {
                 saveToDatabase(database, listOf(TimelinePagingMapper.toDb(reply, PAGING_KEY, sortId = 0)))
                 val pageCache = TimelineDbPageCache()
                 val loader = TimelineDbPageLoader(database, PAGING_KEY, pageCache)
-                val options = TranslationDisplayOptions(false, false, "test")
 
-                suspend fun rendered() = loader.load(0, 1).single().toUi(options) as UiTimelineV2.TimelinePostItem
+                suspend fun rendered() = loader.load(0, 1).single().toUi() as UiTimelineV2.TimelinePostItem
                 val before = rendered()
                 assertEquals(
                     quote.statusKey,
@@ -356,7 +348,7 @@ class TimelineDatabaseWriteAmplificationTest : RobolectricTest() {
                         .statusKey,
                 )
                 val hydrated = database.pagingTimelineDao().getTimelinePage(PAGING_KEY, 0, 1).single()
-                assertEquals(before, TimelinePagingMapper.toUi(hydrated, PAGING_KEY, options))
+                assertEquals(before, TimelinePagingMapper.toUi(hydrated, PAGING_KEY))
 
                 val updatedQuote = quote.copy(content = UiTranslatableText("updated parent quote".toUiPlainText()))
                 database.statusDao().update(

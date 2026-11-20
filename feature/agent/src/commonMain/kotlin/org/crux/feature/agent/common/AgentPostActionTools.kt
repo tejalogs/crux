@@ -20,7 +20,7 @@ internal class ListPostActionsTool(
         name = NAME,
         description =
             "List executable post actions from a target post's ActionMenu. " +
-                "This excludes translate/show-original, share/more UI actions, and reply/quote/comment compose actions.",
+                "This excludes share/more UI actions, and reply/quote/comment compose actions.",
     ) {
     @Serializable
     internal data class Args(
@@ -38,7 +38,7 @@ internal class ListPostActionsTool(
         val post = session.resolveActionPost(args.toTargetArgs()) ?: return session.postActionTargetSelectionMessage(args.toTargetArgs())
         val actions = post.executablePostActions()
         if (actions.isEmpty()) {
-            return "No executable post actions are available for ${post.statusKey}. Translate and pure UI actions are not included."
+            return "No executable post actions are available for ${post.statusKey}. Pure UI actions are not included."
         }
         val request =
             AgentPendingInputRequest(
@@ -89,7 +89,7 @@ internal class ExecutePostActionTool(
         description =
             "Execute an available post action from a target post's ActionMenu after explicit confirmation. " +
                 "Use list_post_actions first when actionId or target post is ambiguous. " +
-                "This excludes translate/show-original, share/more UI actions, and reply/quote/comment compose actions.",
+                "This excludes share/more UI actions, and reply/quote/comment compose actions.",
     ) {
     @Serializable
     internal data class Args(
@@ -113,7 +113,7 @@ internal class ExecutePostActionTool(
         val post = session.resolveActionPost(args.toTargetArgs()) ?: return session.postActionTargetSelectionMessage(args.toTargetArgs())
         val actions = post.executablePostActions()
         if (actions.isEmpty()) {
-            return "No executable post actions are available for ${post.statusKey}. Translate and pure UI actions are not included."
+            return "No executable post actions are available for ${post.statusKey}. Pure UI actions are not included."
         }
         val action =
             actions.resolveAction(args.actionId, args.actionName)
@@ -122,7 +122,14 @@ internal class ExecutePostActionTool(
             session.postActionTargets.firstOrNull { it.accountKey == action.payload.accountKey }
                 ?: return "No signed-in post action account matches ${action.payload.accountKey} for ${action.label}."
 
-        if (!args.confirmed) {
+        val buttonConfirmed =
+            session.buttonConfirmed(
+                args.confirmed,
+                "event=post_action_confirmed",
+                "targetStatusId=${post.statusKey.id}",
+                "actionId=${action.id}",
+            )
+        if (!buttonConfirmed) {
             val prompt =
                 buildString {
                     appendLine("event=post_action_confirmation_required")
@@ -484,7 +491,4 @@ private val SKIPPED_ACTION_TYPES =
         ActionMenu.Item.Text.Localized.Type.More,
         ActionMenu.Item.Text.Localized.Type.Share,
         ActionMenu.Item.Text.Localized.Type.FxShare,
-        ActionMenu.Item.Text.Localized.Type.Translate,
-        ActionMenu.Item.Text.Localized.Type.RetryTranslation,
-        ActionMenu.Item.Text.Localized.Type.ShowOriginal,
     )

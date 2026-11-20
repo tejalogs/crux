@@ -42,11 +42,6 @@ public object PostActionLayoutPreviewHelper {
             actions =
                 listOf(
                     ActionMenu.Item(
-                        icon = UiIcon.Translate,
-                        text = ActionMenu.Item.Text.Localized(ActionMenu.Item.Text.Localized.Type.Translate),
-                        actionFamily = PostActionFamily.Translate,
-                    ),
-                    ActionMenu.Item(
                         icon = UiIcon.Bookmark,
                         text = ActionMenu.Item.Text.Localized(ActionMenu.Item.Text.Localized.Type.Bookmark),
                         count = UiNumber(4),

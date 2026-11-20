@@ -13,7 +13,6 @@
     <string name="compose_title">Escriu</string>
     <string name="compose_notification_success">Publicació enviada</string>
     <string name="compose_notification_error">No s\'ha pogut enviar la publicació</string>
-    <string name="status_insight_send">Envia</string>
     <string name="agent_chat_send">Envia</string>
     <string name="settings_title">Configuració</string>
     <string name="settings_appearance_theme_group_title">Tema</string>
@@ -45,7 +44,6 @@
     <string name="settings_ai_config_api_key_hint">Introdueix la clau de l\'API</string>
     <string name="settings_ai_config_model_description">Tria un model d\'aquest extrem</string>
     <string name="settings_ai_config_model_select">Selecciona el model</string>
-    <string name="settings_ai_config_model_loading">Carregant els models…</string>
     <string name="settings_ai_config_model_error">No s\'han pogut carregar els models</string>
     <string name="settings_ai_config_model_no_models">No hi ha cap model</string>
     <string name="settings_ai_config_model_manual_input">Introdueix el nom del model manualment</string>
@@ -57,27 +55,7 @@
     <string name="settings_ai_config_reasoning_effort_high">Alt</string>
     <string name="settings_ai_config_enable_tldr">Activa els resums per IA</string>
     <string name="settings_ai_config_tldr_description">Resumeix publicacions llargues amb IA. Disponible per a publicacions de més de 500 caràcters.</string>
-    <string name="settings_ai_config_enable_pre_translation">Activa la traducció automàtica</string>
-    <string name="settings_ai_config_pre_translation_description">Tradueix el contingut nou de la línia de temps i del perfil en segon pla i desa els resultats a la memòria cau. Això pot utilitzar un gran nombre de fitxes (tokens).</string>
-    <string name="settings_ai_config_translate_prompt">Indicador de traducció (Prompt)</string>
     <string name="settings_ai_config_tldr_prompt">Indicador de resum (Prompt)</string>
-    <string name="settings_ai_config_translate_provider">Proveïdor de traducció</string>
-    <string name="settings_ai_config_translate_provider_description">Tria quin servei tradueix el contingut</string>
-    <string name="settings_ai_config_translate_provider_ai">IA</string>
-    <string name="settings_ai_config_translate_provider_deepl_api_key">Clau d\'API de DeepL</string>
-    <string name="settings_ai_config_translate_provider_deepl_use_pro">Extrem de DeepL Pro</string>
-    <string name="settings_ai_config_translate_provider_deepl_use_pro_description">Utilitza api.deepl.com en lloc de l\'extrem gratuït api-free.deepl.com.</string>
-    <string name="settings_ai_config_translate_provider_google_cloud_api_key">Clau d\'API de Google Cloud</string>
-    <string name="settings_ai_config_translate_provider_libretranslate_base_url">URL base de LibreTranslate</string>
-    <string name="settings_ai_config_translate_provider_libretranslate_api_key">Clau d\'API de LibreTranslate</string>
-    <string name="settings_translation_title">Traducció</string>
-    <string name="settings_translation_description">Tria els serveis de traducció i el comportament de la traducció automàtica</string>
-    <string name="settings_translation_auto_excluded_languages">Idiomes a ometre de la traducció automàtica</string>
-    <string name="settings_translation_ai_test_title">Prova de traducció per IA</string>
-    <string name="settings_translation_ai_test_description">Tradueix una petita mostra de text amb format amb la configuració actual de traducció per IA.</string>
-    <string name="settings_translation_ai_test_action">Prova la traducció</string>
-    <string name="settings_translation_ai_test_original">Text de mostra</string>
-    <string name="settings_translation_ai_test_result">Text traduït</string>
     <string name="settings_language_title">Idioma</string>
     <string name="settings_language_description">Canvia l\'idioma de l\'aplicació Crux</string>
     <string name="login_expired">La sessió ha caducat</string>
@@ -227,8 +205,6 @@
     <string name="rss_detail_share">Comparteix l\'enllaç</string>
     <string name="rss_detail_tldr">Resumeix</string>
     <string name="rss_detail_tldr_error">No s\'ha pogut resumir</string>
-    <string name="rss_detail_translate">Tradueix</string>
-    <string name="rss_detail_translate_error">No s\'ha pogut traduir</string>
     <string name="emoji_picker_recent">Recents</string>
     <string name="emoji_picker_search">Cerca</string>
     <string name="podcast_host">Amfitrió</string>
@@ -287,10 +263,6 @@
     <string name="status_share_sheet_theme_title">Tema</string>
     <string name="channel_title">Canal</string>
     <string name="app_name" translatable="false">Crux</string>
-    <string name="profile_insight_title">Informació del perfil</string>
-    <string name="status_insight_input_placeholder">Fes una pregunta de seguiment…</string>
-    <string name="status_insight_analyzing">S’està analitzant aquesta publicació...</string>
-    <string name="profile_insight_analyzing">S’està analitzant aquest perfil…</string>
     <string name="status_insight_trace_loading_post_context">Carregant el context de la publicació...</string>
     <string name="status_insight_trace_post_context_loaded">Context de la publicació carregat</string>
     <string name="status_insight_trace_preparing_images">Preparant imatges...</string>
@@ -335,10 +307,6 @@
     <string name="settings_ai_config_extra_body">Cuerpo extra</string>
     <string name="settings_ai_config_enable_agent">Activa l’AI Agent</string>
     <string name="settings_ai_config_agent_description">Un cop activat, la funció AI Agent apareixerà als llocs corresponents de l’app quan s’hagi configurat un model compatible amb OpenAI.</string>
-    <string name="settings_ai_config_translate_provider_google_web">Google Translate (Web)</string>
-    <string name="settings_ai_config_translate_provider_deepl">DeepL</string>
-    <string name="settings_ai_config_translate_provider_google_cloud">Google Cloud Translate</string>
-    <string name="settings_ai_config_translate_provider_libretranslate">LibreTranslate</string>
     <string name="settings_appearance_expand_content_warning">Mostrar contenido detrás de advertencias</string>
     <string name="settings_appearance_expand_content_warning_description">Revelar siempre el contenido oculto por advertencias</string>
     <string name="illustrations_title">Il·lustracions</string>
@@ -432,10 +400,6 @@
     <string name="settings_post_action_fixed_width_description">Mantén una amplada uniforme per als botons d\'acció amb comptadors</string>
     <string name="settings_refresh_home_timeline_on_launch">Actualitza la cronologia d\'inici en iniciar</string>
     <string name="settings_refresh_home_timeline_on_launch_description">Obtén publicacions noves quan s\'obre Crux</string>
-    <string name="settings_translation_prefer_platform">Prefereix les traduccions de la plataforma</string>
-    <string name="settings_translation_prefer_platform_description">Utilitza una traducció proporcionada per la plataforma quan n\'hi hagi una disponible durant la traducció automàtica.</string>
-    <string name="settings_translation_show_original_with_translation">Mostra l\'original amb la traducció</string>
-    <string name="settings_translation_show_original_with_translation_description">Mostra el text original abans de la traducció</string>
     <string name="status_share_crosspost">Publicació creuada</string>
     <string name="status_share_crosspost_failed">No s\'ha pogut preparar la publicació creuada</string>
 </resources>

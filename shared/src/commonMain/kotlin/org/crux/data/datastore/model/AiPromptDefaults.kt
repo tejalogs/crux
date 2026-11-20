@@ -1,6 +1,7 @@
 package org.crux.data.datastore.model
 
 internal object AiPromptDefaults {
+    // Unused since translation was removed; kept for stored-settings compatibility.
     const val TRANSLATE_PROMPT: String =
         "You are a translation engine. Output only the translated template.\n" +
             "The target language is {target_language}.\n" +

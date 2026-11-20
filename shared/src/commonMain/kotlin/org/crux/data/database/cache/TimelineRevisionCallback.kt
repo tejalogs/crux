@@ -25,33 +25,6 @@ internal object TimelineRevisionCallback : RoomDatabase.Callback() {
                     "WHEN OLD.contentFingerprint IS NOT NEW.contentFingerprint " +
                         "OR OLD.renderHash IS NOT NEW.renderHash",
             ),
-            contentTrigger(
-                "timeline_translation_insert_revision",
-                "INSERT",
-                "DbTranslation",
-                "NEW.entityKey",
-                "WHEN NEW.entityType = 'Status'",
-            ),
-            contentTrigger(
-                "timeline_translation_delete_revision",
-                "DELETE",
-                "DbTranslation",
-                "OLD.entityKey",
-                "WHEN OLD.entityType = 'Status'",
-            ),
-            contentTrigger(
-                name = "timeline_translation_update_revision",
-                event = "UPDATE",
-                table = "DbTranslation",
-                contentId = "NEW.entityKey",
-                condition =
-                    "WHEN NEW.entityType = 'Status' AND (OLD.status IS NOT NEW.status " +
-                        "OR OLD.displayMode IS NOT NEW.displayMode " +
-                        "OR OLD.payload IS NOT NEW.payload " +
-                        "OR OLD.statusReason IS NOT NEW.statusReason " +
-                        "OR OLD.sourceHash IS NOT NEW.sourceHash " +
-                        "OR OLD.targetLanguage IS NOT NEW.targetLanguage)",
-            ),
             referenceTrigger(
                 "timeline_semantic_reference_insert_revision",
                 "INSERT",

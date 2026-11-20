@@ -105,6 +105,7 @@ internal class EncryptedAppSettingsSerializer(
                 is AppSettings.AiConfig.Type.OpenAI -> type.copy(apiKey = transform(type.apiKey))
                 is AppSettings.AiConfig.Type.OnDevice -> type
             }
+        // Unused since translation was removed; kept for stored-settings compatibility.
         val updatedTranslateProvider =
             when (val provider = translateConfig.provider) {
                 is AppSettings.TranslateConfig.Provider.DeepL -> provider.copy(apiKey = transform(provider.apiKey))

@@ -54,8 +54,7 @@ public class CacheEvictionManager internal constructor(
                 // 4. Evict orphaned statuses not in any timeline or reference
                 purgedStatuses = cacheDatabase.statusDao().pruneOrphanedStatuses()
 
-                // 5. Clean up dangling translations and empty paging keys
-                cacheDatabase.translationDao().pruneOrphanedTranslations()
+                // 5. Clean up empty paging keys
                 cacheDatabase.pagingTimelineDao().pruneOrphanedPagingKeys()
             }
 

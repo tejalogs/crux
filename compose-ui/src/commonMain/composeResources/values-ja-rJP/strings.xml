@@ -51,13 +51,7 @@
     <string name="user_mute_with_parameter">%1$sをミュート</string>
     <string name="user_block_with_parameter">%1$sをブロック</string>
     <string name="reply_to">%1$sへの返信</string>
-    <string name="status_detail_translate">翻訳</string>
     <string name="status_detail_tldr">要約</string>
-    <string name="translation_badge_translated">翻訳済み</string>
-    <string name="translation_badge_translating">翻訳中…</string>
-    <string name="translation_badge_failed">翻訳失敗</string>
-    <string name="translation_retry">翻訳を再試行</string>
-    <string name="translation_show_original">原文を表示</string>
     <string name="user_follow_edit_list">リストに追加/削除</string>
     <string name="list_empty">リストがありません</string>
     <string name="vote">投票</string>

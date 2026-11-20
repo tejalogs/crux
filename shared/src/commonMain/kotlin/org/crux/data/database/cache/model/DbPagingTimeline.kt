@@ -82,12 +82,6 @@ internal data class DbPagingTimelineWithStatus(
     val timeline: DbPagingTimeline,
     @Relation(
         parentColumns = ["status_id"],
-        entityColumns = ["entityKey"],
-        entity = DbTranslation::class,
-    )
-    val statusTranslations: List<DbTranslation> = emptyList(),
-    @Relation(
-        parentColumns = ["status_id"],
         entityColumns = ["statusId"],
         entity = DbStatusReference::class,
     )
@@ -107,7 +101,6 @@ internal data class DbPagingTimelineWithStatus(
         presentationReferences: List<DbTimelineItemPresentationReferenceWithStatus> = emptyList(),
     ) : this(
         timeline = timeline,
-        statusTranslations = status.status.translations,
         references = status.references,
         statusData = status.status.data,
         presentationReferences = presentationReferences,
@@ -116,11 +109,7 @@ internal data class DbPagingTimelineWithStatus(
     val status: DbStatusWithReference
         get() =
             DbStatusWithReference(
-                status =
-                    DbStatusWithUser(
-                        data = statusData,
-                        translations = statusTranslations,
-                    ),
+                status = DbStatusWithUser(data = statusData),
                 references = references,
             )
 }
@@ -128,12 +117,6 @@ internal data class DbPagingTimelineWithStatus(
 internal data class DbStatusWithUser(
     @Embedded
     val data: DbStatus,
-    @Relation(
-        parentColumns = ["id"],
-        entityColumns = ["entityKey"],
-        entity = DbTranslation::class,
-    )
-    val translations: List<DbTranslation> = emptyList(),
 )
 
 internal data class DbStatusReferenceWithStatus(

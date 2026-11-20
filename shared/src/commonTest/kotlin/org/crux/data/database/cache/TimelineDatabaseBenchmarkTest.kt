@@ -19,19 +19,10 @@ import org.crux.benchmark.LiveHeapSnapshot
 import org.crux.benchmark.benchmarkPlatform
 import org.crux.benchmark.collectLiveHeapBytes
 import org.crux.benchmark.collectLiveHeapSnapshot
-import org.crux.common.Locale
 import org.crux.common.PlatformDispatchers
 import org.crux.data.database.cache.mapper.saveToDatabase
 import org.crux.data.database.cache.model.DbPagingKey
 import org.crux.data.database.cache.model.DbPagingTimelineWithStatus
-import org.crux.data.database.cache.model.DbStatus
-import org.crux.data.database.cache.model.DbTranslation
-import org.crux.data.database.cache.model.TranslationDisplayOptions
-import org.crux.data.database.cache.model.TranslationEntityType
-import org.crux.data.database.cache.model.TranslationPayload
-import org.crux.data.database.cache.model.TranslationStatus
-import org.crux.data.database.cache.model.sourceHash
-import org.crux.data.database.cache.model.translationPayload
 import org.crux.data.database.createDatabaseDriver
 import org.crux.data.datasource.microblog.paging.CacheableRemoteLoader
 import org.crux.data.datasource.microblog.paging.OffsetFromStartPagingKey
@@ -98,12 +89,6 @@ class TimelineDatabaseBenchmarkTest : RobolectricTest() {
                         pagingKey = LIFECYCLE_PAGING_KEY,
                         pageCache = pageCache,
                     )
-                val displayOptions =
-                    TranslationDisplayOptions(
-                        translationEnabled = true,
-                        autoDisplayEnabled = true,
-                        providerCacheKey = LIFECYCLE_TRANSLATION_PROVIDER,
-                    )
                 var checksum = 0L
                 var retainedUi: List<UiTimelineV2> = emptyList()
 
@@ -113,7 +98,7 @@ class TimelineDatabaseBenchmarkTest : RobolectricTest() {
                         val mapped = mapTimelineItems(initialUi, startIndex = 0)
                         database.connect { saveToDatabase(database, mapped) }
                         val page = loader.load(offset = 0, limit = PAGE_SIZE)
-                        retainedUi = page.map { it.toUi(displayOptions) }
+                        retainedUi = page.map { it.toUi() }
                         checksum = checksum * 31 + retainedUi.renderChecksum()
                     }
 
@@ -126,22 +111,21 @@ class TimelineDatabaseBenchmarkTest : RobolectricTest() {
                             val mapped = mapTimelineItems(pageUi, startIndex)
                             database.connect { saveToDatabase(database, mapped) }
                             val page = loader.load(offset = startIndex, limit = PAGE_SIZE)
-                            val rendered = page.map { it.toUi(displayOptions) }
+                            val rendered = page.map { it.toUi() }
                             checksum = checksum * 31 + rendered.renderChecksum()
                         }
                     appendSamples[pageIndex] = elapsed.inWholeNanoseconds
                 }
 
-                seedLifecycleTranslations(database)
                 var pagingSource = OffsetFromStartPagingSource(loader)
                 retainedUi =
                     loadLifecycleRefresh(pagingSource)
-                        .map { it.toUi(displayOptions) }
+                        .map { it.toUi() }
                 assertEquals(LIFECYCLE_ROWS, retainedUi.size)
                 val heapWithStablePrefix = collectLiveHeapBytes()
 
                 retainedUi =
-                    loadLifecycleRefresh(pagingSource).map { it.toUi(displayOptions) }
+                    loadLifecycleRefresh(pagingSource).map { it.toUi() }
 
                 val unchangedUi = createRealisticTimelineItems(startIndex = 0, count = PAGE_SIZE, revision = 0)
                 val unchangedSamples =
@@ -169,26 +153,12 @@ class TimelineDatabaseBenchmarkTest : RobolectricTest() {
 
                             pagingSource = OffsetFromStartPagingSource(loader)
                             retainedUi =
-                                loadLifecycleRefresh(pagingSource).map { it.toUi(displayOptions) }
+                                loadLifecycleRefresh(pagingSource).map { it.toUi() }
                             assertEquals(LIFECYCLE_ROWS, retainedUi.size)
                             checksum = checksum * 31 + retainedUi.renderChecksum()
                         }
                     changedSamples[iteration] = elapsed.inWholeNanoseconds
                 }
-
-                val translationInvalidated = CompletableDeferred<Unit>()
-                pagingSource.registerInvalidatedCallback { translationInvalidated.complete(Unit) }
-                val translationElapsed =
-                    measureTime {
-                        val latestRoot = createRealisticTimelineItems(0, 1, revision = LIFECYCLE_REFRESH_ITERATIONS).single().post
-                        database.translationDao().insert(latestRoot.completedTranslation(updatedAt = FIXED_EPOCH_MILLIS + 50_000))
-                        awaitLifecycleInvalidation(translationInvalidated)
-                        pagingSource = OffsetFromStartPagingSource(loader)
-                        retainedUi =
-                            loadLifecycleRefresh(pagingSource).map { it.toUi(displayOptions) }
-                        assertEquals(LIFECYCLE_ROWS, retainedUi.size)
-                        checksum = checksum * 31 + retainedUi.renderChecksum()
-                    }
 
                 val insertInvalidated = CompletableDeferred<Unit>()
                 pagingSource.registerInvalidatedCallback { insertInvalidated.complete(Unit) }
@@ -199,7 +169,7 @@ class TimelineDatabaseBenchmarkTest : RobolectricTest() {
                         awaitLifecycleInvalidation(insertInvalidated)
                         pagingSource = OffsetFromStartPagingSource(loader)
                         retainedUi =
-                            loadLifecycleRefresh(pagingSource).map { it.toUi(displayOptions) }
+                            loadLifecycleRefresh(pagingSource).map { it.toUi() }
                         assertEquals(LIFECYCLE_ROWS + 1, retainedUi.size)
                         checksum = checksum * 31 + retainedUi.renderChecksum()
                     }
@@ -210,17 +180,12 @@ class TimelineDatabaseBenchmarkTest : RobolectricTest() {
                     "config retained_rows=$LIFECYCLE_ROWS page_size=$PAGE_SIZE users=$LIFECYCLE_USER_COUNT " +
                         "semantic_references_per_root=$REFERENCES_PER_ROOT " +
                         "presentation_references_per_root=$REFERENCES_PER_ROOT payload_chars=$LIFECYCLE_PAYLOAD_CHARS " +
-                        "translated_root_stride=$LIFECYCLE_TRANSLATION_STRIDE refresh_iterations=$LIFECYCLE_REFRESH_ITERATIONS",
+                        "refresh_iterations=$LIFECYCLE_REFRESH_ITERATIONS",
                 )
                 printMetric("initial_page_full_chain", BenchmarkSamples(longArrayOf(initialElapsed.inWholeNanoseconds), checksum))
                 printMetric("append_page_full_chain", BenchmarkSamples(appendSamples, checksum))
                 printMetric("unchanged_network_refresh", unchangedSamples)
                 printMetric("changed_refresh_full_chain", BenchmarkSamples(changedSamples, checksum), "retained_rows=$LIFECYCLE_ROWS")
-                printMetric(
-                    "translation_refresh_full_chain",
-                    BenchmarkSamples(longArrayOf(translationElapsed.inWholeNanoseconds), checksum),
-                    "retained_rows=$LIFECYCLE_ROWS",
-                )
                 printMetric(
                     "top_insert_full_chain",
                     BenchmarkSamples(longArrayOf(topInsertElapsed.inWholeNanoseconds), checksum),
@@ -266,7 +231,6 @@ class TimelineDatabaseBenchmarkTest : RobolectricTest() {
                     "semantic_references_per_root=$REFERENCES_PER_ROOT " +
                     "presentation_references_per_root=$REFERENCES_PER_ROOT " +
                     "payload_chars=$LIFECYCLE_PAYLOAD_CHARS " +
-                    "translated_root_stride=$LIFECYCLE_TRANSLATION_STRIDE " +
                     "refresh_iterations=$MEMORY_REFRESH_ITERATIONS gc_samples=$MEMORY_GC_SAMPLES",
             )
             printHeapSnapshot("process_baseline", processBaseline)
@@ -327,7 +291,6 @@ class TimelineDatabaseBenchmarkTest : RobolectricTest() {
                 warmUpDatabase(database)
                 val heapBeforeSeed = collectLiveHeapBytes()
                 val seed = seedDatabase(database)
-                seedTranslations(database, seed.statusIds)
                 val heapAfterSeed = collectLiveHeapBytes()
 
                 val pageMetrics = benchmarkPageReads(database)
@@ -419,14 +382,6 @@ class TimelineDatabaseBenchmarkTest : RobolectricTest() {
             database.connect { saveToDatabase(database, mapped) }
             startIndex += count
         }
-
-        val translations =
-            (0 until MEMORY_ROWS step LIFECYCLE_TRANSLATION_STRIDE).map { index ->
-                createRealisticTimelineItems(index, 1, revision = 0).single().post.completedTranslation(
-                    updatedAt = FIXED_EPOCH_MILLIS + 20_000 + index,
-                )
-            }
-        database.connect { database.translationDao().insertAll(translations) }
     }
 
     private suspend fun benchmarkTimelineMemoryWorkingSet(database: CacheDatabase): MemoryWorkingSetResult {
@@ -435,12 +390,6 @@ class TimelineDatabaseBenchmarkTest : RobolectricTest() {
                 database = database,
                 pagingKey = MEMORY_PAGING_KEY,
                 pageCache = TimelineDbPageCache(),
-            )
-        val displayOptions =
-            TranslationDisplayOptions(
-                translationEnabled = true,
-                autoDisplayEnabled = true,
-                providerCacheKey = LIFECYCLE_TRANSLATION_PROVIDER,
             )
         val retainedUi = RetainedUiHolder()
         val checkpoints = mutableListOf<MemoryWorkingSetCheckpoint>()
@@ -459,7 +408,7 @@ class TimelineDatabaseBenchmarkTest : RobolectricTest() {
             val cacheOnly = collectStableLiveHeap()
 
             retainedUi.items =
-                loader.load(offset = 0, limit = targetRows).map { it.toUi(displayOptions) }
+                loader.load(offset = 0, limit = targetRows).map { it.toUi() }
             assertEquals(targetRows, retainedUi.items.size)
             checksum = checksum * 31 + retainedUi.items.renderChecksum()
             val cachePlusUi = collectStableLiveHeap()
@@ -476,7 +425,7 @@ class TimelineDatabaseBenchmarkTest : RobolectricTest() {
         val refreshObjects = LongArray(MEMORY_REFRESH_ITERATIONS) { MEMORY_UNAVAILABLE }
         repeat(MEMORY_REFRESH_ITERATIONS) { index ->
             retainedUi.items =
-                loader.load(offset = 0, limit = MEMORY_ROWS).map { it.toUi(displayOptions) }
+                loader.load(offset = 0, limit = MEMORY_ROWS).map { it.toUi() }
             assertEquals(MEMORY_ROWS, retainedUi.items.size)
             checksum = checksum * 31 + retainedUi.items.renderChecksum()
             collectRefreshMeasurement(refreshBytes, refreshObjects, index)
@@ -559,26 +508,6 @@ class TimelineDatabaseBenchmarkTest : RobolectricTest() {
         )
     }
 
-    private suspend fun seedTranslations(
-        database: CacheDatabase,
-        statusIds: List<String>,
-    ) {
-        val translations =
-            statusIds.mapIndexed { index, statusId ->
-                DbTranslation(
-                    entityType = TranslationEntityType.Status,
-                    entityKey = statusId,
-                    targetLanguage = "zh-CN",
-                    sourceHash = "benchmark-$index",
-                    status = TranslationStatus.Completed,
-                    updatedAt = FIXED_EPOCH_MILLIS + index,
-                )
-            }
-        database.connect {
-            database.translationDao().insertAll(translations)
-        }
-    }
-
     private suspend fun benchmarkPageReads(database: CacheDatabase): Map<Int, BenchmarkSamples> =
         PAGE_OFFSETS.associateWith { offset ->
             val initial = database.loadTimelinePage(BENCHMARK_PAGING_KEY, offset, PAGE_SIZE)
@@ -591,7 +520,6 @@ class TimelineDatabaseBenchmarkTest : RobolectricTest() {
                 page.fold(page.size.toLong()) { checksum, item ->
                     checksum * 31 +
                         item.timeline.sortId +
-                        item.statusTranslations.size +
                         item.references.size +
                         item.presentationReferences.size
                 }
@@ -626,7 +554,6 @@ class TimelineDatabaseBenchmarkTest : RobolectricTest() {
                     .fold(0L) { checksum, item ->
                         checksum * 31 +
                             item.timeline.sortId +
-                            item.statusTranslations.size +
                             item.references.size +
                             item.presentationReferences.size
                     }
@@ -697,7 +624,7 @@ class TimelineDatabaseBenchmarkTest : RobolectricTest() {
                         )
                     }
                 }
-            val mediator = TimelineRemoteMediator(loader, database, allowLongText = false)
+            val mediator = TimelineRemoteMediator(loader, database)
             val state =
                 PagingState<OffsetFromStartPagingKey, TimelinePageItem>(
                     pages = emptyList(),
@@ -858,29 +785,6 @@ class TimelineDatabaseBenchmarkTest : RobolectricTest() {
                 ),
             mark = persistentListOf(),
             bottomContent = null,
-        )
-    }
-
-    private suspend fun seedLifecycleTranslations(database: CacheDatabase) {
-        val translations =
-            (0 until LIFECYCLE_ROWS step LIFECYCLE_TRANSLATION_STRIDE).map { index ->
-                createRealisticTimelineItems(index, 1, revision = 0).single().post.completedTranslation(
-                    updatedAt = FIXED_EPOCH_MILLIS + 10_000 + index,
-                )
-            }
-        database.connect { database.translationDao().insertAll(translations) }
-    }
-
-    private fun UiTimelineV2.Post.completedTranslation(updatedAt: Long): DbTranslation {
-        val originalPayload = checkNotNull(translationPayload())
-        return DbTranslation(
-            entityType = TranslationEntityType.Status,
-            entityKey = DbStatus.createId(accountType as org.crux.model.DbAccountType, statusKey),
-            targetLanguage = Locale.language,
-            sourceHash = originalPayload.sourceHash(LIFECYCLE_TRANSLATION_PROVIDER),
-            status = TranslationStatus.Completed,
-            payload = TranslationPayload(content = "translated ${content.original.raw.take(80)}".toUiPlainText()),
-            updatedAt = updatedAt,
         )
     }
 
@@ -1174,13 +1078,11 @@ class TimelineDatabaseBenchmarkTest : RobolectricTest() {
         const val LIFECYCLE_PAGING_KEY = "timeline-lifecycle-benchmark"
         const val MEMORY_PAGING_KEY = "timeline-kotlin-memory-benchmark"
         const val PREPEND_PAGING_KEY = "timeline-prepend-benchmark"
-        const val LIFECYCLE_TRANSLATION_PROVIDER = "benchmark-provider-v1"
         const val BENCHMARK_HOST = "benchmark.invalid"
         const val ROOT_ROWS = 500
         const val LIFECYCLE_ROWS = 240
         const val LIFECYCLE_USER_COUNT = 48
         const val LIFECYCLE_PAYLOAD_CHARS = 768
-        const val LIFECYCLE_TRANSLATION_STRIDE = 4
         const val LIFECYCLE_REFRESH_ITERATIONS = 3
         const val LIFECYCLE_INVALIDATION_TIMEOUT_MILLIS = 10_000L
         const val PAGE_SIZE = 20

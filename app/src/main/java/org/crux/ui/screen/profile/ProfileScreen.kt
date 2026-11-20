@@ -70,7 +70,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
 import compose.icons.FontAwesomeIcons
 import compose.icons.fontawesomeicons.Solid
-import compose.icons.fontawesomeicons.solid.Robot
 import compose.icons.fontawesomeicons.solid.TableCells
 import compose.icons.fontawesomeicons.solid.TableList
 import kotlinx.collections.immutable.toImmutableList
@@ -147,7 +146,6 @@ internal fun ProfileWithUserNameAndHostDeeplinkRoute(
     toStartMessage: (MicroBlogKey) -> Unit,
     onFollowListClick: (userKey: MicroBlogKey) -> Unit,
     onFansListClick: (userKey: MicroBlogKey) -> Unit,
-    onProfileInsightClick: (userKey: MicroBlogKey) -> Unit,
     onBack: () -> Unit = {},
     showBackButton: Boolean = true,
     onMediaClick: (statusKey: MicroBlogKey, index: Int, preview: String?) -> Unit,
@@ -170,7 +168,6 @@ internal fun ProfileWithUserNameAndHostDeeplinkRoute(
                 toStartMessage = toStartMessage,
                 onFollowListClick = onFollowListClick,
                 onFansListClick = onFansListClick,
-                onProfileInsightClick = onProfileInsightClick,
                 userKey = it.key,
                 onBack = onBack,
                 showBackButton = showBackButton,
@@ -263,7 +260,6 @@ internal fun ProfileScreen(
     toStartMessage: (MicroBlogKey) -> Unit,
     onFollowListClick: (userKey: MicroBlogKey) -> Unit,
     onFansListClick: (userKey: MicroBlogKey) -> Unit,
-    onProfileInsightClick: (userKey: MicroBlogKey) -> Unit,
     userKey: MicroBlogKey? = null,
     onBack: () -> Unit = {},
     showBackButton: Boolean = true,
@@ -438,10 +434,6 @@ internal fun ProfileScreen(
                                 )
                             }
                             if (!bigScreen) {
-                                ProfileInsightAction(
-                                    profileState = state.state,
-                                    onClick = onProfileInsightClick,
-                                )
                                 ProfileMenu(
                                     profileState = state.state,
                                     modifier = Modifier.padding(8.dp),
@@ -469,10 +461,6 @@ internal fun ProfileScreen(
                         ProfileHeader(
                             state = state.state,
                             menu = {
-                                ProfileInsightAction(
-                                    profileState = state.state,
-                                    onClick = onProfileInsightClick,
-                                )
                                 ProfileMenu(
                                     profileState = state.state,
                                     modifier =
@@ -750,30 +738,6 @@ private fun BlockedProfileGate(
         )
         FilledTonalButton(onClick = onShow) {
             Text(text = stringResource(id = R.string.profile_blocked_gate_show))
-        }
-    }
-}
-
-@Composable
-private fun ProfileInsightAction(
-    profileState: ProfileState,
-    onClick: (MicroBlogKey) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    if (!LocalTimelineAppearance.current.aiConfig.agent) {
-        return
-    }
-    profileState.userState.onSuccess { profile ->
-        IconButton(
-            onClick = {
-                onClick(profile.key)
-            },
-            modifier = modifier,
-        ) {
-            FAIcon(
-                imageVector = FontAwesomeIcons.Solid.Robot,
-                contentDescription = stringResource(id = R.string.profile_insight_title),
-            )
         }
     }
 }

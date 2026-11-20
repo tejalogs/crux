@@ -10,8 +10,6 @@ import org.crux.common.SnowflakeIdGenerator
 import org.crux.data.database.cache.CacheDatabase
 import org.crux.data.database.cache.mapper.saveToDatabase
 import org.crux.data.database.cache.model.DbPagingTimelineWithStatus
-import org.crux.data.translation.NoopPreTranslationService
-import org.crux.data.translation.PreTranslationService
 import org.crux.model.AccountType
 import org.crux.model.MicroBlogKey
 import org.crux.model.ReferenceType
@@ -22,9 +20,7 @@ import org.crux.ui.model.asTimelinePostItem
 internal open class TimelineRemoteMediator(
     private val loader: CacheableRemoteLoader<UiTimelineV2>,
     private val database: CacheDatabase,
-    private val allowLongText: Boolean,
     private val notifyError: (Throwable) -> Unit = {},
-    private val preTranslationService: PreTranslationService = NoopPreTranslationService,
     private val refreshOnInitialize: suspend () -> Boolean = { true },
 ) : BasePagingRemoteMediator<
         OffsetFromStartPagingKey,
@@ -190,25 +186,6 @@ internal open class TimelineRemoteMediator(
         if (staleTimeline.isNotEmpty()) {
             database.pagingTimelineDao().delete(staleTimeline)
         }
-        enqueuePreTranslation(dataToSave)
-    }
-
-    protected fun enqueuePreTranslation(dataToSave: List<DbPagingTimelineWithStatus>) {
-        preTranslationService.enqueueStatuses(
-            dataToSave
-                .flatMap { item ->
-                    listOfNotNull(item.status.status.data) +
-                        item.status.references.mapNotNull { it.status?.data } +
-                        item.presentationReferences.flatMap { reference ->
-                            listOfNotNull(reference.status?.status?.data) +
-                                reference.status
-                                    ?.references
-                                    .orEmpty()
-                                    .mapNotNull { it.status?.data }
-                        }
-                }.distinctBy { it.id },
-            allowLongText = allowLongText,
-        )
     }
 }
 

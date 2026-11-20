@@ -15,7 +15,6 @@
     <string name="profile_blocked_gate_title">已封鎖此使用者</string>
     <string name="profile_blocked_gate_description">你已封鎖此使用者。個人資料分頁與時間軸會先隱藏，選擇顯示後才會展開。</string>
     <string name="profile_blocked_gate_show">顯示</string>
-    <string name="status_insight_send">發送</string>
     <string name="ask_ai">問問AI</string>
     <string name="agent_chat_title">AI 聊天</string>
     <string name="agent_chat_input_placeholder">想問什麼都可以…</string>
@@ -52,7 +51,6 @@
     <string name="settings_ai_config_model">模型</string>
     <string name="settings_ai_config_model_description">從此端點選擇模型</string>
     <string name="settings_ai_config_model_select">選擇模型</string>
-    <string name="settings_ai_config_model_loading">正在載入模型…</string>
     <string name="settings_ai_config_model_error">載入模型失敗</string>
     <string name="settings_ai_config_model_no_models">無模型</string>
     <string name="settings_ai_config_model_manual_input">手動輸入模型名稱</string>
@@ -65,28 +63,7 @@
     <string name="settings_ai_config_extra_body">額外 Body</string>
     <string name="settings_ai_config_enable_tldr">啟用 AI 摘要</string>
     <string name="settings_ai_config_tldr_description">使用 AI 摘要長貼文。適用於超過 500 個字元的貼文。</string>
-    <string name="settings_ai_config_enable_pre_translation">啟用自動翻譯</string>
-    <string name="settings_ai_config_pre_translation_description">在背景翻譯新載入的時間軸與個人檔案內容並快取結果。這可能會消耗大量的 Token。</string>
-    <string name="settings_ai_config_translate_prompt">翻譯提示詞</string>
     <string name="settings_ai_config_tldr_prompt">摘要提示詞</string>
-    <string name="settings_ai_config_translate_provider">翻譯供應商</string>
-    <string name="settings_ai_config_translate_provider_description">選擇翻譯內容的服務</string>
-    <string name="settings_ai_config_translate_provider_google_web">Google 翻譯 (網頁版)</string>
-    <string name="settings_ai_config_translate_provider_deepl_api_key">DeepL API 金鑰</string>
-    <string name="settings_ai_config_translate_provider_deepl_use_pro">DeepL Pro 端點</string>
-    <string name="settings_ai_config_translate_provider_deepl_use_pro_description">使用 api.deepl.com 而非免費的 api-free.deepl.com 端點。</string>
-    <string name="settings_ai_config_translate_provider_google_cloud">Google Cloud 翻譯</string>
-    <string name="settings_ai_config_translate_provider_google_cloud_api_key">Google Cloud API 金鑰</string>
-    <string name="settings_ai_config_translate_provider_libretranslate_base_url">LibreTranslate 基礎 URL</string>
-    <string name="settings_ai_config_translate_provider_libretranslate_api_key">LibreTranslate API 金鑰</string>
-    <string name="settings_translation_title">翻譯</string>
-    <string name="settings_translation_description">選擇翻譯服務與自動翻譯行為</string>
-    <string name="settings_translation_auto_excluded_languages">不進行自動翻譯的語言</string>
-    <string name="settings_translation_ai_test_title">AI 翻譯測試</string>
-    <string name="settings_translation_ai_test_description">使用目前的 AI 翻譯設定翻譯一段短文範例。</string>
-    <string name="settings_translation_ai_test_action">測試翻譯</string>
-    <string name="settings_translation_ai_test_original">範例文字</string>
-    <string name="settings_translation_ai_test_result">翻譯結果</string>
     <string name="settings_language_title">語言</string>
     <string name="settings_language_description">更改 Crux 的應用程式語言</string>
     <string name="login_expired">登入工作階段已過期</string>
@@ -247,8 +224,6 @@
     <string name="rss_detail_share">分享連結</string>
     <string name="rss_detail_tldr">摘要</string>
     <string name="rss_detail_tldr_error">摘要失敗</string>
-    <string name="rss_detail_translate">翻譯</string>
-    <string name="rss_detail_translate_error">翻譯失敗</string>
     <string name="article_content_gate_subscription_title">需要支持後閱讀</string>
     <string name="article_content_gate_subscription_description">這篇文章僅對支持者開放。請在瀏覽器中開啟原頁面，支持創作者後閱讀全文。</string>
     <string name="article_content_gate_subscription_description_with_fee">這篇文章僅對 ¥%1$d 起的支持者開放。請在瀏覽器中開啟原頁面，支持創作者後閱讀全文。</string>
@@ -312,10 +287,6 @@
     <string name="status_share_sheet_preview_content">僅內容</string>
     <string name="channel_title">頻道</string>
     <string name="app_name" translatable="false">Crux</string>
-    <string name="profile_insight_title">個人資料洞察</string>
-    <string name="status_insight_input_placeholder">繼續提問…</string>
-    <string name="status_insight_analyzing">正在分析此貼文...</string>
-    <string name="profile_insight_analyzing">正在分析此個人資料…</string>
     <string name="status_insight_trace_loading_post_context">正在載入貼文脈絡...</string>
     <string name="status_insight_trace_post_context_loaded">貼文脈絡已載入</string>
     <string name="status_insight_trace_preparing_images">正在準備圖片...</string>
@@ -354,9 +325,6 @@
     <string name="agent_history_empty">暫無 AI 聊天記錄。</string>
     <string name="settings_ai_config_enable_agent">啟用 AI Agent</string>
     <string name="settings_ai_config_agent_description">開啟後，在已設定 OpenAI 相容模型時，會在 App 內相關位置顯示 AI Agent 功能入口。</string>
-    <string name="settings_ai_config_translate_provider_ai">AI</string>
-    <string name="settings_ai_config_translate_provider_deepl">DeepL</string>
-    <string name="settings_ai_config_translate_provider_libretranslate">LibreTranslate</string>
     <string name="settings_appearance_expand_content_warning">顯示內容警告後方的內容</string>
     <string name="settings_appearance_expand_content_warning_description">一律顯示被內容警告隱藏的貼文內容</string>
     <string name="illustrations_title">插畫</string>
@@ -433,8 +401,4 @@
     <string name="settings_appearance_show_reactions_description">在貼文下方顯示 Emoji 回應</string>
     <string name="settings_post_action_fixed_width">按鈕固定寬度</string>
     <string name="settings_post_action_fixed_width_description">讓帶數字的操作按鈕保持一致寬度</string>
-    <string name="settings_translation_prefer_platform">優先使用平台翻譯</string>
-    <string name="settings_translation_prefer_platform_description">自動翻譯時，若有平台提供的翻譯則使用該翻譯。</string>
-    <string name="settings_translation_show_original_with_translation">同時顯示原文和翻譯</string>
-    <string name="settings_translation_show_original_with_translation_description">在翻譯前顯示原始文字</string>
 </resources>

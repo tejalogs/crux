@@ -12,24 +12,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
-import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.crux.common.OnDeviceAI
 import org.crux.data.datastore.AppDataStore
 import org.crux.data.datastore.model.AppSettings
 import org.crux.data.network.ai.OpenAIService
-import org.crux.data.translation.canonicalTranslationLanguage
 import org.crux.di.koinInject
 import org.crux.ui.model.UiState
 import org.crux.ui.presenter.PresenterBase
-import org.crux.web.shared.WebIgnore
 import org.crux.web.shared.WebPresenter
 
 public enum class AiTypeOption {
@@ -46,14 +42,6 @@ public enum class AiReasoningEffortOption(
     High("high"),
 }
 
-public enum class TranslateProviderOption {
-    AI,
-    GoogleWeb,
-    DeepL,
-    GoogleCloud,
-    LibreTranslate,
-}
-
 @WebPresenter("aiConfig")
 public class AiConfigPresenter : PresenterBase<AiConfigPresenter.State>() {
     private val appDataStore by koinInject<AppDataStore>()
@@ -68,33 +56,19 @@ public class AiConfigPresenter : PresenterBase<AiConfigPresenter.State>() {
         public val openAIModel: String
         public val openAIReasoningEffort: AiReasoningEffortOption
         public val openAIExtraBody: String
-        public val translateProvider: TranslateProviderOption
-        public val deepLApiKey: String
-        public val deepLUsePro: Boolean
-        public val googleCloudApiKey: String
-        public val libreTranslateBaseUrl: String
-        public val libreTranslateApiKey: String
         public val openAIModels: UiState<ImmutableList<String>>
         public val supportedTypes: ImmutableList<AiTypeOption>
         public val supportedOpenAIReasoningEfforts: ImmutableList<AiReasoningEffortOption>
-        public val supportedTranslateProviders: ImmutableList<TranslateProviderOption>
         public val serverSuggestions: ImmutableList<String>
         public val aiTldr: Boolean
         public val aiAgent: Boolean
-        public val translatePrompt: String
         public val tldrPrompt: String
-        public val preTranslate: Boolean
-        public val preferPlatformTranslation: Boolean
-        public val showOriginalWithTranslation: Boolean
-        public val autoTranslateExcludedLanguages: ImmutableList<String>
         public val onDeviceModel: String
         public val onDeviceHardwareBackend: String
         public val onDeviceMtpEnabled: Boolean
         public val onDeviceLocalhostEndpoint: String
 
         public fun selectType(type: AiTypeOption)
-
-        public fun selectTranslateProvider(type: TranslateProviderOption)
 
         public fun setAIType(value: AiTypeOption)
 
@@ -106,8 +80,6 @@ public class AiConfigPresenter : PresenterBase<AiConfigPresenter.State>() {
 
         public fun setOnDeviceLocalhostEndpoint(value: String)
 
-        public fun setTranslateProvider(value: TranslateProviderOption)
-
         public fun setOpenAIServerUrl(value: String)
 
         public fun setOpenAIApiKey(value: String)
@@ -118,34 +90,11 @@ public class AiConfigPresenter : PresenterBase<AiConfigPresenter.State>() {
 
         public fun setOpenAIExtraBody(value: String)
 
-        public fun setDeepLApiKey(value: String)
-
-        public fun setDeepLUsePro(value: Boolean)
-
-        public fun setGoogleCloudApiKey(value: String)
-
-        public fun setLibreTranslateBaseUrl(value: String)
-
-        public fun setLibreTranslateApiKey(value: String)
-
         public fun setAITldr(value: Boolean)
 
         public fun setAIAgent(value: Boolean)
 
-        public fun setTranslatePrompt(value: String)
-
         public fun setTldrPrompt(value: String)
-
-        public fun setPreTranslate(value: Boolean)
-
-        public fun setPreferPlatformTranslation(value: Boolean)
-
-        public fun setShowOriginalWithTranslation(value: Boolean)
-
-        @WebIgnore
-        public fun setAutoTranslateExcludedLanguages(value: List<String>)
-
-        public fun setAutoTranslateExcludedLanguagesText(value: String)
     }
 
     @OptIn(FlowPreview::class)
@@ -160,16 +109,6 @@ public class AiConfigPresenter : PresenterBase<AiConfigPresenter.State>() {
         var supportedTypes by remember {
             mutableStateOf<ImmutableList<AiTypeOption>>(persistentListOf(AiTypeOption.OpenAI))
         }
-        val supportedTranslateProviders =
-            remember {
-                persistentListOf(
-                    TranslateProviderOption.AI,
-                    TranslateProviderOption.GoogleWeb,
-                    TranslateProviderOption.DeepL,
-                    TranslateProviderOption.GoogleCloud,
-                    TranslateProviderOption.LibreTranslate,
-                )
-            }
         val supportedOpenAIReasoningEfforts =
             remember {
                 persistentListOf(
@@ -195,21 +134,6 @@ public class AiConfigPresenter : PresenterBase<AiConfigPresenter.State>() {
             }
         }
 
-        fun updateTranslateConfig(block: AppSettings.TranslateConfig.() -> AppSettings.TranslateConfig) {
-            scope.launch {
-                withContext(Dispatchers.Main) {
-                    appDataStore.appSettingsStore.updateData { current ->
-                        current.copy(
-                            translateConfig =
-                                block
-                                    .invoke(current.translateConfig)
-                                    .normalized(),
-                        )
-                    }
-                }
-            }
-        }
-
         LaunchedEffect(Unit) {
             if (appSettings.aiConfig.type !is AppSettings.AiConfig.Type.OnDevice) {
                 update { copy(type = AppSettings.AiConfig.Type.OnDevice()) }
@@ -222,8 +146,6 @@ public class AiConfigPresenter : PresenterBase<AiConfigPresenter.State>() {
             override val supportedTypes: ImmutableList<AiTypeOption> = supportedTypes
             override val supportedOpenAIReasoningEfforts: ImmutableList<AiReasoningEffortOption> =
                 supportedOpenAIReasoningEfforts
-            override val supportedTranslateProviders: ImmutableList<TranslateProviderOption> =
-                supportedTranslateProviders
             override val serverSuggestions: ImmutableList<String> = SERVER_SUGGESTIONS
             override val aiType: AiTypeOption =
                 when (appSettings.aiConfig.type) {
@@ -241,24 +163,6 @@ public class AiConfigPresenter : PresenterBase<AiConfigPresenter.State>() {
             override val onDeviceLocalhostEndpoint: String =
                 (appSettings.aiConfig.type as? AppSettings.AiConfig.Type.OnDevice)?.localhostEndpoint
                     ?: AppSettings.AiConfig.Type.OnDevice.DEFAULT_LOCALHOST_ENDPOINT
-            override val translateProvider: TranslateProviderOption =
-                when (appSettings.translateConfig.provider) {
-                    AppSettings.TranslateConfig.Provider.AI -> TranslateProviderOption.AI
-                    AppSettings.TranslateConfig.Provider.GoogleWeb -> TranslateProviderOption.GoogleWeb
-                    is AppSettings.TranslateConfig.Provider.DeepL -> TranslateProviderOption.DeepL
-                    is AppSettings.TranslateConfig.Provider.GoogleCloud -> TranslateProviderOption.GoogleCloud
-                    is AppSettings.TranslateConfig.Provider.LibreTranslate -> TranslateProviderOption.LibreTranslate
-                }
-            override val deepLApiKey: String =
-                (appSettings.translateConfig.provider as? AppSettings.TranslateConfig.Provider.DeepL)?.apiKey ?: ""
-            override val deepLUsePro: Boolean =
-                (appSettings.translateConfig.provider as? AppSettings.TranslateConfig.Provider.DeepL)?.usePro ?: false
-            override val googleCloudApiKey: String =
-                (appSettings.translateConfig.provider as? AppSettings.TranslateConfig.Provider.GoogleCloud)?.apiKey ?: ""
-            override val libreTranslateBaseUrl: String =
-                (appSettings.translateConfig.provider as? AppSettings.TranslateConfig.Provider.LibreTranslate)?.baseUrl ?: ""
-            override val libreTranslateApiKey: String =
-                (appSettings.translateConfig.provider as? AppSettings.TranslateConfig.Provider.LibreTranslate)?.apiKey ?: ""
 
             override val openAIServerUrl: String =
                 (appSettings.aiConfig.type as? AppSettings.AiConfig.Type.OpenAI)?.serverUrl ?: ""
@@ -279,13 +183,7 @@ public class AiConfigPresenter : PresenterBase<AiConfigPresenter.State>() {
 
             override val aiTldr: Boolean = appSettings.aiConfig.tldr
             override val aiAgent: Boolean = appSettings.aiConfig.agent
-            override val translatePrompt: String = appSettings.aiConfig.translatePrompt
             override val tldrPrompt: String = appSettings.aiConfig.tldrPrompt
-            override val preTranslate: Boolean = appSettings.translateConfig.preTranslate
-            override val preferPlatformTranslation: Boolean = appSettings.translateConfig.preferPlatformTranslation
-            override val showOriginalWithTranslation: Boolean = appSettings.translateConfig.showOriginalWithTranslation
-            override val autoTranslateExcludedLanguages: ImmutableList<String> =
-                appSettings.translateConfig.autoTranslateExcludedLanguages.toImmutableList()
 
             override fun setAITldr(value: Boolean) {
                 update {
@@ -303,58 +201,10 @@ public class AiConfigPresenter : PresenterBase<AiConfigPresenter.State>() {
                 }
             }
 
-            override fun setTranslatePrompt(value: String) {
-                update {
-                    copy(
-                        translatePrompt = value,
-                    )
-                }
-            }
-
             override fun setTldrPrompt(value: String) {
                 update {
                     copy(
                         tldrPrompt = value,
-                    )
-                }
-            }
-
-            override fun setPreTranslate(value: Boolean) {
-                updateTranslateConfig {
-                    copy(
-                        preTranslate = value,
-                    )
-                }
-            }
-
-            override fun setPreferPlatformTranslation(value: Boolean) {
-                updateTranslateConfig {
-                    copy(
-                        preferPlatformTranslation = value,
-                    )
-                }
-            }
-
-            override fun setShowOriginalWithTranslation(value: Boolean) {
-                updateTranslateConfig {
-                    copy(
-                        showOriginalWithTranslation = value,
-                    )
-                }
-            }
-
-            override fun setAutoTranslateExcludedLanguages(value: List<String>) {
-                updateTranslateConfig {
-                    copy(
-                        autoTranslateExcludedLanguages = value,
-                    )
-                }
-            }
-
-            override fun setAutoTranslateExcludedLanguagesText(value: String) {
-                updateTranslateConfig {
-                    copy(
-                        autoTranslateExcludedLanguages = normalizeExcludedLanguages(listOf(value)),
                     )
                 }
             }
@@ -470,87 +320,6 @@ public class AiConfigPresenter : PresenterBase<AiConfigPresenter.State>() {
                 }
             }
 
-            override fun setDeepLApiKey(value: String) {
-                updateTranslateConfig {
-                    copy(
-                        provider =
-                            (provider as? AppSettings.TranslateConfig.Provider.DeepL)?.copy(apiKey = value)
-                                ?: AppSettings.TranslateConfig.Provider.DeepL(apiKey = value),
-                    )
-                }
-            }
-
-            override fun setDeepLUsePro(value: Boolean) {
-                updateTranslateConfig {
-                    copy(
-                        provider =
-                            (provider as? AppSettings.TranslateConfig.Provider.DeepL)?.copy(usePro = value)
-                                ?: AppSettings.TranslateConfig.Provider.DeepL(usePro = value),
-                    )
-                }
-            }
-
-            override fun setGoogleCloudApiKey(value: String) {
-                updateTranslateConfig {
-                    copy(
-                        provider =
-                            (provider as? AppSettings.TranslateConfig.Provider.GoogleCloud)?.copy(apiKey = value)
-                                ?: AppSettings.TranslateConfig.Provider.GoogleCloud(apiKey = value),
-                    )
-                }
-            }
-
-            override fun setLibreTranslateBaseUrl(value: String) {
-                updateTranslateConfig {
-                    copy(
-                        provider =
-                            (provider as? AppSettings.TranslateConfig.Provider.LibreTranslate)?.copy(baseUrl = value)
-                                ?: AppSettings.TranslateConfig.Provider.LibreTranslate(baseUrl = value),
-                    )
-                }
-            }
-
-            override fun setLibreTranslateApiKey(value: String) {
-                updateTranslateConfig {
-                    copy(
-                        provider =
-                            (provider as? AppSettings.TranslateConfig.Provider.LibreTranslate)?.copy(apiKey = value)
-                                ?: AppSettings.TranslateConfig.Provider.LibreTranslate(apiKey = value),
-                    )
-                }
-            }
-
-            override fun setTranslateProvider(value: TranslateProviderOption) {
-                updateTranslateConfig {
-                    copy(
-                        provider =
-                            when (value) {
-                                TranslateProviderOption.AI -> {
-                                    AppSettings.TranslateConfig.Provider.AI
-                                }
-
-                                TranslateProviderOption.GoogleWeb -> {
-                                    AppSettings.TranslateConfig.Provider.GoogleWeb
-                                }
-
-                                TranslateProviderOption.DeepL -> {
-                                    (provider as? AppSettings.TranslateConfig.Provider.DeepL)
-                                        ?: AppSettings.TranslateConfig.Provider.DeepL()
-                                }
-
-                                TranslateProviderOption.GoogleCloud -> {
-                                    (provider as? AppSettings.TranslateConfig.Provider.GoogleCloud)
-                                        ?: AppSettings.TranslateConfig.Provider.GoogleCloud()
-                                }
-
-                                TranslateProviderOption.LibreTranslate -> {
-                                    (provider as? AppSettings.TranslateConfig.Provider.LibreTranslate)
-                                        ?: AppSettings.TranslateConfig.Provider.LibreTranslate()
-                                }
-                            },
-                    )
-                }
-            }
 
             override fun selectType(type: AiTypeOption) {
                 update {
@@ -558,71 +327,11 @@ public class AiConfigPresenter : PresenterBase<AiConfigPresenter.State>() {
                 }
             }
 
-            override fun selectTranslateProvider(type: TranslateProviderOption) {
-                updateTranslateConfig {
-                    copy(
-                        provider =
-                            when (type) {
-                                TranslateProviderOption.AI -> {
-                                    AppSettings.TranslateConfig.Provider.AI
-                                }
-
-                                TranslateProviderOption.GoogleWeb -> {
-                                    AppSettings.TranslateConfig.Provider.GoogleWeb
-                                }
-
-                                TranslateProviderOption.DeepL -> {
-                                    (provider as? AppSettings.TranslateConfig.Provider.DeepL)
-                                        ?: AppSettings.TranslateConfig.Provider.DeepL()
-                                }
-
-                                TranslateProviderOption.GoogleCloud -> {
-                                    (provider as? AppSettings.TranslateConfig.Provider.GoogleCloud)
-                                        ?: AppSettings.TranslateConfig.Provider.GoogleCloud()
-                                }
-
-                                TranslateProviderOption.LibreTranslate -> {
-                                    (provider as? AppSettings.TranslateConfig.Provider.LibreTranslate)
-                                        ?: AppSettings.TranslateConfig.Provider.LibreTranslate()
-                                }
-                            },
-                    )
-                }
-            }
         }
     }
 }
 
 private fun AppSettings.AiConfig.normalized(): AppSettings.AiConfig = this
-
-private fun AppSettings.TranslateConfig.normalized(): AppSettings.TranslateConfig =
-    copy(
-        autoTranslateExcludedLanguages = normalizeExcludedLanguages(autoTranslateExcludedLanguages),
-        provider =
-            when (val provider = provider) {
-                is AppSettings.TranslateConfig.Provider.LibreTranslate -> {
-                    provider.copy(
-                        baseUrl = provider.baseUrl.trim(),
-                    )
-                }
-
-                else -> {
-                    provider
-                }
-            },
-    )
-
-internal fun normalizeExcludedLanguages(languages: List<String>): List<String> =
-    languages
-        .asSequence()
-        .flatMap { entry ->
-            entry
-                .split(',', '\n')
-                .asSequence()
-        }.map { it.trim() }
-        .filter { it.isNotBlank() }
-        .distinctBy { canonicalTranslationLanguage(it) ?: it.lowercase() }
-        .toList()
 
 private val SERVER_SUGGESTIONS =
     persistentListOf(
