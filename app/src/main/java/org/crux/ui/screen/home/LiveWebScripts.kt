@@ -168,6 +168,10 @@ private val REDDIT_PROFILE =
                 "html{overflow-x:clip!important}",
                 "html,body,button,a,[role=\"button\"]{touch-action:manipulation!important}",
                 "shreddit-post{-webkit-tap-highlight-color:transparent!important}",
+                "shreddit-blurred-container:not([reason=\"spoiler\"]) [slot=\"revealed\"]{display:block!important;filter:none!important;-webkit-filter:none!important;opacity:1!important;visibility:visible!important}",
+                "shreddit-blurred-container:not([reason=\"spoiler\"]) > :not([slot=\"blurred\"]):not([slot=\"blur-toggle\"]){filter:none!important;-webkit-filter:none!important;opacity:1!important;visibility:visible!important}",
+                "[slot=\"post-media-container\"] .relative{height:100%!important}",
+                "faceplate-img.thumbnail-blur{filter:none!important;-webkit-filter:none!important}",
             ),
         initJs =
             """
@@ -241,7 +245,7 @@ private val REDDIT_PROFILE =
             """.trimIndent(),
         baseJs =
             """
-            var hasOpenOverlay=isEditableFocused()||!!document.querySelector('[role="dialog"]:not([data-cx-hidden]):not([cx-nsfw-dismissed]),dialog[open],faceplate-modal[open],reddit-search-large[open],reddit-search-large:focus-within');
+            var hasOpenOverlay=isEditableFocused()||!!document.querySelector('[role="dialog"]:not([data-cx-hidden]):not([cx-nsfw-dismissed]):not(#blocking-modal):not(#nsfw-qr-dialog),dialog[open]:not([cx-nsfw-dismissed]),faceplate-modal[open]:not([cx-nsfw-dismissed]),reddit-search-large[open],reddit-search-large:focus-within');
             if(!hasOpenOverlay){
               document.querySelectorAll('html,body,shreddit-app,main').forEach(function(el){
                 if(el.hasAttribute('inert'))el.removeAttribute('inert');
@@ -588,7 +592,7 @@ internal val SiteTweak.rule: TweakRule
                         USE_APP_LABELS +
                             listOf("Open in Reddit", "View in Reddit App", "Continue in Reddit App", "Use Reddit App", "View in app"),
                     js =
-                        "if(!isEditableFocused()&&!document.querySelector('[role=\"dialog\"]:not([data-cx-hidden]):not([cx-nsfw-dismissed]),dialog[open],faceplate-modal[open],reddit-search-large[open],reddit-search-large:focus-within')&&document.body&&document.body.style.overflow==='hidden')document.body.style.overflow='';",
+                        "if(!isEditableFocused()&&!document.querySelector('[role=\"dialog\"]:not([data-cx-hidden]):not([cx-nsfw-dismissed]):not(#blocking-modal):not(#nsfw-qr-dialog),dialog[open]:not([cx-nsfw-dismissed]),faceplate-modal[open]:not([cx-nsfw-dismissed]),reddit-search-large[open],reddit-search-large:focus-within')&&document.body&&document.body.style.overflow==='hidden')document.body.style.overflow='';",
                 )
             }
 
@@ -645,10 +649,22 @@ internal val SiteTweak.rule: TweakRule
                     css =
                         listOf(
                             "[slot=\"nsfw-banner\"]",
+                            "#blocking-modal",
+                            "#nsfw-qr-dialog",
+                            "#configured-xpromo-blocking_xpromo_nsfw_blocking",
+                            "#configured-xpromo-blocking_xpromo_nsfw_blocking_desktop",
+                            "#configured-xpromo-blocking_xpromo_nsfw_blocking_desktop_cms",
+                            "body > div[style*=\"backdrop-filter\"]",
+                            "body > div[style*=\"blur(4px)\"]",
                             "shreddit-blurred-container[cx-unblurred] [slot=\"blurred\"]",
                             "shreddit-blurred-container[cx-unblurred] [slot=\"blur-toggle\"]",
                             "xpromo-nsfw-blocking-container[cx-nsfw-dismissed]",
-                            "faceplate-tracker[source=\"nsfw_modal\"][cx-nsfw-dismissed]",
+                            "xpromo-nsfw-blocking-container .prompt",
+                            "xpromo-nsfw-blocking-container .overlay",
+                            "xpromo-nsfw-blocking-container .bg-scrim",
+                            "xpromo-nsfw-blocking-container .viewInApp",
+                            "community-barrier[cx-nsfw-dismissed]",
+                            "faceplate-tracker[source*=\"nsfw\"][cx-nsfw-dismissed]",
                             "shreddit-async-loader[bundlename*=\"nsfw_blocking\"][cx-nsfw-dismissed]",
                             "shreddit-async-loader[bundlename*=\"nsfw-blocking\"][cx-nsfw-dismissed]",
                             "shreddit-async-loader[bundlename*=\"nsfw_modal\"][cx-nsfw-dismissed]",
@@ -657,15 +673,21 @@ internal val SiteTweak.rule: TweakRule
                         """
                         try{
                           document.cookie='over18=1; path=/; domain=.reddit.com; max-age=31536000; SameSite=Lax';
+                          document.cookie='over18=1; path=/; domain=reddit.com; max-age=31536000; SameSite=Lax';
                           document.cookie='over18=1; path=/; max-age=31536000; SameSite=Lax';
+                          localStorage.setItem('over18','1');
+                          localStorage.setItem('has_seen_nsfw_modal','true');
+                          if(window.cookieStore&&typeof window.cookieStore.set==='function'){
+                            cookieStore.set({name:'over18',value:'1',path:'/',domain:'reddit.com'}).catch(function(){});
+                          }
                         }catch(e){}
                         var cxNsfwClick=function(root,inBlockingModal){
                           if(!root||!root.querySelectorAll)return;
-                          root.querySelectorAll('button,a[role="button"]').forEach(function(b){
+                          root.querySelectorAll('button,a[role="button"],[role="button"]').forEach(function(b){
                             if(b.getAttribute('data-cx-nsfw-clicked'))return;
                             var txt=(b.textContent||'').replace(/\s+/g,' ').trim();
-                            var matched=/^(Yes,\s*I['’]?m over 18|I am over 18|View NSFW( content)?|Click to see nsfw|See NSFW|Show post|Yes,\s*continue)$/i.test(txt)||
-                              (inBlockingModal&&/^(Continue|Continue in browser|View in browser|Yes)$/i.test(txt));
+                            var matched=/^(Yes,\s*I['’]?m over 18|I am over 18|View NSFW( content)?|Click to see nsfw|See NSFW|Show post|Show content|Yes,\s*continue|View Community)$/i.test(txt)||
+                              (inBlockingModal&&/^(Continue|Continue in browser|View in browser|Yes|I am over 18|18\+|View Community)$/i.test(txt));
                             if(matched){
                               b.setAttribute('data-cx-nsfw-clicked','1');
                               b.click();
@@ -673,23 +695,30 @@ internal val SiteTweak.rule: TweakRule
                           });
                         };
                         cxNsfwClick(document,false);
-                        document.querySelectorAll('xpromo-nsfw-blocking-container,faceplate-tracker[source*="nsfw"],#blocking-modal,shreddit-async-loader[bundlename*="nsfw"]').forEach(function(h){
+                        document.querySelectorAll('community-barrier,xpromo-nsfw-blocking-container,faceplate-tracker[source*="nsfw"],#blocking-modal,#nsfw-qr-dialog,shreddit-async-loader[bundlename*="nsfw"],shreddit-async-loader[bundlename*="barrier"]').forEach(function(h){
                           cxNsfwClick(h,true);
                           if(h.shadowRoot)cxNsfwClick(h.shadowRoot,true);
+                          if(h.tagName==='XPROMO-NSFW-BLOCKING-CONTAINER'&&h.shadowRoot){
+                            if(!h.shadowRoot.querySelector('slot')){
+                              try{h.shadowRoot.appendChild(document.createElement('slot'));}catch(e){}
+                            }
+                            var p=h.shadowRoot.querySelector('.prompt,.overlay,.bg-scrim,.viewInApp');
+                            if(p&&p.style){if(p.style.setProperty)p.style.setProperty('display','none','important');else p.style.display='none';}
+                          }
                           var hasUi=h.children.length>0||(h.shadowRoot&&h.shadowRoot.children.length>0);
                           if(!hasUi)return;
-                          if(h.id==='blocking-modal'){
+                          if(h.id==='blocking-modal'||h.id==='nsfw-qr-dialog'){
                             var dlg=h.closest('[role="dialog"]')||h;
                             if(!dlg.querySelector('shreddit-post,[slot="text-body"]')){
                               dlg.setAttribute('cx-nsfw-dismissed','1');
-                              dlg.style.setProperty('display','none','important');
+                              if(dlg.style){if(dlg.style.setProperty)dlg.style.setProperty('display','none','important');else dlg.style.display='none';}
                             }
+                          }else if(h.tagName==='COMMUNITY-BARRIER'){
+                            h.setAttribute('cx-nsfw-dismissed','1');
+                            if(h.style){if(h.style.setProperty)h.style.setProperty('display','none','important');else h.style.display='none';}
                           }else if(!h.querySelector('shreddit-post,[slot="text-body"]')){
                             h.setAttribute('cx-nsfw-dismissed','1');
                           }
-                        });
-                        document.querySelectorAll('shreddit-blurred-container:not([reason="spoiler"])').forEach(function(h){
-                          if(h.shadowRoot)cxNsfwClick(h.shadowRoot,true);
                         });
                         document.querySelectorAll('shreddit-post[nsfw],shreddit-post [slot="text-body"],shreddit-post-text-body,[data-post-click-location="text-body"]').forEach(function(p){
                           if(p.tagName==='SHREDDIT-POST'){
@@ -697,6 +726,7 @@ internal val SiteTweak.rule: TweakRule
                             p.removeAttribute('blurred');
                             p.removeAttribute('is-blurred');
                             p.removeAttribute('embed-obscured');
+                            p.blurred=false;
                           }else if(p.hasAttribute&&p.hasAttribute('hidden')){
                             p.removeAttribute('hidden');
                           }
@@ -708,46 +738,37 @@ internal val SiteTweak.rule: TweakRule
                             p.style.visibility='visible';
                           }
                         });
-                        var findRev=function(p){
-                          var r=p.querySelector('[slot="revealed"],[slot="text-body"],shreddit-post-text-body,[data-post-click-location="text-body"]');
-                          if(r)return r;
-                          for(var i=0;i<p.children.length;i++){
-                            var c=p.children[i];
-                            var sl=c.getAttribute&&c.getAttribute('slot');
-                            if(sl!=='blurred'&&sl!=='blur-toggle'&&c.tagName!=='TEMPLATE'){return c;}
-                          }
-                          return null;
-                        };
-                        var hasRevContent=function(rev){
-                          return !!(rev&&(rev.tagName==='IMG'||rev.tagName==='VIDEO'||rev.querySelector('img,video,p,.md,[slot="text-body"]')||(rev.textContent||'').trim().length>0));
-                        };
                         document.querySelectorAll('shreddit-blurred-container:not([reason="spoiler"])').forEach(function(p){
-                          if(p.getAttribute('cx-unblurred')==='1')return;
-                          var rev=findRev(p);
-                          var hasRev=hasRevContent(rev);
-                          if(!hasRev){
-                            if(typeof p.unblur==='function'){try{p.unblur();}catch(e){}}
-                            var tog=p.querySelector('[slot="blur-toggle"] button,[slot="blur-toggle"],button')||(p.shadowRoot&&p.shadowRoot.querySelector('[slot="blur-toggle"] button,button,[role="button"]'));
-                            if(tog&&!tog.getAttribute('data-cx-nsfw-clicked')){
-                              tog.setAttribute('data-cx-nsfw-clicked','1');
-                              tog.click();
-                            }
-                            rev=findRev(p);
-                            hasRev=hasRevContent(rev);
-                          }
+                          p.blurred=false;
+                          if(p.__blurred!==undefined)p.__blurred=false;
                           p.removeAttribute('nsfw');
                           p.removeAttribute('blurred');
                           p.removeAttribute('is-blurred');
                           p.removeAttribute('embed-obscured');
-                          if(!hasRev)return;
                           p.setAttribute('mode','revealed');
                           p.setAttribute('cx-unblurred','1');
-                          if(rev&&rev.hasAttribute&&rev.hasAttribute('hidden'))rev.removeAttribute('hidden');
-                          if(rev&&rev.style){
-                            rev.style.setProperty('display','block','important');
-                            rev.style.setProperty('filter','none','important');
-                            rev.style.setProperty('opacity','1','important');
-                            rev.style.setProperty('visibility','visible','important');
+                          if(typeof p.unblur==='function'){try{p.unblur();}catch(e){}}
+                          var tog=p.querySelector('[slot="blur-toggle"] button,[slot="blur-toggle"],button')||(p.shadowRoot&&p.shadowRoot.querySelector('[slot="blur-toggle"] button,button,[role="button"]'));
+                          if(tog&&!tog.getAttribute('data-cx-nsfw-clicked')){
+                            tog.setAttribute('data-cx-nsfw-clicked','1');
+                            tog.click();
+                          }
+                          var rev=p.querySelector('[slot="revealed"],[slot="text-body"],shreddit-post-text-body,[data-post-click-location="text-body"],[property="schema:articleBody"]');
+                          if(!rev){
+                            for(var i=0;i<p.children.length;i++){
+                              var c=p.children[i];
+                              var sl=c.getAttribute&&c.getAttribute('slot');
+                              if(sl!=='blurred'&&sl!=='blur-toggle'&&c.tagName!=='TEMPLATE'){rev=c;break;}
+                            }
+                          }
+                          if(rev){
+                            if(rev.hasAttribute&&rev.hasAttribute('hidden'))rev.removeAttribute('hidden');
+                            if(rev.style){
+                              rev.style.setProperty('display','block','important');
+                              rev.style.setProperty('filter','none','important');
+                              rev.style.setProperty('opacity','1','important');
+                              rev.style.setProperty('visibility','visible','important');
+                            }
                           }
                           var blr=p.querySelector('[slot="blurred"]');
                           if(blr&&blr.style){blr.style.setProperty('display','none','important');}
@@ -756,12 +777,24 @@ internal val SiteTweak.rule: TweakRule
                               if(s.style){s.style.filter='none';s.style.webkitFilter='none';s.style.backdropFilter='none';}
                               if(s.tagName==='SLOT'){
                                 var sn=s.getAttribute('name');
-                                if(sn==='blurred'){s.style.display='none';}
+                                if(sn==='blurred'||sn==='blur-toggle'){s.style.display='none';}
                                 else if(!sn||sn==='revealed'){s.style.display='block';}
                               }
                             });
                           }
                           if(p.style){p.style.filter='none';p.style.webkitFilter='none';}
+                        });
+                        document.querySelectorAll('faceplate-img.thumbnail-blur').forEach(function(img){
+                          img.classList.remove('thumbnail-blur');
+                          if(img.style){img.style.filter='none';img.style.webkitFilter='none';}
+                        });
+                        document.querySelectorAll('community-highlight-card').forEach(function(c){
+                          c.isBlurred=false;
+                          c.removeAttribute('is-blurred');
+                        });
+                        document.querySelectorAll('devvit2-blur-gate').forEach(function(g){
+                          g._blur=false;
+                          g.removeAttribute('blur');
                         });
                         """.trimIndent(),
                 )
@@ -922,9 +955,16 @@ private val ENGINE_JS =
           else{hide(bar(b),false)}
         });
       };
-      var shadowBannerSel='configured-xpromo-modal,xpromo-app-selector,xpromo-bottom-sheet,xpromo-bottom-bar,xpromo-nsfw-blocking-container,community-barrier,faceplate-banner,shreddit-async-loader[bundlename*="xpromo"],shreddit-async-loader[bundlename="bottom_sheet"],shreddit-async-loader[bundlename*="nsfw_blocking"],shreddit-async-loader[bundlename*="nsfw-blocking"],shreddit-async-loader[bundlename*="nsfw_modal"],shreddit-async-loader[bundlename*="barrier"]';
+      var shadowBannerSel='configured-xpromo-modal,xpromo-app-selector,xpromo-bottom-sheet,xpromo-bottom-bar,xpromo-nsfw-blocking-container,community-barrier,shreddit-blurred-container,faceplate-banner,shreddit-async-loader[bundlename*="xpromo"],shreddit-async-loader[bundlename="bottom_sheet"],shreddit-async-loader[bundlename*="nsfw_blocking"],shreddit-async-loader[bundlename*="nsfw-blocking"],shreddit-async-loader[bundlename*="nsfw_modal"],shreddit-async-loader[bundlename*="barrier"]';
       var walkShadowRoots=function(root){
         root.querySelectorAll(shadowBannerSel).forEach(function(el){
+          if(el.tagName==='XPROMO-NSFW-BLOCKING-CONTAINER'&&el.shadowRoot){
+            if(!el.shadowRoot.querySelector('slot')){
+              try{el.shadowRoot.appendChild(document.createElement('slot'));}catch(e){}
+            }
+            var p=el.shadowRoot.querySelector('.prompt,.overlay,.bg-scrim,.viewInApp');
+            if(p&&p.style){if(p.style.setProperty)p.style.setProperty('display','none','important');else p.style.display='none';}
+          }
           if(el.shadowRoot){
             if(css&&!el.shadowRoot.getElementById('cx-shadow-hide')){
               try{var s=document.createElement('style');s.id='cx-shadow-hide';s.textContent=css;el.shadowRoot.appendChild(s)}catch(e){}

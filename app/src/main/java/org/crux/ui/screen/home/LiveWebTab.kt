@@ -43,6 +43,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
@@ -60,6 +61,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.OutlinedButton
+import compose.icons.fontawesomeicons.solid.ArrowUpRightFromSquare
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
@@ -340,6 +343,7 @@ internal class LiveWebPage(
                     val cm = site.cookieManager()
                     cm.setCookie("https://www.reddit.com/", "over18=1; Path=/; Domain=.reddit.com; Max-Age=31536000; SameSite=Lax")
                     cm.setCookie("https://reddit.com/", "over18=1; Path=/; Domain=.reddit.com; Max-Age=31536000; SameSite=Lax")
+                    cm.setCookie("https://sh.reddit.com/", "over18=1; Path=/; Domain=.reddit.com; Max-Age=31536000; SameSite=Lax")
                     cm.flush()
                 }
             }
@@ -371,6 +375,15 @@ internal class LiveWebPage(
                         if (site.isSignedOutXRoot(url)) {
                             view.post { view.loadUrl(site.startUrlForSession()) }
                             return
+                        }
+                        if (site == LiveWebSite.Reddit && SiteTweak.RedditUnblurNsfw in config.tweaks) {
+                            runCatching {
+                                val cm = site.cookieManager()
+                                cm.setCookie("https://www.reddit.com/", "over18=1; Path=/; Domain=.reddit.com; Max-Age=31536000; SameSite=Lax")
+                                cm.setCookie("https://reddit.com/", "over18=1; Path=/; Domain=.reddit.com; Max-Age=31536000; SameSite=Lax")
+                                cm.setCookie("https://sh.reddit.com/", "over18=1; Path=/; Domain=.reddit.com; Max-Age=31536000; SameSite=Lax")
+                                cm.flush()
+                            }
                         }
                         if (url != null && url != "about:blank") {
                             currentUrl = url
@@ -421,6 +434,15 @@ internal class LiveWebPage(
                             view.post { view.loadUrl(site.startUrlForSession()) }
                             return
                         }
+                        if (site == LiveWebSite.Reddit && SiteTweak.RedditUnblurNsfw in config.tweaks) {
+                            runCatching {
+                                val cm = site.cookieManager()
+                                cm.setCookie("https://www.reddit.com/", "over18=1; Path=/; Domain=.reddit.com; Max-Age=31536000; SameSite=Lax")
+                                cm.setCookie("https://reddit.com/", "over18=1; Path=/; Domain=.reddit.com; Max-Age=31536000; SameSite=Lax")
+                                cm.setCookie("https://sh.reddit.com/", "over18=1; Path=/; Domain=.reddit.com; Max-Age=31536000; SameSite=Lax")
+                                cm.flush()
+                            }
+                        }
                         // Fallback for WebViews that cannot inject at document start. Scope to site's own origins.
                         if (
                             !WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT) &&
@@ -462,6 +484,15 @@ internal class LiveWebPage(
                         if (site.isSignedOutXRoot(url)) {
                             view.post { view.loadUrl(site.startUrlForSession()) }
                             return
+                        }
+                        if (site == LiveWebSite.Reddit && SiteTweak.RedditUnblurNsfw in config.tweaks) {
+                            runCatching {
+                                val cm = site.cookieManager()
+                                cm.setCookie("https://www.reddit.com/", "over18=1; Path=/; Domain=.reddit.com; Max-Age=31536000; SameSite=Lax")
+                                cm.setCookie("https://reddit.com/", "over18=1; Path=/; Domain=.reddit.com; Max-Age=31536000; SameSite=Lax")
+                                cm.setCookie("https://sh.reddit.com/", "over18=1; Path=/; Domain=.reddit.com; Max-Age=31536000; SameSite=Lax")
+                                cm.flush()
+                            }
                         }
                         (url ?: view.url)?.takeIf { it.isNotBlank() && it != "about:blank" }?.let { currentUrl = it }
                         canGoBack = computeWebViewCanGoBack(view.canGoBack(), url ?: view.url)
@@ -1097,14 +1128,27 @@ internal fun LiveWebTab(
                             textAlign = TextAlign.Center,
                         )
                         Spacer(Modifier.height(20.dp))
-                        FilledTonalButton(onClick = { page.webView.reload() }) {
-                            FAIcon(
-                                FontAwesomeIcons.Solid.RotateRight,
-                                contentDescription = null,
-                                modifier = Modifier.size(14.dp),
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text(stringResource(R.string.crux_web_error_retry))
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            FilledTonalButton(onClick = { page.webView.reload() }) {
+                                FAIcon(
+                                    FontAwesomeIcons.Solid.RotateRight,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(14.dp),
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(stringResource(R.string.crux_web_error_retry))
+                            }
+                            OutlinedButton(onClick = {
+                                openInSystemBrowser(context, page.currentUrl)
+                            }) {
+                                FAIcon(
+                                    FontAwesomeIcons.Solid.ArrowUpRightFromSquare,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(14.dp),
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(stringResource(R.string.web_open_in_browser))
+                            }
                         }
                     }
                 }

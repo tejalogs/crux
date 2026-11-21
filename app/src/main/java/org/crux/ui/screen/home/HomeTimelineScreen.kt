@@ -495,7 +495,7 @@ internal fun HomeTimelineScreen(
                                     selectedTabIndex = minOf(pagerState.currentPage, tabState.lastIndex),
                                     onTabSelected = { index ->
                                         scope.launch {
-                                            pagerState.scrollToPage(index)
+                                            pagerState.animateScrollToPage(index)
                                         }
                                     },
                                     onReselect = onReselect,
