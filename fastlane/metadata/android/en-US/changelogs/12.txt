@@ -1,0 +1,7 @@
+Crux 1.0.11
+- Live Reddit: mobile NSFW unblurring via LitElement state sync and shadow DOM slot projection, without app-install gates
+- Reddit mobile layout preserved: responsive single-column view remains touch-friendly without desktop clutter
+- Mastodon added as a native live web tab with isolated storage and customizable tweaks
+- Smooth dock navigation animations between feed tabs
+- Web offline/error resilience: added one-tap "Open in browser" recovery option
+- Hardened security audit fixes across deep links, agent tools, and intent filters
