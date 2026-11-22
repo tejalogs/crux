@@ -2,6 +2,7 @@ package org.crux.data.network.rss.model
 
 import kotlinx.serialization.decodeFromString
 import nl.adaptivity.xmlutil.serialization.XML
+import org.crux.data.network.rss.rejectEntityDeclarations
 
 // Matches XML attributes so we can sanitize their values without touching text nodes.
 private val attributeRegex = Regex("""([:\w-]+)(\s*=\s*)("([^"]*)"|'([^']*)')""")
@@ -10,6 +11,8 @@ private val attributeRegex = Regex("""([:\w-]+)(\s*=\s*)("([^"]*)"|'([^']*)')"""
 private val danglingAmpersandRegex = Regex("&(?!(?:[a-zA-Z]+|#[0-9]+|#x[0-9a-fA-F]+);)")
 
 internal fun decodeOpml(opmlContent: String): Opml {
+    // An imported file is untrusted: refuse DTD entities before they can expand without limit.
+    rejectEntityDeclarations(opmlContent)
     val sanitized = sanitizeDanglingAmpersands(opmlContent)
     return opmlXml.decodeFromString<Opml>(sanitized)
 }

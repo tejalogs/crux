@@ -34,7 +34,7 @@ internal class OnDevicePromptExecutor(
     private val httpClientFactory: KoogHttpClient.Factory,
 ) : PromptExecutor() {
     private val ollamaClient: OllamaClient? by lazy {
-        if (isLoopback(config.localhostEndpoint)) {
+        if (isOllamaOptedIn(config.localhostEndpoint)) {
             runCatching<OllamaClient> {
                 OllamaClient(
                     httpClientFactory = httpClientFactory,
@@ -63,7 +63,7 @@ internal class OnDevicePromptExecutor(
             )
         }
 
-        // 1. Attempt localhost Ollama execution if available
+        // 1. Attempt loopback Ollama only when the user configured a non-default endpoint
         val executor = ollamaExecutor
         if (executor != null) {
             val result =
@@ -140,6 +140,21 @@ internal class OnDevicePromptExecutor(
     }
 
     companion object {
+        /**
+         * Loopback Ollama is strictly opt-in. Any app on the device can bind the default port
+         * (11434) without a permission and impersonate Ollama, so the untouched default endpoint
+         * never receives prompts or tool results; only an endpoint the user typed in AI settings
+         * does. With the default, prompts stay with the in-app model and offline engine.
+         */
+        fun isOllamaOptedIn(endpoint: String): Boolean =
+            isLoopback(endpoint) && !isDefaultEndpoint(endpoint)
+
+        private fun isDefaultEndpoint(endpoint: String): Boolean =
+            endpoint.trim().trimEnd('/').equals(
+                AppSettings.AiConfig.Type.OnDevice.DEFAULT_LOCALHOST_ENDPOINT,
+                ignoreCase = true,
+            )
+
         fun isLoopback(endpoint: String): Boolean {
             val clean = endpoint.trim()
             if (clean.isEmpty()) return false

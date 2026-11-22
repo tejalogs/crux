@@ -20,6 +20,8 @@ import android.view.ViewGroup
 import android.webkit.ConsoleMessage
 import android.webkit.CookieManager
 import android.webkit.GeolocationPermissions
+import android.webkit.JsPromptResult
+import android.webkit.JsResult
 import android.webkit.PermissionRequest
 import android.webkit.RenderProcessGoneDetail
 import android.webkit.ValueCallback
@@ -118,6 +120,7 @@ import org.crux.data.model.tab.TimelineSpecIds
 import org.crux.data.model.tab.UiTimelineTabItem
 import org.crux.ui.component.FAIcon
 import org.crux.ui.component.LocalBottomBarAccessory
+import org.crux.ui.lock.AppLock
 import org.crux.ui.screen.crux.CruxPlatform
 import org.crux.ui.screen.crux.PlatformBadge
 import org.crux.ui.screen.crux.hasSession
@@ -532,8 +535,9 @@ internal class LiveWebPage(
                     override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
                         when (consoleMessage?.message()) {
                             bookmarkBridgeMsg -> {
+                                // Page script can post this too: never open native UI under the App Lock.
                                 this@LiveWebPage.webView.post {
-                                    onNativeBookmarkTap?.invoke()
+                                    if (AppLock.isUnlocked) onNativeBookmarkTap?.invoke()
                                 }
                                 return true
                             }
@@ -556,6 +560,37 @@ internal class LiveWebPage(
                         }
                         return super.onConsoleMessage(consoleMessage)
                     }
+
+                    // Page alerts and prompts are system dialogs in their own window: while App Lock
+                    // is on they would draw above the cover (a fake PIN prompt), so cancel them.
+                    override fun onJsAlert(
+                        view: WebView?,
+                        url: String?,
+                        message: String?,
+                        result: JsResult?,
+                    ): Boolean = cancelWhileLocked(result) || super.onJsAlert(view, url, message, result)
+
+                    override fun onJsConfirm(
+                        view: WebView?,
+                        url: String?,
+                        message: String?,
+                        result: JsResult?,
+                    ): Boolean = cancelWhileLocked(result) || super.onJsConfirm(view, url, message, result)
+
+                    override fun onJsPrompt(
+                        view: WebView?,
+                        url: String?,
+                        message: String?,
+                        defaultValue: String?,
+                        result: JsPromptResult?,
+                    ): Boolean = cancelWhileLocked(result) || super.onJsPrompt(view, url, message, defaultValue, result)
+
+                    override fun onJsBeforeUnload(
+                        view: WebView?,
+                        url: String?,
+                        message: String?,
+                        result: JsResult?,
+                    ): Boolean = cancelWhileLocked(result) || super.onJsBeforeUnload(view, url, message, result)
 
                     override fun onShowCustomView(
                         view: View?,
@@ -749,6 +784,13 @@ private fun WebView.hardenWebSettings(
 }
 
 private fun isAuthUrl(url: String?): Boolean = LiveWebSessionState.isAuthOrLoginUrl(url)
+
+/** Cancels a page's JS dialog while App Lock is covering the app; true means it was handled. */
+private fun cancelWhileLocked(result: JsResult?): Boolean {
+    if (AppLock.isUnlocked) return false
+    result?.cancel()
+    return true
+}
 
 private class HorizontalFriendlySwipeRefreshLayout(
     context: Context,
@@ -963,7 +1005,8 @@ internal fun LiveWebTab(
         remember(site, page) {
             {
                 extractPostFromWebView(site, page.webView) { extracted ->
-                    pendingBookmarkPost = extracted
+                    // The extraction is async: drop a result that lands after the app re-locked.
+                    if (AppLock.isUnlocked) pendingBookmarkPost = extracted
                 }
             }
         }
@@ -995,8 +1038,9 @@ internal fun LiveWebTab(
         if (isCurrentlyVisible) scrollToTopRegistry?.registerCallback(callback)
         onDispose { scrollToTopRegistry?.unregisterCallback(callback) }
     }
-    // Automatically freezes background WebView renderers and media when hidden or minimized.
-    WebSessionLifecycleSuspender(webView = page.webView, isVisible = isCurrentlyVisible)
+    // Automatically freezes background WebView renderers and media when hidden or minimized,
+    // and while App Lock is covering the app; resumes after unlock.
+    WebSessionLifecycleSuspender(webView = page.webView, isVisible = isCurrentlyVisible && AppLock.isUnlocked)
     BackHandler(enabled = isCurrentlyVisible && (page.customVideoView != null || page.canGoBack)) {
         if (page.customVideoView != null) {
             page.exitFullscreenVideo()
@@ -1191,7 +1235,7 @@ internal fun LiveWebTab(
                             val targetImg = imageUrl
                             contextImageUrl = null
                             extractPostFromWebView(site, page.webView, overrideImageUrl = targetImg) { extracted ->
-                                pendingBookmarkPost = extracted
+                                if (AppLock.isUnlocked) pendingBookmarkPost = extracted
                             }
                         },
                 )

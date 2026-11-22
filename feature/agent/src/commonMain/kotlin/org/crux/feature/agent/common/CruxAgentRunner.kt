@@ -1,5 +1,7 @@
 package org.crux.feature.agent.common
 
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.sync.Mutex
 import ai.koog.agents.chatMemory.feature.ChatMemory
 import ai.koog.agents.core.agent.AIAgent
 import ai.koog.agents.core.dsl.builder.node
@@ -28,8 +30,23 @@ internal class CruxAgentRunner(
     private val toolProvider: AgentToolProvider,
     private val chatHistoryProvider: AgentChatHistoryProvider,
 ) {
+    // Feeds and URLs that tools returned, or the user typed, stay trusted for the whole
+    // conversation, so follow-ups like "summarise the second article" keep working.
+    private val itemStores = LinkedHashMap<String, AgentSubscriptionItemStore>()
+    private val itemStoresLock = Mutex()
+
+    private suspend fun itemStoreFor(conversationId: String): AgentSubscriptionItemStore =
+        itemStoresLock.withLock {
+            itemStores.remove(conversationId)?.also { itemStores[conversationId] = it }
+                ?: AgentSubscriptionItemStore().also { store ->
+                    itemStores[conversationId] = store
+                    while (itemStores.size > MAX_CONVERSATION_STORES) itemStores.remove(itemStores.keys.first())
+                }
+        }
+
     suspend fun clearConversation(conversationId: String) {
         chatHistoryProvider.clear(conversationId)
+        itemStoresLock.withLock { itemStores.remove(conversationId) }
     }
 
     suspend fun run(
@@ -40,7 +57,14 @@ internal class CruxAgentRunner(
         val runtime =
             runtimeProvider.createRuntime()
                 ?: throw CruxAgentUnavailableException(runtimeProvider.availability())
-        val toolSet = toolProvider.resolve(request.toolContext, userPrompt = request.rawUserInput)
+        val itemStore = itemStoreFor(conversationId)
+        itemStore.addTrustedUrls(request.rawUserInput.agentPromptUrls())
+        val toolSet =
+            toolProvider.resolve(
+                request.toolContext,
+                userPrompt = request.rawUserInput,
+                subscriptionItemStore = itemStore,
+            )
         val resolvedRequest = request.withToolSet(toolSet)
         val agent = runtime.createAgent(resolvedRequest, onTrace)
         return try {
@@ -248,3 +272,5 @@ private fun String.withAgentMarkdownGuidance(): String =
         - If a tool result contains inputRequestId/inputRequestOptions, do not render the options as a visible numbered or bulleted list. Write only a concise prompt; Crux renders the selectable actions from the input request.
         - Return only the final user-visible answer plus the required hidden metadata comment when applicable.
         """.trimIndent()
+
+private const val MAX_CONVERSATION_STORES = 20

@@ -59,6 +59,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.currentStateAsState
 import compose.icons.FontAwesomeIcons
 import compose.icons.fontawesomeicons.Brands
 import compose.icons.fontawesomeicons.Solid
@@ -99,6 +102,8 @@ import org.crux.ui.component.NavigationSuiteScaffold2
 import org.crux.ui.component.RichText
 import org.crux.ui.component.TabIcon
 import org.crux.ui.component.TopLevelBackStack
+import org.crux.ui.lock.AppLock
+import org.crux.ui.lock.DeferredWhileLocked
 import org.crux.ui.model.UiProfile
 import org.crux.ui.model.asText
 import org.crux.ui.model.asType
@@ -199,13 +204,30 @@ internal fun HomeScreen(afterInit: () -> Unit) {
                 ) {
                     state.topLevelBackStack.takeSuccess()?.topLevelKey ?: tabs.first().route
                 }
+            // While App Lock is covering the app, hold the newest link (share, tile, shortcut,
+            // crux://) and open it only after unlock, so nothing opens under or over the cover.
+            // The relock decision is made in onStart, and on API 26-27 a stopped activity gets
+            // onNewIntent before onStart, so a link only counts as unlocked once the activity is
+            // started again.
+            val deferredDeeplink = remember { DeferredWhileLocked<String>() }
+            val homeLifecycle = LocalLifecycleOwner.current.lifecycle
+            val homeLifecycleState by homeLifecycle.currentStateAsState()
+            val linksCanOpen = AppLock.isUnlocked && homeLifecycleState.isAtLeast(Lifecycle.State.STARTED)
             OnNewIntent(
                 withOnCreateIntent = true,
             ) { incomingIntent ->
+                val canOpenNow =
+                    AppLock.isUnlocked && homeLifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
                 incomingIntent.dataString
                     ?.takeUnless { url -> url.isLoginCallbackDeepLink() }
                     ?.takeIf { url -> InternalDeeplinkToken.isAllowedForIntent(url, incomingIntent) }
+                    ?.let { url -> deferredDeeplink.offer(url, unlocked = canOpenNow) }
                     ?.let { url -> state.deeplinkPresenter.handle(url) }
+            }
+            LaunchedEffect(linksCanOpen) {
+                deferredDeeplink.release(unlocked = linksCanOpen)?.let { url ->
+                    state.deeplinkPresenter.handle(url)
+                }
             }
             LaunchedEffect(Unit) {
                 afterInit.invoke()

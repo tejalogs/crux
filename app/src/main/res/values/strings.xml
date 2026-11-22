@@ -126,7 +126,7 @@
     <string name="settings_ai_config_on_device_privacy">Zero data egress</string>
     <string name="settings_ai_config_on_device_privacy_desc">This engine runs entirely on your device and never sends your data over the internet. No external AI accounts or API keys required.</string>
     <string name="settings_ai_config_on_device_ollama">Localhost Ollama Endpoint</string>
-    <string name="settings_ai_config_on_device_ollama_desc">Optional local Ollama server. Any app on this phone can listen on localhost, so only use one you run yourself.</string>
+    <string name="settings_ai_config_on_device_ollama_desc">Off unless you change it. Enter the address of an Ollama server you run yourself (for example http://127.0.0.1:11434). Any app on this phone can listen on localhost, so AI stays in Crux until you set this.</string>
     <string name="settings_ai_config_on_device_ollama_hint">http://localhost:11434</string>
     <string name="settings_ai_config_type_openai">OpenAI-compatible API</string>
     <string name="settings_ai_config_value_empty_placeholder">Not set</string>
@@ -1024,4 +1024,15 @@
     <string name="on_device_model_notif_downloading">Downloading %1$s</string>
     <string name="on_device_model_notif_ready_title">%1$s is ready</string>
     <string name="on_device_model_notif_ready_desc">Offline AI inference is now active on your device.</string>
+    <string name="opml_import_confirm_message">Feeds in this file: %1$d</string>
+    <string name="opml_import_no_feeds">This file has no feeds to import.</string>
+    <string name="opml_import_confirm_action">Import</string>
+    <string name="settings_privacy_app_lock_needs_screen_lock">Set a screen lock (PIN, pattern or password) on your phone first, then turn on App Lock.</string>
+    <string name="agent_open_link_title">Open this link?</string>
+    <string name="agent_open_link_message">This link comes from the AI reply. Check the full address before opening it:</string>
+    <string name="agent_open_link_confirm">Open</string>
+    <string name="smart_reply_model_cloud_ai">Cloud AI (%1$s)</string>
+    <string name="smart_reply_synthesizing_status_cloud">Sending the post to %1$s to generate replies…</string>
+    <string name="smart_reply_cloud_tap_hint">Tap Regenerate to send this post to %1$s for AI replies.</string>
+    <string name="smart_reply_cloud_unknown_host">your AI server</string>
 </resources>

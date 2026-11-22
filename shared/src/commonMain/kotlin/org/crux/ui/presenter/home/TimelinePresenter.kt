@@ -150,9 +150,12 @@ public open class TimelinePresenter : PresenterBase<TimelineState> {
                         mxgaEnabledFlow,
                         mxgaRepository.snapshot,
                     ) { filterList, timelineFilterConfig, mxgaEnabled, mxgaSnapshot ->
+                        // Imported filters are sanitised when the backup is imported; the user's own
+                        // filters are applied as they wrote them.
+                        val keywordFilters = filterList
                         pager
                             .filter { item ->
-                                item.matchesKeywordFilters(filterList) &&
+                                item.matchesKeywordFilters(keywordFilters) &&
                                     item.matchesTimelineFilter(timelineFilterConfig) &&
                                     (!mxgaEnabled || !item.isMxgaMatch(mxgaSnapshot, platformRegistry))
                             }.map {
@@ -283,10 +286,255 @@ internal fun UiTimelineV2.matchesKeywordFilters(filters: List<KeywordFilterPatte
 
 private fun String.matches(filter: KeywordFilterPattern): Boolean =
     if (filter.isRegex) {
-        filter.regex?.containsMatchIn(this) == true
+        // Bounds the work a single regex filter can do per post, even for a pattern that slips past
+        // the backtracking checks below.
+        filter.regex?.containsMatchIn(take(MAX_TIMELINE_REGEX_INPUT_LENGTH)) == true
     } else {
-        contains(filter.keyword, ignoreCase = true)
+        // Plain keywords are literal text; a blank one would otherwise match (and hide) every post.
+        filter.keyword.isNotBlank() && contains(filter.keyword, ignoreCase = true)
     }
+
+/** At most this many keyword filters are applied to a timeline; the rest are ignored. */
+internal const val MAX_TIMELINE_KEYWORD_FILTERS: Int = 500
+
+/** Plain keywords longer than this are ignored (no real phrase filter needs more). */
+internal const val MAX_TIMELINE_KEYWORD_LENGTH: Int = 500
+
+/** Regex filters longer than this are ignored. */
+internal const val MAX_TIMELINE_REGEX_LENGTH: Int = 200
+
+/** Regex filters only look at this many characters of a post's text. */
+internal const val MAX_TIMELINE_REGEX_INPUT_LENGTH: Int = 2_000
+
+/**
+ * A regex filter may use at most one unbounded quantifier (`*`, `+`, `{n,}`): two or more over
+ * overlapping text (`.*.*!`, `\w*\w*!`) backtrack polynomially and can take minutes on one post.
+ */
+private const val MAX_REGEX_UNBOUNDED_QUANTIFIERS = 1
+
+/**
+ * Upper bound on the product of the bounded choice points in a regex filter (`?` counts 2,
+ * `{2,5}` counts 4, `{3}` counts 1), which bounds how much backtracking they can add.
+ */
+private const val MAX_REGEX_CHOICE_PRODUCT = 32
+
+/** A bounded repeat wider than this (`{0,100}`) is treated as unbounded. */
+private const val MAX_BOUNDED_REPEAT_WIDTH = 16
+
+/**
+ * Ordinary short posts in several scripts. A filter that matches at least
+ * [MATCH_EVERYTHING_PROBE_THRESHOLD] of them (`e`, `\w`, `\b`, `[a-z]`, `\s`, `[^!]`...) would hide
+ * practically every post, so it is dropped.
+ */
+private val MATCH_EVERYTHING_PROBES =
+    listOf(
+        "Hello world",
+        "Breaking news today",
+        "12 photos from the trip",
+        "Have a great day",
+        "Watch the full video at 7pm",
+        "こんにちは、元気ですか",
+        "Привет всем",
+        "¿Qué tal? 😀",
+        "OK",
+        "#weekend vibes 🎉",
+    )
+
+private const val MATCH_EVERYTHING_PROBE_THRESHOLD = 4
+
+/**
+ * Drops keyword filters that would freeze or empty the timeline instead of filtering it: blank or
+ * overlong keywords, invalid or overlong regexes, regexes that can backtrack catastrophically
+ * (see [hasCatastrophicBacktrackingRisk]; filters run on every item as the timeline loads), and
+ * filters that match the empty string or most ordinary posts. Filters can come from an imported
+ * backup, so they are not trusted to be well-formed. Plain (non-regex) keywords are always
+ * matched as literal text.
+ */
+internal fun List<KeywordFilterPattern>.safeForTimeline(): List<KeywordFilterPattern> =
+    asSequence()
+        .filter { isSafeKeywordFilter(keyword = it.keyword, isRegex = it.isRegex, regex = it.regex) }
+        .take(MAX_TIMELINE_KEYWORD_FILTERS)
+        .toList()
+
+internal fun isSafeKeywordFilter(
+    keyword: String,
+    isRegex: Boolean,
+    regex: Regex?,
+): Boolean {
+    if (keyword.isBlank()) return false
+    if (!isRegex) {
+        return keyword.length <= MAX_TIMELINE_KEYWORD_LENGTH &&
+            !matchesMostProbes { it.contains(keyword, ignoreCase = true) }
+    }
+    if (regex == null || keyword.length > MAX_TIMELINE_REGEX_LENGTH) return false
+    if (hasCatastrophicBacktrackingRisk(keyword)) return false
+    if (regex.containsMatchIn("")) return false
+    return !matchesMostProbes { regex.containsMatchIn(it) }
+}
+
+private fun matchesMostProbes(matches: (String) -> Boolean): Boolean =
+    MATCH_EVERYTHING_PROBES.count(matches) >= MATCH_EVERYTHING_PROBE_THRESHOLD
+
+private class RegexGroupFrame {
+    var hasQuantifier = false
+    var hasAlternation = false
+}
+
+/**
+ * True when [pattern] has a shape behind catastrophic backtracking:
+ * - a repeated (`*`, `+`, `{..}`) group that contains a quantifier or an alternation
+ *   (`(a+)+`, `(a*b?)*`, `(\w|\d)+`);
+ * - more than [MAX_REGEX_UNBOUNDED_QUANTIFIERS] unbounded quantifier (`.*.*!`, `\w*\w*!`);
+ * - bounded choice points whose combined width exceeds [MAX_REGEX_CHOICE_PRODUCT] (`a?a?a?...`).
+ *
+ * Escapes and character classes are skipped. The check is deliberately conservative: a filter it
+ * rejects is ignored, never applied.
+ */
+internal fun hasCatastrophicBacktrackingRisk(pattern: String): Boolean {
+    val frames = ArrayDeque<RegexGroupFrame>().apply { addLast(RegexGroupFrame()) }
+    var unbounded = 0
+    var choiceProduct = 1
+    var i = 0
+    while (i < pattern.length) {
+        when (pattern[i]) {
+            '\\' -> {
+                i += 2
+            }
+
+            '[' -> {
+                i = skipCharacterClass(pattern, i)
+            }
+
+            '(' -> {
+                frames.addLast(RegexGroupFrame())
+                i = skipGroupModifier(pattern, i + 1)
+            }
+
+            ')' -> {
+                val inner = if (frames.size > 1) frames.removeLast() else RegexGroupFrame()
+                // `?` after a group is zero-or-one, not repetition.
+                val repeated = parseQuantifier(pattern, i + 1) != null && pattern[i + 1] != '?'
+                if (repeated && (inner.hasQuantifier || inner.hasAlternation)) return true
+                if (inner.hasQuantifier) frames.last().hasQuantifier = true
+                i++
+            }
+
+            '|' -> {
+                frames.last().hasAlternation = true
+                i++
+            }
+
+            else -> {
+                val quantifier = parseQuantifier(pattern, i)
+                if (quantifier == null) {
+                    i++
+                } else {
+                    frames.last().hasQuantifier = true
+                    if (quantifier.width == UNBOUNDED_WIDTH) {
+                        unbounded++
+                    } else {
+                        choiceProduct = (choiceProduct * quantifier.width).coerceAtMost(MAX_REGEX_CHOICE_PRODUCT + 1)
+                    }
+                    if (unbounded > MAX_REGEX_UNBOUNDED_QUANTIFIERS || choiceProduct > MAX_REGEX_CHOICE_PRODUCT) {
+                        return true
+                    }
+                    i = quantifier.end
+                }
+            }
+        }
+    }
+    return false
+}
+
+private const val UNBOUNDED_WIDTH = -1
+
+/** A quantifier spanning up to [end] (exclusive) that allows [width] repeat counts, or [UNBOUNDED_WIDTH]. */
+private class RegexQuantifier(
+    val width: Int,
+    val end: Int,
+)
+
+/** Parses `*`, `+`, `?` or `{n}`/`{n,}`/`{n,m}` at [start], plus a lazy `?` or possessive `+` suffix. */
+private fun parseQuantifier(
+    pattern: String,
+    start: Int,
+): RegexQuantifier? {
+    val (width, end) =
+        when (pattern.getOrNull(start)) {
+            '*', '+' -> UNBOUNDED_WIDTH to start + 1
+
+            '?' -> 2 to start + 1
+
+            '{' -> parseBraceQuantifier(pattern, start) ?: return null
+
+            else -> return null
+        }
+    val suffix = pattern.getOrNull(end)
+    return RegexQuantifier(width = width, end = if (suffix == '?' || suffix == '+') end + 1 else end)
+}
+
+private fun parseBraceQuantifier(
+    pattern: String,
+    start: Int,
+): Pair<Int, Int>? {
+    val close = pattern.indexOf('}', start)
+    if (close < 0) return null
+    val parts = pattern.substring(start + 1, close).split(',')
+    val min = parts.getOrNull(0)?.toIntOrNull() ?: return null
+    val width =
+        when {
+            parts.size == 1 -> 1
+
+            parts.size == 2 && parts[1].isEmpty() -> UNBOUNDED_WIDTH
+
+            parts.size == 2 -> {
+                val max = parts[1].toIntOrNull() ?: return null
+                val span = max - min + 1
+                if (span > MAX_BOUNDED_REPEAT_WIDTH) UNBOUNDED_WIDTH else span.coerceAtLeast(1)
+            }
+
+            else -> return null
+        }
+    return width to close + 1
+}
+
+/** Returns the index just after the `]` that closes the character class opened at [start]. */
+private fun skipCharacterClass(
+    pattern: String,
+    start: Int,
+): Int {
+    var i = start + 1
+    if (pattern.getOrNull(i) == '^') i++
+    if (pattern.getOrNull(i) == ']') i++
+    while (i < pattern.length && pattern[i] != ']') {
+        i += if (pattern[i] == '\\') 2 else 1
+    }
+    return i + 1
+}
+
+/** Skips `?:`, `?=`, `?!`, `?<=`, `?<!`, `?<name>` and inline flags such as `?i` after `(`. */
+private fun skipGroupModifier(
+    pattern: String,
+    start: Int,
+): Int {
+    if (pattern.getOrNull(start) != '?') return start
+    var i = start + 1
+    when (pattern.getOrNull(i)) {
+        ':', '=', '!', '>' -> {
+            return i + 1
+        }
+
+        '<' -> {
+            val next = pattern.getOrNull(i + 1)
+            if (next == '=' || next == '!') return i + 2
+            while (i < pattern.length && pattern[i] != '>') i++
+            return i + 1
+        }
+    }
+    while (i < pattern.length && (pattern[i].isLetter() || pattern[i] == '-')) i++
+    if (pattern.getOrNull(i) == ':') i++
+    return i
+}
 
 internal fun UiTimelineV2.matchesTimelineFilter(filterConfig: TimelineFilterConfig): Boolean {
     if (filterConfig.excludedKinds.isEmpty() && filterConfig.excludedContents.isEmpty()) {

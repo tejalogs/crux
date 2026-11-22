@@ -41,6 +41,7 @@ import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -53,10 +54,14 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -68,12 +73,21 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
-import com.halilibo.richtext.commonmark.Markdown
+import com.halilibo.richtext.commonmark.CommonmarkAstNodeParser
+import com.halilibo.richtext.markdown.BasicMarkdown
+import com.halilibo.richtext.markdown.node.AstHtmlBlock
+import com.halilibo.richtext.markdown.node.AstHtmlInline
+import com.halilibo.richtext.markdown.node.AstImage
+import com.halilibo.richtext.markdown.node.AstNode
+import com.halilibo.richtext.markdown.node.AstNodeLinks
+import com.halilibo.richtext.markdown.node.AstText
 import compose.icons.FontAwesomeIcons
 import compose.icons.fontawesomeicons.Solid
 import compose.icons.fontawesomeicons.solid.PaperPlane
 import compose.icons.fontawesomeicons.solid.Robot
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.withContext
 import org.crux.R
 import org.crux.common.PagingState
 import org.crux.data.model.PostActionStyle
@@ -527,32 +541,88 @@ private fun AgentMarkdownText(
     modifier: Modifier = Modifier,
 ) {
     val uriHandler = LocalUriHandler.current
-    // Model output is untrusted (it can echo injected feed text): never load remote images from
-    // it, and let its links open only what content links may open.
+    var pendingLink by remember { mutableStateOf<String?>(null) }
+    // Model output is untrusted (it can echo injected feed text): its links open only what content
+    // links may open, and anything leaving the app is shown in full and confirmed first.
     val contentUriHandler =
         remember(uriHandler) {
             object : UriHandler {
                 override fun openUri(uri: String) {
-                    if (DeeplinkRoute.isSafeFromContent(uri)) uriHandler.openUri(uri)
+                    when (agentLinkAction(uri)) {
+                        AgentLinkAction.Open -> uriHandler.openUri(uri.trim())
+                        AgentLinkAction.Confirm -> pendingLink = uri.trim()
+                        AgentLinkAction.Block -> Unit
+                    }
                 }
             }
         }
-    val safeMarkdown = remember(markdown) { stripMarkdownImages(markdown) }
+    // Parsed off the main thread like richtext's Markdown(); the previous tree stays visible while
+    // a streamed message is re-parsed.
+    val astNode by produceState<AstNode?>(initialValue = null, markdown) {
+        value = withContext(Dispatchers.Default) { parseAgentMarkdown(markdown) }
+    }
     CompositionLocalProvider(
         LocalContentColor provides color,
         LocalUriHandler provides contentUriHandler,
     ) {
         SelectionContainer {
             ComposeRichText(modifier = modifier) {
-                Markdown(content = safeMarkdown)
+                astNode?.let { BasicMarkdown(it) }
             }
         }
+    }
+    pendingLink?.let { link ->
+        AlertDialog(
+            onDismissRequest = { pendingLink = null },
+            title = { Text(text = stringResource(id = R.string.agent_open_link_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(text = stringResource(id = R.string.agent_open_link_message))
+                    SelectionContainer {
+                        Text(text = link, style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        pendingLink = null
+                        uriHandler.openUri(link)
+                    },
+                ) {
+                    Text(text = stringResource(id = R.string.agent_open_link_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingLink = null }) {
+                    Text(text = stringResource(id = R.string.action_cancel))
+                }
+            },
+        )
+    }
+}
+
+internal enum class AgentLinkAction { Open, Confirm, Block }
+
+/**
+ * How a tap on a link in AI output is handled: unsafe in-app routes are blocked, safe in-app
+ * navigation opens directly, and every other link (web, mail, phone) needs a confirmation that
+ * shows the full address, because the visible link text can hide data in the URL.
+ */
+internal fun agentLinkAction(uri: String): AgentLinkAction {
+    val trimmed = uri.trim()
+    return when {
+        trimmed.isEmpty() || !DeeplinkRoute.isSafeFromContent(trimmed) -> AgentLinkAction.Block
+        DeeplinkRoute.isDeeplink(trimmed) -> AgentLinkAction.Open
+        else -> AgentLinkAction.Confirm
     }
 }
 
 private val MARKDOWN_IMAGE = Regex("""!\[([^\]]*)]\([^)]*\)""")
 private val MARKDOWN_IMAGE_REFERENCE = Regex("""!\[([^\]]*)]\[[^\]]*]""")
 private val HTML_IMAGE = Regex("""<img\b[^>]*>""", RegexOption.IGNORE_CASE)
+private val HTML_MEDIA_TAG =
+    Regex("""<\s*(img|picture|source|video|audio|svg|image|iframe|object|embed|track|link|input)\b""", RegexOption.IGNORE_CASE)
 
 /** Replaces Markdown and HTML images with their alt text so nothing is fetched from the model's output. */
 internal fun stripMarkdownImages(markdown: String): String =
@@ -560,6 +630,68 @@ internal fun stripMarkdownImages(markdown: String): String =
         .replace(MARKDOWN_IMAGE) { it.groupValues[1] }
         .replace(MARKDOWN_IMAGE_REFERENCE) { it.groupValues[1] }
         .replace(HTML_IMAGE, "")
+
+/**
+ * Parses AI output into a Markdown tree that cannot load anything. Regexes miss image forms such as
+ * shortcut references (`![x]` plus `[x]: url`), nested or escaped brackets, so every image node the
+ * CommonMark parser produces, whatever its syntax, is replaced by its alt text, and HTML that embeds
+ * media is dropped.
+ */
+internal fun parseAgentMarkdown(markdown: String): AstNode =
+    removeAgentMarkdownMedia(CommonmarkAstNodeParser().parse(stripMarkdownImages(markdown)))
+
+internal fun removeAgentMarkdownMedia(root: AstNode): AstNode {
+    // The tree was just parsed for this message only, so it is rewritten in place.
+    root.descendants().forEach { node ->
+        when (val type = node.type) {
+            is AstImage -> node.replaceWith(AstNode(AstText(node.plainText()), AstNodeLinks()))
+            is AstHtmlInline -> if (HTML_MEDIA_TAG.containsMatchIn(type.literal)) node.unlink()
+            is AstHtmlBlock -> if (HTML_MEDIA_TAG.containsMatchIn(type.literal)) node.unlink()
+            else -> Unit
+        }
+    }
+    return root
+}
+
+private fun AstNode.descendants(): List<AstNode> =
+    buildList {
+        val pending = ArrayDeque<AstNode>()
+        links.firstChild?.let(pending::addLast)
+        while (pending.isNotEmpty()) {
+            val node = pending.removeFirst()
+            add(node)
+            node.links.next?.let(pending::addFirst)
+            node.links.firstChild?.let(pending::addFirst)
+        }
+    }
+
+private fun AstNode.plainText(): String =
+    descendants().joinToString("") { (it.type as? AstText)?.literal.orEmpty() }
+
+private fun AstNode.replaceWith(replacement: AstNode) {
+    val parent = links.parent
+    val previous = links.previous
+    val next = links.next
+    replacement.links.parent = parent
+    replacement.links.previous = previous
+    replacement.links.next = next
+    if (previous != null) previous.links.next = replacement else parent?.links?.firstChild = replacement
+    if (next != null) next.links.previous = replacement else parent?.links?.lastChild = replacement
+    links.parent = null
+    links.previous = null
+    links.next = null
+}
+
+private fun AstNode.unlink() {
+    val parent = links.parent
+    val previous = links.previous
+    val next = links.next
+    if (previous != null) previous.links.next = next else parent?.links?.firstChild = next
+    if (next != null) next.links.previous = previous else parent?.links?.lastChild = previous
+    links.parent = null
+    links.previous = null
+    links.next = null
+}
 
 @Composable
 private fun AgentPostCard(

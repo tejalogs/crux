@@ -80,7 +80,12 @@ internal class DetectSubscriptionSourceTool(
         if (input.isBlank()) {
             return "Subscription source detection requires a URL or host."
         }
-        return dataSource.detectSource(input).toToolText()
+        if (!session.isAllowedSubscriptionFetchUrl(input)) {
+            return untrustedSubscriptionUrlMessage()
+        }
+        val detection = dataSource.detectSource(input)
+        session.subscriptionItemStore.addTrustedUrls(detection.returnedUrls())
+        return detection.toToolText()
     }
 
     companion object {
@@ -111,6 +116,13 @@ internal class LoadSubscriptionTimelineTool(
 
     override suspend fun execute(args: Args): String {
         val dataSource = session.subscriptionDataSource ?: return noSubscriptionDataSourceMessage()
+        val requestedUrl = args.url.trim()
+        if (requestedUrl.isNotBlank() &&
+            session.resolveSubscriptionSource(args.sourceId, args.type, requestedUrl) == null &&
+            !session.isAllowedSubscriptionFetchUrl(requestedUrl)
+        ) {
+            return untrustedSubscriptionUrlMessage()
+        }
         val target =
             session.resolveSubscriptionTimelineTarget(args)
                 ?: return session.subscriptionSourceSelectionMessage(
@@ -125,6 +137,7 @@ internal class LoadSubscriptionTimelineTool(
                 .take(pageSize)
         session.messagePartStore.addPosts(items.mapNotNull { it.contentPostOrNull() })
         session.subscriptionItemStore.addFeeds(items.filterIsInstance<UiTimelineV2.Feed>())
+        session.subscriptionItemStore.addTrustedUrls(listOf(target.url))
 
         return buildString {
             appendLine("Subscription timeline")
@@ -182,6 +195,10 @@ internal class SaveSubscriptionSourceTool(
 
     override suspend fun execute(args: Args): String {
         val dataSource = session.subscriptionDataSource ?: return noSubscriptionDataSourceMessage()
+        val inputUrl = args.url.trim()
+        if (inputUrl.isNotBlank() && !session.isAllowedSubscriptionFetchUrl(inputUrl)) {
+            return untrustedSubscriptionUrlMessage()
+        }
         val candidates =
             session.resolveSubscriptionSaveCandidates(args)
                 ?: return "Subscription source saving requires a URL or host."
@@ -192,11 +209,18 @@ internal class SaveSubscriptionSourceTool(
             return session.subscriptionSaveSelectionMessage(candidates)
         }
         val candidate = candidates.single()
+        session.subscriptionItemStore.addTrustedUrls(listOf(candidate.url))
+        // Every value that is saved must match the button the user tapped, so a model
+        // cannot swap the target source, title or icon after the confirmation.
         val buttonConfirmed =
-            session.buttonConfirmed(args.confirmed, "event=subscription_save_confirmed", "url=${candidate.url}")
+            session.buttonConfirmed(
+                args.confirmed,
+                "event=subscription_save_confirmed",
+                *candidate.confirmationMarkers().toTypedArray(),
+            )
         if (!buttonConfirmed) {
             val requestId = "subscription-save:${candidate.type.name}:${candidate.url}"
-            val prompt = candidate.saveConfirmationMessage(requestId)
+            val prompt = candidate.saveConfirmationMessage(requestId, session.replacedSource(candidate.sourceId))
             session.inputRequestStore.set(
                 AgentPendingInputRequest(
                     requestId = requestId,
@@ -220,7 +244,7 @@ internal class SaveSubscriptionSourceTool(
         val saved =
             dataSource.saveSource(
                 SubscriptionSourceInput(
-                    id = args.sourceId.coerceAtLeast(0),
+                    id = candidate.sourceId,
                     url = candidate.url,
                     title = candidate.title,
                     icon = candidate.icon,
@@ -338,6 +362,9 @@ internal class LoadRssArticleTool(
         if (url.isBlank()) {
             return "RSS article loading requires an rssArticleRef or articleUrl."
         }
+        if (feed == null && !session.isAllowedSubscriptionFetchUrl(url)) {
+            return untrustedSubscriptionUrlMessage()
+        }
 
         val document =
             dataSource.loadRssArticle(
@@ -361,12 +388,25 @@ internal class LoadRssArticleTool(
 internal class AgentSubscriptionItemStore {
     private val mutex = Mutex()
     private val feeds = mutableListOf<UiTimelineV2.Feed>()
+    private val trustedUrls = mutableListOf<String>()
 
     suspend fun addFeeds(items: List<UiTimelineV2.Feed>) {
         mutex.withLock {
             feeds += items
         }
     }
+
+    /** Records URLs that a subscription tool returned in this session, so follow-up calls may fetch them. */
+    suspend fun addTrustedUrls(urls: Iterable<String>) {
+        mutex.withLock {
+            trustedUrls += urls.filter { it.agentUrlKey().isNotBlank() }
+        }
+    }
+
+    suspend fun isTrusted(url: String): Boolean =
+        mutex.withLock {
+            trustedUrls.any { url.agentUrlMatches(it) } || feeds.any { url.agentUrlMatches(it.url) }
+        }
 
     suspend fun findFeed(
         articleRef: String,
@@ -394,8 +434,11 @@ private data class SubscriptionTimelineTarget(
 )
 
 private data class SubscriptionSaveCandidate(
+    val sourceId: Int,
     val type: SubscriptionType,
     val url: String,
+    /** The URL or host the save was asked for; carried in the confirm button so a replayed call passes the URL check. */
+    val requestedUrl: String,
     val title: String?,
     val icon: String?,
     val displayMode: RssDisplayMode,
@@ -522,6 +565,27 @@ private suspend fun AgentToolSession.resolveSubscriptionSaveCandidates(
     if (args.type.isNotBlank() && requestedType == null) {
         return emptyList()
     }
+    if (args.confirmed) {
+        confirmedSubscriptionSaveCandidate(args, requestedType)?.let { return listOf(it) }
+    }
+    // Only an existing source may be updated in place; any other id creates a new source.
+    val sourceId = existingSourceIdOrZero(args.sourceId)
+    fun candidate(
+        type: SubscriptionType,
+        url: String,
+        detectedTitle: String?,
+        detectedIcon: String?,
+        mode: RssDisplayMode,
+    ) = SubscriptionSaveCandidate(
+        sourceId = sourceId,
+        type = type,
+        url = url,
+        requestedUrl = inputUrl.singleLine(),
+        title = args.title.singleLine().ifBlank { detectedTitle?.singleLine().orEmpty() },
+        icon = saveIcon(requested = args.icon, detected = detectedIcon?.singleLine()),
+        displayMode = mode,
+    )
+
     if (requestedType != null) {
         val normalizedUrl = requestedType.normalizeSubscriptionUrl(inputUrl)
         val detectedRss =
@@ -533,17 +597,12 @@ private suspend fun AgentToolSession.resolveSubscriptionSaveCandidates(
                 null
             }
         return listOf(
-            SubscriptionSaveCandidate(
+            candidate(
                 type = requestedType,
                 url = detectedRss?.url ?: normalizedUrl,
-                title =
-                    args.title
-                        .trim()
-                        .ifBlank {
-                            detectedRss?.title ?: "$normalizedUrl - ${requestedType.name}"
-                        },
-                icon = args.icon.trim().ifBlank { detectedRss?.icon },
-                displayMode = displayMode,
+                detectedTitle = detectedRss?.title ?: "$normalizedUrl - ${requestedType.name}",
+                detectedIcon = detectedRss?.icon,
+                mode = displayMode,
             ),
         )
     }
@@ -551,36 +610,36 @@ private suspend fun AgentToolSession.resolveSubscriptionSaveCandidates(
     return when (val detected = dataSource.detectSource(inputUrl)) {
         is SubscriptionSourceDetection.RssFeed -> {
             listOf(
-                SubscriptionSaveCandidate(
+                candidate(
                     type = SubscriptionType.RSS,
                     url = detected.url,
-                    title = args.title.trim().ifBlank { detected.title },
-                    icon = args.icon.trim().ifBlank { detected.icon },
-                    displayMode = displayMode,
+                    detectedTitle = detected.title,
+                    detectedIcon = detected.icon,
+                    mode = displayMode,
                 ),
             )
         }
 
         is SubscriptionSourceDetection.RssSources -> {
             detected.sources.map { source ->
-                SubscriptionSaveCandidate(
+                candidate(
                     type = SubscriptionType.RSS,
                     url = source.url,
-                    title = args.title.trim().ifBlank { source.title.orEmpty() },
-                    icon = args.icon.trim().ifBlank { source.favIcon },
-                    displayMode = displayMode,
+                    detectedTitle = source.title,
+                    detectedIcon = source.favIcon,
+                    mode = displayMode,
                 )
             }
         }
 
         is SubscriptionSourceDetection.SubscriptionInstance -> {
             detected.availableTimelines.map { type ->
-                SubscriptionSaveCandidate(
+                candidate(
                     type = type,
                     url = detected.host,
-                    title = args.title.trim().ifBlank { "${detected.instanceName ?: detected.host} - ${type.name}" },
-                    icon = args.icon.trim().ifBlank { detected.icon },
-                    displayMode = RssDisplayMode.FULL_CONTENT,
+                    detectedTitle = "${detected.instanceName ?: detected.host} - ${type.name}",
+                    detectedIcon = detected.icon,
+                    mode = RssDisplayMode.FULL_CONTENT,
                 )
             }
         }
@@ -590,6 +649,81 @@ private suspend fun AgentToolSession.resolveSubscriptionSaveCandidates(
         }
     }
 }
+
+private suspend fun AgentToolSession.existingSourceIdOrZero(sourceId: Int): Int =
+    sourceId.takeIf { id -> id > 0 && subscriptionDataSource?.listSources().orEmpty().any { it.id == id } } ?: 0
+
+/**
+ * On the turn after the user tapped the save button, rebuild the candidate from the tapped
+ * payload instead of detecting again. Detection of a feed URL can return a different title or
+ * icon than detection of the homepage did, which would make the confirmation never match.
+ * Values the model passes still override the payload, so any change fails the marker check.
+ * Returns null when there is no payload for this URL and type.
+ */
+private suspend fun AgentToolSession.confirmedSubscriptionSaveCandidate(
+    args: SaveSubscriptionSourceTool.Args,
+    requestedType: SubscriptionType?,
+): SubscriptionSaveCandidate? {
+    val lines = userPrompt.lineSequence().map { it.trim() }.toList()
+    if ("event=subscription_save_confirmed" !in lines || "confirmed=true" !in lines) return null
+    fun value(key: String): String? = lines.firstOrNull { it.startsWith("$key=") }?.substringAfter('=')
+    val url = value("url")?.takeIf { it.isNotBlank() } ?: return null
+    val type = value("type")?.toSubscriptionTypeOrNull() ?: return null
+    val inputUrl = args.url.trim()
+    val urlMatches =
+        inputUrl.agentUrlMatches(url) || value("requestedUrl")?.let { inputUrl.agentUrlMatches(it) } == true
+    if (!urlMatches || (requestedType != null && requestedType != type)) return null
+    val payloadIcon = value("icon")?.takeIf { it.isNotBlank() }
+    return SubscriptionSaveCandidate(
+        sourceId = existingSourceIdOrZero(args.sourceId.takeIf { it > 0 } ?: value("sourceId")?.toIntOrNull() ?: 0),
+        type = type,
+        url = url,
+        requestedUrl = value("requestedUrl").orEmpty(),
+        title = args.title.singleLine().ifBlank { value("title").orEmpty() },
+        icon = saveIcon(requested = args.icon, detected = payloadIcon),
+        // Display mode only applies to RSS, as in the detection path below.
+        displayMode =
+            if (type == SubscriptionType.RSS) {
+                args.displayMode.toRssDisplayModeOrNull()
+                    ?: value("displayMode")?.toRssDisplayModeOrNull()
+                    ?: RssDisplayMode.FULL_CONTENT
+            } else {
+                RssDisplayMode.FULL_CONTENT
+            },
+    )
+}
+
+/**
+ * The icon is loaded from the network later, so a model-written icon URL could carry private data.
+ * Keep the detected icon unless the user typed (or tapped a button carrying) the requested one.
+ */
+private fun AgentToolSession.saveIcon(
+    requested: String,
+    detected: String?,
+): String? {
+    val value = requested.singleLine()
+    return if (value.isNotBlank() && (value == detected || userPromptMentionsUrl(value))) value else detected
+}
+
+/** Whether a subscription tool may fetch [url]: user-typed, a saved source, or returned by a tool in this session. */
+internal suspend fun AgentToolSession.isAllowedSubscriptionFetchUrl(url: String): Boolean {
+    val value = url.trim()
+    if (value.isBlank()) return false
+    if (userPromptMentionsUrl(value) || subscriptionItemStore.isTrusted(value)) return true
+    val sources = runCatching { subscriptionDataSource?.listSources() }.getOrNull().orEmpty()
+    return sources.any { source ->
+        value.agentUrlMatches(source.url) || runCatching { value.agentUrlMatches(source.host) }.getOrDefault(false)
+    }
+}
+
+private suspend fun AgentToolSession.replacedSource(sourceId: Int): UiRssSource? =
+    if (sourceId > 0) subscriptionDataSource?.listSources()?.firstOrNull { it.id == sourceId } else null
+
+private fun untrustedSubscriptionUrlMessage(): String =
+    "Refused: this URL was not typed by the user in the latest message, is not a saved subscription source, " +
+        "and was not returned by a subscription tool in this turn. Do not build or change URLs. " +
+        "For an article from a saved source, call load_subscription_timeline for that source first and use its rssArticleRef. " +
+        "Otherwise ask the user to paste the exact URL they want to open."
 
 private suspend fun AgentToolSession.subscriptionSourceSelectionMessage(action: String): String {
     val dataSource = subscriptionDataSource ?: return noSubscriptionDataSourceMessage()
@@ -666,6 +800,14 @@ private suspend fun AgentToolSession.subscriptionSaveSelectionMessage(candidates
         }
     }.trim()
 }
+
+private fun SubscriptionSourceDetection.returnedUrls(): List<String> =
+    when (this) {
+        SubscriptionSourceDetection.RssHub -> emptyList()
+        is SubscriptionSourceDetection.RssFeed -> listOf(url)
+        is SubscriptionSourceDetection.RssSources -> sources.map { it.url }
+        is SubscriptionSourceDetection.SubscriptionInstance -> listOf(host)
+    }
 
 private fun SubscriptionSourceDetection.toToolText(): String =
     when (this) {
@@ -823,13 +965,21 @@ private fun UiRssSource.toTimelineTarget(): SubscriptionTimelineTarget =
         title = title,
     )
 
-private fun SubscriptionSaveCandidate.saveConfirmationMessage(requestId: String): String =
+private fun SubscriptionSaveCandidate.saveConfirmationMessage(
+    requestId: String,
+    replacedSource: UiRssSource?,
+): String =
     buildString {
         appendLine("event=subscription_save_confirmation_required")
         appendLine("inputRequestId=$requestId")
         appendLine("inputRequestOptions:")
         appendLine("- optionId=confirm")
         appendLine("  optionKind=confirmation")
+        appendLine("sourceId=$sourceId")
+        replacedSource?.let { existing ->
+            appendLine("replacesExistingSourceUrl=${existing.url}")
+            appendLine("replacesExistingSourceTitle=${existing.title.orEmpty()}")
+        }
         appendLine("type=${type.name}")
         appendLine("url=$url")
         appendLine("title=${title.orEmpty()}")
@@ -869,13 +1019,30 @@ private fun StringBuilder.appendSubscriptionSaveArgs(
     candidate: SubscriptionSaveCandidate,
     confirmed: Boolean,
 ) {
-    appendLine("type=${candidate.type.name}")
-    appendLine("url=${candidate.url}")
-    appendLine("title=${candidate.title.orEmpty()}")
-    appendLine("icon=${candidate.icon.orEmpty()}")
-    appendLine("displayMode=${candidate.displayMode.name}")
+    candidate.confirmationMarkers().forEach(::appendLine)
+    if (candidate.requestedUrl.isNotBlank()) {
+        appendLine("requestedUrl=${candidate.requestedUrl}")
+    }
     appendLine("confirmed=$confirmed")
 }
+
+/** The payload lines a confirm tap must carry; buttonConfirmed matches them as whole lines. */
+private fun SubscriptionSaveCandidate.confirmationMarkers(): List<String> =
+    listOf(
+        "sourceId=$sourceId",
+        "type=${type.name}",
+        "url=$url",
+        "title=${title.orEmpty()}",
+        "icon=${icon.orEmpty()}",
+        "displayMode=${displayMode.name}",
+    ).map { it.trim() }
+
+/** Payload values are matched line by line, so they must not contain line breaks. */
+private fun String.singleLine(): String =
+    lineSequence()
+        .map { it.trim() }
+        .filter { it.isNotEmpty() }
+        .joinToString(" ")
 
 private fun UiTimelineV2.Feed.agentRssArticleRef(): String = url
 

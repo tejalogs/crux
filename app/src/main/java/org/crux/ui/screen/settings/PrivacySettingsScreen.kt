@@ -1,6 +1,9 @@
 package org.crux.ui.screen.settings
 
+import android.app.Activity
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -74,6 +77,11 @@ import org.crux.ui.component.CruxScaffold
 import org.crux.ui.component.FAIcon
 import org.crux.ui.haptic.CruxHapticEvent
 import org.crux.ui.haptic.rememberFlareHapticFeedback
+import org.crux.ui.lock.AppLock
+import org.crux.ui.lock.AppLockToggleAction
+import org.crux.ui.lock.appLockToggleAction
+import org.crux.ui.lock.deviceCredentialIntent
+import org.crux.ui.lock.isDeviceSecure
 import org.crux.ui.presenter.invoke
 import org.crux.ui.screen.crux.hasSession
 import org.crux.ui.screen.home.LiveWebPrivacyCounters
@@ -226,13 +234,39 @@ internal fun PrivacySettingsScreen(
             Column(
                 verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
             ) {
+                val context = LocalContext.current
+                val needsScreenLockMessage = stringResource(id = R.string.settings_privacy_app_lock_needs_screen_lock)
+                val confirmToTurnOff =
+                    rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+                        val confirmed = result.resultCode == Activity.RESULT_OK
+                        AppLock.onConfirmPromptFinished(success = confirmed)
+                        if (confirmed) update { s -> s.copy(requireAppLock = false) }
+                    }
                 PrivacyToggle(
                     title = stringResource(id = R.string.settings_privacy_app_lock),
                     description = stringResource(id = R.string.settings_privacy_app_lock_description),
                     checked = settings.requireAppLock,
                     shapes = ListItemDefaults.single(),
-                ) { it ->
-                    update { s -> s.copy(requireAppLock = it) }
+                ) { enable ->
+                    when (appLockToggleAction(enable = enable, deviceSecure = context.isDeviceSecure())) {
+                        AppLockToggleAction.Save -> {
+                            update { s -> s.copy(requireAppLock = enable) }
+                        }
+
+                        AppLockToggleAction.NeedsScreenLock -> {
+                            Toast.makeText(context, needsScreenLockMessage, Toast.LENGTH_LONG).show()
+                        }
+
+                        AppLockToggleAction.ConfirmFirst -> {
+                            val intent = context.deviceCredentialIntent()
+                            if (intent == null) {
+                                update { s -> s.copy(requireAppLock = false) }
+                            } else if (AppLock.beginConfirmPrompt()) {
+                                runCatching { confirmToTurnOff.launch(intent) }
+                                    .onFailure { AppLock.onConfirmPromptFinished(success = false) }
+                            }
+                        }
+                    }
                 }
             }
 

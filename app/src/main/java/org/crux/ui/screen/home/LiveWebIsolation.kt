@@ -6,6 +6,8 @@ import android.content.Context
 import android.content.ContextWrapper
 import android.content.res.Configuration
 import android.content.res.Resources
+import android.os.Handler
+import android.os.Looper
 import android.webkit.CookieManager
 import android.webkit.WebSettings
 import android.webkit.WebStorage
@@ -23,6 +25,7 @@ import androidx.webkit.WebViewFeature
 import java.net.URI
 import java.net.URLDecoder
 import java.security.SecureRandom
+import java.util.WeakHashMap
 import org.crux.ui.screen.crux.hasSession
 
 private const val ISOLATION_PREFS = "live_web_isolation"
@@ -74,6 +77,9 @@ internal fun WebView.suspendWebSession() {
  */
 internal fun WebView.resumeWebSession() {
     runCatching {
+        // A sign-out sent this page to the sign-in page while it was hidden. Once that page has
+        // committed, dropping history again leaves nothing of the account to go Back to.
+        clearHistoryIfStartPageCommitted()
         onResume()
         resumeTimers()
         postInvalidateOnAnimation()
@@ -136,8 +142,40 @@ internal val multiProfileSupported: Boolean
 private val LiveWebSite.profile
     get() = ProfileStore.getInstance().getOrCreateProfile(name)
 
+/** Every site WebView made so far (weakly held), so signing out of a site can wipe its open pages. */
+private val siteWebViews = WeakHashMap<WebView, LiveWebSite>()
+
+/** Pages wiped by a sign-out whose back history is dropped again once the start page has committed. */
+private val pendingHistoryClears = WeakHashMap<WebView, Unit>()
+
+private const val HISTORY_CLEAR_POLL_MS = 250L
+private const val HISTORY_CLEAR_MAX_POLLS = 40
+
+/**
+ * Drops the back history of a page wiped by a sign-out once the start page it was sent to has
+ * committed. [wipeOpenPages] clears history before loading, which leaves the signed-in page as the
+ * one remaining entry; when the start page commits it becomes entry 1, so clearing then removes
+ * the signed-in page. Returns true when the pending clear was done (or none was pending).
+ */
+private fun WebView.clearHistoryIfStartPageCommitted(): Boolean {
+    if (synchronized(siteWebViews) { !pendingHistoryClears.containsKey(this) }) return true
+    if (copyBackForwardList().currentIndex < 1) return false
+    synchronized(siteWebViews) { pendingHistoryClears.remove(this) }
+    clearHistory()
+    return true
+}
+
+/** Polls on the main thread until [clearHistoryIfStartPageCommitted] succeeds, for about ten seconds. */
+private fun WebView.clearHistoryWhenStartPageCommits(pollsLeft: Int = HISTORY_CLEAR_MAX_POLLS) {
+    postDelayed({
+        val done = runCatching { clearHistoryIfStartPageCommitted() }.getOrDefault(true)
+        if (!done && pollsLeft > 1) clearHistoryWhenStartPageCommits(pollsLeft - 1)
+    }, HISTORY_CLEAR_POLL_MS)
+}
+
 /** Each site's cookies, storage, cache and service workers live in that site's own profile. */
 internal fun WebView.useProfileOf(site: LiveWebSite) {
+    synchronized(siteWebViews) { siteWebViews[this] = site }
     if (isSupported) {
         site.profile
         WebViewCompat.setProfile(this, site.name)
@@ -151,13 +189,67 @@ internal fun LiveWebSite.webStorage(): WebStorage = if (isSupported) profile.web
 /** Origins WebStorage can be asked to forget for a cookie domain. */
 internal fun storageOriginsFor(domain: String): List<String> = listOf("https://$domain", "https://www.$domain")
 
-/** Set-Cookie strings that expire [name] on [domain], both as a host-only and a domain cookie. */
+/** The subdomains the sites use for their own pages (mobile.x.com, old.reddit.com, m.instagram.com…). */
+private val SITE_SUBDOMAINS = listOf("m", "mobile", "old", "new", "sh")
+
+/**
+ * Every origin to sign out of for a cookie domain when profiles are unavailable: the domain, www,
+ * and the sites' other page subdomains, whose storage and host-only cookies would survive otherwise.
+ */
+internal fun signOutOriginsFor(domain: String): List<String> = storageOriginsFor(domain) + SITE_SUBDOMAINS.map { "https://$it.$domain" }
+
+/**
+ * Set-Cookie strings that expire [name] on [domain], both as a host-only and a domain cookie.
+ * Secure is set so `__Secure-` and `__Host-` cookies, which refuse any non-Secure overwrite, go too.
+ */
 internal fun expiryCookiesFor(
     domain: String,
     name: String,
 ): List<String> {
-    val expired = "$name=; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/"
+    val expired = "$name=; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Secure; Path=/"
     return listOf(expired, "$expired; Domain=.$domain")
+}
+
+/**
+ * Identity providers the sites sign in through, with the parent domain their session cookies are
+ * set on. Without profiles their cookies sit in the one shared jar.
+ */
+internal val IDENTITY_PROVIDER_HOSTS: Map<String, String> =
+    mapOf(
+        "accounts.google.com" to "google.com",
+        "accounts.youtube.com" to "youtube.com",
+        "appleid.apple.com" to "apple.com",
+        "auth.meta.com" to "meta.com",
+    )
+
+/**
+ * The identity-provider hosts whose cookies signing out of [site] should expire when every site
+ * shares one jar: the providers [site] signs in through, except those another site that is still
+ * signed in also uses. Expiring a Google session never signs another site out, but it would make
+ * the user sign in to Google again in a site they are still using; once no site that uses the
+ * provider is signed in, nothing needs it and leaving it would let the next person one-tap back
+ * into the account they just signed out of.
+ */
+internal fun identityProviderHostsToClear(
+    site: LiveWebSite,
+    stillSignedIn: Collection<LiveWebSite>,
+): List<String> =
+    IDENTITY_PROVIDER_HOSTS.keys.filter { host ->
+        site.allows(host) && stillSignedIn.none { it != site && it.allows(host) }
+    }
+
+/** Expires every cookie [origin] can see, as host-only and as domain cookies on each of [domains]. */
+private fun expireVisibleCookies(
+    cookies: CookieManager,
+    origin: String,
+    domains: List<String>,
+) {
+    cookieNames(cookies.getCookie("$origin/")).forEach { name ->
+        domains
+            .flatMap { expiryCookiesFor(it, name) }
+            .distinct()
+            .forEach { cookies.setCookie("$origin/", it) }
+    }
 }
 
 private fun cookieNames(header: String?): List<String> =
@@ -170,7 +262,12 @@ private fun cookieNames(header: String?): List<String> =
 /**
  * Signs out of this site only. With profiles that empties the site's own profile. Without them
  * every site shares one jar, so wiping it would sign out the others: instead only the cookies of
- * this site's own domains are expired and only its origins' storage is forgotten.
+ * this site's own domains (and subdomains) are expired, only its origins' storage is forgotten,
+ * and the Google / Apple / Meta sign-in cookies go once no other signed-in site uses them.
+ *
+ * Either way every open page of the site loses its back history and HTTP cache and goes to the
+ * start page, and with [context] the saved last page and scroll position are forgotten, so
+ * nothing of the account stays on screen or comes back on the next launch.
  */
 internal fun LiveWebSite.clearSession(context: Context? = null) {
     context?.let { LiveWebSessionState.clear(it, this) }
@@ -182,14 +279,57 @@ internal fun LiveWebSite.clearSession(context: Context? = null) {
         } else {
             val cookies = CookieManager.getInstance()
             cookieDomains.forEach { domain ->
-                storageOriginsFor(domain).forEach { origin ->
-                    cookieNames(cookies.getCookie("$origin/")).forEach { name ->
-                        expiryCookiesFor(domain, name).forEach { cookies.setCookie("$origin/", it) }
-                    }
+                signOutOriginsFor(domain).forEach { origin ->
+                    expireVisibleCookies(cookies, origin, listOf(domain, URI(origin).host))
                     WebStorage.getInstance().deleteOrigin(origin)
                 }
             }
+            val stillSignedIn = LiveWebSite.entries.filter { it != this && it.hasSession() }
+            identityProviderHostsToClear(this, stillSignedIn).forEach { host ->
+                expireVisibleCookies(cookies, "https://$host", listOfNotNull(host, IDENTITY_PROVIDER_HOSTS[host]))
+            }
             cookies.flush()
+        }
+    }
+    onMainThread { wipeOpenPages(context) }
+}
+
+private fun onMainThread(block: () -> Unit) {
+    if (Looper.myLooper() == Looper.getMainLooper()) block() else Handler(Looper.getMainLooper()).post(block)
+}
+
+/**
+ * Sends every open page of this site to its start page (the sign-in page once signed out) with
+ * its HTTP cache, form data and back history dropped, like [LiveWebPages.clearAndReload]. With
+ * [context], a short-lived WebView in the site's profile also empties that profile's HTTP cache,
+ * which covers the case where no page of the site is open. (Without profiles the HTTP cache is
+ * shared, so that drops every site's cached files; only sign-ins live in cookies, not the cache.)
+ */
+private fun LiveWebSite.wipeOpenPages(context: Context?) {
+    val open = synchronized(siteWebViews) { siteWebViews.filterValues { it == this }.keys.toList() }
+    open.forEach { webView ->
+        runCatching {
+            webView.stopLoading()
+            webView.clearCache(true)
+            webView.clearFormData()
+            webView.clearHistory()
+            webView.loadUrl(startUrlForSession())
+            synchronized(siteWebViews) { pendingHistoryClears[webView] = Unit }
+            webView.clearHistoryWhenStartPageCommits()
+        }
+    }
+    if (context != null) {
+        runCatching {
+            val scratch = WebView(context.applicationContext)
+            try {
+                if (isSupported) {
+                    profile
+                    WebViewCompat.setProfile(scratch, name)
+                }
+                scratch.clearCache(true)
+            } finally {
+                scratch.destroy()
+            }
         }
     }
 }
@@ -206,17 +346,28 @@ internal fun clearSharedWebDataOnce(context: Context) {
 
 private val TRACKING_PARAM =
     Regex(
-        "^(utm_.*|fbclid|gclid|twclid|ref_src|ref_url|igsh|igshid|share_id|li_fat_id|trk|trkInfo|trackingId|midSig|midToken|eid|otep|mibextid|rdt|rdt_cid)$",
+        "^(utm_.*|fbclid|gclid|gbraid|wbraid|msclkid|dclid|yclid|ttclid|twclid|ref_src|ref_url|igsh|igshid|share_id|" +
+            "li_fat_id|trk|trkInfo|trackingId|midSig|midToken|eid|otep|mibextid|rdt|rdt_cid|mc_eid|mc_cid|_hsenc|_hsmi)$",
         RegexOption.IGNORE_CASE,
     )
 
-// X's share links add s and t. On other sites they are real parameters (search, timestamps).
-private val X_SHARE_PARAM = Regex("^(s|t)$", RegexOption.IGNORE_CASE)
-private val X_HOSTS = setOf("x.com", "twitter.com")
+/**
+ * Sharer identifiers that are only tracking on their own site. Elsewhere the same short names are
+ * real parameters (search terms, timestamps, sizes), so they are dropped only on these hosts:
+ * X's s and t, YouTube's and Spotify's si (who shared the link), LinkedIn's rcm (member token).
+ */
+private val HOST_SCOPED_TRACKING_PARAMS: List<Pair<Set<String>, Regex>> =
+    listOf(
+        setOf("x.com", "twitter.com") to Regex("^(s|t)$", RegexOption.IGNORE_CASE),
+        setOf("youtube.com", "youtu.be", "spotify.com") to Regex("^si$", RegexOption.IGNORE_CASE),
+        setOf("linkedin.com") to Regex("^rcm$", RegexOption.IGNORE_CASE),
+    )
 
-private fun isXHost(host: String?): Boolean {
-    val h = host?.lowercase() ?: return false
-    return X_HOSTS.any { h == it || h.endsWith(".$it") }
+private fun hostScopedTrackingParams(host: String?): List<Regex> {
+    val h = host?.lowercase()?.trimEnd('.') ?: return emptyList()
+    return HOST_SCOPED_TRACKING_PARAMS
+        .filter { (hosts, _) -> hosts.any { h == it || h.endsWith(".$it") } }
+        .map { (_, params) -> params }
 }
 
 private fun queryParam(
@@ -265,11 +416,11 @@ internal fun cleanOutgoingLink(
         return url
     }
     val query = uri.rawQuery ?: return url
-    val xLink = isXHost(uri.host)
+    val siteParams = hostScopedTrackingParams(uri.host)
     val kept =
         query.split("&").filterNot {
             val name = it.substringBefore("=")
-            TRACKING_PARAM.matches(name) || (xLink && X_SHARE_PARAM.matches(name))
+            TRACKING_PARAM.matches(name) || siteParams.any { params -> params.matches(name) }
         }
     val base = url.substringBefore("?")
     val fragment = uri.rawFragment?.let { "#$it" }.orEmpty()

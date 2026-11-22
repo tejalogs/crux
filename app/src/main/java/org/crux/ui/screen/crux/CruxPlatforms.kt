@@ -12,6 +12,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import compose.icons.FontAwesomeIcons
@@ -226,6 +227,7 @@ internal fun readSignedInPlatforms(): Set<CruxPlatform> = CruxPlatform.entries.f
 internal fun rememberCruxConnectionsState(): CruxConnectionsState {
     val settingsRepository = koinInject<SettingsRepository>()
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     val stored by remember(settingsRepository) {
         settingsRepository.appSettings.map {
             StoredConnections(
@@ -262,8 +264,11 @@ internal fun rememberCruxConnectionsState(): CruxConnectionsState {
         }
     }
 
+    // With the context, clearSession also forgets the saved last page and scroll position, and it
+    // always sends the site's open pages to the sign-in page with their history and cache dropped,
+    // so the account does not stay on screen after Sign out or Remove.
     fun signOut(platform: CruxPlatform) {
-        platform.site?.clearSession()
+        platform.site?.clearSession(context)
         refresh()
     }
 

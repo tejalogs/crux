@@ -85,7 +85,6 @@ import compose.icons.fontawesomeicons.solid.Language
 import compose.icons.fontawesomeicons.solid.ShareNodes
 import compose.icons.fontawesomeicons.solid.WandMagicSparkles
 import io.ktor.http.Url
-import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filter
@@ -579,7 +578,6 @@ internal fun RssDetailScreen(
                                 MaybeSelectable(enabled = !paged) {
                                     RssRichText(
                                         element = remember(data.content, url) { parseHtml(data.content, baseUri = url) },
-                                        imageHeader = state.headers,
                                         textStyle = bodyStyle,
                                     )
                                 }
@@ -743,15 +741,6 @@ private fun presenter(
         remember(url, descriptionHtml, descriptionTitle, fallbackHtml) {
             RssDetailPresenter(url, descriptionHtml, descriptionTitle, fallbackHtml)
         }.invoke()
-    val headers =
-        remember(url) {
-            val host = runCatching { Url(url).host }.getOrDefault("")
-            persistentMapOf(
-                "Referer" to "https://$host/",
-                "User-Agent" to "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) " +
-                    "Ubuntu Chromium/70.0.3538.77 Chrome/70.0.3538.77 Safari/537.36",
-            )
-        }
     val enableTldr by remember {
         settingsRepository.appSettings.map { it.aiConfig.tldr }
     }.collectAsUiState()
@@ -771,7 +760,6 @@ private fun presenter(
             null
         }
     object : RssDetailPresenter.State by state {
-        val headers = headers
         val enableTldr = enableTldr
         val tldrState = tldrState
         val showTldr = showTldr

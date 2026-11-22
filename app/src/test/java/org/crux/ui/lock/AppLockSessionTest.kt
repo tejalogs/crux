@@ -1,6 +1,8 @@
 package org.crux.ui.lock
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -87,5 +89,106 @@ class AppLockSessionTest {
         now += 60_000L
         session.onActivityStarted(lockEnabled = false)
         assertTrue(session.isUnlocked)
+    }
+
+    @Test
+    fun slowButSuccessfulConfirmPromptStaysUnlocked() {
+        session.onActivityStarted(lockEnabled = true)
+        unlock()
+        assertTrue(session.beginConfirmPrompt())
+        assertFalse(session.beginConfirmPrompt())
+        session.onActivityStopped(changingConfigurations = false)
+        now += 60_000L
+        session.onActivityStarted(lockEnabled = true)
+        session.onConfirmPromptFinished(success = true)
+        assertTrue(session.isUnlocked)
+        assertTrue(session.beginConfirmPrompt())
+    }
+
+    @Test
+    fun confirmPromptCancelledAfterGracePeriodRelocks() {
+        session.onActivityStarted(lockEnabled = true)
+        unlock()
+        assertTrue(session.beginConfirmPrompt())
+        session.onActivityStopped(changingConfigurations = false) // left on the PIN screen
+        now += 60_000L
+        session.onActivityStarted(lockEnabled = true) // someone else reopens Crux
+        assertTrue(session.isUnlocked)
+        session.onConfirmPromptFinished(success = false)
+        assertFalse(session.isUnlocked)
+        assertTrue(session.beginAutoPrompt())
+    }
+
+    @Test
+    fun quickCancelOfConfirmPromptStaysUnlocked() {
+        session.onActivityStarted(lockEnabled = true)
+        unlock()
+        assertTrue(session.beginConfirmPrompt())
+        now += 2_000L
+        session.onConfirmPromptFinished(success = false)
+        assertTrue(session.isUnlocked)
+    }
+
+    @Test
+    fun confirmPromptThatCouldNotLaunchStaysUnlocked() {
+        session.onActivityStarted(lockEnabled = true)
+        unlock()
+        assertTrue(session.beginConfirmPrompt())
+        session.onConfirmPromptFinished(success = false)
+        assertTrue(session.isUnlocked)
+        assertTrue(session.beginConfirmPrompt())
+    }
+
+    @Test
+    fun leavingAfterConfirmPromptFinishedStillRelocks() {
+        session.onActivityStarted(lockEnabled = true)
+        unlock()
+        assertTrue(session.beginConfirmPrompt())
+        session.onConfirmPromptFinished(success = true)
+        session.onActivityStopped(changingConfigurations = false)
+        now += 10_000L
+        session.onActivityStarted(lockEnabled = true)
+        assertFalse(session.isUnlocked)
+    }
+
+    @Test
+    fun deferredRequestRunsAtOnceWhenUnlocked() {
+        val deferred = DeferredWhileLocked<String>()
+        assertEquals("crux://a", deferred.offer("crux://a", unlocked = true))
+        assertNull(deferred.release(unlocked = true))
+    }
+
+    @Test
+    fun deferredRequestWaitsForUnlockAndKeepsOnlyTheNewest() {
+        val deferred = DeferredWhileLocked<String>()
+        assertNull(deferred.offer("crux://a", unlocked = false))
+        assertNull(deferred.offer("crux://b", unlocked = false))
+        assertNull(deferred.release(unlocked = false))
+        assertEquals("crux://b", deferred.release(unlocked = true))
+        assertNull(deferred.release(unlocked = true))
+    }
+
+    @Test
+    fun requestHandledWhileUnlockedDropsAnOlderQueuedOne() {
+        val deferred = DeferredWhileLocked<String>()
+        assertNull(deferred.offer("crux://old", unlocked = false))
+        assertEquals("crux://new", deferred.offer("crux://new", unlocked = true))
+        assertNull(deferred.release(unlocked = true))
+    }
+
+    @Test
+    fun turningLockOffNeedsCredentialWhenDeviceIsSecure() {
+        assertEquals(AppLockToggleAction.ConfirmFirst, appLockToggleAction(enable = false, deviceSecure = true))
+    }
+
+    @Test
+    fun turningLockOffWithNoScreenLockSavesDirectly() {
+        assertEquals(AppLockToggleAction.Save, appLockToggleAction(enable = false, deviceSecure = false))
+    }
+
+    @Test
+    fun turningLockOnNeedsAScreenLock() {
+        assertEquals(AppLockToggleAction.NeedsScreenLock, appLockToggleAction(enable = true, deviceSecure = false))
+        assertEquals(AppLockToggleAction.Save, appLockToggleAction(enable = true, deviceSecure = true))
     }
 }

@@ -47,6 +47,14 @@ import org.crux.ui.route.toUri
 private val lightLinkColor = Color(0xff0066cc)
 private val darkLinkColor = Color(0xff99c3ff)
 
+/**
+ * Where an article `<a>` may send the reader, or null to render its text as plain text.
+ * Article HTML comes from the feed or the web page, so it gets the same check as post text:
+ * a crafted crux:// or flare-event:// link stays plain text instead of opening a privileged
+ * in-app route.
+ */
+internal fun rssLinkDestination(element: Element): String? = element.resolvedHref()?.takeIf { DeeplinkRoute.isSafeFromContent(it) }
+
 @Composable
 fun RssRichText(
     element: Element,
@@ -209,7 +217,7 @@ private fun RichTextScope.RenderElement(
         }
 
         "a" -> {
-            val href = element.resolvedHref()
+            val href = rssLinkDestination(element)
             if (href != null) {
                 with(context.builder) {
                     withFormat(

@@ -59,6 +59,7 @@ internal class AgentToolProvider(
     fun resolve(
         context: AgentToolContext,
         userPrompt: String = "",
+        subscriptionItemStore: AgentSubscriptionItemStore = AgentSubscriptionItemStore(),
     ): AgentToolSet {
         val statusContext = context.status
         val microblogDataSource = statusContext?.postDataSource as? MicroblogDataSource
@@ -135,6 +136,7 @@ internal class AgentToolProvider(
                 messagePartStore = AgentToolMessagePartStore(),
                 inputRequestStore = AgentToolInputRequestStore(),
                 userPrompt = userPrompt,
+                subscriptionItemStore = subscriptionItemStore,
             )
         return AgentToolSet(
             toolRegistry =
@@ -1221,6 +1223,7 @@ private const val AGENT_SUBSCRIPTION_TOOL_GUIDANCE =
     - Use detect_subscription_source before saving a URL or host when the exact type is unclear.
     - Use load_subscription_timeline for a saved source or an explicit type + URL/host. RSS results are feed articles.
     - Use load_rss_article only for actual RSS article URLs or rssArticleRef values returned by load_subscription_timeline. Do not use it for other non-RSS subscription items.
+    - Subscription tools only fetch URLs the user typed in the latest message, saved subscription sources, or URLs returned by subscription tools in this turn. Never build, change, or add query parameters to a URL. If a tool refuses a URL, ask the user to paste the exact URL instead of retrying.
     - Saving or deleting a subscription is a user-visible side effect. Always require confirmation before calling save_subscription_source or delete_subscription_source with confirmed=true.
     - When the user asks to add, save, update, remove, or delete a subscription source, do not write a manual confirmation message as the final answer. Call save_subscription_source or delete_subscription_source with confirmed=false first. The tool will create a structured confirmation request with one confirm button.
     - After save_subscription_source or delete_subscription_source returns structured confirmation fields for confirmed=false, write the confirmation copy yourself from those fields and do not claim the source has been saved/deleted yet.
@@ -1284,6 +1287,97 @@ internal fun AgentToolSession.buttonConfirmed(
     val lines = userPrompt.lineSequence().map { it.trim() }.toSet()
     return event in lines && "confirmed=true" in lines && markers.all { it in lines }
 }
+
+/**
+ * True when [url] appears in the latest user turn, either typed by the user or carried by a
+ * Crux button payload the user tapped. The comparison ignores a trailing slash and host case,
+ * but never accepts extra path or query text, so a model cannot append private data to a URL
+ * the user mentioned. See [agentUrlMatches] for the scheme rules.
+ */
+internal fun AgentToolSession.userPromptMentionsUrl(url: String): Boolean =
+    url.agentUrlKey().isNotBlank() && userPrompt.agentPromptUrls().any { url.agentUrlMatches(it) }
+
+/**
+ * True when this URL names the same address as [reference]. When both carry a scheme it must be
+ * the same, or an http to https upgrade; a scheme-less reference (a bare host or path) only
+ * matches http, https or no scheme, so a model cannot move a URL to cleartext or another protocol.
+ */
+internal fun String.agentUrlMatches(reference: String): Boolean {
+    val key = agentUrlKey()
+    return key.isNotBlank() &&
+        key == reference.agentUrlKey() &&
+        agentSchemeCompatible(requested = agentUrlScheme(), reference = reference.agentUrlScheme())
+}
+
+/** Comparison key for a URL or host: no scheme, no trailing slash, lower-case host. */
+internal fun String.agentUrlKey(): String {
+    val withoutScheme =
+        trim()
+            .trimEnd(*AGENT_URL_TRAILING_PUNCTUATION)
+            .replaceFirst(AGENT_URL_SCHEME_PREFIX, "")
+            .trimEnd('/')
+    val hostEnd =
+        withoutScheme
+            .indexOfFirst { it == '/' || it == '?' || it == '#' }
+            .let { if (it < 0) withoutScheme.length else it }
+    // "theverge.com" and "www.theverge.com" are the same site for this check.
+    val host = withoutScheme.substring(0, hostEnd).lowercase().removePrefix("www.")
+    return host + withoutScheme.substring(hostEnd)
+}
+
+private fun String.agentUrlScheme(): String? =
+    AGENT_URL_SCHEME_PREFIX
+        .find(trim())
+        ?.value
+        ?.removeSuffix("://")
+        ?.lowercase()
+
+private fun agentSchemeCompatible(
+    requested: String?,
+    reference: String?,
+): Boolean =
+    when {
+        requested == null -> true
+        reference == null -> requested == "http" || requested == "https"
+        else -> requested == reference || (reference == "http" && requested == "https")
+    }
+
+private fun String.agentUrlHostKey(): String = substringBefore('/').substringBefore('?').substringBefore('#')
+
+/**
+ * Every URL or host in the prompt, plus the bare host of each (keeping its scheme). In a Crux
+ * button payload only the URL fields count: free-text fields such as a title can carry text
+ * the model wrote earlier, which must not become a fetchable URL.
+ */
+internal fun String.agentPromptUrls(): List<String> {
+    val lines = lineSequence().map { it.trim() }.toList()
+    val text =
+        if (lines.any { it.startsWith("event=") }) {
+            lines
+                .filter { line -> AGENT_PAYLOAD_URL_KEYS.any { line.startsWith(it) } }
+                .joinToString("\n") { it.substringAfter('=') }
+        } else {
+            this
+        }
+    val urlTokens = AGENT_PROMPT_URL_TOKEN.findAll(text).map { it.value }
+    // Hosts are read from the rest of the text, so the host inside a typed URL keeps that URL's scheme.
+    val hostTokens = AGENT_PROMPT_HOST_TOKEN.findAll(AGENT_PROMPT_URL_TOKEN.replace(text, " ")).map { it.value }
+    return (urlTokens + hostTokens)
+        .flatMap { token ->
+            val host = token.agentUrlKey().agentUrlHostKey()
+            val scheme = token.agentUrlScheme()
+            sequenceOf(token, if (scheme == null) host else "$scheme://$host")
+        }.filter { it.agentUrlKey().isNotBlank() }
+        .toList()
+}
+
+private val AGENT_PAYLOAD_URL_KEYS = listOf("url=", "requestedUrl=")
+private val AGENT_URL_SCHEME_PREFIX = Regex("^[A-Za-z][A-Za-z0-9+.\\-]*://")
+private const val AGENT_URL_EXCLUDED_CHARS = "\\s<>\"'`()\\[\\]{}，。、；：！？「」《》"
+private val AGENT_PROMPT_URL_TOKEN = Regex("[A-Za-z][A-Za-z0-9+.\\-]*://[^$AGENT_URL_EXCLUDED_CHARS]+")
+private val AGENT_PROMPT_HOST_TOKEN =
+    Regex("[A-Za-z0-9\\-]+(?:\\.[A-Za-z0-9\\-]+)+(?::\\d+)?(?:[/?#][^$AGENT_URL_EXCLUDED_CHARS]*)?")
+private val AGENT_URL_TRAILING_PUNCTUATION = charArrayOf('.', ',', ';', ':', '!', '?')
 
 /** The text after the `content:` line of the confirmation payload, as the user confirmed it. */
 internal fun AgentToolSession.confirmedContent(): String? =

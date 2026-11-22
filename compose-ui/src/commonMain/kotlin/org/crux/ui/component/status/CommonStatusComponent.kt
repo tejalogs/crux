@@ -454,7 +454,8 @@ public fun CommonStatusComponent(
                                         },
                                 ).pointerHoverIcon(PointerIcon.Hand)
                                 .clickable {
-                                    uriHandler.openUri(card.url)
+                                    // Card URLs come from post content, so crux:// links get the content rules.
+                                    if (DeeplinkRoute.isSafeFromContent(card.url)) uriHandler.openUri(card.url)
                                 }.fillMaxWidth(),
                     )
                 }

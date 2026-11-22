@@ -37,6 +37,38 @@ class LiveWebLinksTest {
     }
 
     @Test
+    fun dropsAdClickAndNewsletterIdentifiers() {
+        assertEquals(
+            "https://example.com/a?id=7",
+            cleanOutgoingLink(
+                "https://example.com/a?msclkid=1&dclid=2&id=7&yclid=3&ttclid=4&mc_eid=5&mc_cid=6&_hsenc=7&_hsmi=8&gbraid=9&wbraid=10",
+            ),
+        )
+    }
+
+    @Test
+    fun dropsSharerIdentifiersOnlyOnTheirOwnSites() {
+        assertEquals("https://youtu.be/abc123?t=42", cleanOutgoingLink("https://youtu.be/abc123?si=sharer&t=42"))
+        assertEquals(
+            "https://www.youtube.com/watch?v=abc123",
+            cleanOutgoingLink("https://www.youtube.com/watch?v=abc123&si=sharer"),
+        )
+        assertEquals(
+            "https://music.youtube.com/watch?v=abc123",
+            cleanOutgoingLink("https://music.youtube.com/watch?v=abc123&si=sharer"),
+        )
+        assertEquals("https://open.spotify.com/track/1", cleanOutgoingLink("https://open.spotify.com/track/1?si=sharer"))
+        assertEquals(
+            "https://www.linkedin.com/posts/123",
+            cleanOutgoingLink("https://www.linkedin.com/posts/123?rcm=memberToken"),
+        )
+        // si and rcm are ordinary parameters on other sites and must survive there.
+        assertEquals("https://example.com/search?si=1&rcm=2", cleanOutgoingLink("https://example.com/search?si=1&rcm=2"))
+        // A look-alike host is not YouTube.
+        assertEquals("https://notyoutube.com/v?si=1", cleanOutgoingLink("https://notyoutube.com/v?si=1"))
+    }
+
+    @Test
     fun dropsOnlyTrackingParameters() {
         assertEquals(
             "https://example.com/a?id=7#top",

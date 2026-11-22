@@ -8,12 +8,10 @@ import android.webkit.CookieManager
 import android.webkit.GeolocationPermissions
 import android.webkit.PermissionRequest
 import android.webkit.ValueCallback
-import android.webkit.WebChromeClient
 import android.webkit.WebChromeClient.FileChooserParams
 import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
-import android.webkit.WebViewClient
 import android.widget.FrameLayout
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
@@ -53,21 +51,43 @@ import androidx.core.net.toUri
 import androidx.webkit.ProfileStore
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
+import com.kevinnzou.web.AccompanistWebViewClient
 import com.kevinnzou.web.WebView
 import com.kevinnzou.web.rememberWebViewState
 import org.crux.R
 import org.crux.ui.component.BackButton
 import org.crux.ui.component.CruxLargeFlexibleTopAppBar
 import org.crux.ui.component.CruxScaffold
+import org.crux.ui.lock.AppLock
 import org.crux.ui.screen.home.WebSessionLifecycleSuspender
 import org.crux.ui.screen.home.configureWebViewHeadersAndDarkening
 import org.crux.ui.screen.home.currentUiNightMask
 import org.crux.ui.screen.home.openInSystemBrowser
 import org.crux.ui.screen.home.restoreUiModeNightMaskIfNeeded
+import org.crux.ui.screen.instagram.LockAwareWebChromeClient
 import java.net.URI
 
 private const val HARDENED_BROWSER_PROFILE = "HardenedBrowser"
 private val HARDENED_SAFE_EXTERNAL_SCHEMES = setOf("mailto", "tel", "sms")
+
+/**
+ * Deletes the Hardened Browser profile's cookies and web storage. Runs when the screen opens as
+ * well as when it closes, because a process death while the screen is open skips onDispose and
+ * would otherwise carry the old session into the next visit. [onDone] runs once the cookies are
+ * gone (or at once if the profile could not be reached).
+ */
+private fun wipeHardenedBrowserProfile(onDone: () -> Unit = {}) {
+    val started =
+        runCatching {
+            val profile = ProfileStore.getInstance().getOrCreateProfile(HARDENED_BROWSER_PROFILE)
+            profile.webStorage.deleteAllData()
+            profile.cookieManager.removeAllCookies {
+                profile.cookieManager.flush()
+                onDone()
+            }
+        }.isSuccess
+    if (!started) onDone()
+}
 
 internal fun normalizeHardenedBrowserInput(raw: String): String? {
     val trimmed = raw.trim()
@@ -98,9 +118,15 @@ internal fun HardenedBrowserScreen(onBack: () -> Unit) {
     val currentUrlState = remember { mutableStateOf("") }
     val webViewRef = remember { mutableStateOf<WebView?>(null) }
     var canGoBack by remember { mutableStateOf(false) }
-    WebSessionLifecycleSuspender(webView = webViewRef.value)
+    // The WebView is created only after leftovers from an earlier session are wiped.
+    var profileWiped by remember { mutableStateOf(false) }
+    // Pause page script while App Lock covers the app.
+    WebSessionLifecycleSuspender(webView = webViewRef.value, isVisible = AppLock.isUnlocked)
     BackHandler(enabled = canGoBack) {
         webViewRef.value?.goBack()
+    }
+    LaunchedEffect(Unit) {
+        wipeHardenedBrowserProfile { profileWiped = true }
     }
     DisposableEffect(Unit) {
         onDispose {
@@ -110,13 +136,8 @@ internal fun HardenedBrowserScreen(onBack: () -> Unit) {
                     clearHistory()
                     clearFormData()
                 }
-                if (WebViewFeature.isFeatureSupported(WebViewFeature.MULTI_PROFILE)) {
-                    val profile = ProfileStore.getInstance().getOrCreateProfile(HARDENED_BROWSER_PROFILE)
-                    profile.cookieManager.removeAllCookies(null)
-                    profile.cookieManager.flush()
-                    profile.webStorage.deleteAllData()
-                }
             }
+            wipeHardenedBrowserProfile()
         }
     }
     val webViewState = rememberWebViewState("")
@@ -209,110 +230,121 @@ internal fun HardenedBrowserScreen(onBack: () -> Unit) {
             LaunchedEffect(webViewRef.value, webBackgroundColor) {
                 webViewRef.value?.setBackgroundColor(webBackgroundColor)
             }
-            WebView(
-                webViewState,
-                FrameLayout.LayoutParams(
-                    LayoutParams.MATCH_PARENT,
-                    LayoutParams.MATCH_PARENT,
-                ),
-                modifier = Modifier.fillMaxSize(),
-                onCreated = { view: WebView ->
-                    restoreUiModeNightMaskIfNeeded(view.context, expectedNightMask)
-                    view.post { restoreUiModeNightMaskIfNeeded(view.context, expectedNightMask) }
-                    if (WebViewFeature.isFeatureSupported(WebViewFeature.MULTI_PROFILE)) {
-                        ProfileStore.getInstance().getOrCreateProfile(HARDENED_BROWSER_PROFILE)
-                        WebViewCompat.setProfile(view, HARDENED_BROWSER_PROFILE)
-                    }
-                    view.setBackgroundColor(webBackgroundColor)
-                    webViewRef.value = view
-                    with(view.settings) {
-                        mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
-                        allowFileAccess = false
-                        allowContentAccess = false
-                        setGeolocationEnabled(false)
-                        @Suppress("DEPRECATION")
-                        setAllowFileAccessFromFileURLs(false)
-                        @Suppress("DEPRECATION")
-                        setAllowUniversalAccessFromFileURLs(false)
-                        javaScriptCanOpenWindowsAutomatically = false
-                        @Suppress("DEPRECATION")
-                        saveFormData = false
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                            safeBrowsingEnabled = true
-                        }
-                    }
-                    configureWebViewHeadersAndDarkening(view.settings)
-                    val cookieManager =
-                        if (WebViewFeature.isFeatureSupported(WebViewFeature.MULTI_PROFILE)) {
-                            ProfileStore.getInstance().getOrCreateProfile(HARDENED_BROWSER_PROFILE).cookieManager
-                        } else {
-                            CookieManager.getInstance()
-                        }
-                    cookieManager.setAcceptThirdPartyCookies(view, false)
-                    view.setWebViewClient(
-                        object : WebViewClient() {
-                            override fun shouldOverrideUrlLoading(
-                                view: WebView,
-                                request: WebResourceRequest,
-                            ): Boolean {
-                                if (!request.isForMainFrame) return false
-                                val target = request.url.toString()
-                                val scheme = request.url.scheme?.lowercase()
-                                return when {
-                                    scheme == "https" -> false
+            // The library sets its own clients right after onCreated, so ours go in as parameters;
+            // a client assigned inside onCreated would be silently replaced.
+            val webViewClient =
+                remember {
+                    object : AccompanistWebViewClient() {
+                        override fun shouldOverrideUrlLoading(
+                            view: WebView,
+                            request: WebResourceRequest,
+                        ): Boolean {
+                            if (!request.isForMainFrame) return false
+                            val target = request.url.toString()
+                            val scheme = request.url.scheme?.lowercase()
+                            return when {
+                                scheme == "https" -> false
 
-                                    scheme == "http" -> {
-                                        val upgraded = "https://" + target.substringAfter("://")
-                                        view.post { view.loadUrl(upgraded) }
-                                        true
-                                    }
-
-                                    scheme in HARDENED_SAFE_EXTERNAL_SCHEMES && request.hasGesture() -> {
-                                        runCatching {
-                                            view.context.startActivity(
-                                                Intent(Intent.ACTION_VIEW, target.toUri())
-                                                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-                                            )
-                                        }
-                                        true
-                                    }
-
-                                    else -> true
+                                scheme == "http" -> {
+                                    val upgraded = "https://" + target.substringAfter("://")
+                                    view.post { view.loadUrl(upgraded) }
+                                    true
                                 }
-                            }
 
-                            override fun onPageFinished(
-                                view: WebView,
-                                url: String?,
-                            ) {
-                                super.onPageFinished(view, url)
-                                currentUrlState.value = url ?: ""
-                                canGoBack = view.canGoBack()
-                            }
-                        },
-                    )
-                    view.setWebChromeClient(
-                        object : WebChromeClient() {
-                            override fun onGeolocationPermissionsShowPrompt(
-                                origin: String?,
-                                callback: GeolocationPermissions.Callback?,
-                            ) {
-                                callback?.invoke(origin, false, false)
-                            }
+                                scheme in HARDENED_SAFE_EXTERNAL_SCHEMES && request.hasGesture() -> {
+                                    runCatching {
+                                        view.context.startActivity(
+                                            Intent(Intent.ACTION_VIEW, target.toUri())
+                                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                                        )
+                                    }
+                                    true
+                                }
 
-                            override fun onPermissionRequest(request: PermissionRequest) {
-                                request.deny()
+                                else -> true
                             }
+                        }
 
-                            override fun onShowFileChooser(
-                                view: WebView,
-                                filePathCallback: ValueCallback<Array<Uri>>,
-                                fileChooserParams: FileChooserParams,
-                            ): Boolean = false
-                        },
-                    )
-                },
-            )
+                        override fun onPageFinished(
+                            view: WebView,
+                            url: String?,
+                        ) {
+                            super.onPageFinished(view, url)
+                            currentUrlState.value = url ?: ""
+                            canGoBack = view.canGoBack()
+                        }
+                    }
+                }
+            val chromeClient =
+                remember {
+                    object : LockAwareWebChromeClient() {
+                        override fun onGeolocationPermissionsShowPrompt(
+                            origin: String?,
+                            callback: GeolocationPermissions.Callback?,
+                        ) {
+                            callback?.invoke(origin, false, false)
+                        }
+
+                        override fun onPermissionRequest(request: PermissionRequest) {
+                            request.deny()
+                        }
+
+                        override fun onShowFileChooser(
+                            view: WebView,
+                            filePathCallback: ValueCallback<Array<Uri>>,
+                            fileChooserParams: FileChooserParams,
+                        ): Boolean = false
+                    }
+                }
+            if (profileWiped) {
+                WebView(
+                    webViewState,
+                    FrameLayout.LayoutParams(
+                        LayoutParams.MATCH_PARENT,
+                        LayoutParams.MATCH_PARENT,
+                    ),
+                    modifier = Modifier.fillMaxSize(),
+                    client = webViewClient,
+                    chromeClient = chromeClient,
+                    onCreated = { view: WebView ->
+                        restoreUiModeNightMaskIfNeeded(view.context, expectedNightMask)
+                        view.post { restoreUiModeNightMaskIfNeeded(view.context, expectedNightMask) }
+                        if (WebViewFeature.isFeatureSupported(WebViewFeature.MULTI_PROFILE)) {
+                            ProfileStore.getInstance().getOrCreateProfile(HARDENED_BROWSER_PROFILE)
+                            WebViewCompat.setProfile(view, HARDENED_BROWSER_PROFILE)
+                        }
+                        // The HTTP cache is not reachable through the profile; clear it once the
+                        // WebView is bound to the profile, before anything loads.
+                        runCatching { view.clearCache(true) }
+                        view.setBackgroundColor(webBackgroundColor)
+                        webViewRef.value = view
+                        with(view.settings) {
+                            mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+                            allowFileAccess = false
+                            allowContentAccess = false
+                            setGeolocationEnabled(false)
+                            @Suppress("DEPRECATION")
+                            setAllowFileAccessFromFileURLs(false)
+                            @Suppress("DEPRECATION")
+                            setAllowUniversalAccessFromFileURLs(false)
+                            javaScriptCanOpenWindowsAutomatically = false
+                            @Suppress("DEPRECATION")
+                            saveFormData = false
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                safeBrowsingEnabled = true
+                            }
+                        }
+                        configureWebViewHeadersAndDarkening(view.settings)
+                        val cookieManager =
+                            if (WebViewFeature.isFeatureSupported(WebViewFeature.MULTI_PROFILE)) {
+                                ProfileStore.getInstance().getOrCreateProfile(HARDENED_BROWSER_PROFILE).cookieManager
+                            } else {
+                                CookieManager.getInstance()
+                            }
+                        cookieManager.setAcceptThirdPartyCookies(view, false)
+                    },
+                )
+            }
         }
     }
 }

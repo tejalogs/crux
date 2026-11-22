@@ -41,6 +41,25 @@ class OnDevicePromptExecutorTest {
     }
 
     @Test
+    fun defaultLocalhostEndpointIsNeverUsedForOllama() {
+        val default = AppSettings.AiConfig.Type.OnDevice.DEFAULT_LOCALHOST_ENDPOINT
+        assertFalse(OnDevicePromptExecutor.isOllamaOptedIn(default))
+        assertFalse(OnDevicePromptExecutor.isOllamaOptedIn("$default/"))
+        assertFalse(OnDevicePromptExecutor.isOllamaOptedIn(" ${default.uppercase()} "))
+        assertFalse(OnDevicePromptExecutor.isOllamaOptedIn(AppSettings.AiConfig.Type.OnDevice().localhostEndpoint))
+        assertFalse(OnDevicePromptExecutor.isOllamaOptedIn(""))
+        assertFalse(OnDevicePromptExecutor.isOllamaOptedIn("https://api.openai.com/v1"))
+    }
+
+    @Test
+    fun userConfiguredLoopbackEndpointOptsIntoOllama() {
+        assertTrue(OnDevicePromptExecutor.isOllamaOptedIn("http://127.0.0.1:11434"))
+        assertTrue(OnDevicePromptExecutor.isOllamaOptedIn("http://localhost:8080"))
+        assertTrue(OnDevicePromptExecutor.isOllamaOptedIn("http://[::1]:11434"))
+        assertFalse(OnDevicePromptExecutor.isOllamaOptedIn("http://192.168.1.100:11434"))
+    }
+
+    @Test
     fun throwsSecurityExceptionOnNonLoopbackEndpoint() =
         runTest {
             val executor =

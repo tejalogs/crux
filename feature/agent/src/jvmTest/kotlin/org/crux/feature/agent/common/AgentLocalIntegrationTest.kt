@@ -62,7 +62,7 @@ internal class AgentLocalIntegrationTest {
                 )
             val request =
                 CruxAgentRequest(
-                    prompt = subscriptionPrompt("帮我添加订阅https://mastodon.social/"),
+                    prompt = subscriptionPrompt(LOCAL_SUBSCRIPTION_USER_INPUT),
                     systemPrompt = LOCAL_AGENT_SYSTEM_PROMPT,
                     agentId = "flare-local-agent-test",
                     strategyName = "local_subscription_confirmation",
@@ -118,6 +118,8 @@ internal class AgentLocalIntegrationTest {
     private fun subscriptionToolSet(
         subscriptionDataSource: SubscriptionDataSource,
         inputRequestStore: AgentToolInputRequestStore,
+        // Agent fetch tools only open URLs the user typed, so the session needs the user's text.
+        userPrompt: String = LOCAL_SUBSCRIPTION_USER_INPUT,
     ): AgentToolSet {
         val session =
             AgentToolSession(
@@ -130,6 +132,7 @@ internal class AgentLocalIntegrationTest {
                 userTargets = emptyList(),
                 messagePartStore = AgentToolMessagePartStore(),
                 inputRequestStore = inputRequestStore,
+                userPrompt = userPrompt,
             )
         return AgentToolSet(
             toolRegistry =
@@ -333,3 +336,5 @@ private fun String.removeWrappingQuotes(): String =
         length >= 2 && first() == '\'' && last() == '\'' -> substring(1, lastIndex)
         else -> this
     }.trim()
+
+private const val LOCAL_SUBSCRIPTION_USER_INPUT = "帮我添加订阅https://mastodon.social/"

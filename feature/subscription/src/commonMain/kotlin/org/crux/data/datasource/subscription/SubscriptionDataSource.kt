@@ -16,6 +16,7 @@ import org.crux.data.network.FaviconService
 import org.crux.data.network.rss.DocumentData
 import org.crux.data.network.rss.Readability
 import org.crux.data.network.rss.RssService
+import org.crux.data.network.rss.boundedParallelMap
 import org.crux.data.network.rss.toRssWebUrl
 import org.crux.data.platform.RssTimelineSpecs
 import org.crux.data.repository.SettingsRepository
@@ -115,27 +116,23 @@ public object KoinSubscriptionDataSource :
             )
         }
 
+        // detectLinkSources keeps only the first few advertised feeds, and they are downloaded a
+        // few at a time, so a page listing thousands of feeds cannot exhaust memory.
         val linkSources =
             runCatching {
-                coroutineScope {
-                    RssService
-                        .detectLinkSources(actualUrl)
-                        .map { sourceUrl ->
-                            async {
-                                val fetched = RssService.fetch(sourceUrl)
-                                UiRssSource(
-                                    id = 0,
-                                    url = sourceUrl,
-                                    title = fetched.title.trim(),
-                                    lastUpdate = Instant.DISTANT_PAST.toUi(),
-                                    favIcon =
-                                        runCatching {
-                                            RssService.iconFor(fetched, sourceUrl)
-                                        }.getOrNull(),
-                                    displayMode = RssDisplayMode.FULL_CONTENT,
-                                )
-                            }
-                        }.awaitAll()
+                boundedParallelMap(RssService.detectLinkSources(actualUrl)) { sourceUrl ->
+                    val fetched = RssService.fetch(sourceUrl)
+                    UiRssSource(
+                        id = 0,
+                        url = sourceUrl,
+                        title = fetched.title.trim(),
+                        lastUpdate = Instant.DISTANT_PAST.toUi(),
+                        favIcon =
+                            runCatching {
+                                RssService.iconFor(fetched, sourceUrl)
+                            }.getOrNull(),
+                        displayMode = RssDisplayMode.FULL_CONTENT,
+                    )
                 }
             }.getOrNull()
 

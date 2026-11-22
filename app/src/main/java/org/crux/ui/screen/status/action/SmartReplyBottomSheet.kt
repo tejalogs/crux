@@ -42,6 +42,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -134,6 +135,17 @@ internal fun SmartReplyBottomSheet(
     val onDeviceAI by koinInject<OnDeviceAI>()
     val settingsRepository by koinInject<SettingsRepository>()
     val aiCompletionService by koinInject<AiCompletionService>()
+    val aiConfigState by produceState<AppSettings.AiConfig?>(initialValue = null) {
+        value =
+            runCatching {
+                settingsRepository.appSettings.first().aiConfig
+            }.getOrNull() ?: AppSettings.AiConfig.default
+    }
+    // Null while settings load or for on-device AI; otherwise the server the post text goes to.
+    val cloudHost =
+        aiConfigState
+            ?.let { smartReplyCloudHost(it.type) }
+            ?.ifBlank { stringResource(id = R.string.smart_reply_cloud_unknown_host) }
 
     val editedDrafts = remember { mutableStateMapOf<SmartReplyAngle, String>() }
     var isUserEdited by remember { mutableStateOf(false) }
@@ -164,6 +176,7 @@ internal fun SmartReplyBottomSheet(
                 tone = selectedTone,
             )
 
+        val providerHost = smartReplyCloudHost(aiConfig.type)
         val rawAiOutput: String? =
             runCatching {
                 aiCompletionService.completePrompt(aiConfig, prompt)
@@ -196,8 +209,18 @@ internal fun SmartReplyBottomSheet(
             )
         if (!parsedOptions.isNullOrEmpty()) {
             val appContext = context.applicationContext
+            // Label by what produced the text: the configured server only when it answered,
+            // the on-device badge when the local heuristic filled in.
+            val resultHost = smartReplyResultHost(providerHost, producedByProvider = !rawAiOutput.isNullOrBlank())
             val themeBadge =
-                appContext.getString(R.string.smart_reply_model_on_device_ai)
+                if (resultHost != null) {
+                    appContext.getString(
+                        R.string.smart_reply_model_cloud_ai,
+                        resultHost.ifBlank { appContext.getString(R.string.smart_reply_cloud_unknown_host) },
+                    )
+                } else {
+                    appContext.getString(R.string.smart_reply_model_on_device_ai)
+                }
             replyResult =
                 replyResult.copy(
                     options = parsedOptions,
@@ -224,8 +247,13 @@ internal fun SmartReplyBottomSheet(
         isRefining = false
     }
 
-    LaunchedEffect(initialText, authorName, authorHandle, mediaDescription, parentContext, selectedTone) {
-        performRefinement(isManual = false)
+    LaunchedEffect(initialText, authorName, authorHandle, mediaDescription, parentContext, selectedTone, aiConfigState) {
+        // Page text (which can be the user's selection) only goes to a cloud provider on an
+        // explicit Regenerate tap, never automatically when the sheet opens.
+        val config = aiConfigState ?: return@LaunchedEffect
+        if (smartReplyAutoRefineAllowed(config.type)) {
+            performRefinement(isManual = false)
+        }
     }
 
     val accountsState by producePresenter {
@@ -597,13 +625,27 @@ internal fun SmartReplyBottomSheet(
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = stringResource(id = R.string.smart_reply_synthesizing_status),
+                            text =
+                                if (cloudHost != null) {
+                                    stringResource(id = R.string.smart_reply_synthesizing_status_cloud, cloudHost)
+                                } else {
+                                    stringResource(id = R.string.smart_reply_synthesizing_status)
+                                },
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.primary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
+                }
+
+                if (cloudHost != null && !isRefining) {
+                    Text(
+                        text = stringResource(id = R.string.smart_reply_cloud_tap_hint, cloudHost),
+                        modifier = Modifier.padding(top = 8.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(6.dp))
@@ -819,3 +861,34 @@ internal fun isCopyOnlySmartReplyTarget(
         host.contains("twitter.com") ||
         host.contains("reddit.com")
 }
+
+/**
+ * The host to show on the result badge: the configured cloud host only when that provider
+ * returned the text, otherwise null (the on-device badge) for the local heuristic fallback.
+ */
+internal fun smartReplyResultHost(
+    configuredHost: String?,
+    producedByProvider: Boolean,
+): String? = configuredHost.takeIf { producedByProvider }
+
+/** On-device generation may start when the sheet opens; a cloud provider needs an explicit tap. */
+internal fun smartReplyAutoRefineAllowed(type: AppSettings.AiConfig.Type): Boolean = type is AppSettings.AiConfig.Type.OnDevice
+
+/**
+ * The server Smart Reply sends text to, or null when generation stays on the device. Blank means
+ * a cloud provider whose address is unknown; it is still treated as leaving the device.
+ */
+internal fun smartReplyCloudHost(type: AppSettings.AiConfig.Type): String? =
+    when (type) {
+        is AppSettings.AiConfig.Type.OnDevice -> {
+            null
+        }
+
+        is AppSettings.AiConfig.Type.OpenAI -> {
+            val serverUrl = type.serverUrl.trim()
+            runCatching { java.net.URI(serverUrl).host }
+                .getOrNull()
+                ?.takeIf { it.isNotBlank() }
+                ?: serverUrl
+        }
+    }

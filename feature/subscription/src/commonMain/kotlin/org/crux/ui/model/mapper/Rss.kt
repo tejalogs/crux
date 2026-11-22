@@ -52,20 +52,26 @@ internal val Feed.link: String?
             is Feed.RDF -> this.channel.link
         }
 
+/**
+ * A usable article address, or null. A feed can claim any address, so Crux's own `crux://` and
+ * `flare-event://` schemes are refused: tapping the item would otherwise open an in-app route the
+ * feed author picked (see [DeeplinkRoute.isSafeFromContent]).
+ */
+internal fun String?.toFeedItemLink(): String? = this?.trim()?.takeIf { it.isNotEmpty() && !DeeplinkRoute.isInternalLink(it) }
+
 /** The article address: the alternate link, falling back to the entry id. Null when neither exists. */
 internal fun Feed.Atom.Entry.resolvedLink(): String? =
-    (links.firstOrNull { it.rel == null || it.rel == "alternate" }?.href ?: id)?.trim()?.takeIf { it.isNotEmpty() }
+    links.firstOrNull { it.rel == null || it.rel == "alternate" }?.href.toFeedItemLink() ?: id.toFeedItemLink()
 
 /** The article address: the link, falling back to a guid that is a permalink or looks like a web address. */
 internal fun Feed.Rss20.Item.resolvedLink(): String? =
-    link?.trim()?.takeIf { it.isNotEmpty() }
+    link.toFeedItemLink()
         ?: guid
             ?.takeIf { it.isPermaLink || it.value.trim().startsWith("http", ignoreCase = true) }
             ?.value
-            ?.trim()
-            ?.takeIf { it.isNotEmpty() }
+            .toFeedItemLink()
 
-internal fun Feed.RDF.Item.resolvedLink(): String? = link?.trim()?.takeIf { it.isNotEmpty() }
+internal fun Feed.RDF.Item.resolvedLink(): String? = link.toFeedItemLink()
 
 /** Turns a relative or protocol-relative address into an absolute one against [base]; leaves it as is if that fails. */
 internal fun resolveFeedUrl(
@@ -243,7 +249,10 @@ private fun RssDisplayMode.toFeedClickEvent(
     ClickEvent.Deeplink(
         when (this) {
             RssDisplayMode.OPEN_IN_BROWSER -> {
-                DeeplinkRoute.OpenLinkDirectly(url)
+                // resolvedLink() already refuses in-app schemes; never hand one to the link opener.
+                // An item with no usable link opens in the reader instead of an empty address.
+                url.toFeedItemLink()?.let { DeeplinkRoute.OpenLinkDirectly(it) }
+                    ?: DeeplinkRoute.Rss.Detail(url = url, title = title, fallbackHtml = descriptionHtml)
             }
 
             RssDisplayMode.FULL_CONTENT -> {

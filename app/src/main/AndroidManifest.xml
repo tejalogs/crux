@@ -27,12 +27,17 @@
         android:theme="@style/Theme.Crux.Starting"
         android:enableOnBackInvokedCallback="true"
         android:name=".App">
+        <!-- No WebView usage metrics upload, even when the device shares usage & diagnostics. -->
+        <meta-data
+            android:name="android.webkit.WebView.MetricsOptOut"
+            android:value="true" />
         <activity
             android:windowSoftInputMode="adjustResize"
             android:launchMode="singleTask"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"
             android:name="org.crux.MainActivity"
             android:exported="true"
+            android:taskAffinity=""
             android:theme="@style/Theme.Crux.Starting">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -54,6 +59,7 @@
             android:exported="true"
             android:excludeFromRecents="true"
             android:noHistory="true"
+            android:taskAffinity=""
             android:name=".ui.screen.compose.ShortcutComposeActivity">
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
@@ -67,6 +73,7 @@
             android:label="@string/add_rss_source"
             android:theme="@android:style/Theme.DeviceDefault.Dialog.NoActionBar"
             android:exported="true"
+            android:taskAffinity=""
             android:name=".ui.screen.rss.AddRssSourceActivity">
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />

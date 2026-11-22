@@ -30,7 +30,13 @@ internal class AppUriHandler(
 
                 is LinkTarget.InternalDeepLink -> {
                     val hostContext = context
-                    if (hostContext != null) {
+                    if (target.uri != uri) {
+                        // Crux's own buttons pass route.toUri() exactly. A crux:// link wrapped in
+                        // whitespace only gets here because it slipped past the untrimmed deeplink
+                        // checks upstream (content safety, DeepLinkPresenter), so it is refused
+                        // rather than stamped as trusted.
+                        false
+                    } else if (hostContext != null) {
                         tryOpen {
                             val intent =
                                 InternalDeeplinkToken.stamp(

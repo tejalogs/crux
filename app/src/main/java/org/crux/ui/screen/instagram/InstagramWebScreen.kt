@@ -7,6 +7,8 @@ import android.view.View
 import android.view.ViewGroup.LayoutParams
 import android.webkit.ConsoleMessage
 import android.webkit.GeolocationPermissions
+import android.webkit.JsPromptResult
+import android.webkit.JsResult
 import android.webkit.PermissionRequest
 import android.webkit.RenderProcessGoneDetail
 import android.webkit.ValueCallback
@@ -16,7 +18,6 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
-import android.webkit.WebViewClient
 import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
@@ -69,6 +70,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
+import com.kevinnzou.web.AccompanistWebChromeClient
+import com.kevinnzou.web.AccompanistWebViewClient
 import com.kevinnzou.web.WebView
 import com.kevinnzou.web.rememberWebViewState
 import compose.icons.FontAwesomeIcons
@@ -82,6 +85,7 @@ import compose.icons.fontawesomeicons.solid.RotateRight
 import compose.icons.fontawesomeicons.solid.Rss
 import compose.icons.fontawesomeicons.solid.TrashCan
 import kotlinx.coroutines.launch
+import org.crux.BuildConfig
 import org.crux.R
 import org.crux.data.datasource.instagram.InstagramFeedService
 import org.crux.ui.component.BackButton
@@ -89,6 +93,7 @@ import org.crux.ui.component.CruxDropdownMenu
 import org.crux.ui.component.CruxScaffold
 import org.crux.ui.component.CruxTopAppBar
 import org.crux.ui.component.FAIcon
+import org.crux.ui.lock.AppLock
 import org.crux.ui.screen.crux.CruxPlatform
 import org.crux.ui.screen.crux.LocalCruxConnections
 import org.crux.ui.screen.crux.PlatformBadge
@@ -136,6 +141,60 @@ internal fun isAdOrTrackingUrl(url: String): Boolean {
         lower.contains("appsflyer.com")
 }
 
+/**
+ * Chrome client for the in-app web screens that cancels a page's alert, confirm, prompt and
+ * beforeunload dialogs while App Lock is covering the app, so a page cannot draw over the lock
+ * or keep the user's attention while it is up. Extends the library's client so its loading state
+ * keeps working when passed as the `chromeClient` of com.kevinnzou.web.WebView.
+ */
+internal open class LockAwareWebChromeClient(
+    private val isUnlocked: () -> Boolean = { AppLock.isUnlocked },
+) : AccompanistWebChromeClient() {
+    /**
+     * Runs [block] only while the app is unlocked. Page-triggered actions (such as the bookmark
+     * bridge, which opens a bottom sheet in its own window) must not draw over the App Lock cover.
+     */
+    internal fun runIfUnlocked(block: () -> Unit) {
+        if (isUnlocked()) block()
+    }
+
+    /** True when the dialog was cancelled because the app is locked. */
+    private fun cancelWhileLocked(result: JsResult?): Boolean {
+        if (isUnlocked()) return false
+        result?.cancel()
+        return true
+    }
+
+    override fun onJsAlert(
+        view: WebView?,
+        url: String?,
+        message: String?,
+        result: JsResult?,
+    ): Boolean = cancelWhileLocked(result) || super.onJsAlert(view, url, message, result)
+
+    override fun onJsConfirm(
+        view: WebView?,
+        url: String?,
+        message: String?,
+        result: JsResult?,
+    ): Boolean = cancelWhileLocked(result) || super.onJsConfirm(view, url, message, result)
+
+    override fun onJsPrompt(
+        view: WebView?,
+        url: String?,
+        message: String?,
+        defaultValue: String?,
+        result: JsPromptResult?,
+    ): Boolean = cancelWhileLocked(result) || super.onJsPrompt(view, url, message, defaultValue, result)
+
+    override fun onJsBeforeUnload(
+        view: WebView?,
+        url: String?,
+        message: String?,
+        result: JsResult?,
+    ): Boolean = cancelWhileLocked(result) || super.onJsBeforeUnload(view, url, message, result)
+}
+
 internal fun extractInstagramProfile(url: String): String? {
     val uri = runCatching { Uri.parse(url) }.getOrNull() ?: return null
     val host = uri.host?.lowercase()?.trimEnd('.').orEmpty()
@@ -178,7 +237,8 @@ internal fun InstagramWebScreen(
 ) {
     val context = LocalContext.current
     val webViewRef = remember { mutableStateOf<WebView?>(null) }
-    WebSessionLifecycleSuspender(webView = webViewRef.value)
+    // Pause page script while App Lock covers the app.
+    WebSessionLifecycleSuspender(webView = webViewRef.value, isVisible = AppLock.isUnlocked)
     val scope = rememberCoroutineScope()
     val targetUrl =
         remember(initialUrl, forSignIn) {
@@ -215,13 +275,19 @@ internal fun InstagramWebScreen(
     }
 
     // Refreshes cookie-backed session state once Instagram login cookies are present.
+    // Reload the live tab and connections once per signed-in session, not on every navigation:
+    // this runs from onPageFinished and doUpdateVisitedHistory.
+    val sessionSynced = remember { booleanArrayOf(false) }
     val checkAndSyncSession =
         remember(pages, connections, autoReturnOnSignIn) {
             {
                 val cm = LiveWebSite.Instagram.cookieManager()
                 cm.flush()
                 val cookies = cm.getCookie(INSTAGRAM_HOME_URL).orEmpty() + "; " + cm.getCookie("https://instagram.com").orEmpty()
-                if (InstagramFeedService.hasActiveSession(cookies)) {
+                val signedIn = InstagramFeedService.hasActiveSession(cookies)
+                if (!signedIn) sessionSynced[0] = false
+                if (signedIn && !sessionSynced[0]) {
+                    sessionSynced[0] = true
                     scope.launch {
                         pages?.reload(LiveWebSite.Instagram)
                         connections?.refresh()
@@ -510,6 +576,191 @@ internal fun InstagramWebScreen(
             LaunchedEffect(webViewRef.value, webBackgroundColor) {
                 webViewRef.value?.setBackgroundColor(webBackgroundColor)
             }
+            val privacyCounters = remember(context) { LiveWebPrivacyCounters.get(context.applicationContext) }
+            val config = remember(context) { LiveWebPrivacyStore.get(context).configFor(LiveWebSite.Instagram) }
+            // The library sets its own clients right after onCreated, so ours go in as parameters;
+            // a client assigned inside onCreated would be silently replaced.
+            val webViewClient =
+                remember(config) {
+                    object : AccompanistWebViewClient() {
+                        override fun onRenderProcessGone(
+                            view: WebView,
+                            detail: RenderProcessGoneDetail,
+                        ): Boolean {
+                            exitFullscreenVideo()
+                            loadError = "Page renderer restarted"
+                            isPageLoading = false
+                            return true
+                        }
+
+                        override fun onReceivedError(
+                            view: WebView,
+                            request: WebResourceRequest?,
+                            error: WebResourceError?,
+                        ) {
+                            super.onReceivedError(view, request, error)
+                            if (request?.isForMainFrame == true) {
+                                loadError = error?.description?.toString() ?: "Failed to connect"
+                                isPageLoading = false
+                            }
+                        }
+
+                        override fun shouldInterceptRequest(
+                            view: WebView,
+                            request: WebResourceRequest,
+                        ): WebResourceResponse? =
+                            if (config.blocks(LiveWebSite.Instagram, request.url.host)) {
+                                privacyCounters.recordBlockedRequest(LiveWebSite.Instagram)
+                                blockedTrackerResponse()
+                            } else {
+                                super.shouldInterceptRequest(view, request)
+                            }
+
+                        override fun shouldOverrideUrlLoading(
+                            view: WebView,
+                            request: WebResourceRequest,
+                        ): Boolean = handleMainFrameUrlOverride(view, request, LiveWebSite.Instagram, config)
+
+                        override fun onPageStarted(
+                            view: WebView,
+                            url: String?,
+                            favicon: android.graphics.Bitmap?,
+                        ) {
+                            super.onPageStarted(view, url, favicon)
+                            val committed = url ?: view.url
+                            committed?.let {
+                                currentUrl = it
+                                canGoBack = computeWebViewCanGoBack(view.canGoBack(), it)
+                            }
+                            loadError = null
+                            isPageLoading = true
+                        }
+
+                        override fun doUpdateVisitedHistory(
+                            view: WebView,
+                            url: String?,
+                            isReload: Boolean,
+                        ) {
+                            super.doUpdateVisitedHistory(view, url, isReload)
+                            val committed = url ?: view.url
+                            committed?.let {
+                                currentUrl = it
+                                canGoBack = computeWebViewCanGoBack(view.canGoBack(), it)
+                            }
+                            val host = committed?.let { runCatching { Uri.parse(it).host }.getOrNull() }
+                            if (InstagramFeedService.isValidInstagramHost(host)) {
+                                checkAndSyncSession()
+                            }
+                        }
+
+                        override fun onPageFinished(
+                            view: WebView,
+                            url: String?,
+                        ) {
+                            super.onPageFinished(view, url)
+                            val committed = url ?: view.url
+                            committed?.let {
+                                currentUrl = it
+                                canGoBack = computeWebViewCanGoBack(view.canGoBack(), it)
+                            }
+                            isPageLoading = false
+                            if (
+                                !WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT) &&
+                                !isExternalOAuthUrl(committed) &&
+                                LiveWebSite.Instagram.allows(runCatching { java.net.URI(committed.orEmpty()).host }.getOrNull())
+                            ) {
+                                config.documentStartScripts(LiveWebSite.Instagram, bridgeToken).forEach { script ->
+                                    view.evaluateJavascript(script, null)
+                                }
+                            }
+                            val host = committed?.let { runCatching { Uri.parse(it).host }.getOrNull() }
+                            if (InstagramFeedService.isValidInstagramHost(host)) {
+                                checkAndSyncSession()
+                            }
+                        }
+                    }
+                }
+            val chromeClient =
+                remember(config) {
+                    object : LockAwareWebChromeClient() {
+                        override fun onCreateWindow(
+                            view: WebView,
+                            isDialog: Boolean,
+                            isUserGesture: Boolean,
+                            resultMsg: Message?,
+                        ): Boolean = handleCreateWindow(view, LiveWebSite.Instagram, config, isUserGesture, resultMsg)
+
+                        override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
+                            if (consoleMessage?.message() == bookmarkBridgeMsg) {
+                                // Page script can post this at any time: ignore it while App Lock is up,
+                                // and re-check when the async extraction returns.
+                                runIfUnlocked {
+                                    webViewRef.value?.let { wv ->
+                                        wv.post {
+                                            extractPostFromWebView(LiveWebSite.Instagram, wv) { extracted ->
+                                                runIfUnlocked { pendingBookmarkPost = extracted }
+                                            }
+                                        }
+                                    }
+                                }
+                                return true
+                            }
+                            // Page messages can carry URLs and data from a signed-in session: debug builds only.
+                            return if (BuildConfig.DEBUG) super.onConsoleMessage(consoleMessage) else true
+                        }
+
+                        override fun onShowCustomView(
+                            customView: View?,
+                            callback: WebChromeClient.CustomViewCallback?,
+                        ) {
+                            if (customView == null || customVideoView != null) {
+                                callback?.onCustomViewHidden()
+                                return
+                            }
+                            customVideoView = customView
+                            customVideoCallback = callback
+                        }
+
+                        override fun onHideCustomView() {
+                            exitFullscreenVideo()
+                        }
+
+                        override fun onGeolocationPermissionsShowPrompt(
+                            origin: String?,
+                            callback: GeolocationPermissions.Callback?,
+                        ) {
+                            callback?.invoke(origin, false, false)
+                        }
+
+                        override fun onPermissionRequest(request: PermissionRequest?) {
+                            request?.deny()
+                        }
+
+                        override fun onProgressChanged(
+                            view: WebView,
+                            newProgress: Int,
+                        ) {
+                            super.onProgressChanged(view, newProgress)
+                            pageProgress = newProgress / 100f
+                            isPageLoading = newProgress < 100
+                        }
+
+                        override fun onShowFileChooser(
+                            view: WebView,
+                            filePathCallback: ValueCallback<Array<Uri>>,
+                            fileChooserParams: WebChromeClient.FileChooserParams,
+                        ): Boolean {
+                            fileUploadCallback?.onReceiveValue(null)
+                            fileUploadCallback = filePathCallback
+                            val launched = runCatching { fileChooserLauncher.launch(buildFileChooserIntent(fileChooserParams)) }.isSuccess
+                            if (!launched) {
+                                fileUploadCallback?.onReceiveValue(null)
+                                fileUploadCallback = null
+                            }
+                            return launched
+                        }
+                    }
+                }
             WebView(
                 state = webViewState,
                 layoutParams =
@@ -518,6 +769,8 @@ internal fun InstagramWebScreen(
                         LayoutParams.MATCH_PARENT,
                     ),
                 modifier = Modifier.fillMaxSize(),
+                client = webViewClient,
+                chromeClient = chromeClient,
                 onCreated = { view: WebView ->
                     restoreUiModeNightMaskIfNeeded(view.context, expectedNightMask)
                     view.post { restoreUiModeNightMaskIfNeeded(view.context, expectedNightMask) }
@@ -528,9 +781,6 @@ internal fun InstagramWebScreen(
                     view.isVerticalScrollBarEnabled = false
                     view.isHorizontalScrollBarEnabled = false
                     webViewRef.value = view
-                    val privacyStore = LiveWebPrivacyStore.get(view.context)
-                    val privacyCounters = LiveWebPrivacyCounters.get(view.context.applicationContext)
-                    val config = privacyStore.configFor(LiveWebSite.Instagram)
                     with(view.settings) {
                         javaScriptEnabled = true
                         domStorageEnabled = true
@@ -578,177 +828,6 @@ internal fun InstagramWebScreen(
                     }
                     configureWebViewHeadersAndDarkening(view.settings)
                     attachSafeDownloadListener(view)
-
-                    view.webViewClient =
-                        object : WebViewClient() {
-                            override fun onRenderProcessGone(
-                                view: WebView,
-                                detail: RenderProcessGoneDetail,
-                            ): Boolean {
-                                exitFullscreenVideo()
-                                loadError = "Page renderer restarted"
-                                isPageLoading = false
-                                return true
-                            }
-
-                            override fun onReceivedError(
-                                view: WebView,
-                                request: WebResourceRequest,
-                                error: WebResourceError,
-                            ) {
-                                super.onReceivedError(view, request, error)
-                                if (request.isForMainFrame) {
-                                    loadError = error.description?.toString() ?: "Failed to connect"
-                                    isPageLoading = false
-                                }
-                            }
-
-                            override fun shouldInterceptRequest(
-                                view: WebView,
-                                request: WebResourceRequest,
-                            ): WebResourceResponse? =
-                                if (config.blocks(LiveWebSite.Instagram, request.url.host)) {
-                                    privacyCounters.recordBlockedRequest(LiveWebSite.Instagram)
-                                    blockedTrackerResponse()
-                                } else {
-                                    super.shouldInterceptRequest(view, request)
-                                }
-
-                            override fun shouldOverrideUrlLoading(
-                                view: WebView,
-                                request: WebResourceRequest,
-                            ): Boolean = handleMainFrameUrlOverride(view, request, LiveWebSite.Instagram, config)
-
-                            override fun onPageStarted(
-                                view: WebView,
-                                url: String?,
-                                favicon: android.graphics.Bitmap?,
-                            ) {
-                                super.onPageStarted(view, url, favicon)
-                                val committed = url ?: view.url
-                                committed?.let {
-                                    currentUrl = it
-                                    canGoBack = computeWebViewCanGoBack(view.canGoBack(), it)
-                                }
-                                loadError = null
-                                isPageLoading = true
-                            }
-
-                            override fun doUpdateVisitedHistory(
-                                view: WebView,
-                                url: String?,
-                                isReload: Boolean,
-                            ) {
-                                super.doUpdateVisitedHistory(view, url, isReload)
-                                val committed = url ?: view.url
-                                committed?.let {
-                                    currentUrl = it
-                                    canGoBack = computeWebViewCanGoBack(view.canGoBack(), it)
-                                }
-                                val host = committed?.let { runCatching { Uri.parse(it).host }.getOrNull() }
-                                if (InstagramFeedService.isValidInstagramHost(host)) {
-                                    checkAndSyncSession()
-                                }
-                            }
-
-                            override fun onPageFinished(
-                                view: WebView,
-                                url: String?,
-                            ) {
-                                super.onPageFinished(view, url)
-                                val committed = url ?: view.url
-                                committed?.let {
-                                    currentUrl = it
-                                    canGoBack = computeWebViewCanGoBack(view.canGoBack(), it)
-                                }
-                                isPageLoading = false
-                                if (
-                                    !WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT) &&
-                                    !isExternalOAuthUrl(committed) &&
-                                    LiveWebSite.Instagram.allows(runCatching { java.net.URI(committed.orEmpty()).host }.getOrNull())
-                                ) {
-                                    config.documentStartScripts(LiveWebSite.Instagram, bridgeToken).forEach { script ->
-                                        view.evaluateJavascript(script, null)
-                                    }
-                                }
-                                val host = committed?.let { runCatching { Uri.parse(it).host }.getOrNull() }
-                                if (InstagramFeedService.isValidInstagramHost(host)) {
-                                    checkAndSyncSession()
-                                }
-                            }
-                        }
-
-                    view.webChromeClient =
-                        object : WebChromeClient() {
-                            override fun onCreateWindow(
-                                view: WebView,
-                                isDialog: Boolean,
-                                isUserGesture: Boolean,
-                                resultMsg: Message?,
-                            ): Boolean = handleCreateWindow(view, LiveWebSite.Instagram, config, isUserGesture, resultMsg)
-
-                            override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
-                                if (consoleMessage?.message() == bookmarkBridgeMsg) {
-                                    view.post {
-                                        extractPostFromWebView(LiveWebSite.Instagram, view) { extracted ->
-                                            pendingBookmarkPost = extracted
-                                        }
-                                    }
-                                    return true
-                                }
-                                return super.onConsoleMessage(consoleMessage)
-                            }
-
-                            override fun onShowCustomView(
-                                customView: View?,
-                                callback: CustomViewCallback?,
-                            ) {
-                                if (customView == null || customVideoView != null) {
-                                    callback?.onCustomViewHidden()
-                                    return
-                                }
-                                customVideoView = customView
-                                customVideoCallback = callback
-                            }
-
-                            override fun onHideCustomView() {
-                                exitFullscreenVideo()
-                            }
-
-                            override fun onGeolocationPermissionsShowPrompt(
-                                origin: String?,
-                                callback: GeolocationPermissions.Callback?,
-                            ) {
-                                callback?.invoke(origin, false, false)
-                            }
-
-                            override fun onPermissionRequest(request: PermissionRequest?) {
-                                request?.deny()
-                            }
-
-                            override fun onProgressChanged(
-                                view: WebView,
-                                newProgress: Int,
-                            ) {
-                                pageProgress = newProgress / 100f
-                                isPageLoading = newProgress < 100
-                            }
-
-                            override fun onShowFileChooser(
-                                view: WebView,
-                                filePathCallback: ValueCallback<Array<Uri>>,
-                                fileChooserParams: FileChooserParams,
-                            ): Boolean {
-                                fileUploadCallback?.onReceiveValue(null)
-                                fileUploadCallback = filePathCallback
-                                val launched = runCatching { fileChooserLauncher.launch(buildFileChooserIntent(fileChooserParams)) }.isSuccess
-                                if (!launched) {
-                                    fileUploadCallback?.onReceiveValue(null)
-                                    fileUploadCallback = null
-                                }
-                                return launched
-                            }
-                        }
                 },
             )
             if (loadError != null) {

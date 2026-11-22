@@ -47,6 +47,7 @@ import org.crux.ui.model.collectAsUiState
 import org.crux.ui.model.takeSuccess
 import org.koin.core.annotation.Provided
 import org.koin.core.annotation.Single
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.native.HiddenFromObjC
 import kotlin.time.Clock
 
@@ -276,9 +277,27 @@ internal class AccountRepository internal constructor(
             .get(accountKey)
             .mapNotNull { it }
             .map {
-                val decrypted = credentialCipher.decrypt(it.credential_json)
+                val decrypted =
+                    decryptCredentialOrNull(it.credential_json)
+                        ?: throw RequireReLoginException(accountKey = it.account_key, platformId = it.platformId)
                 decrypted.decodeJson(serializer)
             }
+
+    /**
+     * Decrypts a stored credential, returning null when it cannot be decrypted (for example an
+     * `enc:v1:` value restored from a backup made on another install, or a truncated payload).
+     * Such an account is treated as signed out instead of crashing every collector of the
+     * account list.
+     */
+    private fun decryptCredentialOrNull(credentialJson: String): String? =
+        try {
+            credentialCipher.decrypt(credentialJson)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            DebugRepository.error(e)
+            null
+        }
 
     internal suspend fun getOrCreateDataSource(account: UiAccount): MicroblogDataSource {
         if (!account.platformAvailable) {
@@ -296,7 +315,9 @@ internal class AccountRepository internal constructor(
             appDatabase.accountDao().getAccount(account.accountKey)
                 ?: throw NoSuchElementException("Account not found: ${account.accountKey}")
 
-        val decrypted = credentialCipher.decrypt(dbAccount.credential_json)
+        // A credential that cannot be decrypted must not crash data source creation: the account is
+        // treated as signed out, and reading its credential reports RequireReLoginException instead.
+        val decrypted = decryptCredentialOrNull(dbAccount.credential_json)
 
         // Transparent auto-upgrade: encrypt in-place if stored credentials were plain unencrypted JSON
         if (!credentialCipher.isEncrypted(dbAccount.credential_json) && dbAccount.credential_json.isNotBlank()) {
@@ -317,6 +338,7 @@ internal class AccountRepository internal constructor(
                 .createDataSource(
                     RepositoryPlatformDataSourceContext(
                         accountKey = account.accountKey,
+                        platformId = account.platformId,
                         credentialJson = decrypted,
                     ),
                 )
@@ -337,9 +359,12 @@ internal class AccountRepository internal constructor(
 
     private inner class RepositoryPlatformDataSourceContext(
         override val accountKey: MicroBlogKey,
-        private val credentialJson: String,
+        private val platformId: String,
+        private val credentialJson: String?,
     ) : PlatformDataSourceContext {
-        override fun <T : Any> credential(serializer: KSerializer<T>): T = credentialJson.decodeJson(serializer)
+        override fun <T : Any> credential(serializer: KSerializer<T>): T =
+            (credentialJson ?: throw RequireReLoginException(accountKey = accountKey, platformId = platformId))
+                .decodeJson(serializer)
 
         override fun <T : Any> credentialFlow(serializer: KSerializer<T>): Flow<T> =
             this@AccountRepository.credentialFlow(
@@ -481,7 +506,15 @@ internal fun allAccountServicesFlow(repository: AccountRepository): Flow<Immutab
     repository.allAccounts.map { accounts ->
         accounts
             .filter { it.platformAvailable }
-            .map {
-                repository.getOrCreateDataSource(it)
+            .mapNotNull { account ->
+                // One broken account must not take down every screen that lists all accounts.
+                try {
+                    repository.getOrCreateDataSource(account)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    DebugRepository.error(e)
+                    null
+                }
             }.toImmutableList()
     }

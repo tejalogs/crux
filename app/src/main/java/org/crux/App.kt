@@ -13,18 +13,39 @@ import coil3.network.ktor3.KtorNetworkFetcherFactory
 import coil3.request.crossfade
 import coil3.svg.SvgDecoder
 import coil3.video.VideoFrameDecoder
+import io.ktor.client.plugins.api.Send
+import io.ktor.client.plugins.api.createClientPlugin
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import okio.Path.Companion.toOkioPath
 import org.crux.common.AnimatedPngDecoder
 import org.crux.common.AnimatedWebPDecoder
+import org.crux.data.network.PublicUrlValidator
 import org.crux.data.network.ktorClient
 import org.crux.data.privacy.PrivacySettingsRepository
 import org.crux.di.AndroidKoinApplication
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.component.get
 import org.koin.plugin.module.dsl.startKoin
+import java.io.IOException
+
+/**
+ * Refuses image requests to localhost, private, link-local or percent-encoded hosts. Feed items,
+ * articles and icons name any image URL they like; without this the image loader would send GETs
+ * into the user's home network or to services on the phone. Checked on every hop, redirects
+ * included, from the URL text alone (no DNS lookup), so normal CDN images are unaffected.
+ * Local `content://` and `file://` images never reach the network client, so they still load.
+ */
+private val RefuseNonPublicImageHosts =
+    createClientPlugin("RefuseNonPublicImageHosts") {
+        on(Send) { request ->
+            if (PublicUrlValidator.isNonPublicHostLiteral(request.url.host)) {
+                throw IOException("Refused image from a non-public address.")
+            }
+            proceed(request)
+        }
+    }
 
 class App :
     Application(),
@@ -85,6 +106,7 @@ class App :
                         httpClient =
                             ktorClient {
                                 useDefaultTransformers = false
+                                install(RefuseNonPublicImageHosts)
                             },
                     ),
                 )

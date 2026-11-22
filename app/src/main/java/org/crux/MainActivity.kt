@@ -47,7 +47,7 @@ import org.crux.data.privacy.PrivacySettingsRepository
 import org.crux.ui.AppContainer
 import org.crux.ui.component.platform.LocalWifiState
 import org.crux.ui.lock.AppLock
-import org.crux.ui.lock.AppLockCover
+import org.crux.ui.lock.AppLockCoverWindow
 import org.crux.ui.lock.deviceCredentialIntent
 import org.crux.ui.component.status.ProvideAndroidTimelineMediaActions
 import org.crux.ui.screen.home.LiveWebPrivacyStore
@@ -66,6 +66,9 @@ class MainActivity : ComponentActivity() {
 
     private var osNightModeMask: Int = Configuration.UI_MODE_NIGHT_UNDEFINED
     private var isOsDarkTheme by mutableStateOf(false)
+
+    /** Mirrors FLAG_SECURE on the activity window so the App Lock cover window copies it. */
+    private var isWindowSecure by mutableStateOf(false)
 
     private val lockLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -148,7 +151,16 @@ class MainActivity : ComponentActivity() {
                                 }
                                 if (locked) {
                                     CruxTheme {
-                                        AppLockCover(
+                                        // Opaque in the main window at once, so no frame of the
+                                        // hidden screen shows while the cover window appears.
+                                        Box(
+                                            modifier =
+                                                Modifier
+                                                    .fillMaxSize()
+                                                    .background(MaterialTheme.colorScheme.background),
+                                        )
+                                        AppLockCoverWindow(
+                                            secure = isWindowSecure,
                                             onUnlock = { if (AppLock.beginManualPrompt()) launchUnlockPrompt() },
                                             onBack = { moveTaskToBack(true) },
                                         )
@@ -197,6 +209,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun applySecureWindow(secure: Boolean) {
+        isWindowSecure = secure
         if (secure) {
             window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
         } else {

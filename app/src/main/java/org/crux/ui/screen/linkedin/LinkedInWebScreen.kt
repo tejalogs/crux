@@ -15,7 +15,6 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
-import android.webkit.WebViewClient
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -68,6 +67,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
+import com.kevinnzou.web.AccompanistWebViewClient
 import com.kevinnzou.web.WebView
 import com.kevinnzou.web.rememberWebViewState
 import compose.icons.FontAwesomeIcons
@@ -79,6 +79,7 @@ import compose.icons.fontawesomeicons.solid.Bookmark
 import compose.icons.fontawesomeicons.solid.EllipsisVertical
 import compose.icons.fontawesomeicons.solid.RotateRight
 import kotlinx.coroutines.launch
+import org.crux.BuildConfig
 import org.crux.R
 import org.crux.data.datasource.linkedin.LinkedInFeedParser
 import org.crux.data.datasource.linkedin.LinkedInFeedService
@@ -87,6 +88,7 @@ import org.crux.ui.component.CruxDropdownMenu
 import org.crux.ui.component.CruxScaffold
 import org.crux.ui.component.CruxTopAppBar
 import org.crux.ui.component.FAIcon
+import org.crux.ui.lock.AppLock
 import org.crux.ui.screen.crux.CruxPlatform
 import org.crux.ui.screen.crux.LocalCruxConnections
 import org.crux.ui.screen.crux.PlatformBadge
@@ -120,6 +122,7 @@ import org.crux.ui.screen.home.parseFileChooserActivityResult
 import org.crux.ui.screen.home.restoreUiModeNightMaskIfNeeded
 import org.crux.ui.screen.home.sanitizeSiteInitialUrl
 import org.crux.ui.screen.home.useProfileOf
+import org.crux.ui.screen.instagram.LockAwareWebChromeClient
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -132,7 +135,8 @@ internal fun LinkedInWebScreen(
     val context = LocalContext.current
     val sessionClearedMsg = stringResource(R.string.linkedin_session_cleared)
     val webViewRef = remember { mutableStateOf<WebView?>(null) }
-    WebSessionLifecycleSuspender(webView = webViewRef.value)
+    // Pause page script while App Lock covers the app.
+    WebSessionLifecycleSuspender(webView = webViewRef.value, isVisible = AppLock.isUnlocked)
     val scope = rememberCoroutineScope()
     val targetUrl =
         remember(initialUrl, forSignIn) {
@@ -169,11 +173,18 @@ internal fun LinkedInWebScreen(
     }
 
     // Refreshes cookie-backed session state once LinkedIn login cookies are present.
+    // Reload the live tab and connections once per signed-in session, not on every navigation:
+    // this runs from onPageFinished and doUpdateVisitedHistory.
+    val sessionSynced = remember { booleanArrayOf(false) }
+
     fun checkAndSyncSession() {
         val cm = LiveWebSite.LinkedIn.cookieManager()
         cm.flush()
         val cookies = cm.getCookie("https://www.linkedin.com").orEmpty() + "; " + cm.getCookie("https://linkedin.com").orEmpty()
-        if (LinkedInFeedService.hasActiveSession(cookies)) {
+        val signedIn = LinkedInFeedService.hasActiveSession(cookies)
+        if (!signedIn) sessionSynced[0] = false
+        if (signedIn && !sessionSynced[0]) {
+            sessionSynced[0] = true
             scope.launch {
                 pages?.reload(LiveWebSite.LinkedIn)
                 connections?.refresh()
@@ -384,9 +395,207 @@ internal fun LinkedInWebScreen(
             LaunchedEffect(webViewRef.value, webBackgroundColor) {
                 webViewRef.value?.setBackgroundColor(webBackgroundColor)
             }
+            val privacyCounters = remember(context) { LiveWebPrivacyCounters.get(context.applicationContext) }
+            val config = remember(context) { LiveWebPrivacyStore.get(context).configFor(LiveWebSite.LinkedIn) }
+            // The library sets its own clients right after onCreated, so ours go in as parameters;
+            // a client assigned inside onCreated would be silently replaced.
+            val webViewClient =
+                remember(config) {
+                    object : AccompanistWebViewClient() {
+                        override fun onRenderProcessGone(
+                            view: WebView?,
+                            detail: RenderProcessGoneDetail?,
+                        ): Boolean {
+                            exitFullscreenVideo()
+                            loadError = "Page renderer restarted"
+                            isPageLoading = false
+                            return true
+                        }
+
+                        override fun onReceivedError(
+                            view: WebView,
+                            request: WebResourceRequest?,
+                            error: WebResourceError?,
+                        ) {
+                            super.onReceivedError(view, request, error)
+                            if (request?.isForMainFrame == true) {
+                                loadError = error?.description?.toString() ?: "Failed to connect"
+                                isPageLoading = false
+                            }
+                        }
+
+                        override fun shouldOverrideUrlLoading(
+                            view: WebView?,
+                            request: WebResourceRequest?,
+                        ): Boolean {
+                            if (view == null || request == null) return false
+                            return handleMainFrameUrlOverride(view, request, LiveWebSite.LinkedIn, config)
+                        }
+
+                        override fun shouldInterceptRequest(
+                            view: WebView?,
+                            request: WebResourceRequest?,
+                        ): WebResourceResponse? =
+                            if (request != null && config.blocks(LiveWebSite.LinkedIn, request.url.host)) {
+                                privacyCounters.recordBlockedRequest(LiveWebSite.LinkedIn)
+                                blockedTrackerResponse()
+                            } else {
+                                super.shouldInterceptRequest(view, request)
+                            }
+
+                        override fun onPageStarted(
+                            view: WebView,
+                            url: String?,
+                            favicon: android.graphics.Bitmap?,
+                        ) {
+                            super.onPageStarted(view, url, favicon)
+                            val committed = url ?: view.url
+                            committed?.let {
+                                currentUrl = it
+                                canGoBack = computeWebViewCanGoBack(view.canGoBack(), it)
+                            }
+                            loadError = null
+                            isPageLoading = true
+                        }
+
+                        override fun onPageFinished(
+                            view: WebView,
+                            url: String?,
+                        ) {
+                            super.onPageFinished(view, url)
+                            isPageLoading = false
+                            val committed = url ?: view.url
+                            if (
+                                !WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT) &&
+                                !isExternalOAuthUrl(committed) &&
+                                LiveWebSite.LinkedIn.allows(runCatching { java.net.URI(committed.orEmpty()).host }.getOrNull())
+                            ) {
+                                config.documentStartScripts(LiveWebSite.LinkedIn, bridgeToken).forEach { script ->
+                                    view.evaluateJavascript(script, null)
+                                }
+                            }
+                            committed?.let {
+                                currentUrl = it
+                                canGoBack = computeWebViewCanGoBack(view.canGoBack(), it)
+                            }
+                            val host = committed?.let { runCatching { Uri.parse(it).host }.getOrNull() }
+                            if (LinkedInFeedParser.isValidLinkedInHost(host)) {
+                                checkAndSyncSession()
+                            }
+                        }
+
+                        override fun doUpdateVisitedHistory(
+                            view: WebView,
+                            url: String?,
+                            isReload: Boolean,
+                        ) {
+                            super.doUpdateVisitedHistory(view, url, isReload)
+                            val committed = url ?: view.url
+                            committed?.let {
+                                currentUrl = it
+                                canGoBack = computeWebViewCanGoBack(view.canGoBack(), it)
+                            }
+                            val host = committed?.let { runCatching { Uri.parse(it).host }.getOrNull() }
+                            if (LinkedInFeedParser.isValidLinkedInHost(host)) {
+                                checkAndSyncSession()
+                            }
+                        }
+                    }
+                }
+            val chromeClient =
+                remember(config) {
+                    object : LockAwareWebChromeClient() {
+                        override fun onCreateWindow(
+                            view: WebView?,
+                            isDialog: Boolean,
+                            isUserGesture: Boolean,
+                            resultMsg: Message?,
+                        ): Boolean {
+                            if (view == null) return false
+                            return handleCreateWindow(view, LiveWebSite.LinkedIn, config, isUserGesture, resultMsg)
+                        }
+
+                        override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
+                            if (consoleMessage?.message() == bookmarkBridgeMsg) {
+                                // Page script can post this at any time: ignore it while App Lock is up,
+                                // and re-check when the async extraction returns.
+                                runIfUnlocked {
+                                    webViewRef.value?.let { wv ->
+                                        wv.post {
+                                            extractPostFromWebView(LiveWebSite.LinkedIn, wv) { extracted ->
+                                                runIfUnlocked { pendingBookmarkPost = extracted }
+                                            }
+                                        }
+                                    }
+                                }
+                                return true
+                            }
+                            // Page messages can carry URLs and data from a signed-in session: debug builds only.
+                            return if (BuildConfig.DEBUG) super.onConsoleMessage(consoleMessage) else true
+                        }
+
+                        override fun onShowCustomView(
+                            customView: View?,
+                            callback: WebChromeClient.CustomViewCallback?,
+                        ) {
+                            if (customView == null || customVideoView != null) {
+                                callback?.onCustomViewHidden()
+                                return
+                            }
+                            customVideoView = customView
+                            customVideoCallback = callback
+                        }
+
+                        override fun onHideCustomView() {
+                            exitFullscreenVideo()
+                        }
+
+                        override fun onProgressChanged(
+                            view: WebView,
+                            newProgress: Int,
+                        ) {
+                            super.onProgressChanged(view, newProgress)
+                            pageProgress = newProgress / 100f
+                            if (newProgress >= 100) {
+                                isPageLoading = false
+                            }
+                        }
+
+                        override fun onGeolocationPermissionsShowPrompt(
+                            origin: String?,
+                            callback: GeolocationPermissions.Callback?,
+                        ) {
+                            callback?.invoke(origin, false, false)
+                        }
+
+                        override fun onPermissionRequest(request: PermissionRequest?) {
+                            request?.deny()
+                        }
+
+                        override fun onShowFileChooser(
+                            view: WebView?,
+                            callback: ValueCallback<Array<Uri>>?,
+                            fileChooserParams: WebChromeClient.FileChooserParams?,
+                        ): Boolean {
+                            filePathCallback?.onReceiveValue(null)
+                            filePathCallback = callback
+                            val launched =
+                                runCatching {
+                                    filePickerLauncher.launch(buildFileChooserIntent(fileChooserParams))
+                                }.isSuccess
+                            if (!launched) {
+                                filePathCallback?.onReceiveValue(null)
+                                filePathCallback = null
+                            }
+                            return launched
+                        }
+                    }
+                }
             WebView(
                 state = webViewState,
                 modifier = Modifier.fillMaxSize(),
+                client = webViewClient,
+                chromeClient = chromeClient,
                 onCreated = { webView ->
                     restoreUiModeNightMaskIfNeeded(webView.context, expectedNightMask)
                     webView.post { restoreUiModeNightMaskIfNeeded(webView.context, expectedNightMask) }
@@ -397,9 +606,6 @@ internal fun LinkedInWebScreen(
                     webView.isVerticalScrollBarEnabled = false
                     webView.isHorizontalScrollBarEnabled = false
                     webViewRef.value = webView
-                    val privacyStore = LiveWebPrivacyStore.get(webView.context)
-                    val privacyCounters = LiveWebPrivacyCounters.get(webView.context.applicationContext)
-                    val config = privacyStore.configFor(LiveWebSite.LinkedIn)
                     @Suppress("DEPRECATION")
                     webView.settings.apply {
                         javaScriptEnabled = true
@@ -444,188 +650,6 @@ internal fun LinkedInWebScreen(
                     }
                     configureWebViewHeadersAndDarkening(webView.settings)
                     attachSafeDownloadListener(webView)
-
-                    webView.webViewClient =
-                        object : WebViewClient() {
-                            override fun onRenderProcessGone(
-                                view: WebView?,
-                                detail: RenderProcessGoneDetail?,
-                            ): Boolean {
-                                exitFullscreenVideo()
-                                loadError = "Page renderer restarted"
-                                isPageLoading = false
-                                return true
-                            }
-
-                            override fun onReceivedError(
-                                view: WebView?,
-                                request: WebResourceRequest?,
-                                error: WebResourceError?,
-                            ) {
-                                super.onReceivedError(view, request, error)
-                                if (request?.isForMainFrame == true) {
-                                    loadError = error?.description?.toString() ?: "Failed to connect"
-                                    isPageLoading = false
-                                }
-                            }
-
-                            override fun shouldOverrideUrlLoading(
-                                view: WebView?,
-                                request: WebResourceRequest?,
-                            ): Boolean {
-                                if (view == null || request == null) return false
-                                return handleMainFrameUrlOverride(view, request, LiveWebSite.LinkedIn, config)
-                            }
-
-                            override fun shouldInterceptRequest(
-                                view: WebView?,
-                                request: WebResourceRequest?,
-                            ): WebResourceResponse? =
-                                if (request != null && config.blocks(LiveWebSite.LinkedIn, request.url.host)) {
-                                    privacyCounters.recordBlockedRequest(LiveWebSite.LinkedIn)
-                                    blockedTrackerResponse()
-                                } else {
-                                    super.shouldInterceptRequest(view, request)
-                                }
-
-                            override fun onPageStarted(
-                                view: WebView?,
-                                url: String?,
-                                favicon: android.graphics.Bitmap?,
-                            ) {
-                                super.onPageStarted(view, url, favicon)
-                                val committed = url ?: view?.url
-                                committed?.let {
-                                    currentUrl = it
-                                    canGoBack = computeWebViewCanGoBack(view?.canGoBack() ?: false, it)
-                                }
-                                loadError = null
-                                isPageLoading = true
-                            }
-
-                            override fun onPageFinished(
-                                view: WebView?,
-                                url: String?,
-                            ) {
-                                super.onPageFinished(view, url)
-                                isPageLoading = false
-                                if (
-                                    !WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT) &&
-                                    !isExternalOAuthUrl(url ?: view?.url) &&
-                                    LiveWebSite.LinkedIn.allows(runCatching { java.net.URI((url ?: view?.url).orEmpty()).host }.getOrNull())
-                                ) {
-                                    config.documentStartScripts(LiveWebSite.LinkedIn, bridgeToken).forEach { script ->
-                                        view?.evaluateJavascript(script, null)
-                                    }
-                                }
-                                val committed = url ?: view?.url
-                                committed?.let {
-                                    currentUrl = it
-                                    canGoBack = computeWebViewCanGoBack(view?.canGoBack() ?: false, it)
-                                }
-                                val host = committed?.let { runCatching { Uri.parse(it).host }.getOrNull() }
-                                if (LinkedInFeedParser.isValidLinkedInHost(host)) {
-                                    checkAndSyncSession()
-                                }
-                            }
-
-                            override fun doUpdateVisitedHistory(
-                                view: WebView?,
-                                url: String?,
-                                isReload: Boolean,
-                            ) {
-                                super.doUpdateVisitedHistory(view, url, isReload)
-                                val committed = url ?: view?.url
-                                committed?.let {
-                                    currentUrl = it
-                                    canGoBack = computeWebViewCanGoBack(view?.canGoBack() ?: false, it)
-                                }
-                                val host = committed?.let { runCatching { Uri.parse(it).host }.getOrNull() }
-                                if (LinkedInFeedParser.isValidLinkedInHost(host)) {
-                                    checkAndSyncSession()
-                                }
-                            }
-                        }
-
-                    webView.webChromeClient =
-                        object : WebChromeClient() {
-                            override fun onCreateWindow(
-                                view: WebView?,
-                                isDialog: Boolean,
-                                isUserGesture: Boolean,
-                                resultMsg: Message?,
-                            ): Boolean {
-                                if (view == null) return false
-                                return handleCreateWindow(view, LiveWebSite.LinkedIn, config, isUserGesture, resultMsg)
-                            }
-
-                            override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
-                                if (consoleMessage?.message() == bookmarkBridgeMsg) {
-                                    webView.post {
-                                        extractPostFromWebView(LiveWebSite.LinkedIn, webView) { extracted ->
-                                            pendingBookmarkPost = extracted
-                                        }
-                                    }
-                                    return true
-                                }
-                                return super.onConsoleMessage(consoleMessage)
-                            }
-
-                            override fun onShowCustomView(
-                                customView: View?,
-                                callback: CustomViewCallback?,
-                            ) {
-                                if (customView == null || customVideoView != null) {
-                                    callback?.onCustomViewHidden()
-                                    return
-                                }
-                                customVideoView = customView
-                                customVideoCallback = callback
-                            }
-
-                            override fun onHideCustomView() {
-                                exitFullscreenVideo()
-                            }
-
-                            override fun onProgressChanged(
-                                view: WebView?,
-                                newProgress: Int,
-                            ) {
-                                pageProgress = newProgress / 100f
-                                if (newProgress >= 100) {
-                                    isPageLoading = false
-                                }
-                            }
-
-                            override fun onGeolocationPermissionsShowPrompt(
-                                origin: String?,
-                                callback: GeolocationPermissions.Callback?,
-                            ) {
-                                callback?.invoke(origin, false, false)
-                            }
-
-                            override fun onPermissionRequest(request: PermissionRequest?) {
-                                request?.deny()
-                            }
-
-                            override fun onShowFileChooser(
-                                webView: WebView?,
-                                callback: ValueCallback<Array<Uri>>?,
-                                fileChooserParams: FileChooserParams?,
-                            ): Boolean {
-                                filePathCallback?.onReceiveValue(null)
-                                filePathCallback = callback
-                                val launched =
-                                    runCatching {
-                                        filePickerLauncher.launch(buildFileChooserIntent(fileChooserParams))
-                                    }.isSuccess
-                                if (!launched) {
-                                    filePathCallback?.onReceiveValue(null)
-                                    filePathCallback = null
-                                }
-                                return launched
-                            }
-                        }
                 },
             )
             if (loadError != null) {

@@ -43,45 +43,116 @@ jobs:
         run: ./gradlew :app:testDebugUnitTest :shared:jvmTest :feature:subscription:jvmTest :feature:agent:jvmTest
 
       # Version comes from fdroid.properties; BUILD_VERSION/BUILD_NUMBER override it if set.
-      # Built unsigned: Gradle, plugins and dependencies never see the signing key.
+      # Built unsigned and in a job that holds no secrets: signing happens in the separate
+      # `sign` job on a fresh runner, so Gradle, plugins and dependencies never share a runner,
+      # workspace or process tree with the signing key.
       - name: Build release APK (unsigned)
         env:
           CRUX_UNSIGNED_RELEASE: "true"
         run: ./gradlew :app:assembleRelease --stacktrace
 
-      # The only step that receives the signing secrets. It runs no project code.
-      - name: Sign release APK
+      - name: Upload unsigned APK
         if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: crux-unsigned-apk
+          path: app/build/outputs/apk/release/*-unsigned.apk
+          if-no-files-found: error
+          retention-days: 1
+
+  # The only job that receives the signing secrets. It runs no Gradle and no project code: it
+  # checks out just .github/sign_apk.sh, installs a pinned build-tools package, and signs the
+  # unsigned APK artifact produced by `build`.
+  sign:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: [ubuntu-latest]
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    env:
+      BUILD_TOOLS_VERSION: "36.0.0"
+
+    steps:
+      - name: Check out signing script only
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            .github/sign_apk.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Set up JDK
+        uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6
+        with:
+          distribution: "temurin"
+          java-version: 17
+
+      - name: Setup Android build-tools
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4
+        with:
+          packages: build-tools;${{ env.BUILD_TOOLS_VERSION }}
+
+      - name: Download unsigned APK
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: crux-unsigned-apk
+          path: unsigned-apk
+
+      - name: Sign release APK
         env:
           ALIAS: ${{ secrets.ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           KEY_STORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
           SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
-        run: bash ./.github/sign_apk.sh
+        run: |
+          shopt -s nullglob
+          APKS=(unsigned-apk/*-unsigned.apk)
+          if [[ ${#APKS[@]} -ne 1 ]]; then
+            echo "ERROR: expected exactly one unsigned APK, found ${#APKS[@]}" >&2
+            exit 1
+          fi
+          bash ./.github/sign_apk.sh "${APKS[0]}" dist/app-release.apk
 
+      # Set the repository variable RELEASE_CERT_SHA256 (lowercase hex, no colons) to also pin
+      # the expected release certificate; without it only debug-key signing is rejected.
       - name: Verify release APK signing
-        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          EXPECTED_CERT_SHA256: ${{ vars.RELEASE_CERT_SHA256 }}
         run: |
           APK=dist/app-release.apk
           SDK_DIR="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
-          APKSIGNER=$(ls -1 "${SDK_DIR}/build-tools"/*/apksigner | sort -V | tail -n 1)
+          APKSIGNER="${SDK_DIR}/build-tools/${BUILD_TOOLS_VERSION}/apksigner"
           CERT_INFO=$("$APKSIGNER" verify --print-certs "$APK")
           echo "$CERT_INFO"
           if echo "$CERT_INFO" | grep -qi "Android Debug"; then
             echo "ERROR: Tagged release APK was signed with an Android Debug key!" >&2
             exit 1
           fi
+          if [[ -n "${EXPECTED_CERT_SHA256:-}" ]]; then
+            ACTUAL=$(echo "$CERT_INFO" | grep -i "certificate SHA-256 digest" | head -n 1 \
+              | awk -F': ' '{print $2}' | tr -d ': ' | tr '[:upper:]' '[:lower:]')
+            EXPECTED=$(echo "$EXPECTED_CERT_SHA256" | tr -d ': ' | tr '[:upper:]' '[:lower:]')
+            if [[ "$ACTUAL" != "$EXPECTED" ]]; then
+              echo "ERROR: release certificate digest $ACTUAL does not match RELEASE_CERT_SHA256" >&2
+              exit 1
+            fi
+          else
+            echo "::warning::RELEASE_CERT_SHA256 is not set; the release certificate digest is not pinned."
+          fi
           (cd dist && sha256sum app-release.apk > SHA256SUMS && cat SHA256SUMS)
 
-      - name: Upload APK
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Upload signed APK
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: crux-release-apk
-          path: dist/*
+          path: |
+            dist/app-release.apk
+            dist/SHA256SUMS
+          if-no-files-found: error
 
   publish:
-    needs: build
+    needs: sign
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: [ubuntu-latest]
     timeout-minutes: 15

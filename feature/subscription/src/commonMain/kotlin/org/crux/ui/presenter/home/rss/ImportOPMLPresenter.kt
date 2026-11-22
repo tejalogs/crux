@@ -27,6 +27,26 @@ import kotlin.time.Clock
 
 private const val MAX_CONCURRENT_IMPORTS = 4
 
+/**
+ * How many feeds [ImportOPMLPresenter] would subscribe to for this OPML text, so the user can
+ * confirm before anything is imported. Throws when the text is not valid OPML.
+ */
+public fun countImportableOpmlFeeds(opmlContent: String): Int = importableOutlines(opmlContent).size
+
+/** Every outline in the document (nested ones too) that carries a feed URL. */
+private fun importableOutlines(opmlContent: String): List<OpmlOutline> =
+    decodeOpml(opmlContent)
+        .body.outlines
+        .flatMap { flattenOutlines(it) }
+        .filter { !it.xmlUrl.isNullOrBlank() }
+
+private fun flattenOutlines(outline: OpmlOutline): List<OpmlOutline> {
+    val result = mutableListOf<OpmlOutline>()
+    result.add(outline)
+    outline.outlines.forEach { result.addAll(flattenOutlines(it)) }
+    return result
+}
+
 public class ImportOPMLPresenter(
     private val opmlContent: String,
     private val fetchIcon: suspend (String) -> String? = { RssService.fetchIcon(it) },
@@ -52,11 +72,7 @@ public class ImportOPMLPresenter(
 
         LaunchedEffect(Unit) {
             try {
-                val opml = decodeOpml(opmlContent)
-                val outlines =
-                    opml.body.outlines
-                        .flatMap { flattenOutlines(it) }
-                        .filter { !it.xmlUrl.isNullOrBlank() }
+                val outlines = importableOutlines(opmlContent)
 
                 totalCount = outlines.size
 
@@ -118,12 +134,5 @@ public class ImportOPMLPresenter(
                 lastUpdateMillis = Clock.System.now().toEpochMilliseconds(),
             ),
         )
-    }
-
-    private fun flattenOutlines(outline: OpmlOutline): List<OpmlOutline> {
-        val result = mutableListOf<OpmlOutline>()
-        result.add(outline)
-        outline.outlines.forEach { result.addAll(flattenOutlines(it)) }
-        return result
     }
 }

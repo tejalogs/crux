@@ -1,5 +1,6 @@
 package org.crux.data.network
 
+import java.net.IDN
 import java.net.Inet4Address
 import java.net.Inet6Address
 import java.net.InetAddress
@@ -41,3 +42,9 @@ private fun isCgnatOrUniqueLocal(addr: InetAddress): Boolean =
             false
         }
     }
+
+internal actual fun platformAsciiHost(host: String): String? =
+    runCatching { IDN.toASCII(host, IDN.ALLOW_UNASSIGNED).lowercase().trimEnd('.') }
+        .getOrNull()
+        ?.takeIf { ascii -> ascii.isNotEmpty() && ascii.all { it.code < 0x80 } }
+

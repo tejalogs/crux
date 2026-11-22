@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
@@ -13,31 +14,38 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import moe.tlaster.precompose.molecule.producePresenter
 import org.crux.R
 import org.crux.ui.model.UiState
-import org.crux.ui.model.map
 import org.crux.ui.model.onError
 import org.crux.ui.model.onLoading
 import org.crux.ui.model.onSuccess
 import org.crux.ui.presenter.home.rss.ImportOPMLPresenter
+import org.crux.ui.presenter.home.rss.countImportableOpmlFeeds
 import org.crux.ui.theme.screenHorizontalPadding
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 
+/**
+ * Imports the feeds in an OPML file. The file can come from another app (share or VIEW intent), so
+ * nothing is subscribed until the user has seen how many feeds it holds and tapped Import.
+ */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun OPMLImportSheet(
@@ -45,9 +53,10 @@ internal fun OPMLImportSheet(
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
-    val state by producePresenter("import_rss_$uri") {
-        presenter(uri, context)
+    val preview by producePresenter("opml_preview_$uri") {
+        previewPresenter(uri, context)
     }
+    var confirmed by rememberSaveable(uri) { mutableStateOf(false) }
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -59,7 +68,7 @@ internal fun OPMLImportSheet(
                 modifier = Modifier.padding(horizontal = screenHorizontalPadding),
             )
         }
-        state
+        preview
             .onLoading {
                 Box(
                     contentAlignment = Alignment.Center,
@@ -70,30 +79,85 @@ internal fun OPMLImportSheet(
                 }
             }.onError {
                 Text(text = it.message ?: "Unknown error")
-            }.onSuccess { state ->
-                Column {
-                    ImportOPMLContent(
-                        state = state,
-                        onGoBack = onBack,
-                        modifier = Modifier.weight(1f),
+            }.onSuccess { opml ->
+                if (confirmed) {
+                    OpmlImportProgress(content = opml.content, uri = uri, onBack = onBack)
+                } else {
+                    OpmlImportConfirmation(
+                        feedCount = opml.feedCount,
+                        onImport = { confirmed = true },
+                        onCancel = onBack,
                     )
-                    Button(
-                        onClick = {
-                            onBack.invoke()
-                        },
-                        enabled = !state.importing,
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(
-                                    horizontal = screenHorizontalPadding,
-                                    vertical = 8.dp,
-                                ),
-                    ) {
-                        Text(stringResource(android.R.string.ok))
-                    }
                 }
             }
+    }
+}
+
+@Composable
+private fun OpmlImportConfirmation(
+    feedCount: Int,
+    onImport: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.padding(horizontal = screenHorizontalPadding, vertical = 8.dp),
+    ) {
+        Text(
+            text =
+                if (feedCount > 0) {
+                    stringResource(R.string.opml_import_confirm_message, feedCount)
+                } else {
+                    stringResource(R.string.opml_import_no_feeds)
+                },
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            TextButton(onClick = onCancel) {
+                Text(stringResource(R.string.action_cancel))
+            }
+            if (feedCount > 0) {
+                Button(onClick = onImport) {
+                    Text(stringResource(R.string.opml_import_confirm_action))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun OpmlImportProgress(
+    content: String,
+    uri: Uri,
+    onBack: () -> Unit,
+) {
+    val state by producePresenter("import_rss_$uri") {
+        remember(content) { ImportOPMLPresenter(content) }.body()
+    }
+    Column {
+        ImportOPMLContent(
+            state = state,
+            onGoBack = onBack,
+            modifier = Modifier.weight(1f),
+        )
+        Button(
+            onClick = {
+                onBack.invoke()
+            },
+            enabled = !state.importing,
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        horizontal = screenHorizontalPadding,
+                        vertical = 8.dp,
+                    ),
+        ) {
+            Text(stringResource(android.R.string.ok))
+        }
     }
 }
 
@@ -124,15 +188,21 @@ internal fun readBoundedOpmlText(
     } ?: ""
 }
 
+/** The OPML text read from the file, plus how many feeds it would subscribe to. */
+private data class OpmlPreview(
+    val content: String,
+    val feedCount: Int,
+)
+
 @Composable
-private fun presenter(
+private fun previewPresenter(
     uri: Uri,
     context: Context,
-) = run {
-    var contentState by remember { mutableStateOf<UiState<String>>(UiState.Loading()) }
+): UiState<OpmlPreview> {
+    var previewState by remember { mutableStateOf<UiState<OpmlPreview>>(UiState.Loading()) }
 
     LaunchedEffect(uri, context) {
-        contentState =
+        previewState =
             try {
                 val content =
                     withContext(Dispatchers.IO) {
@@ -141,14 +211,15 @@ private fun presenter(
                 if (content.isEmpty()) {
                     UiState.Error(Exception("Empty content"))
                 } else {
-                    UiState.Success(content)
+                    val feedCount = withContext(Dispatchers.Default) { countImportableOpmlFeeds(content) }
+                    UiState.Success(OpmlPreview(content = content, feedCount = feedCount))
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 UiState.Error(e)
             }
     }
 
-    contentState.map {
-        remember(it) { ImportOPMLPresenter(it) }.body()
-    }
+    return previewState
 }

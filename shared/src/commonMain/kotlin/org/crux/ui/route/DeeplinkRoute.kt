@@ -252,28 +252,44 @@ public sealed class DeeplinkRoute {
 
     public companion object Companion {
         @OptIn(ExperimentalSerializationApi::class)
-        public fun parse(uri: String): DeeplinkRoute? =
-            runCatching {
-                val hex =
-                    when {
-                        uri.startsWith("$APPSCHEMA://") -> uri.removePrefix("$APPSCHEMA://")
-                        else -> return null
-                    }
-                ProtoBuf.decodeFromHexString<RoutePackage>(hex).route
-            }.getOrNull()
+        public fun parse(uri: String): DeeplinkRoute? {
+            if (!uri.startsWith("$APPSCHEMA://")) return null
+            val route =
+                runCatching {
+                    ProtoBuf.decodeFromHexString<RoutePackage>(uri.removePrefix("$APPSCHEMA://")).route
+                }.getOrNull() ?: return null
+            // "Open this link directly" hands its target back to the link opener, which stamps
+            // in-app links as trusted. A wrapped in-app link would skip [isSafeFromContent], so the
+            // wrapper may only point outside the app.
+            if (route is OpenLinkDirectly && isInternalLink(route.url)) return null
+            return route
+        }
 
         public fun isDeeplink(uri: String): Boolean = uri.startsWith("$APPSCHEMA://")
+
+        /**
+         * Whether [uri] uses one of Crux's own schemes (`crux:` routes or `flare-event:` post
+         * actions), in any letter case and with or without the `//`.
+         */
+        public fun isInternalLink(uri: String): Boolean {
+            val scheme = uri.trim().substringBefore(':', missingDelimiterValue = "")
+            return scheme.isNotEmpty() && scheme.lowercase() in INTERNAL_SCHEMES
+        }
+
+        private val INTERNAL_SCHEMES = setOf(APPSCHEMA, "flare-event")
 
         /**
          * Whether a link found inside feed, post or article content may be opened. Ordinary web
          * links are fine; an in-app link is allowed only for plain navigation (profiles, search,
          * opening a post, starting a post, login). Prefilled AI sheets, media viewers, article
-         * HTML, moderation and account routes can only come from Crux's own buttons, so a crafted
-         * crux:// link in content cannot open them.
+         * HTML, moderation and account routes, and flare-event:// post actions can only come from
+         * Crux's own buttons, so a crafted link in content cannot open them.
          */
         public fun isSafeFromContent(uri: String): Boolean {
             val trimmed = uri.trim()
-            if (!isDeeplink(trimmed)) return true
+            if (!isInternalLink(trimmed)) return true
+            // flare-event:// actions and odd spellings such as CRUX:// are never content links.
+            if (!isDeeplink(trimmed)) return false
             return when (parse(trimmed)) {
                 is Profile.User,
                 is Profile.UserNameWithHost,

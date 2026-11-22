@@ -153,6 +153,20 @@ internal fun EntryProviderScope<NavKey>.homeEntryBuilder(
         )
     }
 
+    // Full-screen on purpose: never give this bottom-sheet or dialog metadata, so it can never
+    // open in its own window above the App Lock cover.
+    entry<Route.LiveShare>(
+        metadata = ListDetailSceneStrategy.detailPane("live_share"),
+    ) { args ->
+        LiveShareScreen(
+            siteNames = args.sites,
+            text = args.text,
+            url = args.url,
+            slidesSaved = args.slidesSaved,
+            onBack = onBack,
+        )
+    }
+
     entry<Route.CruxCompose>(
         metadata = BottomSheetSceneStrategy.bottomSheet()
     ) { args ->

@@ -80,12 +80,27 @@ public class ImportSettingsPresenter(
         }
 
         settingsRepository.updateAppSettings {
-            imported.appSettings
+            imported.appSettings.keepingLocalNetworkSettingsFrom(this)
         }
 
         settingsRepository.updateTabSettingsV2 {
             imported.tabSettingsV2
         }
+    }
+
+    internal companion object {
+        /**
+         * A backup file must never decide where AI prompts (article text, drafts, agent context) are
+         * sent: an imported `aiConfig` could point the OpenAI type at any server, and the AI screen
+         * cannot show or change that type. The device's current AI configuration (provider, endpoint,
+         * API key, prompts and feature toggles) and the retired translation provider settings (which
+         * also carry endpoints and API keys) are therefore always kept, whatever the file contains.
+         */
+        internal fun AppSettings.keepingLocalNetworkSettingsFrom(current: AppSettings): AppSettings =
+            copy(
+                aiConfig = current.aiConfig,
+                translateConfig = current.translateConfig,
+            )
     }
 
     private data class ImportedSettings(

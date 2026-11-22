@@ -8,8 +8,14 @@ import io.ktor.http.URLBuilder
 import io.ktor.http.Url
 import io.ktor.http.takeFrom
 import io.ktor.utils.io.readBuffer
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.io.readByteArray
 import kotlinx.serialization.decodeFromString
+import nl.adaptivity.xmlutil.XmlException
 import nl.adaptivity.xmlutil.serialization.XML
 import org.crux.data.network.FaviconService
 import org.crux.data.network.PublicUrlValidator
@@ -21,6 +27,15 @@ import org.crux.ui.model.mapper.link
 
 private const val MAX_RSS_RESPONSE_BYTES: Long = 10L * 1024 * 1024
 
+/**
+ * How many of the feeds a page advertises are tried. A page can list thousands of feed links,
+ * and each one is downloaded (up to [MAX_RSS_RESPONSE_BYTES]) to read its title.
+ */
+internal const val MAX_DISCOVERED_FEED_LINKS: Int = 5
+
+/** How many advertised feeds are downloaded at the same time during discovery. */
+internal const val MAX_CONCURRENT_DISCOVERY_FETCHES: Int = 3
+
 internal object RssService {
     private val client = publicWebClient()
 
@@ -29,9 +44,11 @@ internal object RssService {
         return parseFeedText(response)
     }
 
+    /** The feeds the page at [url] advertises, at most [MAX_DISCOVERED_FEED_LINKS] of them. */
     suspend fun detectLinkSources(url: String): List<String> {
         val safeUrl = PublicUrlValidator.requireSafePublicHttpUrl(url)
         return findFeedLinks(client.getPublic(safeUrl).decodedText(), safeUrl)
+            .take(MAX_DISCOVERED_FEED_LINKS)
             .takeIf { it.isNotEmpty() }
             ?: throw IllegalArgumentException("No RSS or Atom feeds found at the provided URL: $safeUrl")
     }
@@ -44,8 +61,15 @@ internal object RssService {
         feed: Feed,
         url: String,
     ): String? {
-        val feedIcon = (feed as? Feed.Atom)?.icon
-        if (feedIcon != null) {
+        // The feed names its own icon, so it gets the same public-address check as a favicon
+        // found on the site: otherwise every render of the source list would GET a LAN address.
+        val feedIcon =
+            (feed as? Feed.Atom)
+                ?.icon
+                ?.trim()
+                ?.takeIf { it.isNotEmpty() }
+                ?.let { resolveAgainst(url, it) }
+        if (feedIcon != null && PublicUrlValidator.isSafePublicHttpUrl(feedIcon)) {
             return feedIcon
         }
         return FaviconService.fetchIcon(feed.link ?: url)
@@ -116,7 +140,38 @@ internal fun resolveAgainst(
         .getOrNull()
         ?.takeIf { it.startsWith("http", ignoreCase = true) }
 
-internal fun parseFeedText(text: String): Feed = RssServiceXml.decodeFromString(text)
+internal fun parseFeedText(text: String): Feed {
+    rejectEntityDeclarations(text)
+    return RssServiceXml.decodeFromString(text)
+}
+
+/**
+ * Runs [transform] on each of [items] with at most [maxConcurrent] running at once, keeping the
+ * input order. Used for feed discovery so a page cannot start dozens of large downloads at once.
+ */
+internal suspend fun <T, R> boundedParallelMap(
+    items: List<T>,
+    maxConcurrent: Int = MAX_CONCURRENT_DISCOVERY_FETCHES,
+    transform: suspend (T) -> R,
+): List<R> {
+    val limiter = Semaphore(maxConcurrent)
+    return coroutineScope {
+        items.map { item -> async { limiter.withPermit { transform(item) } } }.awaitAll()
+    }
+}
+
+/**
+ * Refuses XML that declares entities in a DOCTYPE. Feeds and OPML never need a DTD, and the
+ * generic xmlutil parser expands internal entities with no depth or size limit, so a 1 KB
+ * "billion laughs" document would build gigabytes of text and freeze or crash the app.
+ */
+internal fun rejectEntityDeclarations(text: String) {
+    val doctype = text.indexOf("<!DOCTYPE", ignoreCase = true)
+    if (doctype < 0) return
+    if (text.indexOf("<!ENTITY", startIndex = doctype, ignoreCase = true) >= 0) {
+        throw XmlException("Refused XML document that declares entities in a DOCTYPE.")
+    }
+}
 
 internal fun decodeResponseBody(
     bytes: ByteArray,
