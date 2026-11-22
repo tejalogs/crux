@@ -1,0 +1,9 @@
+Crux 1.0.12
+- Security: the Instagram, LinkedIn and Hardened Browser screens now enforce their link allowlist, tracker blocking and crash protection, and show the real address
+- Fixed a crash when tapping Post in the compose sheet or Share in the carousel studio
+- App Lock now covers dialogs and sheets, pauses web pages while locked, and needs your PIN to turn off
+- AI agent only opens links you typed or that came from your feeds, and asks before opening links in replies
+- Safer link, feed and image handling: blocks tricks that reach your home network, crafted feeds that freeze the app, and in-app links hidden in articles
+- Backups can no longer change your AI settings or overwrite your feeds
+- Local Ollama is now off unless you set its address yourself
+- Release builds are signed in a separate, isolated CI step
