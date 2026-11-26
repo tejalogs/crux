@@ -1,0 +1,6 @@
+Crux 1.0.14
+- Smoother X browsing: eliminated forced touchstart layout reflows, stopped offscreen GPU tile churn, throttled DOM scans, and prevented ghost taps on hidden Discover More posts
+- Live-web navigation polish: faster tab open via onPageCommitVisible, auto-hide dock on feed scroll (with Back reveal), tap active pill at top of a thread to jump home, and immersive dock hiding on X media viewers and Reddit Chat
+- Larger 44dp/42dp dock touch targets and decluttered live-tab action bar
+- Reddit NSFW unblur CSS is now strictly isolated behind the opt-in toggle
+- LinkedIn inner-scroller scroll position now saves and restores on detail pages
