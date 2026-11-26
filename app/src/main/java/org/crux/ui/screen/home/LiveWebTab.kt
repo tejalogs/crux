@@ -589,10 +589,16 @@ internal class LiveWebPage(
                         val scrollToRestore = pendingRestoreScrollY
                         if (scrollToRestore > 0) {
                             pendingRestoreScrollY = 0
+                            val restoreScrollJs =
+                                if (site.feedScrollsInnerContainer) {
+                                    "(function(){window.scrollTo(0,$scrollToRestore);var m=document.querySelector('main#workspace,main,[role=\"main\"]');if(m)m.scrollTop=$scrollToRestore;})()"
+                                } else {
+                                    "window.scrollTo(0,$scrollToRestore)"
+                                }
                             view.postDelayed(
                                 {
                                     view.scrollTo(0, scrollToRestore)
-                                    view.evaluateJavascript("window.scrollTo(0,$scrollToRestore)", null)
+                                    view.evaluateJavascript(restoreScrollJs, null)
                                 },
                                 350L,
                             )
@@ -834,7 +840,13 @@ internal class LiveWebPage(
         // Saved at once with the view's own offset, since the page may be destroyed before the
         // script below answers; the page's scroll position then refines it.
         LiveWebSessionState.save(appContext, site, currentUrl, nativeY)
-        webView.evaluateJavascript("Math.round(window.scrollY||document.documentElement.scrollTop||0)") { raw ->
+        val readScrollJs =
+            if (site.feedScrollsInnerContainer) {
+                "(function(){var m=document.querySelector('main#workspace,main,[role=\"main\"]');return Math.round(Math.max(window.scrollY||document.documentElement.scrollTop||0,(m&&m.scrollTop)||0));})()"
+            } else {
+                "Math.round(window.scrollY||document.documentElement.scrollTop||0)"
+            }
+        webView.evaluateJavascript(readScrollJs) { raw ->
             val jsY = raw?.trim()?.toIntOrNull()?.coerceAtLeast(0) ?: 0
             if (jsY > nativeY) LiveWebSessionState.save(appContext, site, currentUrl, jsY)
         }

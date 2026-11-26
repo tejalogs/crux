@@ -142,6 +142,7 @@ internal fun installServiceWorkerCoverage(
 private var sharedRequestedWithCleared = false
 
 /** The default profile's service workers (the Hardened Browser fallback, the RSS reader's pages). */
+@SuppressLint("RestrictedApi")
 private fun clearSharedServiceWorkerRequestedWith() {
     if (sharedRequestedWithCleared) return
     sharedRequestedWithCleared = true

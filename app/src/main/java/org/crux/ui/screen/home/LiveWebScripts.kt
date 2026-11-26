@@ -125,6 +125,8 @@ internal object EngineMarks {
 internal data class TweakRule(
     /** Selectors hidden with display:none, one rule each so one bad selector cannot drop the rest. */
     val css: List<String> = emptyList(),
+    /** Complete CSS rules applied when this tweak is on (for layout or unblur rules other than display:none). */
+    val rawCss: List<String> = emptyList(),
     /** Short texts that mark a whole post (or timeline cell) as unwanted, e.g. "Sponsored". */
     val postLabels: List<String> = emptyList(),
     /** Module headings; the module around a matching heading is hidden. */
@@ -587,10 +589,7 @@ private val REDDIT_PROFILE =
                 "html{overflow-x:clip!important}",
                 "html,body,button,a,[role=\"button\"]{touch-action:manipulation!important}",
                 "shreddit-post{-webkit-tap-highlight-color:transparent!important}",
-                "shreddit-blurred-container:not([reason=\"spoiler\"]) [slot=\"revealed\"]{display:block!important;filter:none!important;-webkit-filter:none!important;opacity:1!important;visibility:visible!important}",
-                "shreddit-blurred-container:not([reason=\"spoiler\"]) > :not([slot=\"blurred\"]):not([slot=\"blur-toggle\"]){filter:none!important;-webkit-filter:none!important;opacity:1!important;visibility:visible!important}",
                 "[slot=\"post-media-container\"] .relative{height:100%!important}",
-                "faceplate-img.thumbnail-blur{filter:none!important;-webkit-filter:none!important}",
                 // Reddit locks body (rpl-scroll-lock) for its app sheet and NSFW prompt too; while no
                 // genuine modal is open the script sets the flag and the page keeps scrolling.
                 "html[$REDDIT_SCROLL_FREE_ATTR=\"1\"] body.rpl-scroll-lock{overflow:visible!important}",
@@ -947,6 +946,7 @@ internal val X_DISCOVER_MORE_JS =
         }else{
           n.style.setProperty('visibility','hidden','important');
           n.style.setProperty('opacity','0','important');
+          n.style.setProperty('pointer-events','none','important');
         }
         hiddenEls.add(n);
         reached=n;
@@ -1361,6 +1361,12 @@ internal val SiteTweak.rule: TweakRule
 
             SiteTweak.RedditUnblurNsfw -> {
                 TweakRule(
+                    rawCss =
+                        listOf(
+                            "shreddit-blurred-container:not([reason=\"spoiler\"]) [slot=\"revealed\"]{display:block!important;filter:none!important;-webkit-filter:none!important;opacity:1!important;visibility:visible!important}",
+                            "shreddit-blurred-container:not([reason=\"spoiler\"]) > :not([slot=\"blurred\"]):not([slot=\"blur-toggle\"]){filter:none!important;-webkit-filter:none!important;opacity:1!important;visibility:visible!important}",
+                            "faceplate-img.thumbnail-blur{filter:none!important;-webkit-filter:none!important}",
+                        ),
                     css =
                         listOf(
                             "[slot=\"nsfw-banner\"]",
@@ -2148,7 +2154,7 @@ internal fun buildSiteScript(
     val metricRules = if (hideEngagementCounts) calmMetricsCss(site) else emptyList()
     val baseRules = if (site == LiveWebSite.X && rules.isEmpty() && metricRules.isEmpty()) emptyList() else profile.baseRules
     val css =
-        (baseRules + (rules.flatMap { it.css } + metricRules).distinct().map { "$it{display:none!important}" })
+        (baseRules + rules.flatMap { it.rawCss }.distinct() + (rules.flatMap { it.css } + metricRules).distinct().map { "$it{display:none!important}" })
             .joinToString(" ")
     val postLabels = rules.flatMap { it.postLabels }.distinct()
     val headingLabels = rules.flatMap { it.headingLabels }.distinct()

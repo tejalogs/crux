@@ -188,7 +188,7 @@ function page(path,named){
     var out={};
     state.named.forEach(function(p){
       var s=p[1].style.props;
-      out[p[0]]=s.display==='none'?'none':(s.visibility==='hidden'&&s.opacity==='0'?'invisible':'shown');
+      out[p[0]]=s.display==='none'?'none':(s.visibility==='hidden'&&s.opacity==='0'&&s['pointer-events']==='none'?'invisible':'shown');
     });
     return out;
   };

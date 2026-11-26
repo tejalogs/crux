@@ -515,11 +515,14 @@ class LiveWebTweaksTest {
         assertTrue(defaults.contains("reddit-answers"))
         assertTrue(defaults.contains("trending-carousel"))
         assertFalse("NSFW unblur is opt-in", defaults.contains("removeAttribute('nsfw')"))
+        assertFalse("NSFW unblur CSS must not leak when toggle is off", defaults.contains("thumbnail-blur"))
+        assertFalse("NSFW revealed slot CSS must not leak when toggle is off", defaults.contains("shreddit-blurred-container:not"))
 
         val withUnblur =
             script(LiveWebSite.Reddit, SiteWebSettings.defaultsFor(LiveWebSite.Reddit).tweaks + SiteTweak.RedditUnblurNsfw)
         assertTrue(withUnblur.contains("removeAttribute('nsfw')"))
         assertTrue(withUnblur.contains("shreddit-blurred-container[${EngineMarks.unblurred}]"))
+        assertTrue(withUnblur.contains("faceplate-img.thumbnail-blur"))
         assertFalse(withUnblur.contains("over18=1"))
     }
 
