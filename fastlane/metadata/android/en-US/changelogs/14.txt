@@ -1,0 +1,7 @@
+Crux 1.0.13
+- X: normal and video posts are no longer hidden as ads; Home opens at the newest posts; "Who to follow" fully hidden; new option to hide "Discover more" under posts; links open instantly
+- LinkedIn: smoother scrolling (pull-to-refresh no longer grabs the feed) and promoted posts are hidden on the mobile site
+- Reddit: no "View in Reddit App" sheet, NSFW pages scroll again, and NSFW is opt-in with no clicks inside your account
+- Instagram: Suggested carousel hidden properly, full-height Reels and Stories, bookmarks save the post itself
+- Privacy: sites can no longer see Crux markers in pages, keyboard won't learn what you type, message and sign-in screens are protected from screenshots, plus a new "Contacted today" log and Privacy Checkup
+- Keeps your place, asks before signing out, and many smaller fixes
