@@ -169,6 +169,7 @@ internal class CruxConnectionsState(
     val enabled: List<CruxPlatform>,
     val signedIn: Set<CruxPlatform>,
     private val onSetEnabled: (CruxPlatform, Boolean) -> Unit,
+    private val onHide: (CruxPlatform) -> Unit,
     private val onCompleteOnboarding: (List<CruxPlatform>) -> Unit,
     private val onResetOnboarding: () -> Unit,
     private val onSignOut: (CruxPlatform) -> Unit,
@@ -182,10 +183,14 @@ internal class CruxConnectionsState(
     val postTargets: List<CruxPlatform>
         get() = enabled.filter { it.canPost }.sortedByDescending { it in signedIn }
 
+    /** Adds a platform, or removes it from Crux and signs it out (clears the site's session). */
     fun setEnabled(
         platform: CruxPlatform,
         enabled: Boolean,
     ) = onSetEnabled(platform, enabled)
+
+    /** Hides the platform's tab but keeps its session, so adding it back needs no new sign-in. */
+    fun hide(platform: CruxPlatform) = onHide(platform)
 
     fun completeOnboarding(platforms: List<CruxPlatform>) = onCompleteOnboarding(platforms)
 
@@ -282,6 +287,7 @@ internal fun rememberCruxConnectionsState(): CruxConnectionsState {
             persist(updated, platformsToAdd = if (on) setOf(platform) else emptySet())
             if (!on) signOut(platform)
         },
+        onHide = { platform -> persist(enabled - platform, platformsToAdd = emptySet()) },
         onCompleteOnboarding = { platforms ->
             persist(platforms, platformsToAdd = platforms.toSet()) { copy(onboardingCompleted = true) }
         },

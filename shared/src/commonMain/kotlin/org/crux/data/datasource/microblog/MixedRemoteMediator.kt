@@ -1,6 +1,7 @@
 package org.crux.data.datasource.microblog
 
 import androidx.paging.ExperimentalPagingApi
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -61,14 +62,8 @@ internal class MixedRemoteMediator(
                             getSubRequest(request, it)
                         }.map { subRequest ->
                             async {
-                                runCatching {
-                                    subRequest.load(pageSize)
-                                }.getOrElse {
-                                    reportError?.invoke(it)
-                                    PagingResult(endOfPaginationReached = true)
-                                }.let {
-                                    SubResponse(subRequest.mediator, it)
-                                }
+                                val load = loadSource(subRequest.mediator, pageSize, subRequest.request)
+                                SubResponse(subRequest.mediator, load.result, load.freshRefresh)
                             }
                         }.awaitAll()
 
@@ -77,6 +72,7 @@ internal class MixedRemoteMediator(
                 database.connect {
                     response.forEach {
                         saveSubResponse(request, it)
+                        if (it.freshRefresh) saveLastGoodRefresh(it.mediator, it.result.data)
                     }
                 }
 
@@ -159,20 +155,15 @@ internal class MixedRemoteMediator(
                             .map { state ->
                                 val subRequest = state.nextRequest()
                                 async {
-                                    val result =
-                                        runCatching {
-                                            state.source.mediator.load(pageSize, subRequest)
-                                        }.getOrElse {
-                                            reportError?.invoke(it)
-                                            PagingResult(endOfPaginationReached = true)
-                                        }
+                                    val load = loadSource(state.source.mediator, pageSize, subRequest)
+                                    val result = load.result
                                     val stagedItems =
                                         TimelinePagingMapper.toDb(
                                             data = result.data,
                                             pagingKey = state.source.stagingKey,
                                             sortIds = result.data.map(::timeSortId),
                                         )
-                                    TimeSubResponse(state, result, stagedItems)
+                                    TimeSubResponse(state, result, stagedItems, load.freshRefresh)
                                 }
                             }.awaitAll()
 
@@ -189,6 +180,9 @@ internal class MixedRemoteMediator(
                                     prevKey = response.result.previousKey,
                                 ),
                             )
+                            if (response.freshRefresh) {
+                                saveLastGoodRefresh(response.state.source.mediator, response.result.data)
+                            }
                         }
                     }
                     responses.forEach { response ->
@@ -230,6 +224,76 @@ internal class MixedRemoteMediator(
                 previousKey = null,
             )
         }
+
+    /**
+     * Loads one source. When an RSS feed's refresh fails (it times out, answers 5xx or is not a
+     * feed any more), the items its last successful refresh returned stand in for it, so a flaky
+     * feed keeps its articles in "All feeds" instead of having them deleted as stale. Every other
+     * source (social timelines) behaves exactly as before: a failure contributes nothing and no
+     * extra copy is written.
+     */
+    private suspend fun loadSource(
+        mediator: CacheableRemoteLoader<UiTimelineV2>,
+        pageSize: Int,
+        request: PagingRequest,
+    ): SourceLoad {
+        val keepsLastGood = keepsLastGoodRefresh(mediator)
+        return try {
+            SourceLoad(
+                result = mediator.load(pageSize, request),
+                freshRefresh = keepsLastGood && request is PagingRequest.Refresh,
+            )
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (exception: Throwable) {
+            reportError?.invoke(exception)
+            SourceLoad(
+                result =
+                    if (keepsLastGood && request is PagingRequest.Refresh) {
+                        lastGoodRefresh(mediator)
+                    } else {
+                        PagingResult(endOfPaginationReached = true)
+                    },
+                freshRefresh = false,
+            )
+        }
+    }
+
+    private suspend fun lastGoodRefresh(mediator: CacheableRemoteLoader<UiTimelineV2>): PagingResult<UiTimelineV2> {
+        val key = lastGoodKey(mediator)
+        val rows =
+            try {
+                database.pagingTimelineDao().getTimelinePage(
+                    pagingKey = key,
+                    offset = 0,
+                    limit = Int.MAX_VALUE,
+                )
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (exception: Exception) {
+                reportError?.invoke(exception)
+                emptyList()
+            }
+        return PagingResult(
+            endOfPaginationReached = true,
+            data = rows.map { TimelinePagingMapper.toUi(item = it, pagingKey = key) },
+        )
+    }
+
+    /** Must run inside [connect]: replaces the source's last good refresh with [data]. */
+    private suspend fun saveLastGoodRefresh(
+        mediator: CacheableRemoteLoader<UiTimelineV2>,
+        data: List<UiTimelineV2>,
+    ) {
+        val key = lastGoodKey(mediator)
+        database.pagingTimelineDao().deletePresentationReferences(key)
+        database.pagingTimelineDao().delete(key)
+        if (data.isNotEmpty()) {
+            // Default (positive, time-based) sort ids keep the list order and let the normal
+            // cache eviction expire copies for sources that are no longer followed.
+            saveToDatabase(database, TimelinePagingMapper.toDb(data = data, pagingKey = key))
+        }
+    }
 
     private suspend fun loadTimeSourceStates(): List<TimeSourceState> =
         timeSources.map { source ->
@@ -450,6 +514,18 @@ internal class MixedRemoteMediator(
 
     private fun subKey(mediator: CacheableRemoteLoader<UiTimelineV2>) = "mixed_${mediator.pagingKey}"
 
+    private fun lastGoodKey(mediator: CacheableRemoteLoader<UiTimelineV2>) = "$LAST_GOOD_PREFIX${mediator.pagingKey}"
+
+    /** Only RSS feeds (RssTimelineRemoteMediator's "rss_<url>" key) keep their last good refresh. */
+    private fun keepsLastGoodRefresh(mediator: CacheableRemoteLoader<UiTimelineV2>) =
+        mediator.pagingKey.startsWith(RSS_SOURCE_PREFIX)
+
+    /** [freshRefresh] is true only for an RSS refresh the feed itself answered: it is saved for later. */
+    private class SourceLoad(
+        val result: PagingResult<UiTimelineV2>,
+        val freshRefresh: Boolean,
+    )
+
     private data class SubRequest(
         val mediator: CacheableRemoteLoader<UiTimelineV2>,
         val request: PagingRequest,
@@ -460,6 +536,7 @@ internal class MixedRemoteMediator(
     private data class SubResponse(
         val mediator: CacheableRemoteLoader<UiTimelineV2>,
         val result: PagingResult<UiTimelineV2>,
+        val freshRefresh: Boolean = false,
     )
 
     private data class TimeSource(
@@ -488,11 +565,14 @@ internal class MixedRemoteMediator(
         val state: TimeSourceState,
         val result: PagingResult<UiTimelineV2>,
         val stagedItems: List<DbPagingTimelineWithStatus>,
+        val freshRefresh: Boolean,
     )
 
     private companion object {
         private const val MIXED_NEXT_KEY = "mixed_next_key"
         private const val SORT_ID_TIE_BUCKET = 10_000L
         private const val TIME_STAGING_SUFFIX = ":time_staging:"
+        private const val LAST_GOOD_PREFIX = "mixed_last_good_"
+        private const val RSS_SOURCE_PREFIX = "rss_"
     }
 }

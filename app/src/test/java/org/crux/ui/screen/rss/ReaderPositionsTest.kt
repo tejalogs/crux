@@ -31,6 +31,15 @@ class ReaderPositionsTest {
     }
 
     @Test
+    fun aFinishedArticleReopensAtTheTop() {
+        assertEquals(0f, restoredReadingFraction(1f), 0f)
+        assertEquals(0f, restoredReadingFraction(FINISHED_READING_FRACTION), 0f)
+        assertEquals(0.97f, restoredReadingFraction(0.97f), 0f)
+        assertEquals(0.4f, restoredReadingFraction(0.4f), 0f)
+        assertEquals(0f, restoredReadingFraction(0f), 0f)
+    }
+
+    @Test
     fun savedFractionIsReadBack() {
         val store = positions()
         store.save("https://example.com/a", 0.4f)

@@ -2,7 +2,9 @@ package org.crux.ui.screen.home
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -31,14 +33,22 @@ import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -49,7 +59,9 @@ import compose.icons.fontawesomeicons.solid.Sliders
 import compose.icons.fontawesomeicons.solid.WandMagicSparkles
 import org.crux.R
 import org.crux.data.model.tab.UiTimelineTabItem
+import org.crux.ui.component.BottomBarAccessory
 import org.crux.ui.component.FAIcon
+import org.crux.ui.component.LocalBottomBarAccessory
 import org.crux.ui.component.TabIcon
 import org.crux.ui.component.Text as CruxText
 
@@ -329,7 +341,9 @@ internal fun ExpressiveHomeDockTabs(
                     .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
         )
         CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+            // Both post actions show when a live tab offers both: saving never hides smart reply.
             if (bookmarkAction != null) {
+                val openReadingListLabel = stringResource(R.string.live_web_open_reading_list)
                 Box(
                     modifier =
                         Modifier
@@ -337,6 +351,7 @@ internal fun ExpressiveHomeDockTabs(
                             .clip(CircleShape)
                             .combinedClickable(
                                 onClick = bookmarkAction,
+                                onLongClickLabel = openReadingListLabel.takeIf { onOpenBookmarks != null },
                                 onLongClick = {
                                     if (onOpenBookmarks != null) {
                                         hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -348,11 +363,12 @@ internal fun ExpressiveHomeDockTabs(
                 ) {
                     FAIcon(
                         imageVector = FontAwesomeIcons.Solid.Bookmark,
-                        contentDescription = stringResource(R.string.reading_list_title),
+                        contentDescription = stringResource(R.string.live_web_save_post),
                         modifier = Modifier.size(15.dp),
                     )
                 }
-            } else if (smartReplyAction != null) {
+            }
+            if (smartReplyAction != null) {
                 IconButton(
                     onClick = smartReplyAction,
                     modifier = Modifier.size(DOCK_ACTION_SIZE),
@@ -380,8 +396,172 @@ internal fun ExpressiveHomeDockTabs(
     }
 }
 
-// Trailing wand and settings buttons stay compact so the pills keep the width.
+// Trailing save, wand and settings buttons stay compact so the pills keep the width.
 private val DOCK_ACTION_SIZE = 36.dp
 
 // Above this many tabs, unselected tabs collapse to icon-only so the strip stays scannable.
 private const val COMPACT_LABEL_THRESHOLD = 4
+
+/**
+ * How a page the dock steps aside on is laid out. [Media] (Reels, Stories) keeps one WebView size
+ * and a brought-back dock floats over it; [Messages] moves the page back above a brought-back
+ * dock, so the site's reply field is never under it for as long as the thread is open.
+ */
+internal enum class DockImmersiveKind { Media, Messages }
+
+/**
+ * Pages where the dock steps aside: Instagram Reels, Stories and DMs, and X and LinkedIn messages.
+ * Those sites draw their own bottom bar or reply field there, and a pinned dock would stack a
+ * second bar under it and take height from the video. Other sites keep the dock. Paths are
+ * matched per site, so a profile named chat, direct or shorts keeps the dock.
+ */
+internal fun dockImmersiveKind(url: String?): DockImmersiveKind? {
+    val uri = url?.trim()?.takeIf { it.isNotEmpty() }?.let { runCatching { java.net.URI(it) }.getOrNull() } ?: return null
+    val scheme = uri.scheme?.lowercase()
+    if (scheme != "https" && scheme != "http") return null
+    val host = uri.host?.lowercase()?.trimEnd('.') ?: return null
+    val path = uri.path.orEmpty()
+    return when {
+        host.isOnDomain("instagram.com") ->
+            when {
+                INSTAGRAM_DOCK_MESSAGES.containsMatchIn(path) -> DockImmersiveKind.Messages
+                INSTAGRAM_DOCK_MEDIA.containsMatchIn(path) -> DockImmersiveKind.Media
+                else -> null
+            }
+        host.isOnDomain("x.com") || host.isOnDomain("twitter.com") ->
+            DockImmersiveKind.Messages.takeIf { X_DOCK_MESSAGES.containsMatchIn(path) }
+        host.isOnDomain("linkedin.com") ->
+            DockImmersiveKind.Messages.takeIf { LINKEDIN_DOCK_MESSAGES.containsMatchIn(path) }
+        else -> null
+    }
+}
+
+/** True on a page where the dock steps aside ([dockImmersiveKind]). */
+internal fun isDockImmersiveUrl(url: String?): Boolean = dockImmersiveKind(url) != null
+
+private val INSTAGRAM_DOCK_MEDIA = Regex("^/(?:(?:reels?|stories)(?:/|$)|[^/]+/reel(?:/|$))", RegexOption.IGNORE_CASE)
+private val INSTAGRAM_DOCK_MESSAGES = Regex("^/direct(?:/|$)", RegexOption.IGNORE_CASE)
+private val X_DOCK_MESSAGES = Regex("^/(?:messages|i/chat|i/messages)(?:/|$)", RegexOption.IGNORE_CASE)
+private val LINKEDIN_DOCK_MESSAGES = Regex("^/messaging(?:/|$)", RegexOption.IGNORE_CASE)
+
+private fun String.isOnDomain(domain: String): Boolean = this == domain || endsWith(".$domain")
+
+/**
+ * The bottom padding of the visible live tab on a page the dock steps aside on ([kind]; null is
+ * any other page, which keeps [scaffoldBottom]).
+ *
+ * - Hidden dock: the system navigation bar plus [handleReserve], the strip the reveal handle sits
+ *   in, so the handle is below the page and never takes a tap meant for the site.
+ * - Brought back on [DockImmersiveKind.Media]: the same, so the WebView keeps its size and the
+ *   dock floats over the video.
+ * - Brought back on [DockImmersiveKind.Messages]: [scaffoldBottom], so the reply field moves
+ *   above the dock.
+ */
+internal fun liveTabBottomPadding(
+    scaffoldBottom: Dp,
+    navigationBarBottom: Dp,
+    kind: DockImmersiveKind?,
+    dockPeeked: Boolean,
+    handleReserve: Dp,
+): Dp =
+    when {
+        kind == null -> scaffoldBottom
+        kind == DockImmersiveKind.Messages && dockPeeked -> scaffoldBottom
+        else -> immersiveBaseBottomPadding(scaffoldBottom, navigationBarBottom) + handleReserve
+    }
+
+/** The bottom inset the page and the reveal handle share on an immersive page: never more than the scaffold's. */
+internal fun immersiveBaseBottomPadding(
+    scaffoldBottom: Dp,
+    navigationBarBottom: Dp,
+): Dp = minOf(scaffoldBottom, navigationBarBottom)
+
+/**
+ * Tells the home dock which page the visible live tab shows, so it can step aside on an
+ * immersive page ([isDockImmersiveUrl]) and come back when the tab leaves it, is hidden or
+ * goes away. Call it from the live tab with its own [owner] (its site) and current URL.
+ *
+ * Keyed on the URL: a new address disposes (clearing this owner's claim and any brought-back
+ * dock) and then reports again, so the next Reel or Story hides the dock again.
+ */
+@Composable
+internal fun LiveWebDockImmersiveReporter(
+    owner: Any,
+    isVisible: Boolean,
+    url: String?,
+) {
+    val accessory = LocalBottomBarAccessory.current ?: return
+    val immersiveUrl = url?.takeIf { isVisible && isDockImmersiveUrl(it) }
+    DisposableEffect(accessory, owner, immersiveUrl) {
+        reportImmersivePage(accessory, owner, immersiveUrl)
+        onDispose { accessory.clearWebPage(owner) }
+    }
+}
+
+/** The effect body of [LiveWebDockImmersiveReporter], kept plain so tests run the same sequence. */
+internal fun reportImmersivePage(
+    accessory: BottomBarAccessory,
+    owner: Any,
+    immersiveUrl: String?,
+) {
+    if (immersiveUrl != null) {
+        accessory.reportWebPage(owner, immersiveUrl)
+    } else {
+        accessory.clearWebPage(owner)
+    }
+}
+
+/**
+ * A small handle shown where the dock was while it is hidden on an immersive page. A tap or an
+ * upward swipe brings the dock back, so it is never out of reach.
+ */
+@Composable
+internal fun ImmersiveDockHandle(
+    onReveal: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val label = stringResource(R.string.live_web_show_dock)
+    val density = LocalDensity.current
+    val revealDistancePx = with(density) { IMMERSIVE_HANDLE_SWIPE_DISTANCE.toPx() }
+    val latestOnReveal by rememberUpdatedState(onReveal)
+    Box(
+        modifier =
+            modifier
+                .size(width = IMMERSIVE_HANDLE_TOUCH_WIDTH, height = IMMERSIVE_HANDLE_TOUCH_HEIGHT)
+                .clip(CircleShape)
+                .pointerInput(revealDistancePx) {
+                    var dragged = 0f
+                    detectVerticalDragGestures(
+                        onDragStart = { dragged = 0f },
+                        onVerticalDrag = { change, dragAmount ->
+                            dragged += dragAmount
+                            if (dragged < 0f) change.consume()
+                            if (-dragged >= revealDistancePx) {
+                                dragged = 0f
+                                latestOnReveal()
+                            }
+                        },
+                    )
+                }.clickable(onClickLabel = label, role = Role.Button) { latestOnReveal() }
+                .semantics { contentDescription = label },
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .size(width = IMMERSIVE_HANDLE_PILL_WIDTH, height = IMMERSIVE_HANDLE_PILL_HEIGHT)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f)),
+        )
+    }
+}
+
+// Wide enough to find by thumb. The live tab reserves IMMERSIVE_HANDLE_TOUCH_HEIGHT below the page
+// (liveTabBottomPadding), so the handle sits under the site's own bar and reply field, not on them.
+private val IMMERSIVE_HANDLE_TOUCH_WIDTH = 72.dp
+internal val IMMERSIVE_HANDLE_TOUCH_HEIGHT = 20.dp
+private val IMMERSIVE_HANDLE_PILL_WIDTH = 36.dp
+private val IMMERSIVE_HANDLE_PILL_HEIGHT = 4.dp
+
+// An upward swipe this long on the handle brings the dock back.
+private val IMMERSIVE_HANDLE_SWIPE_DISTANCE = 16.dp

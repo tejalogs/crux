@@ -871,24 +871,17 @@ internal fun smartReplyResultHost(
     producedByProvider: Boolean,
 ): String? = configuredHost.takeIf { producedByProvider }
 
-/** On-device generation may start when the sheet opens; a cloud provider needs an explicit tap. */
-internal fun smartReplyAutoRefineAllowed(type: AppSettings.AiConfig.Type): Boolean = type is AppSettings.AiConfig.Type.OnDevice
+/**
+ * Generation may start when the sheet opens, because it always runs on the device: a legacy cloud
+ * type is run as the on-device engine (AiCompletionService and the settings store) and never sent anywhere.
+ */
+internal fun smartReplyAutoRefineAllowed(type: AppSettings.AiConfig.Type): Boolean = smartReplyCloudHost(type) == null
 
 /**
- * The server Smart Reply sends text to, or null when generation stays on the device. Blank means
- * a cloud provider whose address is unknown; it is still treated as leaving the device.
+ * The server Smart Reply sends text to, or null when generation stays on the device. Cloud AI is
+ * not offered, so this is null for every type: a legacy OpenAI-compatible config is run as the
+ * on-device engine and its server address is never contacted.
  */
-internal fun smartReplyCloudHost(type: AppSettings.AiConfig.Type): String? =
-    when (type) {
-        is AppSettings.AiConfig.Type.OnDevice -> {
-            null
-        }
-
-        is AppSettings.AiConfig.Type.OpenAI -> {
-            val serverUrl = type.serverUrl.trim()
-            runCatching { java.net.URI(serverUrl).host }
-                .getOrNull()
-                ?.takeIf { it.isNotBlank() }
-                ?: serverUrl
-        }
-    }
+internal fun smartReplyCloudHost(
+    @Suppress("UNUSED_PARAMETER") type: AppSettings.AiConfig.Type,
+): String? = null

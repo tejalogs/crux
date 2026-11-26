@@ -28,5 +28,6 @@ public class AiAgentEnabledPresenter : PresenterBase<AiAgentEnabledPresenter.Sta
     ) : State
 }
 
-internal fun AppSettings.AiConfig.isAiAgentEnabled(): Boolean =
-    agent && (type is AppSettings.AiConfig.Type.OnDevice || (type as? AppSettings.AiConfig.Type.OpenAI)?.model?.isNotBlank() == true)
+// The agent only runs on the device (see AiConfigKoogBridge and localOnly()): a legacy cloud type is
+// read as the on-device engine, so only the agent toggle decides whether it is on.
+internal fun AppSettings.AiConfig.isAiAgentEnabled(): Boolean = agent

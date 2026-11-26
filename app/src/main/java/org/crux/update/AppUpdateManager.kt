@@ -1,5 +1,7 @@
 package org.crux.update
 
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.currentCoroutineContext
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
@@ -246,6 +248,8 @@ public object AppUpdateManager {
                         var bytesRead: Int
                         var lastPercent = -1
                         while (input.read(buffer).also { bytesRead = it } != -1) {
+                            // Cancel from the update sheet stops the download promptly.
+                            currentCoroutineContext().ensureActive()
                             output.write(buffer, 0, bytesRead)
                             downloaded += bytesRead
                             if (downloaded > MAX_APK_BYTES) error("Update file is too large.")

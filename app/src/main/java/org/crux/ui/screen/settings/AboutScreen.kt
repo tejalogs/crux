@@ -30,7 +30,6 @@ import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -90,7 +89,6 @@ internal fun AboutScreen(
     var isCheckingUpdates by remember { mutableStateOf(false) }
     var updateInfo by remember { mutableStateOf<AppReleaseInfo?>(null) }
     var updateStatusSupporting by remember { mutableStateOf<String?>(null) }
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val notificationPermissionLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
             if (!granted) {
@@ -322,7 +320,6 @@ internal fun AboutScreen(
     val currentUpdate = updateInfo
     if (currentUpdate != null) {
         AppUpdateBottomSheet(
-            sheetState = sheetState,
             updateInfo = currentUpdate,
             onDismissRequest = { updateInfo = null },
         )

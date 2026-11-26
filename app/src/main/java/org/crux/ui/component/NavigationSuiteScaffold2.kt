@@ -129,8 +129,71 @@ class BottomBarAccessory {
     var keepVisibleOwner: Any? by mutableStateOf(null)
     val keepVisible: Boolean get() = keepVisibleOwner != null
 
+    // What the live tab asked for; an immersive page (below) still wins until the dock is brought back.
+    private var webDockRequested: Boolean by mutableStateOf(true)
+
     // Tracks whether the floating dock should stay expanded on the active live web tab (collapses on downward scroll).
-    var webDockExpanded: Boolean by mutableStateOf(true)
+    // Reads false while the visible tab is on an immersive page (Reels, Stories, messages) and the
+    // dock was not brought back: the site draws its own bottom bar there, and the video needs the height.
+    var webDockExpanded: Boolean
+        get() = webDockRequested && !immersiveDockHidden
+        set(value) {
+            webDockRequested = value
+        }
+
+    // The visible live tab while it shows an immersive page. An owner, like keepVisibleOwner, so a
+    // tab that is leaving never clears the claim of the tab arriving.
+    private var immersiveOwner: Any? by mutableStateOf(null)
+
+    /** The address of the immersive page the dock stepped aside for, or null when there is none. */
+    var immersivePageUrl: String? by mutableStateOf(null)
+        private set
+
+    // Set when the person brings the dock back (handle tap or swipe, or Back) on an immersive page.
+    // Lasts until that page changes, so the next Reel or Story hides the dock again.
+    var immersiveDockPeeked: Boolean by mutableStateOf(false)
+        private set
+
+    /** True while the visible live tab is on an immersive page, whether or not the dock was brought back. */
+    val onImmersiveWebPage: Boolean get() = immersiveOwner != null
+
+    /** True while the dock is out of the way on an immersive page. */
+    val immersiveDockHidden: Boolean get() = immersiveOwner != null && !immersiveDockPeeked
+
+    /**
+     * Called by the visible live tab ([owner]) while it shows the immersive page [pageUrl]. A
+     * brought-back dock is reset when the claim moves to another tab: when tabs swap, the arriving
+     * tab's report can run before the leaving tab's [clearWebPage], and the leaving tab's peek must
+     * not carry over. The live tab's reporter clears before every new address, so a new page of the
+     * same tab is reset there; a direct caller reporting another address gets the same rule here.
+     */
+    fun reportWebPage(
+        owner: Any,
+        pageUrl: String,
+    ) {
+        if (immersiveOwner !== owner || immersivePageUrl != pageUrl) immersiveDockPeeked = false
+        immersiveOwner = owner
+        immersivePageUrl = pageUrl
+    }
+
+    /** Drops [owner]'s immersive claim, e.g. when its tab is hidden or disposed. */
+    fun clearWebPage(owner: Any) {
+        if (immersiveOwner !== owner) return
+        immersiveOwner = null
+        immersivePageUrl = null
+        immersiveDockPeeked = false
+    }
+
+    /** Brings the dock back on an immersive page. Does nothing elsewhere. */
+    fun peekDock() {
+        if (immersiveOwner != null) immersiveDockPeeked = true
+    }
+
+    /**
+     * What HomeScreen passes as the bar's visibility while a live tab holds [keepVisibleOwner]:
+     * the tab's own scroll collapse and an immersive page both hide it.
+     */
+    val liveDockShown: Boolean get() = !keepVisible || webDockExpanded
 
     // Set by the visible live web tab that supports smart replies; shown as a dock button so it
     // never floats over the page.

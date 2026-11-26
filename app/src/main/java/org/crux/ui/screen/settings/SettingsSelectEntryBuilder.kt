@@ -156,6 +156,9 @@ internal fun EntryProviderScope<NavKey>.settingsSelectEntryBuilder(
             toPrivacyTweaks = {
                 navigate(Route.Settings.PrivacyTweaks)
             },
+            toPrivacyCheckup = {
+                navigate(Route.Settings.PrivacyCheckup)
+            },
             onBack = onBack,
         )
     }
@@ -346,6 +349,17 @@ internal fun EntryProviderScope<NavKey>.settingsSelectEntryBuilder(
             onOpenSiteUrl = { site, url ->
                 navigate(Route.LiveWeb(site = site.name, initialUrl = url))
             },
+        )
+    }
+
+    entry<Route.Settings.PrivacyCheckup>(
+        metadata = ListDetailSceneStrategy.detailPane(
+            sceneKey = "Settings"
+        )
+    ) {
+        PrivacyCheckupScreen(
+            onBack = onBack,
+            onOpenRoute = navigate,
         )
     }
 }

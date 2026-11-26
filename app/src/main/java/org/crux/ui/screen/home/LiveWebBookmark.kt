@@ -127,23 +127,28 @@ internal fun LiveWebSite.bookmarkPlatformId(): String =
  * Extracts the social media post closest to the viewport center on X, Instagram, LinkedIn, or Reddit,
  * including author name, handle, avatar, post text, media images, and canonical post URL.
  */
-private val EXTRACT_BOOKMARK_POST_SCRIPT =
+internal val EXTRACT_BOOKMARK_POST_SCRIPT =
     """
     (function(){
       try {
+    $POST_PARTS_JS
         var host = (location.hostname || '').toLowerCase();
         var mid = window.innerHeight / 2;
-        var sel = 'article[data-testid="tweet"],shreddit-post,div.feed-shared-update-v2,div[data-id*="activity"],article,[role="article"]';
+        var liCard = 'div[role="listitem"][componentkey^="update-card"]';
+        var sel = 'article[data-testid="tweet"],shreddit-post,' + liCard + ',div.feed-shared-update-v2,div[data-id*="activity"],article,[role="article"]';
         var candidates = document.querySelectorAll(sel);
-        var best = null, bestDist = 1e9, latestTap = 0, now = Date.now();
-        for (var i = 0; i < candidates.length; i++) {
-          var el = candidates[i];
-          var tapTs = Number(el.getAttribute('data-cx-tapped') || 0);
-          if (tapTs > latestTap && (now - tapTs) < 6000) {
-            latestTap = tapTs;
-            best = el;
-          }
-        }
+        var best = null, bestDist = 1e9;
+        // The page engine keeps the post tapped last (within a few seconds) in its own closure and
+        // hands it over through this event; nothing about the tap is written into the page. Only a
+        // connected post element is taken, so nothing else on the page can choose what is saved.
+        var tapAsk = {};
+        try { document.dispatchEvent(new CustomEvent('${EngineMarks.tapEvent}', { detail: tapAsk })); } catch (e) {}
+        var tapped = tapAsk.el;
+        try {
+          if (tapped && tapped.nodeType === 1 && tapped.isConnected && tapped.matches && tapped.matches(sel)) best = tapped;
+        } catch (e) {}
+        // On a post's own page, the post that was opened rather than the reply at mid-screen.
+        if (!best) best = focalPost(candidates);
         if (!best) {
           for (var j = 0; j < candidates.length; j++) {
             var el2 = candidates[j];
@@ -153,6 +158,8 @@ private val EXTRACT_BOOKMARK_POST_SCRIPT =
             if (d < bestDist) { bestDist = d; best = el2; }
           }
         }
+        // LinkedIn's signed-in mobile feed: the whole update card is the post, not a part inside it.
+        if (best && best.closest && host.indexOf('linkedin.com') !== -1) best = best.closest(liCard) || best;
         var root = best || document.querySelector('main') || document.body;
         var title = '';
         var authorName = '';
@@ -181,31 +188,27 @@ private val EXTRACT_BOOKMARK_POST_SCRIPT =
             media.push(cHref);
           }
         } else if (host.indexOf('x.com') !== -1 || host.indexOf('twitter.com') !== -1) {
-          var un = root.querySelector('[data-testid="User-Name"]');
-          if (un) {
-            var parts = (un.innerText || '').split('\n').map(function(s){return s.trim()}).filter(Boolean);
-            if (parts.length > 0) authorName = parts[0];
-            for (var p = 0; p < parts.length; p++) {
-              if (parts[p].indexOf('@') === 0) { authorHandle = parts[p]; break; }
-            }
+          var xp = xPostParts(root);
+          authorName = xp.name;
+          authorHandle = xp.handle;
+          text = xp.text;
+          // The post's own time link, not a quoted post's (a plain loop: older WebViews reject has-selectors).
+          var sl = null;
+          var sls = root.querySelectorAll('a[href*="/status/"]');
+          for (var si = 0; si < sls.length && !sl; si++) {
+            if (sls[si].querySelector('time') && !xQuoteOf(sls[si], root)) sl = sls[si];
           }
-          var tt = root.querySelector('[data-testid="tweetText"]');
-          text = tt ? (tt.innerText || '').trim() : '';
-          var sl = root.querySelector('a[href*="/status/"]:has(time)') || root.querySelector('a[href*="/status/"]');
+          if (!sl) sl = sls.length ? sls[0] : null;
           if (sl && sl.href) link = sl.href.split('?')[0];
           var avImg = root.querySelector('[data-testid*="UserAvatar"] img, img[src*="profile_images"]');
           if (avImg && avImg.src) avatar = avImg.src;
         } else if (host.indexOf('instagram.com') !== -1) {
           var igPath = location.pathname || '';
           var igUserMatch = igPath.match(/^\/([a-zA-Z0-9._]+)\/(?:reel|p)\//);
-          var hdrLinks = root.querySelectorAll('header a, a[role="link"]');
-          for (var h = 0; h < hdrLinks.length; h++) {
-            var ht = (hdrLinks[h].innerText || '').trim();
-            if (ht && ht.length < 40 && ht.indexOf(' ') === -1 && !/^(Follow|Following|Audio|Original)$/i.test(ht)) {
-              authorName = ht;
-              authorHandle = '@' + ht.replace(/^@/, '');
-              break;
-            }
+          var igName = igAuthor(root);
+          if (igName) {
+            authorName = igName;
+            authorHandle = '@' + igName;
           }
           if (!authorName && igUserMatch && igUserMatch[1]) {
             authorName = igUserMatch[1];
@@ -215,18 +218,18 @@ private val EXTRACT_BOOKMARK_POST_SCRIPT =
           if (onIgDetail) {
             link = location.href.split('?')[0];
           } else {
-            var igLink = root.querySelector('a[href*="/p/"], a[href*="/reel/"]');
+            // The post's time link first: the likes and comments links point under the post too.
+            var igLinks = root.querySelectorAll('a[href*="/p/"], a[href*="/reel/"]');
+            var igLink = null;
+            for (var il = 0; il < igLinks.length && !igLink; il++) {
+              if (igLinks[il].querySelector('time')) igLink = igLinks[il];
+            }
+            if (!igLink) igLink = igLinks.length ? igLinks[0] : null;
             if (igLink && igLink.href) link = igLink.href.split('?')[0];
           }
           var igAv = root.querySelector('header img');
           if (igAv && igAv.src) avatar = igAv.src;
-          var spans = root.querySelectorAll('span[dir="auto"], h1');
-          var longest = '';
-          for (var s = 0; s < spans.length; s++) {
-            var st = (spans[s].innerText || '').trim();
-            if (st.length > longest.length && st !== authorName) longest = st;
-          }
-          text = longest;
+          text = igCaption(root, authorName);
         } else if (host.indexOf('mastodon.social') !== -1) {
           var mName = root.querySelector('.display-name__html, .display-name strong');
           if (mName) authorName = (mName.innerText || '').trim();
@@ -239,20 +242,52 @@ private val EXTRACT_BOOKMARK_POST_SCRIPT =
           var mAv = root.querySelector('.account__avatar img, .status__avatar img');
           if (mAv && mAv.src) avatar = mAv.src;
         } else if (host.indexOf('linkedin.com') !== -1) {
+          var liStrip = function(t){ return (t || '').replace(/^\s*Feed post\b\s*/i, '').trim().split('\n')[0].trim(); };
+          var isCard = !!(best && best.matches && best.matches(liCard));
           var actName = root.querySelector('.update-components-actor__title span[ aria-hidden="true" ], .update-components-actor__name, .feed-shared-actor__name, [data-tracking-control-name*="actor"]');
           if (actName) authorName = (actName.innerText || '').trim().split('\n')[0];
+          if (!authorName && isCard) {
+            // Mobile: the first heading or profile link after the "Feed post" screen-reader label.
+            // Skip social-context headers ("Jane Doe likes this", "X reposted this"): that link is not the author.
+            var liSocial = /\b(likes|liked|loves|celebrates|supports|finds this|is curious about|commented on|reposted|replied to|follows)\b/i;
+            var liInSocialLine = function(el, t){
+              for (var up = el.parentElement, n = 0; up && n < 3; up = up.parentElement, n++) {
+                var ls = (up.innerText || up.textContent || '').split('\n');
+                for (var k = 0; k < ls.length; k++) {
+                  var ln = ls[k].replace(/\s+/g, ' ').trim();
+                  if (ln !== t && ln.indexOf(t) !== -1 && liSocial.test(ln)) return true;
+                }
+                if (up === root) break;
+              }
+              return false;
+            };
+            var heads = root.querySelectorAll('h1,h2,h3,h4,h5,h6,[role="heading"],a[href*="/in/"],a[href*="/company/"]');
+            for (var hd = 0; hd < heads.length && !authorName; hd++) {
+              var htx = liStrip(heads[hd].innerText || heads[hd].textContent);
+              if (htx && htx.length <= 80 && !/^(Promoted|Follow|Following)$/i.test(htx) && !liSocial.test(htx) && !liInSocialLine(heads[hd], htx)) authorName = htx;
+            }
+            if (!authorName) authorName = liStrip(root.innerText);
+          }
           var actSub = root.querySelector('.update-components-actor__description span[aria-hidden="true"], .update-components-actor__description, .feed-shared-actor__description');
           if (actSub) authorHandle = (actSub.innerText || '').trim().split('\n')[0];
-          var liBody = root.querySelector('.update-components-text, .feed-shared-update-v2__description, .attributed-text-segment-list__content');
-          if (liBody) text = (liBody.innerText || '').trim();
+          var liBox = root.querySelector('[data-testid="expandable-text-box"]');
+          var liBody = liBox || root.querySelector('.update-components-text, .feed-shared-update-v2__description, .attributed-text-segment-list__content');
+          if (liBody) {
+            text = (liBody.innerText || '').trim();
+            var liMore = liBox ? liBox.querySelector('[data-testid="expandable-text-button"]') : null;
+            var liMoreText = liMore ? (liMore.innerText || '').trim() : '';
+            if (liMoreText && text.slice(-liMoreText.length) === liMoreText) text = text.slice(0, -liMoreText.length).trim();
+          }
+          if (!text && isCard) text = (root.innerText || '').replace(/^\s*Feed post\b\s*/i, '').replace(/\s+/g, ' ').trim();
           var urn = best ? (best.getAttribute('data-urn') || best.getAttribute('data-id') || '') : '';
           if (urn && urn.indexOf('urn:li:') === 0) {
             link = 'https://www.linkedin.com/feed/update/' + urn + '/';
           } else {
-            var liLink = root.querySelector('a[href*="/feed/update/"], a[href*="/posts/"]');
+            var liLink = root.querySelector('a[href*="/feed/update/"]') || root.querySelector('a[href*="/posts/"]');
             if (liLink && liLink.href) link = liLink.href.split('?')[0];
           }
           var liAv = root.querySelector('.update-components-actor__avatar img, .feed-shared-actor__avatar img');
+          if (!liAv && isCard) liAv = root.querySelector('a[href*="/in/"] img, a[href*="/company/"] img');
           if (liAv && liAv.src) avatar = liAv.src;
         }
 
@@ -277,6 +312,11 @@ private val EXTRACT_BOOKMARK_POST_SCRIPT =
           if ((w >= 96 || h2 >= 96) && media.indexOf(src) === -1) {
             media.push(src);
           }
+        }
+        // A video post has no photo; its poster frame stands in.
+        if (!media.length) {
+          var vid = root.querySelector('video[poster^="https://"]');
+          if (vid && vid.poster) media.push(vid.poster);
         }
 
         return JSON.stringify({
@@ -343,8 +383,12 @@ internal fun parseExtractedSocialPost(
     fallbackUrl: String,
     overrideImageUrl: String? = null,
 ): ExtractedSocialPost {
-    val safeFallbackUrl = fallbackUrl.takeIfWebUrl() ?: site.homeUrl
-    val safeOverrideImage = overrideImageUrl.takeIfPublicImageUrl()
+    // A failed extract on an Instagram likers or comments page still saves the post itself.
+    val safeFallbackUrl =
+        (fallbackUrl.takeIfWebUrl() ?: site.homeUrl)
+            .let { if (site == LiveWebSite.Instagram) canonicalInstagramPostUrl(it) else it }
+    val upgradeImage = { image: String -> if (site == LiveWebSite.X) upgradeXImageUrl(image) else image }
+    val safeOverrideImage = overrideImageUrl.takeIfPublicImageUrl()?.let(upgradeImage)
     val platformId = site.bookmarkPlatformId()
     val defaultAuthor =
         when (site) {
@@ -361,12 +405,16 @@ internal fun parseExtractedSocialPost(
                 ?.let { Json.parseToJsonElement(it).jsonPrimitive.contentOrNull }
                 ?: throw IllegalArgumentException("Empty JS result")
         val obj = Json.parseToJsonElement(unwrapped).jsonObject
-        val url = obj["url"]?.jsonPrimitive?.contentOrNull.takeIfWebUrl() ?: safeFallbackUrl
+        val pageUrl = obj["url"]?.jsonPrimitive?.contentOrNull.takeIfWebUrl() ?: safeFallbackUrl
+        val url = if (site == LiveWebSite.Instagram) canonicalInstagramPostUrl(pageUrl) else pageUrl
         val text = obj["text"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() } ?: url
         val title =
             obj["title"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
                 ?: text.lineSequence().firstOrNull().orEmpty().take(90)
-        val authorName = obj["authorName"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() } ?: defaultAuthor
+        val rawAuthor = obj["authorName"]?.jsonPrimitive?.contentOrNull.orEmpty()
+        val authorName =
+            (if (site == LiveWebSite.LinkedIn) stripLinkedInFeedPostPrefix(rawAuthor) else rawAuthor)
+                .takeIf { it.isNotBlank() } ?: defaultAuthor
         val authorHandle = obj["authorHandle"]?.jsonPrimitive?.contentOrNull.orEmpty()
         val avatar = obj["avatar"]?.jsonPrimitive?.contentOrNull.takeIfPublicImageUrl()
         val mediaArr = obj["media"]?.jsonArray
@@ -374,12 +422,13 @@ internal fun parseExtractedSocialPost(
             buildList {
                 if (safeOverrideImage != null) add(safeOverrideImage)
                 mediaArr?.forEach { elem ->
-                    val m = elem.jsonPrimitive.contentOrNull.takeIfPublicImageUrl()
+                    val m = elem.jsonPrimitive.contentOrNull.takeIfPublicImageUrl()?.let(upgradeImage)
                     if (m != null && m !in this) add(m)
                 }
             }
+        val postId = bookmarkPostId(site, url, text)
         ExtractedSocialPost(
-            id = if (safeOverrideImage != null) "$url#$safeOverrideImage" else url,
+            id = if (safeOverrideImage != null) "$postId#$safeOverrideImage" else postId,
             title = title,
             authorName = authorName,
             authorHandle = authorHandle,
@@ -403,6 +452,96 @@ internal fun parseExtractedSocialPost(
         )
     }
 }
+
+private val LINKEDIN_POST_PATH = Regex("/(?:feed/update|posts)/", RegexOption.IGNORE_CASE)
+
+/**
+ * An Instagram post or Reel path, with or without the /username/ prefix, and whatever list is laid
+ * over it (/liked_by/, /comments/, /c/<id>/). Group 1 is p or reel(s), group 2 the shortcode.
+ */
+private val INSTAGRAM_POST_PATH = Regex("^/(?:[A-Za-z0-9._]+/)?(p|reels?|tv)/(?!audio/)([A-Za-z0-9_-]+)(?:/|$)", RegexOption.IGNORE_CASE)
+
+/** The post's own path for an Instagram post or Reel path ("/p/<id>/", "/reel/<id>/"), or null. */
+internal fun canonicalInstagramPostPath(path: String): String? {
+    val match = INSTAGRAM_POST_PATH.find(path) ?: return null
+    val kind =
+        when (match.groupValues[1].lowercase()) {
+            "p" -> "p"
+            "tv" -> "tv"
+            else -> "reel"
+        }
+    return "/$kind/${match.groupValues[2]}/"
+}
+
+/**
+ * The post itself for a link Instagram puts inside a post: the likers list, the comments page or a
+ * username-prefixed permalink all become https://www.instagram.com/p/<id>/ (or /reel/<id>/).
+ * Anything that is not an Instagram post link is returned unchanged.
+ */
+internal fun canonicalInstagramPostUrl(url: String): String {
+    val uri = runCatching { java.net.URI(url.trim()) }.getOrNull() ?: return url
+    val host = uri.host?.lowercase()?.trimEnd('.') ?: return url
+    if (host != "instagram.com" && !host.endsWith(".instagram.com")) return url
+    val path = canonicalInstagramPostPath(uri.path.orEmpty()) ?: return url
+    return "https://www.instagram.com$path"
+}
+
+private const val X_MEDIA_HOST = "pbs.twimg.com"
+
+/** X's size names, smallest first; "orig" is the uploaded file. */
+private val X_IMAGE_SIZES = listOf("thumb", "tiny", "small", "360x360", "medium", "900x900", "large", "4096x4096", "orig")
+
+/** Legacy form: /media/<id>.jpg:small. */
+private val X_LEGACY_SIZE_SUFFIX = Regex("(\\.(?:jpe?g|png|webp|gif)):([A-Za-z0-9x]+)$", RegexOption.IGNORE_CASE)
+
+/**
+ * X serves feed photos small (name=small, 360x360 or medium). This asks its CDN for [size]
+ * ("large" for previews and bookmarks, "orig" for saving) and keeps format= and every other
+ * parameter. Only pbs.twimg.com/media/ photos are touched, never avatars, video thumbnails or any
+ * other host, and a photo already at that size or larger is left as it is.
+ */
+internal fun upgradeXImageUrl(
+    url: String,
+    size: String = "large",
+): String {
+    val uri = runCatching { java.net.URI(url.trim()) }.getOrNull() ?: return url
+    if (!uri.scheme.equals("https", ignoreCase = true)) return url
+    if (uri.host?.lowercase()?.trimEnd('.') != X_MEDIA_HOST) return url
+    val path = uri.rawPath.orEmpty()
+    if (!path.startsWith("/media/")) return url
+    val wanted = X_IMAGE_SIZES.indexOf(size).takeIf { it >= 0 } ?: return url
+    val isBigEnough = { current: String -> X_IMAGE_SIZES.indexOf(current.lowercase()) >= wanted }
+    X_LEGACY_SIZE_SUFFIX.find(path)?.let { match ->
+        if (isBigEnough(match.groupValues[2])) return url
+        val upgraded = path.substring(0, match.range.first) + match.groupValues[1] + ":" + size
+        return "https://$X_MEDIA_HOST$upgraded" + (uri.rawQuery?.let { "?$it" } ?: "")
+    }
+    val params = uri.rawQuery?.split('&')?.filter { it.isNotEmpty() }.orEmpty()
+    val hasFormat = params.any { it.substringBefore('=').equals("format", ignoreCase = true) }
+    val hasExtension = path.substringAfterLast('/').contains('.')
+    // Without a format the CDN cannot tell which file to send at another size.
+    if (!hasFormat && !hasExtension) return url
+    val current = params.firstOrNull { it.substringBefore('=').equals("name", ignoreCase = true) }?.substringAfter('=', "")
+    if (current != null && isBigEnough(current)) return url
+    val kept = params.filterNot { it.substringBefore('=').equals("name", ignoreCase = true) }
+    return "https://$X_MEDIA_HOST$path?" + (kept + "name=$size").joinToString("&")
+}
+
+/**
+ * The saved item's id. LinkedIn's mobile feed often has no permalink in a card, so the post falls
+ * back to the feed's own URL; its text then tells two such posts apart instead of the second one
+ * looking already saved.
+ */
+internal fun bookmarkPostId(
+    site: LiveWebSite,
+    url: String,
+    text: String,
+): String =
+    if (site == LiveWebSite.LinkedIn && !LINKEDIN_POST_PATH.containsMatchIn(url)) {
+        "$url#post-${text.trim().hashCode().toUInt().toString(16)}"
+    } else {
+        url
+    }
 
 internal val BOOKMARK_FOLDER_ICONS: List<Pair<String, ImageVector>> =
     listOf(

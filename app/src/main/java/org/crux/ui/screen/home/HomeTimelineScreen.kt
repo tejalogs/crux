@@ -1,5 +1,6 @@
 package org.crux.ui.screen.home
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -24,6 +25,8 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -43,6 +46,7 @@ import androidx.compose.foundation.lazy.staggeredgrid.LazyStaggeredGridState
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
 import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridState
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -80,6 +84,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.UriHandler
@@ -395,13 +400,7 @@ internal fun HomeTimelineScreen(
                                                 ),
                                             onTabSelected = { index ->
                                                 scope.launch {
-                                                    val currentIsWeb = tabs.getOrNull(pagerState.currentPage)?.liveWebSite() != null
-                                                    val targetIsWeb = tabs.getOrNull(index)?.liveWebSite() != null
-                                                    if (currentIsWeb || targetIsWeb) {
-                                                        pagerState.scrollToPage(index)
-                                                    } else {
-                                                        pagerState.animateScrollToPage(index)
-                                                    }
+                                                    pagerState.switchToTab(tabs, index)
                                                 }
                                             },
                                         )
@@ -447,6 +446,28 @@ internal fun HomeTimelineScreen(
                             }
                         }
 
+                        val currentIsLiveWeb = tabState.getOrNull(pagerState.currentPage)?.liveWebSite() != null
+                        // The dock steps aside on a live tab's immersive page (Reels, Stories, messages).
+                        val dockOnImmersivePage =
+                            useBottomTabs && currentIsLiveWeb && bottomBarAccessory?.onImmersiveWebPage == true
+                        val dockHiddenForImmersive = dockOnImmersivePage && bottomBarAccessory?.immersiveDockHidden == true
+                        val immersiveKind =
+                            if (dockOnImmersivePage) dockImmersiveKind(bottomBarAccessory?.immersivePageUrl) else null
+                        // Registered before the pager, so the live tab's own Back (page history) still
+                        // goes first; once the page cannot go back, Back brings the hidden dock back.
+                        BackHandler(enabled = dockHiddenForImmersive) {
+                            bottomBarAccessory?.peekDock()
+                        }
+                        val layoutDirection = LocalLayoutDirection.current
+                        val navigationBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+                        // Not while typing: the handle would sit on the message field above the keyboard.
+                        val imeShown = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+                        val showImmersiveHandle = dockHiddenForImmersive && !imeShown
+                        val immersiveBaseBottom =
+                            immersiveBaseBottomPadding(
+                                scaffoldBottom = contentPadding.calculateBottomPadding(),
+                                navigationBarBottom = navigationBarBottom,
+                            )
                         HorizontalPager(
                             state = pagerState,
                             // Live sites have their own horizontal gestures; dock tabs handle switching.
@@ -458,10 +479,31 @@ internal fun HomeTimelineScreen(
                             val item = tabState.getOrNull(index)
                             val liveWebSite = item?.liveWebSite()
                             if (liveWebSite != null) {
+                                // On an immersive page the hidden dock leaves a strip for its handle below the
+                                // page. A dock brought back floats over Reels and Stories (one WebView size) and
+                                // pushes a message thread up, so the reply field is never under it.
+                                val liveTabPadding =
+                                    if (immersiveKind != null && pagerState.currentPage == index) {
+                                        PaddingValues(
+                                            start = contentPadding.calculateStartPadding(layoutDirection),
+                                            top = contentPadding.calculateTopPadding(),
+                                            end = contentPadding.calculateEndPadding(layoutDirection),
+                                            bottom =
+                                                liveTabBottomPadding(
+                                                    scaffoldBottom = contentPadding.calculateBottomPadding(),
+                                                    navigationBarBottom = navigationBarBottom,
+                                                    kind = immersiveKind,
+                                                    dockPeeked = bottomBarAccessory?.immersiveDockPeeked == true,
+                                                    handleReserve = if (imeShown) 0.dp else IMMERSIVE_HANDLE_TOUCH_HEIGHT,
+                                                ),
+                                        )
+                                    } else {
+                                        contentPadding
+                                    }
                                 LiveWebTab(
                                     site = liveWebSite,
                                     isCurrentlyVisible = pagerState.currentPage == index,
-                                    contentPadding = contentPadding,
+                                    contentPadding = liveTabPadding,
                                 )
                             } else if (item != null) {
                                 val timelineAppearance = LocalTimelineAppearance.current
@@ -495,7 +537,7 @@ internal fun HomeTimelineScreen(
                                     selectedTabIndex = minOf(pagerState.currentPage, tabState.lastIndex),
                                     onTabSelected = { index ->
                                         scope.launch {
-                                            pagerState.animateScrollToPage(index)
+                                            pagerState.switchToTab(tabState, index)
                                         }
                                     },
                                     onReselect = onReselect,
@@ -518,6 +560,16 @@ internal fun HomeTimelineScreen(
                                     }
                                 }
                             }
+                        }
+                        if (showImmersiveHandle && bottomBarAccessory != null) {
+                            // In the strip liveTabBottomPadding reserves, just above the navigation bar.
+                            ImmersiveDockHandle(
+                                onReveal = bottomBarAccessory::peekDock,
+                                modifier =
+                                    Modifier
+                                        .align(Alignment.BottomCenter)
+                                        .padding(bottom = immersiveBaseBottom),
+                            )
                         }
                     }
                 }
@@ -893,3 +945,26 @@ private fun HomeEmptyState(
         }
     }
 }
+
+/**
+ * Switches the home pager to [index]. The slide animation composes every page it passes, which
+ * would briefly wake a live site's WebView (its renderer and network) on the way, so it jumps
+ * whenever a live web tab is at either end or in between, and slides only between other feeds.
+ */
+internal suspend fun PagerState.switchToTab(
+    tabs: List<UiTimelineTabItem>,
+    index: Int,
+) {
+    if (shouldJumpBetweenTabs(currentPage, index) { tabs.getOrNull(it)?.liveWebSite() != null }) {
+        scrollToPage(index)
+    } else {
+        animateScrollToPage(index)
+    }
+}
+
+/** True when moving from page [from] to [to] would show or pass a live web tab. */
+internal fun shouldJumpBetweenTabs(
+    from: Int,
+    to: Int,
+    isLiveWebTab: (Int) -> Boolean,
+): Boolean = (minOf(from, to)..maxOf(from, to)).any(isLiveWebTab)

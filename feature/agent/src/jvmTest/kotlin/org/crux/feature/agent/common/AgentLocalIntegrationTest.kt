@@ -8,8 +8,15 @@ import ai.koog.agents.core.dsl.extension.nodeLLMSendToolResultsWithoutTools
 import ai.koog.agents.core.dsl.extension.onTextMessage
 import ai.koog.agents.core.dsl.extension.onToolCalls
 import ai.koog.agents.core.tools.ToolRegistry
+import ai.koog.http.client.KoogHttpClient
 import ai.koog.http.client.ktor.KtorKoogHttpClient
 import ai.koog.prompt.Prompt
+import ai.koog.prompt.executor.clients.openai.OpenAIClientSettings
+import ai.koog.prompt.executor.clients.openai.OpenAILLMClient
+import ai.koog.prompt.executor.llms.MultiLLMPromptExecutor
+import ai.koog.prompt.llm.LLMCapability
+import ai.koog.prompt.llm.LLMProvider
+import ai.koog.prompt.llm.LLModel
 import ai.koog.prompt.message.Message
 import kotlinx.coroutines.test.runTest
 import org.crux.data.database.app.model.RssDisplayMode
@@ -22,7 +29,7 @@ import org.crux.data.datasource.subscription.SubscriptionSourceDetection
 import org.crux.data.network.ktorClient
 import org.crux.data.network.rss.DocumentData
 import org.crux.data.repository.SubscriptionSourceInput
-import org.crux.feature.agent.runtime.AiConfigKoogBridge
+import org.crux.feature.agent.runtime.CruxAgentRuntime
 import org.crux.ui.model.UiRssSource
 import org.crux.ui.model.UiTimelineV2
 import org.crux.ui.render.toUi
@@ -43,15 +50,14 @@ internal class AgentLocalIntegrationTest {
                     println("Skipping local AI integration test: local.properties does not contain ai.url, ai.key, and ai.model.")
                     return@runTest
                 }
+            // The app's bridge never builds a cloud client (cloud AI is not offered), so this
+            // developer-only test builds its own client against the server in local.properties.
             val runtime =
-                AiConfigKoogBridge().createRuntime(
-                    aiConfig = config.toAppAiConfig(),
-                    httpClientFactory =
-                        KtorKoogHttpClient.Factory(
-                            baseClient = ktorClient(config = {}),
-                        ),
+                config.toDeveloperRuntime(
+                    KtorKoogHttpClient.Factory(
+                        baseClient = ktorClient(config = {}),
+                    ),
                 )
-            assertNotNull(runtime, "Local AI config should create a runtime.")
 
             val subscriptionDataSource = LocalSubscriptionDataSource()
             val inputRequestStore = AgentToolInputRequestStore()
@@ -193,14 +199,39 @@ internal class AgentLocalIntegrationTest {
         val apiKey: String,
         val model: String,
     ) {
-        fun toAppAiConfig(): org.crux.data.datastore.model.AppSettings.AiConfig =
-            org.crux.data.datastore.model.AppSettings.AiConfig(
-                type =
-                    org.crux.data.datastore.model.AppSettings.AiConfig.Type.OpenAI(
-                        serverUrl = serverUrl,
-                        apiKey = apiKey,
-                        model = model,
+        fun toDeveloperRuntime(httpClientFactory: KoogHttpClient.Factory): CruxAgentRuntime =
+            CruxAgentRuntime(
+                promptExecutor =
+                    MultiLLMPromptExecutor(
+                        OpenAILLMClient(
+                            apiKey = apiKey,
+                            settings =
+                                OpenAIClientSettings(
+                                    baseUrl = serverUrl.trimEnd('/'),
+                                    chatCompletionsPath = "chat/completions",
+                                    responsesAPIPath = "responses",
+                                    embeddingsPath = "embeddings",
+                                    moderationsPath = "moderations",
+                                    modelsPath = "models",
+                                ),
+                            httpClientFactory = httpClientFactory,
+                        ),
                     ),
+                model =
+                    LLModel(
+                        provider = LLMProvider.OpenAI,
+                        id = model,
+                        capabilities =
+                            listOf(
+                                LLMCapability.Completion,
+                                LLMCapability.OpenAIEndpoint.Completions,
+                                LLMCapability.Temperature,
+                                LLMCapability.Tools,
+                                LLMCapability.ToolChoice,
+                            ),
+                        contextLength = 128_000L,
+                    ),
+                aiConfig = org.crux.data.datastore.model.AppSettings.AiConfig(),
             )
 
         companion object {

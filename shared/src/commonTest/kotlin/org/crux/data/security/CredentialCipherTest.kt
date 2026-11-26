@@ -86,18 +86,11 @@ class CredentialCipherTest {
             val delegate = protobufSerializer(AppSettings(version = ""))
             val serializer = EncryptedAppSettingsSerializer(delegate, cipher)
 
+            // The retired translation provider is the remaining stored key; a legacy cloud AI key is
+            // dropped before writing (see AppSettingsLocalAiMigrationTest).
             val original =
                 AppSettings(
                     version = "1.0.8",
-                    aiConfig =
-                        AppSettings.AiConfig(
-                            type =
-                                AppSettings.AiConfig.Type.OpenAI(
-                                    serverUrl = "https://api.openai.com/v1",
-                                    apiKey = "sk-live-secret-openai-key",
-                                    model = "gpt-4o-mini",
-                                ),
-                        ),
                     translateConfig =
                         AppSettings.TranslateConfig(
                             provider = AppSettings.TranslateConfig.Provider.DeepL(apiKey = "deepl-secret-token"),
@@ -110,16 +103,13 @@ class CredentialCipherTest {
 
             // Verify plaintext API keys do NOT appear on disk and delegate reads encrypted envelopes.
             val rawText = rawBytes.decodeToString()
-            assertFalse(rawText.contains("sk-live-secret-openai-key"))
             assertFalse(rawText.contains("deepl-secret-token"))
 
             val onDisk = delegate.readFrom(Buffer().write(rawBytes))
-            assertTrue(cipher.isEncrypted((onDisk.aiConfig.type as AppSettings.AiConfig.Type.OpenAI).apiKey))
             assertTrue(cipher.isEncrypted((onDisk.translateConfig.provider as AppSettings.TranslateConfig.Provider.DeepL).apiKey))
 
             // Verify reading through EncryptedAppSettingsSerializer restores original plaintext API keys.
             val restored = serializer.readFrom(Buffer().write(rawBytes))
-            assertEquals("sk-live-secret-openai-key", (restored.aiConfig.type as AppSettings.AiConfig.Type.OpenAI).apiKey)
             assertEquals("deepl-secret-token", (restored.translateConfig.provider as AppSettings.TranslateConfig.Provider.DeepL).apiKey)
         }
 }

@@ -1,130 +1,65 @@
 package org.crux.feature.agent.runtime
 
 import ai.koog.http.client.KoogHttpClient
-import ai.koog.prompt.executor.clients.openai.OpenAIClientSettings
-import ai.koog.prompt.executor.clients.openai.OpenAILLMClient
-import ai.koog.prompt.executor.llms.MultiLLMPromptExecutor
 import ai.koog.prompt.llm.LLMCapability
 import ai.koog.prompt.llm.LLMProvider
 import ai.koog.prompt.llm.LLModel
 import org.crux.common.OnDeviceAI
 import org.crux.data.datastore.model.AppSettings
+import org.crux.data.network.ai.localOnly
 
+/**
+ * Builds the agent runtime from the stored AI config. The agent only ever runs on the device: a
+ * legacy or imported OpenAI-compatible config is read as the default on-device engine through
+ * [localOnly], so its server address and API key are never used and no cloud client is built.
+ * The settings screen labels every config "On-device", and this keeps that label true.
+ */
 internal class AiConfigKoogBridge {
-    fun availability(aiConfig: AppSettings.AiConfig): AgentAvailability =
-        when (val type = aiConfig.type) {
-            is AppSettings.AiConfig.Type.OnDevice -> {
-                AgentAvailability.Available
-            }
-
-            is AppSettings.AiConfig.Type.OpenAI -> {
-                when {
-                    type.serverUrl.isBlank() -> {
-                        AgentAvailability.Unavailable(AgentAvailability.Reason.MissingOpenAIEndpoint)
-                    }
-
-                    type.apiKey.isBlank() -> {
-                        AgentAvailability.Unavailable(AgentAvailability.Reason.MissingOpenAIApiKey)
-                    }
-
-                    type.model.isBlank() -> {
-                        AgentAvailability.Unavailable(AgentAvailability.Reason.MissingOpenAIModel)
-                    }
-
-                    else -> {
-                        AgentAvailability.Available
-                    }
-                }
-            }
-        }
+    fun availability(
+        @Suppress("UNUSED_PARAMETER") aiConfig: AppSettings.AiConfig,
+    ): AgentAvailability = AgentAvailability.Available
 
     fun createRuntime(
         aiConfig: AppSettings.AiConfig,
         httpClientFactory: KoogHttpClient.Factory,
         onDeviceAI: OnDeviceAI? = null,
     ): CruxAgentRuntime? {
-        if (availability(aiConfig) != AgentAvailability.Available) {
-            return null
-        }
-
-        return when (val type = aiConfig.type) {
-            is AppSettings.AiConfig.Type.OnDevice -> {
-                val model =
-                    LLModel(
-                        provider = LLMProvider.Ollama,
-                        id = type.model.ifBlank { AppSettings.AiConfig.Type.OnDevice.DEFAULT_MODEL },
-                        capabilities =
-                            listOf(
-                                LLMCapability.Completion,
-                                LLMCapability.OpenAIEndpoint.Completions,
-                                LLMCapability.Temperature,
-                                LLMCapability.Tools,
-                                LLMCapability.ToolChoice,
-                                LLMCapability.Vision.Image,
-                            ),
-                        contextLength = type.contextLength,
-                    )
-                val delegate =
-                    OnDevicePromptExecutor(
+        val type = aiConfig.type.localOnly()
+        val model =
+            LLModel(
+                provider = LLMProvider.Ollama,
+                id = type.model.ifBlank { AppSettings.AiConfig.Type.OnDevice.DEFAULT_MODEL },
+                capabilities =
+                    listOf(
+                        LLMCapability.Completion,
+                        LLMCapability.OpenAIEndpoint.Completions,
+                        LLMCapability.Temperature,
+                        LLMCapability.Tools,
+                        LLMCapability.ToolChoice,
+                        LLMCapability.Vision.Image,
+                    ),
+                contextLength = type.contextLength,
+            )
+        val delegate =
+            OnDevicePromptExecutor(
+                config = type,
+                httpClientFactory = httpClientFactory,
+            )
+        return CruxAgentRuntime(
+            promptExecutor =
+                if (onDeviceAI != null) {
+                    LocalModelPromptExecutor(
                         config = type,
-                        httpClientFactory = httpClientFactory,
+                        delegate = delegate,
+                        onDeviceAI = onDeviceAI,
                     )
-                CruxAgentRuntime(
-                    promptExecutor =
-                        if (onDeviceAI != null) {
-                            LocalModelPromptExecutor(
-                                config = type,
-                                delegate = delegate,
-                                onDeviceAI = onDeviceAI,
-                            )
-                        } else {
-                            delegate
-                        },
-                    model = model,
-                    aiConfig = aiConfig,
-                )
-            }
-
-            is AppSettings.AiConfig.Type.OpenAI -> {
-                val client =
-                    OpenAILLMClient(
-                        apiKey = type.apiKey,
-                        settings =
-                            OpenAIClientSettings(
-                                baseUrl = type.serverUrl.trimEnd('/'),
-                                chatCompletionsPath = "chat/completions",
-                                responsesAPIPath = "responses",
-                                embeddingsPath = "embeddings",
-                                moderationsPath = "moderations",
-                                modelsPath = "models",
-                            ),
-                        httpClientFactory = httpClientFactory,
-                    )
-                val model =
-                    LLModel(
-                        provider = LLMProvider.OpenAI,
-                        id = type.model,
-                        capabilities =
-                            listOf(
-                                LLMCapability.Completion,
-                                LLMCapability.OpenAIEndpoint.Completions,
-                                LLMCapability.Temperature,
-                                LLMCapability.Tools,
-                                LLMCapability.ToolChoice,
-                                LLMCapability.Vision.Image,
-                            ),
-                        contextLength = DEFAULT_CONTEXT_LENGTH,
-                    )
-                CruxAgentRuntime(
-                    promptExecutor = MultiLLMPromptExecutor(client),
-                    model = model,
-                    aiConfig = aiConfig,
-                )
-            }
-        }
-    }
-
-    private companion object {
-        const val DEFAULT_CONTEXT_LENGTH = 128_000L
+                } else {
+                    delegate
+                },
+            model = model,
+            // The runtime carries the config it actually runs, so nothing downstream can read the
+            // legacy server address or key.
+            aiConfig = aiConfig.copy(type = type),
+        )
     }
 }

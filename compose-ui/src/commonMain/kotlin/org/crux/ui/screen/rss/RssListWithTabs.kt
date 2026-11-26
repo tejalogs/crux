@@ -134,12 +134,12 @@ public fun LazyListScope.rssListWithTabs(
                                     if (it) {
                                         FAIcon(
                                             imageVector = FontAwesomeIcons.Solid.ThumbtackSlash,
-                                            contentDescription = stringResource(Res.string.tab_settings_add),
+                                            contentDescription = stringResource(Res.string.tab_settings_remove),
                                         )
                                     } else {
                                         FAIcon(
                                             imageVector = FontAwesomeIcons.Solid.Thumbtack,
-                                            contentDescription = stringResource(Res.string.tab_settings_remove),
+                                            contentDescription = stringResource(Res.string.tab_settings_add),
                                         )
                                     }
                                 }

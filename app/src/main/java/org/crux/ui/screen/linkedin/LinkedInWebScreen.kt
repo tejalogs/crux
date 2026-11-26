@@ -1,7 +1,6 @@
 package org.crux.ui.screen.linkedin
 
 import android.net.Uri
-import android.os.Build
 import android.os.Message
 import android.view.View
 import android.webkit.ConsoleMessage
@@ -13,7 +12,6 @@ import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
-import android.webkit.WebSettings
 import android.webkit.WebView
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
@@ -46,10 +44,13 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -65,8 +66,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.webkit.WebViewCompat
-import androidx.webkit.WebViewFeature
 import com.kevinnzou.web.AccompanistWebViewClient
 import com.kevinnzou.web.WebView
 import com.kevinnzou.web.rememberWebViewState
@@ -101,15 +100,12 @@ import org.crux.ui.screen.home.LiveWebSite
 import org.crux.ui.screen.home.LocalLiveWebPages
 import org.crux.ui.screen.home.SaveToBookmarkFolderSheet
 import org.crux.ui.screen.home.WebSessionLifecycleSuspender
-import org.crux.ui.screen.home.attachSafeDownloadListener
-import org.crux.ui.screen.home.blockedTrackerResponse
 import org.crux.ui.screen.home.bridgeBookmarkMessage
 import org.crux.ui.screen.home.buildFileChooserIntent
 import org.crux.ui.screen.home.clearSession
 import org.crux.ui.screen.home.computeWebViewCanGoBack
-import org.crux.ui.screen.home.configureWebViewHeadersAndDarkening
 import org.crux.ui.screen.home.cookieManager
-import org.crux.ui.screen.home.currentUiNightMask
+import org.crux.ui.screen.home.createThemeSafeWebView
 import org.crux.ui.screen.home.extractPostFromWebView
 import org.crux.ui.screen.home.formatCompactHostPath
 import org.crux.ui.screen.home.generateWebBridgeToken
@@ -119,10 +115,27 @@ import org.crux.ui.screen.home.isExternalOAuthUrl
 import org.crux.ui.screen.home.navigateWebViewBackOrEscapeOAuth
 import org.crux.ui.screen.home.openInSystemBrowser
 import org.crux.ui.screen.home.parseFileChooserActivityResult
-import org.crux.ui.screen.home.restoreUiModeNightMaskIfNeeded
 import org.crux.ui.screen.home.sanitizeSiteInitialUrl
 import org.crux.ui.screen.home.useProfileOf
 import org.crux.ui.screen.instagram.LockAwareWebChromeClient
+import org.crux.ui.screen.instagram.ScreenBackAction
+import org.crux.ui.screen.instagram.ScreenWebConfig
+import org.crux.ui.screen.instagram.WebSessionChange
+import org.crux.ui.screen.instagram.WebSessionTracker
+import org.crux.ui.screen.instagram.initialSessionSignedIn
+import org.crux.ui.screen.instagram.hardenScreenWebView
+import org.crux.ui.screen.instagram.releaseScreenWebView
+import org.crux.ui.screen.instagram.screenBackAction
+import org.crux.ui.screen.instagram.screenRequestResponse
+import org.crux.ui.screen.instagram.shouldFlushSessionCookies
+
+/** Reads LinkedIn's own cookie jar for a signed-in session. No flush is needed to read. */
+private fun readLinkedInSignedIn(): Boolean =
+    runCatching {
+        val cm = LiveWebSite.LinkedIn.cookieManager()
+        val cookies = cm.getCookie("https://www.linkedin.com").orEmpty() + "; " + cm.getCookie("https://linkedin.com").orEmpty()
+        LinkedInFeedService.hasActiveSession(cookies)
+    }.getOrDefault(false)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -144,7 +157,25 @@ internal fun LinkedInWebScreen(
         }
     val bridgeToken = remember { generateWebBridgeToken() }
     val bookmarkBridgeMsg = remember(bridgeToken) { bridgeBookmarkMessage(bridgeToken) }
-    val webViewState = rememberWebViewState(targetUrl)
+    // Settings are followed live, as on the home tabs: the clients read webConfig.current on each
+    // use, and a change to the page's scripts, autoplay or cookie rule is written in and reloaded.
+    val privacyStore = remember(context) { LiveWebPrivacyStore.get(context) }
+    val allSettings by privacyStore.settings.collectAsState()
+    val config = remember(allSettings) { allSettings.configFor(LiveWebSite.LinkedIn) }
+    val webConfig = remember { ScreenWebConfig(LiveWebSite.LinkedIn, bridgeToken, config) }
+    LaunchedEffect(config) {
+        if (webConfig.update(config)) {
+            webViewRef.value?.let { view ->
+                webConfig.applyTo(view)
+                view.reload()
+            }
+        }
+    }
+    // After a renderer crash the dead WebView leaves composition (and is destroyed); Retry bumps
+    // the generation so a fresh WebView with a fresh state is built, reopening where the user was.
+    var webViewGeneration by remember { mutableIntStateOf(0) }
+    var rendererGone by remember { mutableStateOf(false) }
+    var restoreUrl by remember { mutableStateOf<String?>(null) }
     val pages = LocalLiveWebPages.current
     val connections = LocalCruxConnections.current
     val autoReturnOnSignIn =
@@ -172,27 +203,37 @@ internal fun LinkedInWebScreen(
         runCatching { cb?.onCustomViewHidden() }
     }
 
-    // Refreshes cookie-backed session state once LinkedIn login cookies are present.
-    // Reload the live tab and connections once per signed-in session, not on every navigation:
-    // this runs from onPageFinished and doUpdateVisitedHistory.
-    val sessionSynced = remember { booleanArrayOf(false) }
+    // A WebView whose renderer died can't be reloaded: build a fresh one where the user was.
+    fun recreateWebViewAfterRendererCrash() {
+        loadError = null
+        restoreUrl = sanitizeSiteInitialUrl(LiveWebSite.LinkedIn, currentUrl)
+        rendererGone = false
+        webViewGeneration += 1
+    }
 
-    fun checkAndSyncSession() {
-        val cm = LiveWebSite.LinkedIn.cookieManager()
-        cm.flush()
-        val cookies = cm.getCookie("https://www.linkedin.com").orEmpty() + "; " + cm.getCookie("https://linkedin.com").orEmpty()
-        val signedIn = LinkedInFeedService.hasActiveSession(cookies)
-        if (!signedIn) sessionSynced[0] = false
-        if (signedIn && !sessionSynced[0]) {
-            sessionSynced[0] = true
-            scope.launch {
-                pages?.reload(LiveWebSite.LinkedIn)
-                connections?.refresh()
-                if (autoReturnOnSignIn && !hasAutoReturned) {
-                    hasAutoReturned = true
-                    Toast.makeText(context, "Signed in to LinkedIn", Toast.LENGTH_SHORT).show()
-                    onBack()
-                }
+    // Reloads the home tab and refreshes connections only when the sign-in state really changes
+    // while this screen is open. Opening a LinkedIn link while already signed in must not reload
+    // the home tab (that reshuffles the feed and loses the user's place). This runs from
+    // onPageFinished and doUpdateVisitedHistory. The sign-in flow starts from "signed out"
+    // because Crux saw no session when it opened it.
+    val sessionTracker =
+        remember {
+            WebSessionTracker(initialSessionSignedIn(autoReturnOnSignIn, ::readLinkedInSignedIn))
+        }
+
+    fun checkAndSyncSession(url: String?) {
+        val change = sessionTracker.update(readLinkedInSignedIn())
+        if (shouldFlushSessionCookies(url, change)) {
+            runCatching { LiveWebSite.LinkedIn.cookieManager().flush() }
+        }
+        if (change == WebSessionChange.None) return
+        scope.launch {
+            pages?.reload(LiveWebSite.LinkedIn)
+            connections?.refresh()
+            if (change == WebSessionChange.SignedIn && autoReturnOnSignIn && !hasAutoReturned) {
+                hasAutoReturned = true
+                Toast.makeText(context, "Signed in to LinkedIn", Toast.LENGTH_SHORT).show()
+                onBack()
             }
         }
     }
@@ -205,7 +246,7 @@ internal fun LinkedInWebScreen(
     }
 
     LaunchedEffect(Unit) {
-        checkAndSyncSession()
+        checkAndSyncSession(targetUrl)
     }
 
     BackHandler(enabled = customVideoView != null || canGoBack) {
@@ -241,12 +282,10 @@ internal fun LinkedInWebScreen(
                         BackButton(
                             onBack = {
                                 val wv = webViewRef.value
-                                if (customVideoView != null) {
-                                    exitFullscreenVideo()
-                                } else if (wv != null && isExternalOAuthUrl(wv.url)) {
-                                    navigateWebViewBackOrEscapeOAuth(wv, LiveWebSite.LinkedIn)
-                                } else {
-                                    onBack()
+                                when (screenBackAction(customVideoView != null, wv != null && canGoBack, isExternalOAuthUrl(wv?.url))) {
+                                    ScreenBackAction.ExitVideo -> exitFullscreenVideo()
+                                    ScreenBackAction.PageBack -> wv?.let { navigateWebViewBackOrEscapeOAuth(it, LiveWebSite.LinkedIn) }
+                                    ScreenBackAction.Leave -> onBack()
                                 }
                             },
                         )
@@ -338,6 +377,15 @@ internal fun LinkedInWebScreen(
                                 expanded = showOverflowMenu,
                                 onDismissRequest = { showOverflowMenu = false },
                             ) {
+                                if (canGoBack) {
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.web_close_screen)) },
+                                        onClick = {
+                                            showOverflowMenu = false
+                                            onBack()
+                                        },
+                                    )
+                                }
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.web_privacy_info)) },
                                     onClick = {
@@ -349,7 +397,11 @@ internal fun LinkedInWebScreen(
                                     text = { Text(stringResource(R.string.web_nav_reload)) },
                                     onClick = {
                                         showOverflowMenu = false
-                                        webViewRef.value?.reload()
+                                        if (rendererGone) {
+                                            recreateWebViewAfterRendererCrash()
+                                        } else {
+                                            webViewRef.value?.reload()
+                                        }
                                     },
                                 )
                                 DropdownMenuItem(
@@ -390,23 +442,27 @@ internal fun LinkedInWebScreen(
                     .padding(innerPadding)
                     .imePadding(),
         ) {
-            val expectedNightMask = remember(context) { context.currentUiNightMask() }
             val webBackgroundColor = MaterialTheme.colorScheme.background.toArgb()
             LaunchedEffect(webViewRef.value, webBackgroundColor) {
                 webViewRef.value?.setBackgroundColor(webBackgroundColor)
             }
             val privacyCounters = remember(context) { LiveWebPrivacyCounters.get(context.applicationContext) }
-            val config = remember(context) { LiveWebPrivacyStore.get(context).configFor(LiveWebSite.LinkedIn) }
             // The library sets its own clients right after onCreated, so ours go in as parameters;
-            // a client assigned inside onCreated would be silently replaced.
+            // a client assigned inside onCreated would be silently replaced. Built once: they read
+            // the live config from webConfig.
             val webViewClient =
-                remember(config) {
+                remember {
                     object : AccompanistWebViewClient() {
                         override fun onRenderProcessGone(
                             view: WebView?,
                             detail: RenderProcessGoneDetail?,
                         ): Boolean {
                             exitFullscreenVideo()
+                            // This WebView can't be used again: drop it so it is removed and destroyed.
+                            if (view != null && webViewRef.value === view) webViewRef.value = null
+                            rendererGone = true
+                            // Nothing to go back in now: let system Back close the screen.
+                            canGoBack = false
                             loadError = "Page renderer restarted"
                             isPageLoading = false
                             return true
@@ -429,19 +485,15 @@ internal fun LinkedInWebScreen(
                             request: WebResourceRequest?,
                         ): Boolean {
                             if (view == null || request == null) return false
-                            return handleMainFrameUrlOverride(view, request, LiveWebSite.LinkedIn, config)
+                            return handleMainFrameUrlOverride(view, request, LiveWebSite.LinkedIn, webConfig.current)
                         }
 
                         override fun shouldInterceptRequest(
                             view: WebView?,
                             request: WebResourceRequest?,
                         ): WebResourceResponse? =
-                            if (request != null && config.blocks(LiveWebSite.LinkedIn, request.url.host)) {
-                                privacyCounters.recordBlockedRequest(LiveWebSite.LinkedIn)
-                                blockedTrackerResponse()
-                            } else {
-                                super.shouldInterceptRequest(view, request)
-                            }
+                            screenRequestResponse(LiveWebSite.LinkedIn, webConfig.current, request, privacyCounters)
+                                ?: super.shouldInterceptRequest(view, request)
 
                         override fun onPageStarted(
                             view: WebView,
@@ -465,22 +517,14 @@ internal fun LinkedInWebScreen(
                             super.onPageFinished(view, url)
                             isPageLoading = false
                             val committed = url ?: view.url
-                            if (
-                                !WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT) &&
-                                !isExternalOAuthUrl(committed) &&
-                                LiveWebSite.LinkedIn.allows(runCatching { java.net.URI(committed.orEmpty()).host }.getOrNull())
-                            ) {
-                                config.documentStartScripts(LiveWebSite.LinkedIn, bridgeToken).forEach { script ->
-                                    view.evaluateJavascript(script, null)
-                                }
-                            }
+                            webConfig.runScriptsAfterLoad(view, committed)
                             committed?.let {
                                 currentUrl = it
                                 canGoBack = computeWebViewCanGoBack(view.canGoBack(), it)
                             }
                             val host = committed?.let { runCatching { Uri.parse(it).host }.getOrNull() }
                             if (LinkedInFeedParser.isValidLinkedInHost(host)) {
-                                checkAndSyncSession()
+                                checkAndSyncSession(committed)
                             }
                         }
 
@@ -497,13 +541,13 @@ internal fun LinkedInWebScreen(
                             }
                             val host = committed?.let { runCatching { Uri.parse(it).host }.getOrNull() }
                             if (LinkedInFeedParser.isValidLinkedInHost(host)) {
-                                checkAndSyncSession()
+                                checkAndSyncSession(committed)
                             }
                         }
                     }
                 }
             val chromeClient =
-                remember(config) {
+                remember {
                     object : LockAwareWebChromeClient() {
                         override fun onCreateWindow(
                             view: WebView?,
@@ -512,7 +556,7 @@ internal fun LinkedInWebScreen(
                             resultMsg: Message?,
                         ): Boolean {
                             if (view == null) return false
-                            return handleCreateWindow(view, LiveWebSite.LinkedIn, config, isUserGesture, resultMsg)
+                            return handleCreateWindow(view, LiveWebSite.LinkedIn, webConfig.current, isUserGesture, resultMsg)
                         }
 
                         override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
@@ -591,67 +635,26 @@ internal fun LinkedInWebScreen(
                         }
                     }
                 }
-            WebView(
-                state = webViewState,
-                modifier = Modifier.fillMaxSize(),
-                client = webViewClient,
-                chromeClient = chromeClient,
-                onCreated = { webView ->
-                    restoreUiModeNightMaskIfNeeded(webView.context, expectedNightMask)
-                    webView.post { restoreUiModeNightMaskIfNeeded(webView.context, expectedNightMask) }
-                    webView.useProfileOf(LiveWebSite.LinkedIn)
-                    webView.setBackgroundColor(webBackgroundColor)
-                    webView.isNestedScrollingEnabled = false
-                    webView.overScrollMode = View.OVER_SCROLL_NEVER
-                    webView.isVerticalScrollBarEnabled = false
-                    webView.isHorizontalScrollBarEnabled = false
-                    webViewRef.value = webView
-                    @Suppress("DEPRECATION")
-                    webView.settings.apply {
-                        javaScriptEnabled = true
-                        domStorageEnabled = true
-                        databaseEnabled = true
-                        cacheMode = WebSettings.LOAD_DEFAULT
-                        mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
-                        allowFileAccess = false
-                        allowContentAccess = false
-                        setGeolocationEnabled(false)
-                        setAllowFileAccessFromFileURLs(false)
-                        setAllowUniversalAccessFromFileURLs(false)
-                        javaScriptCanOpenWindowsAutomatically = false
-                        setSupportMultipleWindows(true)
-                        mediaPlaybackRequiresUserGesture = config.blockAutoplay
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                            safeBrowsingEnabled = true
-                        }
-                        builtInZoomControls = false
-                        displayZoomControls = false
-                        loadWithOverviewMode = true
-                        useWideViewPort = true
-                    }
-
-                    val acceptThirdParty = !config.blockThirdPartyCookies
-                    runCatching {
-                        val globalCookieManager = android.webkit.CookieManager.getInstance()
-                        globalCookieManager.setAcceptCookie(true)
-                        globalCookieManager.setAcceptThirdPartyCookies(webView, acceptThirdParty)
-                    }
-                    val cookieManager = LiveWebSite.LinkedIn.cookieManager()
-                    cookieManager.setAcceptCookie(true)
-                    cookieManager.setAcceptThirdPartyCookies(webView, acceptThirdParty)
-                    if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
-                        config.documentStartScripts(LiveWebSite.LinkedIn, bridgeToken).forEach { script ->
-                            WebViewCompat.addDocumentStartJavaScript(
-                                webView,
-                                script,
-                                LiveWebSite.LinkedIn.documentStartOriginRules,
-                            )
-                        }
-                    }
-                    configureWebViewHeadersAndDarkening(webView.settings)
-                    attachSafeDownloadListener(webView)
-                },
-            )
+            if (!rendererGone) {
+                key(webViewGeneration) {
+                    val webViewState = rememberWebViewState(restoreUrl ?: targetUrl)
+                    WebView(
+                        state = webViewState,
+                        modifier = Modifier.fillMaxSize(),
+                        client = webViewClient,
+                        chromeClient = chromeClient,
+                        onCreated = { webView ->
+                            webView.useProfileOf(LiveWebSite.LinkedIn)
+                            webView.hardenScreenWebView(webBackgroundColor)
+                            webConfig.applyTo(webView)
+                            webViewRef.value = webView
+                        },
+                        // The keyboard-incognito WebView every site page uses, with the night-mode fix.
+                        factory = { viewContext -> createThemeSafeWebView(viewContext) },
+                        onDispose = ::releaseScreenWebView,
+                    )
+                }
+            }
             if (loadError != null) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
@@ -679,8 +682,12 @@ internal fun LinkedInWebScreen(
                         Spacer(modifier = Modifier.height(20.dp))
                         FilledTonalButton(
                             onClick = {
-                                loadError = null
-                                webViewRef.value?.reload()
+                                if (rendererGone) {
+                                    recreateWebViewAfterRendererCrash()
+                                } else {
+                                    loadError = null
+                                    webViewRef.value?.reload()
+                                }
                             },
                         ) {
                             FAIcon(
@@ -733,6 +740,8 @@ internal fun LinkedInWebScreen(
                     onClick = {
                         showClearConfirmDialog = false
                         LiveWebSite.LinkedIn.clearSession(context)
+                        // clearAndReload below already reloads the home tab for this sign-out.
+                        sessionTracker.update(isSignedIn = false)
                         webViewRef.value?.clearCache(true)
                         webViewRef.value?.clearHistory()
                         pages?.clearAndReload(LiveWebSite.LinkedIn)

@@ -2,6 +2,7 @@ package org.crux.ui.screen.home
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.util.Log
 import androidx.core.content.edit
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -17,21 +18,53 @@ private const val KEY_HIDE_ENGAGEMENT_COUNTS = "hide_engagement_counts"
 private const val KEY_SECURE_WINDOW = "secure_window"
 private const val KEY_GPC = "send_gpc"
 
+/**
+ * Version of what is stored here. Missing (0) means 1.0.12 or earlier. Stamped on every write so
+ * later releases can tell which defaults the saved values were written under.
+ */
+internal const val KEY_WEB_PRIVACY_SCHEMA = "web_privacy_schema"
+
+/**
+ * 2 (1.0.13): Reddit NSFW unblur became opt-in and Reddit/LinkedIn became tap-to-play.
+ */
+internal const val WEB_PRIVACY_SCHEMA_VERSION = 2
+
 private fun protectionKey(site: LiveWebSite) = "protection.${site.name}"
 
 private fun autoplayKey(site: LiveWebSite) = "block_autoplay_v2.${site.name}"
 
 private fun tweakKey(tweak: SiteTweak) = "tweak_v2.${tweak.name}"
 
+/** Sites whose saved autoplay value is reset once by the schema 2 migration. */
+private val SCHEMA_2_AUTOPLAY_RESET = listOf(LiveWebSite.Reddit, LiveWebSite.LinkedIn)
+
 /**
- * Persists [WebPrivacySettings] in SharedPreferences. Only values the person changed are written,
- * so a default added later reaches existing installs. Reads are synchronous because a WebView's
- * scripts and blocking are fixed when it is created.
+ * Moves values saved under an older schema onto this release's defaults, once.
+ *
+ * Up to 1.0.12, any change wrote every key with the defaults of the time, so a saved value does not
+ * show what the person chose. Schema 2 therefore removes the Reddit NSFW unblur and the Reddit and
+ * LinkedIn autoplay keys for everyone, which lets the new defaults (unblur off, tap to play) apply.
+ * Choices made after this run are kept, because the version is already stamped.
  */
-internal class LiveWebPrivacyStore private constructor(
+internal fun migrateWebPrivacyPrefs(prefs: SharedPreferences) {
+    if (prefs.getInt(KEY_WEB_PRIVACY_SCHEMA, 0) >= WEB_PRIVACY_SCHEMA_VERSION) return
+    prefs.edit(commit = true) {
+        remove(tweakKey(SiteTweak.RedditUnblurNsfw))
+        SCHEMA_2_AUTOPLAY_RESET.forEach { remove(autoplayKey(it)) }
+        putInt(KEY_WEB_PRIVACY_SCHEMA, WEB_PRIVACY_SCHEMA_VERSION)
+    }
+}
+
+/**
+ * Persists [WebPrivacySettings] in SharedPreferences. Any change writes the full state, so a key
+ * that is missing means "use the current default"; a default changed later reaches saved installs
+ * only through [migrateWebPrivacyPrefs]. Reads are synchronous because a WebView's scripts and
+ * blocking are fixed when it is created.
+ */
+internal class LiveWebPrivacyStore internal constructor(
     private val prefs: SharedPreferences,
 ) {
-    private val mutable = MutableStateFlow(read())
+    private val mutable = MutableStateFlow(migrateThenRead())
     val settings: StateFlow<WebPrivacySettings> = mutable.asStateFlow()
 
     fun update(transform: (WebPrivacySettings) -> WebPrivacySettings) {
@@ -42,6 +75,12 @@ internal class LiveWebPrivacyStore private constructor(
     }
 
     fun configFor(site: LiveWebSite): LiveWebConfig = mutable.value.configFor(site)
+
+    private fun migrateThenRead(): WebPrivacySettings {
+        runCatching { migrateWebPrivacyPrefs(prefs) }
+            .onFailure { Log.w(TAG, "Web privacy migration failed; reading saved values", it) }
+        return read()
+    }
 
     private fun read(): WebPrivacySettings {
         val sites =
@@ -89,6 +128,7 @@ internal class LiveWebPrivacyStore private constructor(
             putBoolean(KEY_HIDE_ENGAGEMENT_COUNTS, settings.hideEngagementCounts)
             putBoolean(KEY_SECURE_WINDOW, settings.secureWindow)
             putBoolean(KEY_GPC, settings.sendGlobalPrivacyControl)
+            putInt(KEY_WEB_PRIVACY_SCHEMA, WEB_PRIVACY_SCHEMA_VERSION)
         }
     }
 
@@ -97,6 +137,8 @@ internal class LiveWebPrivacyStore private constructor(
     }
 
     companion object {
+        private const val TAG = "LiveWebPrivacyStore"
+
         @Volatile
         private var instance: LiveWebPrivacyStore? = null
 

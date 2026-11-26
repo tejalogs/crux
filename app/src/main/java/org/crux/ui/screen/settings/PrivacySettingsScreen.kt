@@ -99,8 +99,9 @@ import org.koin.compose.koinInject
 /**
  * Privacy controls.
  *
- * Every toggle is a real restriction the client enforces itself. Nothing here asks a server to
- * stop collecting; the point is that Crux stops sending in the first place.
+ * Every toggle is a real restriction the client enforces itself. The Privacy Checkup is the one
+ * exception: it only opens each site's own settings pages, where the person asks the site to
+ * collect or use less. The limits card says plainly what no client can stop inside a signed-in site.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -109,6 +110,7 @@ internal fun PrivacySettingsScreen(
     toTrafficLog: () -> Unit,
     toBlocklist: () -> Unit,
     toPrivacyTweaks: () -> Unit,
+    toPrivacyCheckup: () -> Unit = {},
 ) {
     val topAppBarScrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val repository = koinInject<PrivacySettingsRepository>()
@@ -213,12 +215,21 @@ internal fun PrivacySettingsScreen(
                 SegmentedListItemLike(
                     title = stringResource(id = R.string.web_tweaks_title),
                     description = stringResource(id = R.string.web_tweaks_subtitle),
-                    shapes = ListItemDefaults.single(),
+                    shapes = ListItemDefaults.first(),
                     onClick = toPrivacyTweaks,
+                )
+                SegmentedListItemLike(
+                    title = stringResource(id = R.string.privacy_checkup_title),
+                    description = stringResource(id = R.string.privacy_checkup_entry_description),
+                    shapes = ListItemDefaults.last(),
+                    onClick = toPrivacyCheckup,
                 )
             }
 
             LiveWebProfilesSandboxCard()
+
+            // The Privacy Checkup row above is the one way in; the card only states the limits.
+            PrivacyLimitsCard()
 
             Column(
                 verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),

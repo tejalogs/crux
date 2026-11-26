@@ -18,6 +18,8 @@ internal class RssTimelineRemoteMediator(
     private val fetchIcon: suspend (Feed, String) -> String? = RssService::iconFor,
     private val fetchSource: suspend (String) -> UiRssSource?,
 ) : CacheableRemoteLoader<UiTimelineV2> {
+    // The "rss_" prefix also tells MixedRemoteMediator that this source is a feed, whose last good
+    // refresh stands in for it when a later refresh fails. Keep the two in step.
     override val pagingKey: String
         get() =
             buildString {

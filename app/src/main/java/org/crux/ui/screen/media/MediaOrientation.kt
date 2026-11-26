@@ -14,18 +14,19 @@ internal fun MediaLandscapeEffect(
     enabled: Boolean,
     originalOrientation: Int?,
     setOriginalOrientation: (Int?) -> Unit,
+    orientation: Int = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE,
 ) {
     val context = LocalContext.current
     val activity = remember(context) { context.findActivity() }
 
-    DisposableEffect(activity, enabled, originalOrientation) {
+    DisposableEffect(activity, enabled, originalOrientation, orientation) {
         if (enabled) {
             if (originalOrientation == null) {
                 setOriginalOrientation(
                     activity?.requestedOrientation ?: ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED,
                 )
             } else {
-                activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+                activity?.requestedOrientation = orientation
             }
         } else if (originalOrientation != null) {
             activity?.requestedOrientation = originalOrientation

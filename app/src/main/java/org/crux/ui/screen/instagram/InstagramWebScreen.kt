@@ -1,9 +1,12 @@
 package org.crux.ui.screen.instagram
 
+import android.annotation.SuppressLint
+import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
 import android.os.Message
 import android.view.View
+import android.view.ViewGroup
 import android.view.ViewGroup.LayoutParams
 import android.webkit.ConsoleMessage
 import android.webkit.GeolocationPermissions
@@ -50,10 +53,13 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -84,6 +90,8 @@ import compose.icons.fontawesomeicons.solid.EllipsisVertical
 import compose.icons.fontawesomeicons.solid.RotateRight
 import compose.icons.fontawesomeicons.solid.Rss
 import compose.icons.fontawesomeicons.solid.TrashCan
+import java.lang.ref.WeakReference
+import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.launch
 import org.crux.BuildConfig
 import org.crux.R
@@ -100,21 +108,22 @@ import org.crux.ui.screen.crux.PlatformBadge
 import org.crux.ui.screen.crux.isSignedIn
 import org.crux.ui.screen.home.ExtractedSocialPost
 import org.crux.ui.screen.home.FullscreenCustomVideoOverlay
+import org.crux.ui.screen.home.LiveWebConfig
 import org.crux.ui.screen.home.LiveWebPrivacyCounters
 import org.crux.ui.screen.home.LiveWebPrivacyStore
+import org.crux.ui.screen.home.LiveWebSessionState
 import org.crux.ui.screen.home.LiveWebSite
 import org.crux.ui.screen.home.LocalLiveWebPages
 import org.crux.ui.screen.home.SaveToBookmarkFolderSheet
 import org.crux.ui.screen.home.WebSessionLifecycleSuspender
 import org.crux.ui.screen.home.attachSafeDownloadListener
-import org.crux.ui.screen.home.blockedTrackerResponse
 import org.crux.ui.screen.home.bridgeBookmarkMessage
 import org.crux.ui.screen.home.buildFileChooserIntent
 import org.crux.ui.screen.home.clearSession
 import org.crux.ui.screen.home.computeWebViewCanGoBack
 import org.crux.ui.screen.home.configureWebViewHeadersAndDarkening
 import org.crux.ui.screen.home.cookieManager
-import org.crux.ui.screen.home.currentUiNightMask
+import org.crux.ui.screen.home.createThemeSafeWebView
 import org.crux.ui.screen.home.extractPostFromWebView
 import org.crux.ui.screen.home.formatCompactHostPath
 import org.crux.ui.screen.home.generateWebBridgeToken
@@ -124,8 +133,8 @@ import org.crux.ui.screen.home.isExternalOAuthUrl
 import org.crux.ui.screen.home.navigateWebViewBackOrEscapeOAuth
 import org.crux.ui.screen.home.openInSystemBrowser
 import org.crux.ui.screen.home.parseFileChooserActivityResult
-import org.crux.ui.screen.home.restoreUiModeNightMaskIfNeeded
 import org.crux.ui.screen.home.sanitizeSiteInitialUrl
+import org.crux.ui.screen.home.siteRequestResponse
 import org.crux.ui.screen.home.useProfileOf
 
 private const val INSTAGRAM_HOME_URL = "https://www.instagram.com"
@@ -193,7 +202,247 @@ internal open class LockAwareWebChromeClient(
         message: String?,
         result: JsResult?,
     ): Boolean = cancelWhileLocked(result) || super.onJsBeforeUnload(view, url, message, result)
+
+    // A blank 1x1 poster, so videos show no grey play-button placeholder before their first frame.
+    private val emptyVideoPoster: Bitmap by lazy { Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888) }
+
+    override fun getDefaultVideoPoster(): Bitmap = emptyVideoPoster
 }
+
+/** How a web screen's sign-in state moved since its last check. */
+internal enum class WebSessionChange { None, SignedIn, SignedOut }
+
+/**
+ * Tracks a web screen's sign-in state from the moment the screen opened, so the home tab is
+ * reloaded only on a real sign-in or sign-out, not every time a signed-in user opens a link.
+ */
+internal class WebSessionTracker(
+    initialSignedIn: Boolean,
+) {
+    var signedIn: Boolean = initialSignedIn
+        private set
+
+    /** Records the latest state and reports whether it changed. */
+    fun update(isSignedIn: Boolean): WebSessionChange {
+        if (isSignedIn == signedIn) return WebSessionChange.None
+        signedIn = isSignedIn
+        return if (isSignedIn) WebSessionChange.SignedIn else WebSessionChange.SignedOut
+    }
+}
+
+/**
+ * The sign-in state a web screen starts from. The sign-in flow (auto-return on) always starts
+ * signed out, because Crux saw no session when it opened it: the first signed-in check then
+ * reports SignedIn and returns the user to Crux. Any other open starts from the real cookies, so
+ * an already-signed-in user opening a link never reloads the home tab. Cookies are not read when
+ * the flow starts signed out.
+ */
+internal fun initialSessionSignedIn(
+    autoReturnOnSignIn: Boolean,
+    readSignedIn: () -> Boolean,
+): Boolean = !autoReturnOnSignIn && readSignedIn()
+
+/**
+ * Cookie flushes block and may do disk I/O, so the screens only flush where sign-in cookies were
+ * just written: on a sign-in page, or right after a sign-in was noticed. Reading needs no flush.
+ */
+internal fun shouldFlushSessionCookies(
+    url: String?,
+    change: WebSessionChange,
+): Boolean = change == WebSessionChange.SignedIn || LiveWebSessionState.isAuthOrLoginUrl(url)
+
+/** Frees a screen's WebView when it leaves composition, including one whose renderer died. */
+internal fun releaseScreenWebView(webView: WebView) {
+    runCatching {
+        webView.stopLoading()
+        (webView.parent as? ViewGroup)?.removeView(webView)
+        webView.destroy()
+    }
+}
+
+/** What the top-bar back arrow of a standalone web screen does. */
+internal enum class ScreenBackAction { ExitVideo, PageBack, Leave }
+
+/**
+ * The arrow agrees with system Back: it closes a fullscreen video first, then walks the page's own
+ * history (or out of an external sign-in page), and leaves the screen only when there is nothing
+ * left to go back to. The overflow menu's Close leaves at once from anywhere.
+ */
+internal fun screenBackAction(
+    videoShowing: Boolean,
+    pageCanGoBack: Boolean,
+    onExternalOAuthPage: Boolean,
+): ScreenBackAction =
+    when {
+        videoShowing -> ScreenBackAction.ExitVideo
+        pageCanGoBack || onExternalOAuthPage -> ScreenBackAction.PageBack
+        else -> ScreenBackAction.Leave
+    }
+
+/**
+ * True when a settings change must be written into a WebView that is already built (its
+ * document-start scripts, autoplay rule or third-party cookie rule) and the page reloaded. Every
+ * other part of the config (the request decision, link cleaning, the reader) is read on each use,
+ * so it takes effect with no reload. False before the first WebView was set up.
+ */
+internal fun screenConfigNeedsReapply(
+    site: LiveWebSite,
+    applied: LiveWebConfig?,
+    current: LiveWebConfig,
+): Boolean =
+    applied != null &&
+        applied != current &&
+        (
+            applied.blockAutoplay != current.blockAutoplay ||
+                applied.blockThirdPartyCookies != current.blockThirdPartyCookies ||
+                applied.documentStartScripts(site) != current.documentStartScripts(site)
+        )
+
+/**
+ * The live privacy config of a standalone web screen (Instagram, LinkedIn links), so it follows
+ * Settings the way the home tabs do instead of keeping the values it opened with. [current] is
+ * read from WebView's network threads, hence the atomic reference. [applyTo] writes the
+ * config-dependent parts into a WebView and can run again on the same one: the scripts it added
+ * before are removed first, so they never stack.
+ */
+internal class ScreenWebConfig(
+    private val site: LiveWebSite,
+    private val bridgeToken: String,
+    initial: LiveWebConfig,
+) {
+    private val latest = AtomicReference(initial)
+    private var applied: LiveWebConfig? = null
+    private val scripts = ReplaceableScripts(::addDocumentStartScript)
+
+    val current: LiveWebConfig get() = latest.get()
+
+    /** Records [config] and says whether the built WebView needs [applyTo] and a reload. Main thread. */
+    fun update(config: LiveWebConfig): Boolean {
+        latest.set(config)
+        return screenConfigNeedsReapply(site, applied, config)
+    }
+
+    /** Main thread. */
+    fun applyTo(view: WebView) {
+        val config = current
+        view.settings.mediaPlaybackRequiresUserGesture = config.blockAutoplay
+        val acceptThirdParty = !config.blockThirdPartyCookies
+        runCatching {
+            val globalCookieManager = android.webkit.CookieManager.getInstance()
+            globalCookieManager.setAcceptCookie(true)
+            globalCookieManager.setAcceptThirdPartyCookies(view, acceptThirdParty)
+        }
+        site.cookieManager().apply {
+            setAcceptCookie(true)
+            setAcceptThirdPartyCookies(view, acceptThirdParty)
+        }
+        val startScripts =
+            if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
+                config.documentStartScripts(site, bridgeToken)
+            } else {
+                emptyList()
+            }
+        scripts.replace(view, startScripts)
+        applied = config
+    }
+
+    private fun addDocumentStartScript(
+        view: WebView,
+        script: String,
+    ): (() -> Unit)? =
+        runCatching { WebViewCompat.addDocumentStartJavaScript(view, script, site.documentStartOriginRules) }
+            .getOrNull()
+            ?.let { handler -> { handler.remove() } }
+
+    /** For WebViews that cannot inject at document start: run the scripts once the page has loaded. */
+    fun runScriptsAfterLoad(
+        view: WebView,
+        url: String?,
+    ) {
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) return
+        if (isExternalOAuthUrl(url)) return
+        if (!site.allows(runCatching { java.net.URI(url.orEmpty()).host }.getOrNull())) return
+        current.documentStartScripts(site, bridgeToken).forEach { view.evaluateJavascript(it, null) }
+    }
+}
+
+/**
+ * The document-start scripts one owner has added to a WebView, so writing a new set first removes
+ * the old one instead of stacking both. [install] adds one script and returns how to remove it, or
+ * null when it could not be added. A different view (a rebuilt WebView) starts a fresh set: the old
+ * view's scripts went with it. Main thread only.
+ */
+internal class ReplaceableScripts<V : Any>(
+    private val install: (V, String) -> (() -> Unit)?,
+) {
+    private var target: WeakReference<V>? = null
+    private val removers = mutableListOf<() -> Unit>()
+
+    /** How many scripts of the last [replace] are in place. */
+    val installedCount: Int get() = removers.size
+
+    fun replace(
+        view: V,
+        scripts: List<String>,
+    ) {
+        if (target?.get() === view) removers.forEach { runCatching { it() } }
+        removers.clear()
+        target = WeakReference(view)
+        scripts.forEach { script -> install(view, script)?.let { removers += it } }
+    }
+}
+
+/**
+ * The settings every standalone web screen's WebView shares, whatever the privacy config says:
+ * no file or content access, no geolocation, no form-data saving, Safe Browsing on, popups only
+ * through onCreateWindow. The config-dependent rest is [ScreenWebConfig.applyTo].
+ */
+@SuppressLint("SetJavaScriptEnabled")
+internal fun WebView.hardenScreenWebView(backgroundColor: Int) {
+    setBackgroundColor(backgroundColor)
+    isNestedScrollingEnabled = false
+    overScrollMode = View.OVER_SCROLL_NEVER
+    isVerticalScrollBarEnabled = false
+    isHorizontalScrollBarEnabled = false
+    with(settings) {
+        javaScriptEnabled = true
+        domStorageEnabled = true
+        databaseEnabled = true
+        mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+        allowFileAccess = false
+        allowContentAccess = false
+        setGeolocationEnabled(false)
+        @Suppress("DEPRECATION")
+        setAllowFileAccessFromFileURLs(false)
+        @Suppress("DEPRECATION")
+        setAllowUniversalAccessFromFileURLs(false)
+        javaScriptCanOpenWindowsAutomatically = false
+        setSupportMultipleWindows(true)
+        @Suppress("DEPRECATION")
+        saveFormData = false
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            safeBrowsingEnabled = true
+        }
+        cacheMode = WebSettings.LOAD_DEFAULT
+        useWideViewPort = true
+        loadWithOverviewMode = true
+        displayZoomControls = false
+        builtInZoomControls = false
+    }
+    configureWebViewHeadersAndDarkening(settings)
+    attachSafeDownloadListener(this)
+}
+
+/**
+ * A standalone screen's request decision: the same one the home tabs use ([siteRequestResponse]),
+ * so these pages show in the Traffic log and are blocked only when the site's level says so.
+ */
+internal fun screenRequestResponse(
+    site: LiveWebSite,
+    config: LiveWebConfig,
+    request: WebResourceRequest?,
+    counters: LiveWebPrivacyCounters,
+): WebResourceResponse? = request?.let { siteRequestResponse(site, config, it.url?.host, counters) }
 
 internal fun extractInstagramProfile(url: String): String? {
     val uri = runCatching { Uri.parse(url) }.getOrNull() ?: return null
@@ -226,6 +475,14 @@ internal fun extractInstagramProfile(url: String): String? {
     return segments[0]
 }
 
+/** Reads Instagram's own cookie jar for a signed-in session. No flush is needed to read. */
+private fun readInstagramSignedIn(): Boolean =
+    runCatching {
+        val cm = LiveWebSite.Instagram.cookieManager()
+        val cookies = cm.getCookie(INSTAGRAM_HOME_URL).orEmpty() + "; " + cm.getCookie("https://instagram.com").orEmpty()
+        InstagramFeedService.hasActiveSession(cookies)
+    }.getOrDefault(false)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun InstagramWebScreen(
@@ -246,7 +503,25 @@ internal fun InstagramWebScreen(
         }
     val bridgeToken = remember { generateWebBridgeToken() }
     val bookmarkBridgeMsg = remember(bridgeToken) { bridgeBookmarkMessage(bridgeToken) }
-    val webViewState = rememberWebViewState(targetUrl)
+    // Settings are followed live, as on the home tabs: the clients read webConfig.current on each
+    // use, and a change to the page's scripts, autoplay or cookie rule is written in and reloaded.
+    val privacyStore = remember(context) { LiveWebPrivacyStore.get(context) }
+    val allSettings by privacyStore.settings.collectAsState()
+    val config = remember(allSettings) { allSettings.configFor(LiveWebSite.Instagram) }
+    val webConfig = remember { ScreenWebConfig(LiveWebSite.Instagram, bridgeToken, config) }
+    LaunchedEffect(config) {
+        if (webConfig.update(config)) {
+            webViewRef.value?.let { view ->
+                webConfig.applyTo(view)
+                view.reload()
+            }
+        }
+    }
+    // After a renderer crash the dead WebView leaves composition (and is destroyed); Retry bumps
+    // the generation so a fresh WebView with a fresh state is built, reopening where the user was.
+    var webViewGeneration by remember { mutableIntStateOf(0) }
+    var rendererGone by remember { mutableStateOf(false) }
+    var restoreUrl by remember { mutableStateOf<String?>(null) }
     val pages = LocalLiveWebPages.current
     val connections = LocalCruxConnections.current
     val autoReturnOnSignIn =
@@ -274,24 +549,34 @@ internal fun InstagramWebScreen(
         runCatching { cb?.onCustomViewHidden() }
     }
 
-    // Refreshes cookie-backed session state once Instagram login cookies are present.
-    // Reload the live tab and connections once per signed-in session, not on every navigation:
-    // this runs from onPageFinished and doUpdateVisitedHistory.
-    val sessionSynced = remember { booleanArrayOf(false) }
-    val checkAndSyncSession =
+    // A WebView whose renderer died can't be reloaded: build a fresh one where the user was.
+    fun recreateWebViewAfterRendererCrash() {
+        loadError = null
+        restoreUrl = sanitizeSiteInitialUrl(LiveWebSite.Instagram, currentUrl)
+        rendererGone = false
+        webViewGeneration += 1
+    }
+
+    // Reloads the home tab and refreshes connections only when the sign-in state really changes
+    // while this screen is open. Opening a link while already signed in must not reload the home
+    // tab (that loses the user's place). This runs from onPageFinished and doUpdateVisitedHistory.
+    // The sign-in flow starts from "signed out" because Crux saw no session when it opened it.
+    val sessionTracker =
+        remember {
+            WebSessionTracker(initialSessionSignedIn(autoReturnOnSignIn, ::readInstagramSignedIn))
+        }
+    val checkAndSyncSession: (String?) -> Unit =
         remember(pages, connections, autoReturnOnSignIn) {
-            {
-                val cm = LiveWebSite.Instagram.cookieManager()
-                cm.flush()
-                val cookies = cm.getCookie(INSTAGRAM_HOME_URL).orEmpty() + "; " + cm.getCookie("https://instagram.com").orEmpty()
-                val signedIn = InstagramFeedService.hasActiveSession(cookies)
-                if (!signedIn) sessionSynced[0] = false
-                if (signedIn && !sessionSynced[0]) {
-                    sessionSynced[0] = true
+            { url ->
+                val change = sessionTracker.update(readInstagramSignedIn())
+                if (shouldFlushSessionCookies(url, change)) {
+                    runCatching { LiveWebSite.Instagram.cookieManager().flush() }
+                }
+                if (change != WebSessionChange.None) {
                     scope.launch {
                         pages?.reload(LiveWebSite.Instagram)
                         connections?.refresh()
-                        if (autoReturnOnSignIn && !hasAutoReturned) {
+                        if (change == WebSessionChange.SignedIn && autoReturnOnSignIn && !hasAutoReturned) {
                             hasAutoReturned = true
                             Toast.makeText(context, "Signed in to Instagram", Toast.LENGTH_SHORT).show()
                             onBack()
@@ -302,7 +587,7 @@ internal fun InstagramWebScreen(
         }
 
     DisposableEffect(Unit) {
-        checkAndSyncSession()
+        checkAndSyncSession(targetUrl)
         onDispose {
             exitFullscreenVideo()
             LiveWebSite.Instagram.cookieManager().flush()
@@ -384,6 +669,8 @@ internal fun InstagramWebScreen(
                     onClick = {
                         showClearConfirmDialog = false
                         LiveWebSite.Instagram.clearSession(context)
+                        // clearAndReload below already reloads the home tab for this sign-out.
+                        sessionTracker.update(isSignedIn = false)
                         webViewRef.value?.clearCache(true)
                         webViewRef.value?.clearHistory()
                         pages?.clearAndReload(LiveWebSite.Instagram)
@@ -452,12 +739,10 @@ internal fun InstagramWebScreen(
                         BackButton(
                             onBack = {
                                 val wv = webViewRef.value
-                                if (customVideoView != null) {
-                                    exitFullscreenVideo()
-                                } else if (wv != null && isExternalOAuthUrl(wv.url)) {
-                                    navigateWebViewBackOrEscapeOAuth(wv, LiveWebSite.Instagram)
-                                } else {
-                                    onBack()
+                                when (screenBackAction(customVideoView != null, wv != null && canGoBack, isExternalOAuthUrl(wv?.url))) {
+                                    ScreenBackAction.ExitVideo -> exitFullscreenVideo()
+                                    ScreenBackAction.PageBack -> wv?.let { navigateWebViewBackOrEscapeOAuth(it, LiveWebSite.Instagram) }
+                                    ScreenBackAction.Leave -> onBack()
                                 }
                             },
                         )
@@ -524,6 +809,15 @@ internal fun InstagramWebScreen(
                                 expanded = showOverflowMenu,
                                 onDismissRequest = { showOverflowMenu = false },
                             ) {
+                                if (canGoBack) {
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.web_close_screen)) },
+                                        onClick = {
+                                            showOverflowMenu = false
+                                            onBack()
+                                        },
+                                    )
+                                }
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.web_privacy_info)) },
                                     onClick = {
@@ -535,7 +829,11 @@ internal fun InstagramWebScreen(
                                     text = { Text(stringResource(R.string.web_nav_reload)) },
                                     onClick = {
                                         showOverflowMenu = false
-                                        webViewRef.value?.reload()
+                                        if (rendererGone) {
+                                            recreateWebViewAfterRendererCrash()
+                                        } else {
+                                            webViewRef.value?.reload()
+                                        }
                                     },
                                 )
                                 DropdownMenuItem(
@@ -571,23 +869,27 @@ internal fun InstagramWebScreen(
                     .padding(paddingValues)
                     .imePadding(),
         ) {
-            val expectedNightMask = remember(context) { context.currentUiNightMask() }
             val webBackgroundColor = MaterialTheme.colorScheme.background.toArgb()
             LaunchedEffect(webViewRef.value, webBackgroundColor) {
                 webViewRef.value?.setBackgroundColor(webBackgroundColor)
             }
             val privacyCounters = remember(context) { LiveWebPrivacyCounters.get(context.applicationContext) }
-            val config = remember(context) { LiveWebPrivacyStore.get(context).configFor(LiveWebSite.Instagram) }
             // The library sets its own clients right after onCreated, so ours go in as parameters;
-            // a client assigned inside onCreated would be silently replaced.
+            // a client assigned inside onCreated would be silently replaced. Built once: they read
+            // the live config from webConfig.
             val webViewClient =
-                remember(config) {
+                remember {
                     object : AccompanistWebViewClient() {
                         override fun onRenderProcessGone(
                             view: WebView,
                             detail: RenderProcessGoneDetail,
                         ): Boolean {
                             exitFullscreenVideo()
+                            // This WebView can't be used again: drop it so it is removed and destroyed.
+                            if (webViewRef.value === view) webViewRef.value = null
+                            rendererGone = true
+                            // Nothing to go back in now: let system Back close the screen.
+                            canGoBack = false
                             loadError = "Page renderer restarted"
                             isPageLoading = false
                             return true
@@ -609,17 +911,13 @@ internal fun InstagramWebScreen(
                             view: WebView,
                             request: WebResourceRequest,
                         ): WebResourceResponse? =
-                            if (config.blocks(LiveWebSite.Instagram, request.url.host)) {
-                                privacyCounters.recordBlockedRequest(LiveWebSite.Instagram)
-                                blockedTrackerResponse()
-                            } else {
-                                super.shouldInterceptRequest(view, request)
-                            }
+                            screenRequestResponse(LiveWebSite.Instagram, webConfig.current, request, privacyCounters)
+                                ?: super.shouldInterceptRequest(view, request)
 
                         override fun shouldOverrideUrlLoading(
                             view: WebView,
                             request: WebResourceRequest,
-                        ): Boolean = handleMainFrameUrlOverride(view, request, LiveWebSite.Instagram, config)
+                        ): Boolean = handleMainFrameUrlOverride(view, request, LiveWebSite.Instagram, webConfig.current)
 
                         override fun onPageStarted(
                             view: WebView,
@@ -649,7 +947,7 @@ internal fun InstagramWebScreen(
                             }
                             val host = committed?.let { runCatching { Uri.parse(it).host }.getOrNull() }
                             if (InstagramFeedService.isValidInstagramHost(host)) {
-                                checkAndSyncSession()
+                                checkAndSyncSession(committed)
                             }
                         }
 
@@ -664,31 +962,23 @@ internal fun InstagramWebScreen(
                                 canGoBack = computeWebViewCanGoBack(view.canGoBack(), it)
                             }
                             isPageLoading = false
-                            if (
-                                !WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT) &&
-                                !isExternalOAuthUrl(committed) &&
-                                LiveWebSite.Instagram.allows(runCatching { java.net.URI(committed.orEmpty()).host }.getOrNull())
-                            ) {
-                                config.documentStartScripts(LiveWebSite.Instagram, bridgeToken).forEach { script ->
-                                    view.evaluateJavascript(script, null)
-                                }
-                            }
+                            webConfig.runScriptsAfterLoad(view, committed)
                             val host = committed?.let { runCatching { Uri.parse(it).host }.getOrNull() }
                             if (InstagramFeedService.isValidInstagramHost(host)) {
-                                checkAndSyncSession()
+                                checkAndSyncSession(committed)
                             }
                         }
                     }
                 }
             val chromeClient =
-                remember(config) {
+                remember {
                     object : LockAwareWebChromeClient() {
                         override fun onCreateWindow(
                             view: WebView,
                             isDialog: Boolean,
                             isUserGesture: Boolean,
                             resultMsg: Message?,
-                        ): Boolean = handleCreateWindow(view, LiveWebSite.Instagram, config, isUserGesture, resultMsg)
+                        ): Boolean = handleCreateWindow(view, LiveWebSite.Instagram, webConfig.current, isUserGesture, resultMsg)
 
                         override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
                             if (consoleMessage?.message() == bookmarkBridgeMsg) {
@@ -761,75 +1051,31 @@ internal fun InstagramWebScreen(
                         }
                     }
                 }
-            WebView(
-                state = webViewState,
-                layoutParams =
-                    FrameLayout.LayoutParams(
-                        LayoutParams.MATCH_PARENT,
-                        LayoutParams.MATCH_PARENT,
-                    ),
-                modifier = Modifier.fillMaxSize(),
-                client = webViewClient,
-                chromeClient = chromeClient,
-                onCreated = { view: WebView ->
-                    restoreUiModeNightMaskIfNeeded(view.context, expectedNightMask)
-                    view.post { restoreUiModeNightMaskIfNeeded(view.context, expectedNightMask) }
-                    view.useProfileOf(LiveWebSite.Instagram)
-                    view.setBackgroundColor(webBackgroundColor)
-                    view.isNestedScrollingEnabled = false
-                    view.overScrollMode = View.OVER_SCROLL_NEVER
-                    view.isVerticalScrollBarEnabled = false
-                    view.isHorizontalScrollBarEnabled = false
-                    webViewRef.value = view
-                    with(view.settings) {
-                        javaScriptEnabled = true
-                        domStorageEnabled = true
-                        databaseEnabled = true
-                        mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
-                        allowFileAccess = false
-                        allowContentAccess = false
-                        setGeolocationEnabled(false)
-                        @Suppress("DEPRECATION")
-                        setAllowFileAccessFromFileURLs(false)
-                        @Suppress("DEPRECATION")
-                        setAllowUniversalAccessFromFileURLs(false)
-                        javaScriptCanOpenWindowsAutomatically = false
-                        setSupportMultipleWindows(true)
-                        mediaPlaybackRequiresUserGesture = config.blockAutoplay
-                        @Suppress("DEPRECATION")
-                        saveFormData = false
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                            safeBrowsingEnabled = true
-                        }
-                        cacheMode = WebSettings.LOAD_DEFAULT
-                        useWideViewPort = true
-                        loadWithOverviewMode = true
-                        displayZoomControls = false
-                        builtInZoomControls = false
-                    }
-                    val acceptThirdParty = !config.blockThirdPartyCookies
-                    runCatching {
-                        val globalCookieManager = android.webkit.CookieManager.getInstance()
-                        globalCookieManager.setAcceptCookie(true)
-                        globalCookieManager.setAcceptThirdPartyCookies(view, acceptThirdParty)
-                    }
-                    LiveWebSite.Instagram.cookieManager().apply {
-                        setAcceptCookie(true)
-                        setAcceptThirdPartyCookies(view, acceptThirdParty)
-                    }
-                    if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
-                        config.documentStartScripts(LiveWebSite.Instagram, bridgeToken).forEach { script ->
-                            WebViewCompat.addDocumentStartJavaScript(
-                                view,
-                                script,
-                                LiveWebSite.Instagram.documentStartOriginRules,
-                            )
-                        }
-                    }
-                    configureWebViewHeadersAndDarkening(view.settings)
-                    attachSafeDownloadListener(view)
-                },
-            )
+            if (!rendererGone) {
+                key(webViewGeneration) {
+                    val webViewState = rememberWebViewState(restoreUrl ?: targetUrl)
+                    WebView(
+                        state = webViewState,
+                        layoutParams =
+                            FrameLayout.LayoutParams(
+                                LayoutParams.MATCH_PARENT,
+                                LayoutParams.MATCH_PARENT,
+                            ),
+                        modifier = Modifier.fillMaxSize(),
+                        client = webViewClient,
+                        chromeClient = chromeClient,
+                        onCreated = { view: WebView ->
+                            view.useProfileOf(LiveWebSite.Instagram)
+                            view.hardenScreenWebView(webBackgroundColor)
+                            webConfig.applyTo(view)
+                            webViewRef.value = view
+                        },
+                        // The keyboard-incognito WebView every site page uses, with the night-mode fix.
+                        factory = { viewContext -> createThemeSafeWebView(viewContext) },
+                        onDispose = ::releaseScreenWebView,
+                    )
+                }
+            }
             if (loadError != null) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
@@ -857,8 +1103,12 @@ internal fun InstagramWebScreen(
                         Spacer(modifier = Modifier.height(20.dp))
                         FilledTonalButton(
                             onClick = {
-                                loadError = null
-                                webViewRef.value?.reload()
+                                if (rendererGone) {
+                                    recreateWebViewAfterRendererCrash()
+                                } else {
+                                    loadError = null
+                                    webViewRef.value?.reload()
+                                }
                             },
                         ) {
                             FAIcon(

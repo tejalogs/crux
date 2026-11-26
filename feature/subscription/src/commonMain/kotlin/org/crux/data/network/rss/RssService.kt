@@ -1,11 +1,14 @@
 package org.crux.data.network.rss
 
 import com.fleeksoft.ksoup.Ksoup
+import io.ktor.client.HttpClient
+import io.ktor.client.plugins.ResponseException
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsChannel
 import io.ktor.http.HttpHeaders
 import io.ktor.http.URLBuilder
 import io.ktor.http.Url
+import io.ktor.http.isSuccess
 import io.ktor.http.takeFrom
 import io.ktor.utils.io.readBuffer
 import kotlinx.coroutines.async
@@ -39,10 +42,7 @@ internal const val MAX_CONCURRENT_DISCOVERY_FETCHES: Int = 3
 internal object RssService {
     private val client = publicWebClient()
 
-    suspend fun fetch(url: String): Feed {
-        val response = client.getPublic(url).decodedText()
-        return parseFeedText(response)
-    }
+    suspend fun fetch(url: String): Feed = fetchFeed(client, url)
 
     /** The feeds the page at [url] advertises, at most [MAX_DISCOVERED_FEED_LINKS] of them. */
     suspend fun detectLinkSources(url: String): List<String> {
@@ -84,6 +84,31 @@ internal object RssService {
     }
 
     private suspend fun HttpResponse.decodedText(): String = decodedBodyText()
+}
+
+/**
+ * Downloads and parses the feed at [url]. Redirects are followed and re-checked by [getPublic];
+ * a final status outside 2xx is reported as [FeedHttpStatusException] instead of handing an
+ * error page to the XML parser, where it would surface as a confusing parse error.
+ */
+internal suspend fun fetchFeed(
+    client: HttpClient,
+    url: String,
+): Feed {
+    val response = client.getPublic(url)
+    if (!response.status.isSuccess()) throw FeedHttpStatusException(response)
+    return parseFeedText(response.decodedBodyText())
+}
+
+/**
+ * The feed address answered with a non-2xx status. It is a [ResponseException], like the
+ * reader's, so callers can still tell permanent (4xx) from temporary (5xx, 408, 429) failures.
+ */
+internal class FeedHttpStatusException(
+    response: HttpResponse,
+) : ResponseException(response, "") {
+    override val message: String =
+        "The feed address answered HTTP ${response.status.value} ${response.status.description}".trim()
 }
 
 /** The body as text in the charset the server, the XML declaration or the page's meta tag names. */

@@ -31,7 +31,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.SheetState
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -58,7 +58,9 @@ import androidx.core.content.ContextCompat
 import compose.icons.FontAwesomeIcons
 import compose.icons.fontawesomeicons.Solid
 import compose.icons.fontawesomeicons.solid.Download
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import org.crux.BuildConfig
 import org.crux.R
@@ -72,7 +74,6 @@ import org.crux.update.shouldPromptRelease
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun AppUpdateBottomSheet(
-    sheetState: SheetState,
     updateInfo: AppReleaseInfo,
     onDismissRequest: () -> Unit,
     onSkipVersion: (() -> Unit)? = null,
@@ -82,10 +83,39 @@ internal fun AppUpdateBottomSheet(
     val coroutineScope = rememberCoroutineScope()
     var isDownloading by remember { mutableStateOf(false) }
     var downloadProgress by remember { mutableIntStateOf(0) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+    // One inline note at a time: a failure in error colour, a deliberate Cancel in calm text.
+    var note by remember { mutableStateOf<UpdateSheetNote?>(null) }
+    var downloadJob by remember { mutableStateOf<Job?>(null) }
+    // A cancelled download can still be inside blocking file work on the same APK path, so a new
+    // download waits for it to finish instead of racing it.
+    var cancelledJob by remember { mutableStateOf<Job?>(null) }
+    // The download runs in this sheet's scope, so closing the sheet would cancel it with no word.
+    // While it runs, swipe, scrim tap and Back are refused; Cancel is the explicit way out.
+    val sheetState =
+        rememberModalBottomSheetState(
+            skipPartiallyExpanded = true,
+            confirmValueChange = { target -> canDismissUpdateSheet(target == SheetValue.Hidden, isDownloading) },
+        )
+    val cancelledMessage = stringResource(R.string.settings_update_download_cancelled)
+    val notificationsGranted =
+        Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+    // Crux only checks for updates while it is open and auto-check is on, so the permission is
+    // offered only then; with auto-check off no notification would ever come.
+    val updatePrefs = remember(context) { AppUpdatePrefs.get(context) }
+    val autoCheckEnabled by updatePrefs.autoCheckEnabled.collectAsState()
+    // Asked here, once an update exists, instead of the moment Crux opens.
+    var notifyMeAnswered by remember { mutableStateOf(false) }
+    val notificationLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { _ ->
+            // Granted or not, the choice is made; don't keep offering it in this sheet.
+            notifyMeAnswered = true
+        }
 
     ModalBottomSheet(
-        onDismissRequest = onDismissRequest,
+        onDismissRequest = {
+            if (canDismissUpdateSheet(hiding = true, isDownloading = isDownloading)) onDismissRequest()
+        },
         sheetState = sheetState,
     ) {
         Column(
@@ -142,12 +172,21 @@ internal fun AppUpdateBottomSheet(
                 )
             }
 
-            if (errorMessage != null) {
+            note?.let { current ->
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    text = errorMessage.orEmpty(),
+                    text =
+                        when (current) {
+                            UpdateSheetNote.Cancelled -> cancelledMessage
+                            is UpdateSheetNote.Failed -> current.message ?: UPDATE_FAILED_FALLBACK_MESSAGE
+                        },
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
+                    color =
+                        if (current.isError) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
                 )
             }
 
@@ -158,11 +197,33 @@ internal fun AppUpdateBottomSheet(
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Spacer(Modifier.height(8.dp))
-                Text(
-                    text = stringResource(R.string.settings_update_downloading, downloadProgress),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(R.string.settings_update_downloading, downloadProgress),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(
+                        onClick = {
+                            downloadJob?.let { job ->
+                                job.cancel()
+                                cancelledJob = job
+                            }
+                            downloadJob = null
+                            isDownloading = false
+                            downloadProgress = 0
+                            // Shown once, inline: the sheet stays open, so a Toast would only repeat it.
+                            note = UpdateSheetNote.Cancelled
+                        },
+                    ) {
+                        Text(text = stringResource(R.string.settings_update_cancel_download))
+                    }
+                }
             }
 
             Spacer(Modifier.height(24.dp))
@@ -193,21 +254,32 @@ internal fun AppUpdateBottomSheet(
                             val activity = context as? Activity
                             if (activity != null) {
                                 isDownloading = true
-                                errorMessage = null
-                                coroutineScope.launch {
-                                    val result =
-                                        AppUpdateManager.downloadAndInstallApk(
-                                            activity = activity,
-                                            apkUrl = updateInfo.apkUrl,
-                                            expectedSizeBytes = updateInfo.apkSizeBytes,
-                                            onProgress = { progress -> downloadProgress = progress },
-                                        )
-                                    isDownloading = false
-                                    result.onFailure { error ->
-                                        errorMessage = error.localizedMessage ?: "Failed to install update"
-                                        Toast.makeText(context, errorMessage, Toast.LENGTH_LONG).show()
+                                downloadProgress = 0
+                                note = null
+                                val previous = cancelledJob
+                                downloadJob =
+                                    coroutineScope.launch {
+                                        previous?.join()
+                                        if (cancelledJob === previous) cancelledJob = null
+                                        val result =
+                                            AppUpdateManager.downloadAndInstallApk(
+                                                activity = activity,
+                                                apkUrl = updateInfo.apkUrl,
+                                                expectedSizeBytes = updateInfo.apkSizeBytes,
+                                                onProgress = { progress -> downloadProgress = progress },
+                                            )
+                                        // A cancelled download never gets here: the job stops at its next suspension.
+                                        ensureActive()
+                                        isDownloading = false
+                                        downloadJob = null
+                                        result.onFailure { error ->
+                                            val failure = UpdateSheetNote.Failed(error.localizedMessage)
+                                            note = failure
+                                            Toast
+                                                .makeText(context, failure.message ?: UPDATE_FAILED_FALLBACK_MESSAGE, Toast.LENGTH_LONG)
+                                                .show()
+                                        }
                                     }
-                                }
                             }
                         },
                         enabled = !isDownloading,
@@ -221,6 +293,21 @@ internal fun AppUpdateBottomSheet(
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
+                }
+            }
+
+            if (showNotifyMeButton(notificationsGranted, notifyMeAnswered, autoCheckEnabled, isDownloading)) {
+                Spacer(Modifier.height(4.dp))
+                TextButton(
+                    onClick = {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        } else {
+                            notifyMeAnswered = true
+                        }
+                    },
+                ) {
+                    Text(text = stringResource(R.string.settings_update_notify_me))
                 }
             }
 
@@ -249,10 +336,6 @@ internal fun AutoAppUpdatePrompt() {
     val prefs = remember(context) { AppUpdatePrefs.get(context) }
     val autoCheckEnabled by prefs.autoCheckEnabled.collectAsState()
     var updateInfo by remember { mutableStateOf<AppReleaseInfo?>(null) }
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-
-    val notificationLauncher =
-        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { _ -> }
 
     LaunchedEffect(Unit) {
         AppUpdateManager.pendingPromptUpdate?.let { pending ->
@@ -262,12 +345,8 @@ internal fun AutoAppUpdatePrompt() {
     }
 
     LaunchedEffect(autoCheckEnabled) {
+        // Checks silently. Notification permission is only offered from the sheet, once an update exists.
         if (!autoCheckEnabled) return@LaunchedEffect
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-            }
-        }
         delay(1500L)
         if (!prefs.tryStartSessionCheck()) return@LaunchedEffect
         when (val result = AppUpdateManager.checkForUpdates(BuildConfig.VERSION_NAME)) {
@@ -286,7 +365,6 @@ internal fun AutoAppUpdatePrompt() {
 
     updateInfo?.let { current ->
         AppUpdateBottomSheet(
-            sheetState = sheetState,
             updateInfo = current,
             onDismissRequest = {
                 AppUpdateNotificationManager.cancelUpdateNotification(context)
@@ -300,3 +378,42 @@ internal fun AutoAppUpdatePrompt() {
         )
     }
 }
+
+/**
+ * Whether the update sheet may close. While the APK downloads, closing would cancel it silently,
+ * so only the explicit Cancel button stops it.
+ */
+internal fun canDismissUpdateSheet(
+    hiding: Boolean,
+    isDownloading: Boolean,
+): Boolean = !hiding || !isDownloading
+
+/** Shown when a failed download carries no message of its own (unchanged from before this sheet had notes). */
+private const val UPDATE_FAILED_FALLBACK_MESSAGE = "Failed to install update"
+
+/** The one inline note under the changelog. Only a failure uses error colour; Cancel was the user's choice. */
+internal sealed interface UpdateSheetNote {
+    val isError: Boolean
+
+    data object Cancelled : UpdateSheetNote {
+        override val isError: Boolean = false
+    }
+
+    /** [message] is the failure's own text when it has one; the sheet falls back to a generic line. */
+    data class Failed(
+        val message: String?,
+    ) : UpdateSheetNote {
+        override val isError: Boolean = true
+    }
+}
+
+/**
+ * Whether to offer the notification permission. Crux checks for updates only while it is open and
+ * auto-check is on, so with auto-check off the permission would never bring a notification.
+ */
+internal fun showNotifyMeButton(
+    notificationsGranted: Boolean,
+    alreadyAnswered: Boolean,
+    autoCheckEnabled: Boolean,
+    isDownloading: Boolean,
+): Boolean = !notificationsGranted && !alreadyAnswered && autoCheckEnabled && !isDownloading

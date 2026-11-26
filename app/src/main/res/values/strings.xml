@@ -79,7 +79,7 @@
     <string name="settings_title">Settings</string>
 
     <string name="settings_accounts_title">Platforms</string>
-    <string name="settings_accounts_subtitle">Instagram, X, LinkedIn, Reddit and your feeds</string>
+    <string name="settings_accounts_subtitle">Instagram, X, LinkedIn, Reddit, Mastodon and your feeds</string>
     <string name="settings_appearance_theme_group_title">Theme</string>
     <string name="settings_appearance_layout_group_title">Layout</string>
     <string name="settings_appearance_display_group_title">Display</string>
@@ -100,7 +100,7 @@
     <string name="settings_storage_subtitle">Manage cached files, logs, and backups</string>
     <string name="settings_about_title">About Crux</string>
     <string name="settings_about_subtitle">Learn more about Crux</string>
-    <string name="settings_about_description">Instagram, X, LinkedIn, Reddit and your RSS feeds in one app, with a paged reader and optional smart replies. Crux has no account of its own and no servers.</string>
+    <string name="settings_about_description">Instagram, X, LinkedIn, Reddit, Mastodon and your RSS feeds in one app, with a paged reader and optional smart replies. Crux has no account of its own and no servers.</string>
     <string name="settings_about_source_code">Source code</string>
     <string name="settings_about_upstream">Flare (upstream project)</string>
     <string name="settings_privacy_policy">Privacy policy</string>
@@ -123,8 +123,8 @@
     <string name="settings_ai_config_on_device_backend">Hardware Backend</string>
     <string name="settings_ai_config_on_device_mtp">Multi-Token Prediction (MTP)</string>
     <string name="settings_ai_config_on_device_mtp_desc">Speculative multi-token decoding (~2.2x speedup on mobile GPU/NPU)</string>
-    <string name="settings_ai_config_on_device_privacy">Zero data egress</string>
-    <string name="settings_ai_config_on_device_privacy_desc">This engine runs entirely on your device and never sends your data over the internet. No external AI accounts or API keys required.</string>
+    <string name="settings_ai_config_on_device_privacy">Stays on your device</string>
+    <string name="settings_ai_config_on_device_privacy_desc">Prompts run on your device and are not sent to an AI server. Downloading a model contacts Hugging Face. No AI accounts or API keys needed.</string>
     <string name="settings_ai_config_on_device_ollama">Localhost Ollama Endpoint</string>
     <string name="settings_ai_config_on_device_ollama_desc">Off unless you change it. Enter the address of an Ollama server you run yourself (for example http://127.0.0.1:11434). Any app on this phone can listen on localhost, so AI stays in Crux until you set this.</string>
     <string name="settings_ai_config_on_device_ollama_hint">http://localhost:11434</string>
@@ -263,8 +263,8 @@
     <string name="settings_privacy_traffic_log_description">Keep a list on this device of the hosts Crux contacts for feeds, articles, translation and AI. The web tabs are not included</string>
     <string name="settings_privacy_scrub_tracking">Strip tracking parameters</string>
     <string name="settings_privacy_scrub_tracking_description">Remove parameters such as utm_source and fbclid from the addresses Crux fetches for feeds and articles</string>
-    <string name="settings_privacy_app_lock">Biometric &amp; Device Lock</string>
-    <string name="settings_privacy_app_lock_description">Require device PIN, fingerprint, or face unlock when opening Crux</string>
+    <string name="settings_privacy_app_lock">App Lock</string>
+    <string name="settings_privacy_app_lock_description">Unlock with your fingerprint, face or phone screen lock to open Crux</string>
     <string name="app_lock_unlock">Unlock</string>
     <string name="hardened_browser_unavailable">This phone\'s WebView can\'t keep the hardened browser separate from your signed-in sites, so it\'s turned off to protect those sessions. Update Android System WebView, or use your regular browser.</string>
     <string name="hardened_browser_open_system">Open regular browser</string>
@@ -474,7 +474,7 @@
     <string name="report_user_description">Are you sure you want to report this user?</string>
 
     <string name="settings_storage_export_data">Export data</string>
-    <string name="settings_storage_export_data_description">Save your feeds, filters and settings, including any API keys you entered, to a file. Keep it private.</string>
+    <string name="settings_storage_export_data_description">Save your feeds, filters and settings, including any API keys saved in settings, to a file. Keep it private.</string>
     <string name="settings_storage_import_data">Import data</string>
     <string name="settings_storage_import_data_description">Import data from a backup file. Existing records with matching IDs will be replaced.</string>
     <string name="save_completed">Export complete</string>
@@ -515,7 +515,7 @@
     <string name="rss_open_mode_checking">Checking the best opening mode…</string>
     <string name="rss_open_mode_recommended">Recommended from recent articles. You can change this.</string>
     <string name="rss_open_mode_unknown">Could not recommend an opening mode. You can choose one.</string>
-    <string name="rss_detail_unavailable">This article could not be loaded. You can open the original page.</string>
+    <string name="rss_detail_unavailable">This article could not be loaded.</string>
 
     <!-- Drawer Navigation & Sovereign Client -->
     <string name="drawer_section_feeds_and_social">Your platforms</string>
@@ -693,11 +693,11 @@
     <string name="crux_onboarding_skip">Skip</string>
     <string name="crux_onboarding_tagline">Every feed you follow. One calm place.</string>
     <string name="crux_onboarding_value_one_title">One home for your feeds</string>
-    <string name="crux_onboarding_value_one_body">X, Instagram, LinkedIn, Reddit and your feeds side by side. Switch with a tap instead of five apps.</string>
+    <string name="crux_onboarding_value_one_body">X, Instagram, LinkedIn, Reddit, Mastodon and your feeds side by side. Switch with a tap instead of juggling apps.</string>
     <string name="crux_onboarding_value_two_title">Kept on your device</string>
     <string name="crux_onboarding_value_two_body">Each site keeps its own cookies and storage, and your logins stay on this phone. Crux has no servers.</string>
     <string name="crux_onboarding_value_three_title">Calm reading &amp; on-device AI</string>
-    <string name="crux_onboarding_value_three_body">Distraction-free article reader that strips ads, plus local AI smart replies with zero data egress.</string>
+    <string name="crux_onboarding_value_three_body">A distraction-free article reader that strips ads, plus optional smart replies that can run fully on your phone.</string>
     <string name="crux_onboarding_get_started">Get started</string>
     <string name="crux_onboarding_platforms_title">Which do you use?</string>
     <string name="crux_onboarding_platforms_subtitle">Pick only what you need. You can add or remove platforms any time.</string>
@@ -722,12 +722,12 @@
     <string name="crux_onboarding_protection_body">Each site gets its own private profile, tracking is stripped from links you open, and Reddit trackers are blocked. Hide Reels, promoted posts and suggestions in Site protection and tweaks.</string>
     <string name="crux_onboarding_rss_select_all">Select all</string>
     <string name="crux_onboarding_rss_deselect_all">Clear</string>
-    <string name="crux_onboarding_sovereign_pill">Sovereign • Zero Tracking • 100% On-Device</string>
+    <string name="crux_onboarding_sovereign_pill">No Crux account • No tracking by Crux</string>
     <string name="crux_onboarding_dock_preview_title">Live Dock Preview</string>
-    <string name="crux_onboarding_dock_preview_subtitle">Updates live as you choose platforms above</string>
+    <string name="crux_onboarding_dock_preview_subtitle">Updates live as you choose platforms below</string>
     <string name="crux_onboarding_rss_select_recommended">Recommended (12)</string>
     <string name="crux_onboarding_signin_optional_banner_title">Sign in now or browse first</string>
-    <string name="crux_onboarding_signin_optional_banner_body">Signing in is completely optional. You can explore public feeds right now, and sign in directly from the tab whenever you want.</string>
+    <string name="crux_onboarding_signin_optional_banner_body">You can sign in any time from the site\'s tab.</string>
     <string name="crux_onboarding_calm_preview_title">Live Calm Preview</string>
     <string name="crux_onboarding_calm_sample_headline">The Joy of Reading Calmly</string>
     <string name="crux_onboarding_calm_sample_body">When bright saturation and algorithmic urgency fade away, reading becomes reflective, focused, and peaceful again.</string>
@@ -744,7 +744,7 @@
 
     <!-- Privacy & Tweaks -->
     <string name="web_tweaks_title">Site protection and tweaks</string>
-    <string name="web_tweaks_subtitle">Per-site protection, focus tweaks and saved data for Instagram, X, LinkedIn and Reddit</string>
+    <string name="web_tweaks_subtitle">Per-site protection, focus tweaks and saved data for Instagram, X, LinkedIn, Reddit and Mastodon</string>
     <string name="web_tweaks_protection">Protection level</string>
     <string name="web_tweaks_standard">Standard</string>
     <string name="web_tweaks_strict">Strict</string>
@@ -753,7 +753,7 @@
     <string name="web_tweaks_strict_account_warning">Strict can raise the chance this account is flagged. Standard is the safer choice for an account you are signed in to.</string>
     <string name="web_tweaks_focus_header">Focus tweaks</string>
     <string name="web_tweaks_block_autoplay">Block autoplaying video</string>
-    <string name="web_tweaks_block_autoplay_description">Off by default so videos play smoothly; turn on to require an explicit tap.</string>
+    <string name="web_tweaks_block_autoplay_description">Videos wait for a tap instead of playing as you scroll. On by default for Reddit and LinkedIn.</string>
     <string name="web_tweaks_clear_data">Clear this site\'s data</string>
     <string name="web_tweaks_clear_title">Clear %1$s data?</string>
     <string name="web_tweaks_clear_message">This signs you out of %1$s and deletes its cookies and saved site data. Other sites are not touched.</string>
@@ -763,7 +763,7 @@
     <string name="web_tweaks_cleared">Cleared %1$s data</string>
     <string name="web_tweaks_global_header">All sites</string>
     <string name="web_tweaks_clean_links">Clean outgoing links</string>
-    <string name="web_tweaks_clean_links_description">Follow tracking redirects and drop tracking parameters on links that leave a web tab.</string>
+    <string name="web_tweaks_clean_links_description">Follow tracking redirects and drop tracking parameters on links that leave a web tab. Shortened links (t.co, lnkd.in, bit.ly) are looked up by Crux without your cookies first.</string>
     <string name="web_tweaks_open_in_reader">Open links in Crux Reader</string>
     <string name="web_tweaks_open_in_reader_description">Read shared articles in Crux\'s distraction-free reader instead of leaving to your browser.</string>
     <string name="web_tweaks_block_third_party_cookies">Block third-party cookies</string>
@@ -776,8 +776,8 @@
     <string name="web_tweaks_gpc_description">Tells Strict sites you opt out of data sale and sharing. Not sent on Standard sites.</string>
     <string name="web_tweaks_calm_metrics">Hide engagement counts</string>
     <string name="web_tweaks_calm_metrics_description">Hides like, repost, upvote, and view numbers across web feeds for calmer reading.</string>
-    <string name="web_tweaks_ai_privacy_button">AI &amp; data training settings</string>
-    <string name="web_tweaks_ai_privacy_note">Server-side AI model training opt-outs live in your account settings. Open in %1$s\'s isolated session:</string>
+    <string name="web_tweaks_ai_privacy_button">Privacy and data settings on the site</string>
+    <string name="web_tweaks_ai_privacy_note">%1$s\'s own privacy and data choices, including AI training where the site offers it, live in your account. Open them in %1$s\'s Crux tab:</string>
     <string name="web_tweaks_clear_all_data">Clear all sites\' data</string>
     <string name="web_tweaks_clear_all_title">Clear all sites\' data?</string>
     <string name="web_tweaks_clear_all_message">This signs you out of Instagram, X, LinkedIn, and Reddit and clears their cookies, cache, and saved positions.</string>
@@ -805,7 +805,7 @@
     <string name="web_tweak_x_spaces">Hide Spaces live audio bar</string>
     <string name="web_tweak_x_app_prompts">Hide \"use the app\" prompts</string>
     <string name="web_tweak_x_hide_for_you">Hide the \"For you\" tab</string>
-    <string name="web_tweak_x_hide_for_you_description">Hides the tab only. X remembers the tab you picked last, so choose Following once.</string>
+    <string name="web_tweak_x_hide_for_you_description">On Home, hides the tab while another tab is selected. If X switches back to For you, the tab shows again so you can see which feed you are reading.</string>
     <string name="web_tweak_linkedin_promoted">Hide promoted posts</string>
     <string name="web_tweak_linkedin_suggested">Hide suggested and celebration posts</string>
     <string name="web_tweak_linkedin_premium">Hide Premium upsells</string>
@@ -819,12 +819,12 @@
     <string name="web_tweak_reddit_ai">Hide Reddit Answers &amp; AI summaries</string>
     <string name="web_tweak_reddit_trending">Hide \"Trending Today\"</string>
     <string name="web_tweak_mastodon_trending">Hide trending hashtags and news</string>
-    <string name="web_tweak_reddit_unblur_nsfw">Unblur NSFW previews without prompt</string>
-    <string name="web_tweak_reddit_unblur_nsfw_description">On by default so mature previews and 18+ communities load without app-nag walls.</string>
+    <string name="web_tweak_reddit_unblur_nsfw">Unblur NSFW previews</string>
+    <string name="web_tweak_reddit_unblur_nsfw_description">Off by default. Shows mature previews Reddit has already loaded, without the blur. When you\'re signed out it also tells Reddit you\'re over 18; signed in, your own Reddit setting decides.</string>
 
     <!-- Crux 1.0 polish -->
     <string name="storage_export_warning_title">Export your data?</string>
-    <string name="storage_export_warning_message">The file includes your RSS feeds, filters, search history and settings. API keys you entered for AI or translation providers are written to it as plain text, so keep the file private. Logins for Instagram, X, LinkedIn and Reddit are not included; they stay in this app\'s web profiles on your device.</string>
+    <string name="storage_export_warning_message">The file includes your RSS feeds, filters, search history and settings. Any API keys saved by an older version of Crux are written to it as plain text, so keep the file private. Logins for Instagram, X, LinkedIn, Reddit and mastodon.social are not included; they stay in this app\'s web profiles on your device.</string>
     <string name="storage_export_confirm">Export</string>
     <string name="action_done">Done</string>
     <string name="storage_media_cache_limit">Media cache limit</string>
@@ -1035,4 +1035,80 @@
     <string name="smart_reply_synthesizing_status_cloud">Sending the post to %1$s to generate replies…</string>
     <string name="smart_reply_cloud_tap_hint">Tap Regenerate to send this post to %1$s for AI replies.</string>
     <string name="smart_reply_cloud_unknown_host">your AI server</string>
+    <string name="live_web_save_post">Save post</string>
+    <string name="live_web_open_reading_list">Open reading list</string>
+    <string name="settings_update_download_cancelled">Download cancelled. Nothing was installed.</string>
+    <string name="settings_update_cancel_download">Cancel download</string>
+    <string name="settings_update_notify_me">Also show a notification when Crux finds an update</string>
+    <string name="crux_onboarding_step_of">Step %1$d of %2$d</string>
+    <string name="crux_onboarding_names_and">%1$s and %2$s</string>
+    <string name="crux_onboarding_signin_banner_signed_out">You can browse %1$s without signing in.</string>
+    <string name="crux_onboarding_signin_banner_needs_sign_in">For %1$s, you\'ll see the sign-in page until you sign in.</string>
+    <string name="crux_onboarding_signin_banner_title_needed">Sign in when you\'re ready</string>
+    <string name="crux_platform_hidden">%1$s is no longer in your tabs</string>
+    <string name="crux_action_undo">Undo</string>
+    <string name="crux_sign_out_confirm_title">Sign out of %1$s?</string>
+    <string name="crux_sign_out_confirm_body">You\'ll need to sign in again in Crux, including any 2FA code. This only signs you out on this phone.</string>
+    <string name="crux_remove_confirm_title">Remove %1$s?</string>
+    <string name="crux_remove_confirm_body">Hide the tab and stay signed in, or remove it and sign out. Signing out clears this site\'s cookies and where you left off. Your saved posts stay.</string>
+    <string name="crux_action_hide_tab">Hide tab (stay signed in)</string>
+    <string name="crux_action_remove_and_sign_out">Remove and sign out</string>
+    <string name="rss_detail_feed_summary">Showing the feed\'s summary</string>
+    <string name="rss_detail_try_full_article">Try full article</string>
+    <string name="rss_detail_open_original">Open original</string>
+    <string name="rss_detail_retry">Retry</string>
+    <string name="rss_detail_error_unreachable">Couldn\'t reach the site. It may be down, or your connection may have dropped.</string>
+    <string name="rss_detail_error_timeout">The site took too long to answer.</string>
+    <string name="rss_detail_error_no_article">This page has no article Crux can show.</string>
+    <string name="rss_detail_error_http">The site answered with error %1$d.</string>
+    <string name="live_web_reddit_nsfw_note_title">Mature media hidden by Reddit</string>
+    <string name="live_web_reddit_nsfw_note_body">Reddit only plays 18+ media on its mobile site for signed-in accounts with \"Show mature content\" turned on in Reddit settings.</string>
+    <string name="live_web_reddit_nsfw_note_dismiss">Dismiss</string>
+    <string name="live_web_reddit_nsfw_note_open_settings">Open Reddit settings</string>
+    <string name="privacy_checkup_title">Privacy Checkup</string>
+    <string name="privacy_checkup_entry_description">Open each site\'s own privacy, ad and data settings</string>
+    <string name="privacy_checkup_intro">These are the sites\' own settings. Each row opens the page in that site\'s Crux tab, where you make the change. Crux only opens the page; it never changes anything in your account.</string>
+    <string name="privacy_checkup_sign_in_note">Sign in to the site first. Sites sometimes move these pages; if one has moved, look for it in the site\'s settings menu.</string>
+    <string name="privacy_checkup_open_cd">Open in %1$s</string>
+    <string name="privacy_checkup_ai_training">AI training</string>
+    <string name="privacy_checkup_ai_training_why">Choose whether the site may use your posts and activity to train its AI models.</string>
+    <string name="privacy_checkup_ad_personalization">Ad personalisation</string>
+    <string name="privacy_checkup_ad_personalization_why">Limit how the site uses your activity and profile to choose the ads you see.</string>
+    <string name="privacy_checkup_off_site_activity">Activity from other sites</string>
+    <string name="privacy_checkup_off_site_activity_why">Limit ads based on what you do on other websites and apps that share data with the site.</string>
+    <string name="privacy_checkup_partner_sharing">Sharing with business partners</string>
+    <string name="privacy_checkup_partner_sharing_why">Choose whether the site may share your data with its business partners.</string>
+    <string name="privacy_checkup_location">Location</string>
+    <string name="privacy_checkup_location_why">Review the location information the site keeps and uses for you.</string>
+    <string name="privacy_checkup_contacts">Contacts and discoverability</string>
+    <string name="privacy_checkup_contacts_why">Remove uploaded contacts and choose who can find you by email or phone number.</string>
+    <string name="privacy_checkup_info_permissions">Your information and permissions</string>
+    <string name="privacy_checkup_info_permissions_why">See and manage what Meta has about you, including activity from other apps and websites.</string>
+    <string name="privacy_checkup_account_privacy">Privacy settings</string>
+    <string name="privacy_checkup_account_privacy_why">Review who can see your account and activity, and the site\'s other privacy options.</string>
+    <string name="privacy_checkup_privacy_reach">Privacy and reach</string>
+    <string name="privacy_checkup_privacy_reach_why">Choose who can find and follow you and whether your posts can be found in search.</string>
+    <string name="privacy_checkup_download_data">Download your data</string>
+    <string name="privacy_checkup_download_data_why">Request a copy of the data the site holds about you.</string>
+    <string name="privacy_limits_title">What Crux cannot protect inside a signed-in site</string>
+    <string name="privacy_limits_telemetry">While you are signed in, the site records what you view, how long you look, what you type and search, and what you tap. Crux cannot block this without making your account look like a modified client.</string>
+    <string name="privacy_limits_ads">Ads are still chosen using your profile and counted as shown. Crux can hide some on screen, but the site still records them.</string>
+    <string name="privacy_limits_activity">The site knows everything you do on it: follows, likes, messages, posts and searches.</string>
+    <string name="privacy_limits_linking">All sites see the same IP address and device details, so visits can be linked even with separate profiles. Only a VPN changes the IP address.</string>
+    <string name="privacy_limits_sso">Signing in with Google or Apple tells that company which service you use. Email and password avoids this.</string>
+    <string name="settings_privacy_contacted_title">Contacted today</string>
+    <string name="settings_privacy_contacted_description">Servers each site\'s page reached today, other companies first. Only host names are noted, never pages or what was sent. Kept in memory only and cleared at midnight or when Crux closes.</string>
+    <string name="settings_privacy_contacted_clear">Clear</string>
+    <string name="settings_privacy_contacted_site_summary">%1$d hosts, %2$d other companies</string>
+    <string name="settings_privacy_contacted_show_all">Show all %1$d</string>
+    <string name="settings_privacy_contacted_show_less">Show less</string>
+    <string name="settings_privacy_contacted_overflow">%1$d more requests went to new hosts after the first %2$d</string>
+    <string name="settings_privacy_contacted_requests">%1$d requests</string>
+    <string name="settings_privacy_contacted_third_party">Other company</string>
+    <string name="settings_privacy_contacted_first_party">Site\'s own</string>
+    <string name="web_tweak_x_discover_more">Hide \"Discover more\" under posts</string>
+    <string name="web_tweak_x_discover_more_description">On a post\'s page, hides the posts from strangers X adds after the replies.</string>
+    <string name="web_opening_link">Opening link…</string>
+    <string name="web_close_screen">Close</string>
+    <string name="live_web_show_dock">Show dock</string>
 </resources>

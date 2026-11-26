@@ -1,5 +1,7 @@
 package org.crux.ui.screen.home
 
+import android.os.Handler
+import android.os.Looper
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
@@ -60,6 +62,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.currentStateAsState
 import compose.icons.FontAwesomeIcons
@@ -162,13 +165,15 @@ internal fun HomeScreen(afterInit: () -> Unit) {
     val liveWebPages = remember { LiveWebPages() }
     val latestConnections by rememberUpdatedState(connections)
     DisposableEffect(liveWebPages) {
-        // A sign-in finished inside a tab shows up in the side panel without waiting for a resume.
+        // A sign-in or sign-out inside a tab shows up in the side panel without waiting for a
+        // resume. The pages call this only when a site's signed-in state changes.
         liveWebPages.onPageFinished = { latestConnections.refresh() }
         onDispose {
             liveWebPages.onPageFinished = null
             liveWebPages.destroy()
         }
     }
+    LiveWebTimersWhileBackgrounded(liveWebPages)
     val onHomeLongClick =
         remember(hapticFeedback, state) {
             {
@@ -876,3 +881,58 @@ internal fun RegisterTabCallback(
         }
     }
 }
+
+/**
+ * Stops the live sites' JavaScript (timers, polling, Crux's own page scans) while Crux is in the
+ * background: WebView.onPause alone does not. The pause is process-wide, so it lives here once
+ * for the whole activity rather than in each tab. Timers come back when Crux is started again,
+ * but never while App Lock is covering it; the unlock itself resumes them.
+ */
+@Composable
+private fun LiveWebTimersWhileBackgrounded(liveWebPages: LiveWebPages) {
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    DisposableEffect(lifecycle, liveWebPages) {
+        val mainHandler = Handler(Looper.getMainLooper())
+        val resumeIfAllowed =
+            Runnable {
+                if (liveWebTimersMayRun(AppLock.isUnlocked, lifecycle.currentState)) liveWebPages.resumeAllTimers()
+            }
+        val observer =
+            LifecycleEventObserver { _, event ->
+                when (event) {
+                    Lifecycle.Event.ON_STOP -> {
+                        mainHandler.removeCallbacksAndMessages(null)
+                        liveWebPages.pauseAllTimers()
+                    }
+
+                    // Posted so App Lock has decided whether to re-lock (it does so in onStart).
+                    Lifecycle.Event.ON_START -> {
+                        mainHandler.post(resumeIfAllowed)
+                    }
+
+                    else -> {}
+                }
+            }
+        lifecycle.addObserver(observer)
+        onDispose {
+            lifecycle.removeObserver(observer)
+            mainHandler.removeCallbacksAndMessages(null)
+            // Never leave the process-wide pause behind for the next screen's WebViews.
+            liveWebPages.resumeAllTimers()
+        }
+    }
+    val unlocked = AppLock.isUnlocked
+    LaunchedEffect(unlocked, liveWebPages) {
+        when {
+            liveWebTimersMayRun(unlocked, lifecycle.currentState) -> liveWebPages.resumeAllTimers()
+            // Locking while started (the re-lock in onStart) pauses too, not only ON_STOP.
+            !unlocked -> liveWebPages.pauseAllTimers()
+        }
+    }
+}
+
+/** Live pages' JavaScript timers run only while Crux is started and App Lock is not covering it. */
+internal fun liveWebTimersMayRun(
+    isUnlocked: Boolean,
+    state: Lifecycle.State,
+): Boolean = isUnlocked && state.isAtLeast(Lifecycle.State.STARTED)

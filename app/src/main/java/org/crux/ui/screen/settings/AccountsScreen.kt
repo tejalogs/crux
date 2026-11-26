@@ -25,6 +25,8 @@ import androidx.compose.material3.ListItemShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.SegmentedListItem
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
@@ -37,6 +39,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -106,6 +109,10 @@ internal fun AccountsScreen(
         accountsPresenter()
     }
     val connections = rememberCruxConnections()
+    // Hide/Remove on a platform shows "X is no longer in your tabs" with Undo here. The screen's scope
+    // keeps that snackbar alive even if the platform list scrolls out of the lazy column.
+    val snackbarHostState = remember { SnackbarHostState() }
+    val screenScope = rememberCoroutineScope()
     LaunchedEffect(Unit) {
         connections.refresh()
     }
@@ -130,6 +137,7 @@ internal fun AccountsScreen(
                 scrollBehavior = topAppBarScrollBehavior,
             )
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         modifier =
             Modifier
                 .nestedScroll(topAppBarScrollBehavior.nestedScrollConnection),
@@ -149,7 +157,12 @@ internal fun AccountsScreen(
                 )
             }
             item(key = "crux_platforms") {
-                CruxPlatformList(connections = connections, navigate = navigate)
+                CruxPlatformList(
+                    connections = connections,
+                    navigate = navigate,
+                    snackbarHostState = snackbarHostState,
+                    snackbarScope = screenScope,
+                )
             }
             if (state.currentItems.isNotEmpty()) {
                 item(key = "crux_other_header") {

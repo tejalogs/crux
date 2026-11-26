@@ -34,6 +34,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -41,6 +42,7 @@ import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -69,6 +71,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.intl.Locale
 import androidx.compose.ui.unit.dp
@@ -94,7 +97,11 @@ import moe.tlaster.precompose.molecule.producePresenter
 import org.crux.R
 import org.crux.common.OfflineMediaPrefetcher
 import org.crux.common.encodeJson
+import org.crux.data.network.rss.ArticleFailureReason
 import org.crux.data.network.rss.DocumentData
+import org.crux.data.network.rss.DocumentSource
+import org.crux.data.network.rss.articleFailureReason
+import org.crux.data.network.rss.articleHttpStatus
 import org.crux.data.readinglist.ReadingListItem
 import org.crux.data.readinglist.ReadingListRepository
 import org.crux.data.repository.SettingsRepository
@@ -170,7 +177,8 @@ internal fun RssDetailScreen(
     // size until the range holds still, unless the reader has already moved on their own.
     LaunchedEffect(url, hasContent) {
         if (!hasContent || restored) return@LaunchedEffect
-        val saved = positions.get(url)
+        // A finished article opens at the top again rather than at its last line.
+        val saved = restoredReadingFraction(positions.get(url))
         if (saved <= 0f) {
             restored = true
             return@LaunchedEffect
@@ -506,15 +514,37 @@ internal fun RssDetailScreen(
                                         }
                                     }
                                 }
-                            }.onError {
-                                Text(stringResource(R.string.rss_detail_unavailable))
-                            }.onLoading {
-                                Text(
-                                    "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
-                                    modifier =
-                                        Modifier
-                                            .placeholder(true),
+                                if (documentData.source == DocumentSource.FeedSummary) {
+                                    FeedSummaryBanner(
+                                        onTryFullArticle = { state.reload() },
+                                        onOpenOriginal = { openInSystemBrowser(context, url) },
+                                    )
+                                }
+                            }.onError { error ->
+                                ArticleErrorState(
+                                    message = articleErrorMessage(error),
+                                    onRetry = { state.reload() },
+                                    onOpenOriginal = { openInSystemBrowser(context, url) },
                                 )
+                            }.onLoading {
+                                val loadingTitle = descriptionTitle?.takeIf { it.isNotBlank() }
+                                if (loadingTitle != null) {
+                                    Text(
+                                        text = loadingTitle,
+                                        style =
+                                            MaterialTheme.typography.headlineMedium.copy(
+                                                fontFamily = reader.font.family,
+                                                fontWeight = FontWeight.Bold,
+                                            ),
+                                    )
+                                } else {
+                                    Text(
+                                        "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+                                        modifier =
+                                            Modifier
+                                                .placeholder(true),
+                                    )
+                                }
                             }
                         HorizontalDivider()
                         state.data
@@ -655,11 +685,10 @@ internal fun RssDetailScreen(
                                     }
                                 }
                             }.onLoading {
-                                Text(
-                                    "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nam elementum eget dui a bibendum. Fusce eget porttitor est, et rhoncus massa. Etiam cursus urna at odio vulputate semper. Interdum et malesuada fames ac ante ipsum primis in faucibus. Quisque tincidunt rhoncus massa sed volutpat. Nulla porta orci et finibus accumsan. Duis maximus diam quis congue suscipit. Suspendisse velit enim, mollis non tellus eu, auctor vulputate diam. Sed ut purus eleifend, tempor lectus ac, imperdiet tellus. Proin eleifend lorem ut risus gravida, id bibendum metus posuere. Cras pretium tortor mi. Quisque ac congue urna. Morbi posuere ac orci vestibulum euismod. Maecenas venenatis, justo at aliquet venenatis, arcu mauris sodales ligula, a iaculis nulla eros at turpis. Quisque varius lobortis porttitor.",
-                                    modifier =
-                                        Modifier
-                                            .placeholder(true),
+                                LoadingArticleBody(
+                                    previewHtml = fallbackHtml,
+                                    url = url,
+                                    textStyle = bodyStyle,
                                 )
                             }
                     }
@@ -737,10 +766,17 @@ private fun presenter(
     fallbackHtml: String? = null,
     settingsRepository: SettingsRepository = koinInject(),
 ) = run {
+    // Retry and "Try full article" load the article again from scratch. The presenter keeps its
+    // load in remember(), so a new key group is what starts it over. That is cheap: every
+    // Readability shares one HTTP client, and the history entry it logs again is an upsert of
+    // the same row (same paging key and status id), so it only moves to "now".
+    var reloadKey by remember { mutableIntStateOf(0) }
     val state =
-        remember(url, descriptionHtml, descriptionTitle, fallbackHtml) {
-            RssDetailPresenter(url, descriptionHtml, descriptionTitle, fallbackHtml)
-        }.invoke()
+        key(reloadKey) {
+            remember(url, descriptionHtml, descriptionTitle, fallbackHtml) {
+                RssDetailPresenter(url, descriptionHtml, descriptionTitle, fallbackHtml)
+            }.invoke()
+        }
     val enableTldr by remember {
         settingsRepository.appSettings.map { it.aiConfig.tldr }
     }.collectAsUiState()
@@ -771,5 +807,133 @@ private fun presenter(
         fun refreshTldr() {
             tldrRefreshKey++
         }
+
+        fun reload() {
+            reloadKey++
+        }
     }
 }
+
+/** The string that explains [error] to the reader, in plain words. */
+@Composable
+private fun articleErrorMessage(error: Throwable): String {
+    val reason = error.articleFailureReason()
+    val status = error.articleHttpStatus()
+    return if (reason == ArticleFailureReason.HttpError && status != null) {
+        stringResource(R.string.rss_detail_error_http, status)
+    } else {
+        stringResource(articleErrorMessageRes(reason))
+    }
+}
+
+/** The message for [reason]; an HTTP error without a known status reads as the generic message. */
+internal fun articleErrorMessageRes(reason: ArticleFailureReason): Int =
+    when (reason) {
+        ArticleFailureReason.Unreachable -> R.string.rss_detail_error_unreachable
+        ArticleFailureReason.TimedOut -> R.string.rss_detail_error_timeout
+        ArticleFailureReason.NoArticle -> R.string.rss_detail_error_no_article
+        ArticleFailureReason.HttpError,
+        ArticleFailureReason.Other,
+        -> R.string.rss_detail_unavailable
+    }
+
+/** Says that the full article could not be read and the feed's summary is shown in its place. */
+@Composable
+private fun FeedSummaryBanner(
+    onTryFullArticle: () -> Unit,
+    onOpenOriginal: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.secondaryContainer,
+    ) {
+        Column(modifier = Modifier.padding(start = 14.dp, end = 4.dp, top = 10.dp)) {
+            Text(
+                text = stringResource(R.string.rss_detail_feed_summary),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                TextButton(onClick = onTryFullArticle) {
+                    Text(stringResource(R.string.rss_detail_try_full_article))
+                }
+                TextButton(onClick = onOpenOriginal) {
+                    Text(stringResource(R.string.rss_detail_open_original))
+                }
+            }
+        }
+    }
+}
+
+/** Shown when the article and the feed's summary both failed: why, and what to do next. */
+@Composable
+private fun ArticleErrorState(
+    message: String,
+    onRetry: () -> Unit,
+    onOpenOriginal: () -> Unit,
+) {
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyLarge,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            FilledTonalButton(onClick = onRetry) {
+                Text(stringResource(R.string.rss_detail_retry))
+            }
+            OutlinedButton(onClick = onOpenOriginal) {
+                Text(stringResource(R.string.rss_detail_open_original))
+            }
+        }
+    }
+}
+
+/**
+ * While the article loads, the feed's own text for it is shown at once, under a thin progress
+ * bar, rather than a block of placeholder text. Without feed text the placeholder stays.
+ */
+@Composable
+private fun LoadingArticleBody(
+    previewHtml: String?,
+    url: String,
+    textStyle: TextStyle,
+) {
+    val preview =
+        remember(previewHtml, url) {
+            previewHtml
+                ?.takeIf { it.isNotBlank() }
+                ?.let { parseHtml(it, baseUri = url) }
+                ?.takeIf { it.text().isNotBlank() }
+        }
+    if (preview != null) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            RssRichText(
+                element = preview,
+                textStyle = textStyle,
+            )
+        }
+    } else {
+        Text(
+            LOADING_PLACEHOLDER_TEXT,
+            modifier = Modifier.placeholder(true),
+        )
+    }
+}
+
+private const val LOADING_PLACEHOLDER_TEXT =
+    "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nam elementum eget dui a bibendum. Fusce eget porttitor est, " +
+        "et rhoncus massa. Etiam cursus urna at odio vulputate semper. Interdum et malesuada fames ac ante ipsum primis in " +
+        "faucibus. Quisque tincidunt rhoncus massa sed volutpat. Nulla porta orci et finibus accumsan. Duis maximus diam quis " +
+        "congue suscipit. Suspendisse velit enim, mollis non tellus eu, auctor vulputate diam. Sed ut purus eleifend, tempor " +
+        "lectus ac, imperdiet tellus. Proin eleifend lorem ut risus gravida, id bibendum metus posuere."

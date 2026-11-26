@@ -26,12 +26,19 @@ import java.net.URI
 import java.net.URLDecoder
 import java.security.SecureRandom
 import java.util.WeakHashMap
+import org.crux.ui.lock.AppLock
 import org.crux.ui.screen.crux.hasSession
 
 private const val ISOLATION_PREFS = "live_web_isolation"
 private const val KEY_SHARED_DATA_CLEARED = "shared_data_cleared"
 
-private const val FREEZE_MEDIA_SCRIPT =
+/**
+ * The attribute that marks media Crux muted when a tab was hidden. Its name comes from
+ * [PageMarkers], a random per-process token, so the page cannot tell from it that it runs in Crux.
+ */
+private val MEDIA_MUTED_ATTR: String by lazy { PageMarkers.attr("media-muted") }
+
+private val FREEZE_MEDIA_SCRIPT: String by lazy {
     """
     (function() {
         try {
@@ -39,23 +46,28 @@ private const val FREEZE_MEDIA_SCRIPT =
                 m.pause();
                 // Remember which elements we muted so resume only undoes our change,
                 // not a mute the user or the site chose.
-                if (!m.muted) { m.muted = true; m.setAttribute('data-crux-muted', '1'); }
+                if (!m.muted) { m.muted = true; m.setAttribute('$MEDIA_MUTED_ATTR', '1'); }
             });
         } catch(e) {}
     })();
     """
+}
 
-private const val RESTORE_MEDIA_SCRIPT =
+private val RESTORE_MEDIA_SCRIPT: String by lazy {
     """
     (function() {
         try {
-            document.querySelectorAll('[data-crux-muted]').forEach(function(m) {
+            document.querySelectorAll('[$MEDIA_MUTED_ATTR]').forEach(function(m) {
                 m.muted = false;
-                m.removeAttribute('data-crux-muted');
+                m.removeAttribute('$MEDIA_MUTED_ATTR');
             });
         } catch(e) {}
     })();
     """
+}
+
+/** The freeze and restore scripts, for tests: neither may name Crux in page scope. */
+internal fun mediaFreezeScripts(): List<String> = listOf(FREEZE_MEDIA_SCRIPT, RESTORE_MEDIA_SCRIPT)
 
 /**
  * Freezes background execution for a WebView session:
@@ -88,26 +100,63 @@ internal fun WebView.resumeWebSession() {
 }
 
 /**
+ * [suspendWebSession], plus the process-wide JS timer pause while App Lock is up. onPause() alone
+ * leaves timers running, and under the lock no WebView is shown, so pausing them all is safe; the
+ * unlock resumes them through [resumeWebSession]. A tab merely hidden behind another keeps the
+ * timers, since the visible tab still needs them.
+ */
+internal fun WebView.suspendWebSessionUnderLock(isUnlocked: Boolean = AppLock.isUnlocked) {
+    suspendWebSession()
+    if (!isUnlocked) runCatching { pauseTimers() }
+}
+
+/**
+ * Whether a page host's WebView may run: it is shown and App Lock is not covering the app. Every
+ * host goes through this, so a screen that passes `isVisible = true` still pauses under the lock,
+ * and [resumeWebSession] (which also resumes the process-wide JS timers) is not called while locked.
+ */
+internal fun webSessionMayRun(
+    isVisible: Boolean,
+    isUnlocked: Boolean,
+): Boolean = isVisible && isUnlocked
+
+/**
  * Automatically freezes background WebView renderers and media when:
  * 1. The hosting composable tab is switched away (isVisible = false).
  * 2. The host Activity or app is paused or stopped (screen off, user switching apps).
+ * 3. App Lock is covering the app.
  *
- * Resumes execution only when both the app is in the foreground and this tab is actively visible.
+ * Resumes execution only when the app is in the foreground and unlocked and this tab is actively visible.
+ *
+ * Also runs [PrivateScreenGuard] for the view, so any screen hosting a site page gets FLAG_SECURE
+ * on message and sign-in pages. [privateScreenVisible] is whether the view is on screen for that
+ * purpose; a tab passes its visibility without the App Lock, so protection is already on when
+ * the lock opens over a DM.
  */
 @Composable
 internal fun WebSessionLifecycleSuspender(
     webView: WebView?,
     isVisible: Boolean = true,
+    privateScreenVisible: Boolean = isVisible,
 ) {
     if (webView == null) return
+    PrivateScreenGuard(webView = webView, isVisible = privateScreenVisible)
     val lifecycleOwner = LocalLifecycleOwner.current
+    // Read in composition as the effect key, so unlocking recomposes and resumes the page.
+    val active = webSessionMayRun(isVisible, AppLock.isUnlocked)
 
-    DisposableEffect(lifecycleOwner, webView, isVisible) {
+    DisposableEffect(lifecycleOwner, webView, isVisible, active) {
         val observer =
             LifecycleEventObserver { _, event ->
                 when (event) {
+                    // The lock is read again here: App Lock re-locks in onStart, and ON_RESUME
+                    // arrives before the next recomposition could update [active].
                     Lifecycle.Event.ON_RESUME -> {
-                        if (isVisible) webView.resumeWebSession() else webView.suspendWebSession()
+                        if (webSessionMayRun(isVisible, AppLock.isUnlocked)) {
+                            webView.resumeWebSession()
+                        } else {
+                            webView.suspendWebSessionUnderLock()
+                        }
                     }
 
                     Lifecycle.Event.ON_PAUSE, Lifecycle.Event.ON_STOP -> {
@@ -119,10 +168,10 @@ internal fun WebSessionLifecycleSuspender(
             }
         lifecycleOwner.lifecycle.addObserver(observer)
 
-        if (isVisible && lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+        if (active && lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
             webView.resumeWebSession()
         } else {
-            webView.suspendWebSession()
+            webView.suspendWebSessionUnderLock()
         }
 
         onDispose {
@@ -173,14 +222,23 @@ private fun WebView.clearHistoryWhenStartPageCommits(pollsLeft: Int = HISTORY_CL
     }, HISTORY_CLEAR_POLL_MS)
 }
 
-/** Each site's cookies, storage, cache and service workers live in that site's own profile. */
+/**
+ * Each site's cookies, storage, cache and service workers live in that site's own profile. Also
+ * covers the profile's service workers (see [installServiceWorkerCoverage]) and keeps page text
+ * out of content capture. Recents is handled when the page is first shown ([PrivateScreenGuard]).
+ */
 internal fun WebView.useProfileOf(site: LiveWebSite) {
     synchronized(siteWebViews) { siteWebViews[this] = site }
     if (isSupported) {
         site.profile
         WebViewCompat.setProfile(this, site.name)
     }
+    applyLiveWebCaptureRules()
+    runCatching { installServiceWorkerCoverage(context, site) }
 }
+
+/** The site this WebView was set up for by [useProfileOf], or null for any other WebView. */
+internal fun WebView.siteOfWebView(): LiveWebSite? = synchronized(siteWebViews) { siteWebViews[this] }
 
 internal fun LiveWebSite.cookieManager(): CookieManager = if (isSupported) profile.cookieManager else CookieManager.getInstance()
 
@@ -453,17 +511,73 @@ internal fun generateWebBridgeToken(): String {
     return bytes.joinToString("") { "%02x".format(it) }
 }
 
+/** Reddit's ranked listings: the front page and a subreddit, each with an optional sort. */
+private val REDDIT_LISTING_PATH =
+    Regex("^/(?:r/[^/]+/?)?(?:(?:new|hot|best|top|rising)/?)?$", RegexOption.IGNORE_CASE)
+
+private val LINKEDIN_HOME_FEED_PATH = Regex("^/feed/?$", RegexOption.IGNORE_CASE)
+
+/**
+ * X's timelines that are rebuilt on every load: For you / Following, Explore (and its tabs),
+ * Notifications (and its Mentions and Verified tabs) and Bookmarks.
+ */
+private val X_RANKED_FEED_PATH =
+    Regex(
+        "^/(?:home|explore(?:/tabs/[^/]+)?|notifications(?:/(?:mentions|verified))?|i/bookmarks)/?$",
+        RegexOption.IGNORE_CASE,
+    )
+
+/**
+ * X pages that only make sense while they are open: the composer and its intents, the photo or
+ * video viewer laid over a post, and a profile's avatar or header viewer. Reopened on a cold start
+ * they show an empty composer or a full-screen modal with nothing to go Back to.
+ */
+private val X_TRANSIENT_PATH =
+    Regex(
+        "^/(?:compose|intent|i/compose)(?:/|$)|/(?:photo|video)/\\d+/?$|^/[^/]+/(?:photo|header_photo)/?$",
+        RegexOption.IGNORE_CASE,
+    )
+
+/** X's avatar or header viewer on a profile; group 1 is the profile's own path. */
+private val X_PROFILE_PHOTO_PATH = Regex("^(/[^/]+)/(?:photo|header_photo)/?$", RegexOption.IGNORE_CASE)
+
+/** X's photo or video viewer on a post; group 1 is the post's own path. */
+private val X_MEDIA_VIEWER_PATH =
+    Regex("^(/(?:[^/]+|i(?:/web)?)/status/\\d+)/(?:photo|video)/\\d+/?$", RegexOption.IGNORE_CASE)
+
+/** Instagram's composer and the likers or comments list laid over a post. */
+private val INSTAGRAM_TRANSIENT_PATH =
+    Regex("^/create(?:/|$)|^/(?:[^/]+/)?(?:p|reels?)/[^/]+/(?:liked_by|comments)(?:/|$)", RegexOption.IGNORE_CASE)
+
+/** LinkedIn's and Reddit's composers. */
+private val LINKEDIN_TRANSIENT_PATH = Regex("^/(?:post/new|sharing)(?:/|$)", RegexOption.IGNORE_CASE)
+private val REDDIT_TRANSIENT_PATH = Regex("^/(?:(?:r|user|u)/[^/]+/)?submit(?:/|$)", RegexOption.IGNORE_CASE)
+
+/**
+ * Paths whose first segment names a community, person, company or tag. No supported site keeps a
+ * sign-in page under these, so a sign-in word further along is a page's name, not a sign-in page.
+ */
+private val CONTENT_NAMESPACE_PATH =
+    Regex("^/(?:r|u|user|in|company|school|showcase|groups|pulse|posts|tags|hashtag|explore)/", RegexOption.IGNORE_CASE)
+
+private val X_AUTH_HOSTS = setOf("x.com", "twitter.com")
+
+/** X's own first path segments that lead to sign-in pages (i/flow/login, account/access, ...). */
+private val X_AUTH_FIRST_SEGMENTS = setOf("i", "account", "login", "logout", "signup", "oauth")
+
 /**
  * Remembers each home live-web tab's last visited URL and vertical scroll offset across process
  * death, scoped strictly to URLs hosted on that site.
+ *
+ * Ranked home feeds are re-ordered on every load, so a saved offset would land among posts the
+ * person has never seen: for those only the URL is kept and the page reopens at the top. Private
+ * and full-screen pages (messages, Stories, Reels) and sign-in pages are never reopened.
  */
 internal object LiveWebSessionState {
     private const val PREFS_NAME = "crux_web_state"
-    private val AUTH_PATH_REGEX =
-        Regex(
-            "(^|/)(i/flow|login|accounts/login|accounts/onetap|uas/login|account/access|account/login_verification|checkpoint|challenge)(/|$)",
-            RegexOption.IGNORE_CASE,
-        )
+
+    // One list with the page engine's isAuthPage, so the two cannot drift.
+    private val AUTH_PATH_REGEX = Regex(AUTH_PATH_PATTERN, RegexOption.IGNORE_CASE)
 
     private fun urlKey(site: LiveWebSite) = "url.${site.name}"
 
@@ -474,8 +588,28 @@ internal object LiveWebSessionState {
         val uri = runCatching { URI(candidate) }.getOrNull() ?: return false
         val host = uri.host?.lowercase()?.trimEnd('.').orEmpty()
         if (host == "accounts.google.com" || host == "appleid.apple.com") return true
-        val path = uri.path.orEmpty()
-        return AUTH_PATH_REGEX.containsMatchIn(path)
+        return isAuthPath(host, uri.path.orEmpty())
+    }
+
+    /**
+     * The shared [AUTH_PATH_PATTERN], minus content pages that only look like sign-in pages: a
+     * community, profile or company page named after one of its words (reddit.com/r/challenge,
+     * linkedin.com/company/register, an X account called @challenge). Treating those as sign-in
+     * pages would forget the tab's place and send a signed-in tab back to its home page.
+     */
+    fun isAuthPath(
+        host: String?,
+        path: String,
+    ): Boolean {
+        if (!AUTH_PATH_REGEX.containsMatchIn(path)) return false
+        if (CONTENT_NAMESPACE_PATH.containsMatchIn(path)) return false
+        val normalizedHost = host?.lowercase()?.trimEnd('.').orEmpty()
+        if (hostMatchesAny(normalizedHost, X_AUTH_HOSTS)) {
+            // On X the first segment of any other path is an account handle.
+            val first = path.trimStart('/').substringBefore('/').lowercase()
+            if (first !in X_AUTH_FIRST_SEGMENTS) return false
+        }
+        return true
     }
 
     fun isRestorableUrl(
@@ -488,8 +622,95 @@ internal object LiveWebSessionState {
         if (!uri.scheme.equals("https", ignoreCase = true) || !site.allows(uri.host)) return false
         val path = uri.path.orEmpty()
         if (site == LiveWebSite.X && (path.isEmpty() || path == "/")) return false
-        if (AUTH_PATH_REGEX.containsMatchIn(path)) return false
+        if (isAuthPath(uri.host, path)) return false
+        // A DM thread, an expired Story or an autoplaying Reel must not be the first thing shown.
+        if (isPrivateOrImmersiveUrl(candidate)) return false
+        // Nor an empty composer or a media viewer with nothing to go Back to.
+        if (isTransientPath(site, path)) return false
         return true
+    }
+
+    /** Composers and overlays that must not be reopened on a cold start (see [restorableUrlFor]). */
+    fun isTransientPath(
+        site: LiveWebSite,
+        path: String,
+    ): Boolean =
+        when (site) {
+            LiveWebSite.X -> X_TRANSIENT_PATH.containsMatchIn(path)
+            LiveWebSite.Instagram -> INSTAGRAM_TRANSIENT_PATH.containsMatchIn(path)
+            LiveWebSite.LinkedIn -> LINKEDIN_TRANSIENT_PATH.containsMatchIn(path)
+            LiveWebSite.Reddit -> REDDIT_TRANSIENT_PATH.containsMatchIn(path)
+            LiveWebSite.Mastodon -> false
+        }
+
+    /**
+     * The page worth saving for [url]: an X photo or video viewer becomes the post under it, an
+     * X avatar or header viewer becomes the profile, and an Instagram likers or comments list
+     * becomes the post itself. Anything else is unchanged.
+     */
+    fun restorableUrlFor(
+        site: LiveWebSite,
+        url: String?,
+    ): String? {
+        val candidate = url?.trim()?.takeIf { it.isNotEmpty() } ?: return url
+        val uri = runCatching { URI(candidate) }.getOrNull() ?: return url
+        val path = uri.path.orEmpty()
+        val parentPath =
+            when (site) {
+                LiveWebSite.X ->
+                    (X_MEDIA_VIEWER_PATH.find(path) ?: X_PROFILE_PHOTO_PATH.find(path))?.groupValues?.get(1)
+                LiveWebSite.Instagram -> canonicalInstagramPostPath(path)?.takeIf { INSTAGRAM_TRANSIENT_PATH.containsMatchIn(path) }
+                else -> null
+            } ?: return url
+        return runCatching { URI(uri.scheme, uri.authority, parentPath, null, null).toString() }.getOrDefault(url)
+    }
+
+    /** True for a site's ranked home feed, where a saved scroll offset means nothing after a reload. */
+    fun isRankedFeedUrl(
+        site: LiveWebSite,
+        url: String?,
+    ): Boolean {
+        val uri = url?.trim()?.let { runCatching { URI(it) }.getOrNull() } ?: return false
+        val path = uri.path.orEmpty().ifEmpty { "/" }
+        return when (site) {
+            LiveWebSite.Instagram -> path == "/"
+            LiveWebSite.LinkedIn -> LINKEDIN_HOME_FEED_PATH.matches(path) && uri.rawQuery?.contains("urn", ignoreCase = true) != true
+            LiveWebSite.Reddit -> REDDIT_LISTING_PATH.matches(path)
+            LiveWebSite.X -> X_RANKED_FEED_PATH.matches(path)
+            LiveWebSite.Mastodon -> false
+        }
+    }
+
+    /** The offset worth keeping for [url]: none on a ranked feed, the real one on a detail page. */
+    fun scrollToKeep(
+        site: LiveWebSite,
+        url: String?,
+        scrollY: Int,
+    ): Int = if (isRankedFeedUrl(site, url)) 0 else scrollY.coerceAtLeast(0)
+
+    /** True when [url] is a page of [site] itself (not a blank page or another site). */
+    private fun isOwnPage(
+        site: LiveWebSite,
+        url: String?,
+    ): Boolean {
+        val uri = url?.trim()?.let { runCatching { URI(it) }.getOrNull() } ?: return false
+        return uri.scheme.equals("https", ignoreCase = true) && site.allows(uri.host)
+    }
+
+    /**
+     * True when [url] is refused only because it is a composer or overlay ([isTransientPath]),
+     * not because it is private, full-screen or a sign-in page.
+     */
+    internal fun isOnlyTransient(
+        site: LiveWebSite,
+        url: String?,
+    ): Boolean {
+        val candidate = url?.trim() ?: return false
+        if (!isOwnPage(site, candidate)) return false
+        if (isExternalOAuthUrl(candidate) || isPrivateOrImmersiveUrl(candidate)) return false
+        val uri = runCatching { URI(candidate) }.getOrNull() ?: return false
+        val path = uri.path.orEmpty()
+        return !isAuthPath(uri.host, path) && isTransientPath(site, path)
     }
 
     fun save(
@@ -499,10 +720,19 @@ internal object LiveWebSessionState {
         scrollY: Int,
     ) {
         if (site.isSignedInAccount && !site.hasSession()) return
-        if (!isRestorableUrl(site, url)) return
+        val target = restorableUrlFor(site, url)
+        if (!isRestorableUrl(site, target)) {
+            // Left on a composer opened over a thread: keep the thread saved underneath it.
+            if (isOnlyTransient(site, target)) return
+            // Left on a private, full-screen or sign-in page of the site: forget the older page
+            // too, so the tab reopens at its start page rather than somewhere stale. A page that
+            // has not loaded yet (blank, null) leaves the saved place alone.
+            if (isOwnPage(site, target)) clear(context, site)
+            return
+        }
         context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit {
-            putString(urlKey(site), url)
-            putInt(scrollKey(site), scrollY.coerceAtLeast(0))
+            putString(urlKey(site), target)
+            putInt(scrollKey(site), scrollToKeep(site, target, scrollY))
         }
     }
 
@@ -515,12 +745,14 @@ internal object LiveWebSessionState {
             return null
         }
         val prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val savedUrl = prefs.getString(urlKey(site), null) ?: return null
+        // Older versions saved X's media viewer and Instagram's likers list as they were.
+        val savedUrl = restorableUrlFor(site, prefs.getString(urlKey(site), null)) ?: return null
         if (!isRestorableUrl(site, savedUrl)) {
             clear(context, site)
             return null
         }
-        return savedUrl to prefs.getInt(scrollKey(site), 0).coerceAtLeast(0)
+        // Offsets saved by older versions on a ranked feed are dropped too.
+        return savedUrl to scrollToKeep(site, savedUrl, prefs.getInt(scrollKey(site), 0))
     }
 
     fun clear(
@@ -689,9 +921,14 @@ internal fun restoreUiModeNightMaskIfNeeded(
     restoreResourcesNightMask(context.applicationContext.resources, expectedNightMask)
 }
 
+/**
+ * The WebView for every site page and popup: an [IncognitoKeyboardWebView] (the keyboard is asked
+ * not to learn what is typed), kept out of content capture, and with the night-mode fix below.
+ */
 internal fun createThemeSafeWebView(context: Context): WebView {
     val expectedNightMask = context.currentUiNightMask()
-    val webView = WebView(context)
+    val webView = IncognitoKeyboardWebView(context)
+    webView.applyLiveWebCaptureRules()
     restoreUiModeNightMaskIfNeeded(context, expectedNightMask)
     webView.post {
         restoreUiModeNightMaskIfNeeded(context, expectedNightMask)

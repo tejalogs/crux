@@ -12,6 +12,7 @@ import org.crux.data.datastore.model.CruxConfig
 import org.crux.data.datastore.model.PlatformOAuthPendingData
 import org.crux.data.datastore.model.PrivacySettingsData
 import org.crux.data.io.FileStorage
+import org.crux.data.network.ai.withLocalAiOnly
 import org.crux.data.security.CredentialCipher
 import org.koin.core.annotation.Single
 
@@ -83,20 +84,33 @@ internal class EncryptedAppSettingsSerializer(
     override val defaultValue: AppSettings
         get() = delegate.defaultValue
 
+    // Cloud AI is not offered. A config stored by an older build, or restored from a backup, that
+    // points AI at a server is read back as the on-device engine, so every reader (AI features, the
+    // agent, Smart Reply, exports) sees the type that actually runs and the legacy server address and
+    // key are dropped. Only the value of `aiConfig.type` changes; the stored model's fields and their
+    // order stay as they are.
     override suspend fun readFrom(source: BufferedSource): AppSettings =
-        delegate.readFrom(source).transformApiKeys { value ->
-            if (value.isBlank()) value else runCatching { cipher.decrypt(value) }.getOrDefault("")
-        }
+        delegate
+            .readFrom(source)
+            .transformApiKeys { value ->
+                if (value.isBlank()) value else runCatching { cipher.decrypt(value) }.getOrDefault("")
+            }.withLocalAiOnlyConfig()
 
     override suspend fun writeTo(
         t: AppSettings,
         sink: BufferedSink,
     ) {
+        // Same migration on write, so a legacy server address and key are never written back.
         val protected =
-            t.transformApiKeys { value ->
+            t.withLocalAiOnlyConfig().transformApiKeys { value ->
                 if (value.isBlank()) value else cipher.encrypt(value)
             }
         delegate.writeTo(protected, sink)
+    }
+
+    private fun AppSettings.withLocalAiOnlyConfig(): AppSettings {
+        val localAi = aiConfig.withLocalAiOnly()
+        return if (localAi === aiConfig) this else copy(aiConfig = localAi)
     }
 
     private fun AppSettings.transformApiKeys(transform: (String) -> String): AppSettings {

@@ -46,9 +46,14 @@ internal enum class SiteTweak(
     RedditRecommended(LiveWebSite.Reddit),
     RedditAi(LiveWebSite.Reddit),
     RedditTrending(LiveWebSite.Reddit),
-    RedditUnblurNsfw(LiveWebSite.Reddit, defaultOn = true),
+    // Opt-in: mature content stays behind Reddit's own blur unless the person chooses otherwise.
+    RedditUnblurNsfw(LiveWebSite.Reddit, defaultOn = false),
 
     MastodonTrending(LiveWebSite.Mastodon),
+
+    // Appended, never inserted: entries keep their order for anything that stored them by position.
+    // On a post's page, the "Discover more" run of strangers' posts that starts once the replies end.
+    XDiscoverMore(LiveWebSite.X),
     ;
 
     companion object {
@@ -75,11 +80,17 @@ internal data class SiteWebSettings(
     fun withBlockAutoplay(on: Boolean): SiteWebSettings = copy(blockAutoplay = on)
 
     companion object {
+        /**
+         * Sites whose feed videos wait for a tap by default, so scrolling stays calm and light on
+         * data. Only the default: a value the person saved for a site is read first and wins.
+         */
+        private val TAP_TO_PLAY_BY_DEFAULT = setOf(LiveWebSite.Reddit, LiveWebSite.LinkedIn)
+
         fun defaultsFor(site: LiveWebSite): SiteWebSettings =
             SiteWebSettings(
                 protection = site.defaultProtection,
                 tweaks = SiteTweak.forSite(site).filter { it.defaultOn }.toSet(),
-                blockAutoplay = false,
+                blockAutoplay = site in TAP_TO_PLAY_BY_DEFAULT,
             )
     }
 }

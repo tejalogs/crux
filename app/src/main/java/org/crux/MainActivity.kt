@@ -51,6 +51,9 @@ import org.crux.ui.lock.AppLockCoverWindow
 import org.crux.ui.lock.deviceCredentialIntent
 import org.crux.ui.component.status.ProvideAndroidTimelineMediaActions
 import org.crux.ui.screen.home.LiveWebPrivacyStore
+import org.crux.ui.screen.home.LiveWebPrivateScreens
+import org.crux.ui.screen.home.recentsPreviewHidden
+import org.crux.ui.screen.home.secureWindowWanted
 import org.crux.ui.screen.home.restoreUiModeNightMaskIfNeeded
 import org.crux.ui.theme.CruxTheme
 import org.crux.ui.theme.LocalSystemDarkTheme
@@ -174,36 +177,51 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /** With the app lock on, Android 13+ shows a blank card in Recents instead of the last screen. */
+    /**
+     * Android 13+ shows a blank card in Recents instead of the last screen while the app lock is
+     * on, and from the moment any site page (a feed, DMs, a sign-in page) was first on screen in
+     * this process. Recents captures whatever screen is up when the app is left, so there is no later
+     * point at which a feed or a DM could be told apart; the RSS-only screens keep their preview
+     * until a site page is opened.
+     */
     private fun observeRecentsPreview() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
         lifecycleScope.launch {
-            privacySettingsRepository
-                .settings()
-                .map { it.requireAppLock }
+            combine(
+                privacySettingsRepository.settings().map { it.requireAppLock },
+                LiveWebPrivateScreens.webContentShown,
+            ) { requireLock, webShown -> recentsPreviewHidden(requireLock, webShown) }
                 .distinctUntilChanged()
                 .collect { setRecentsScreenshotEnabled(!it) }
         }
     }
 
     /**
-     * Screenshot and recents protection. FLAG_SECURE follows the Privacy & Tweaks toggle, and on
-     * Android 12 and below also App Lock, since there it is the only way to keep the last screen
-     * out of the Recents thumbnail. Set before first draw.
+     * Screenshot and recents protection. FLAG_SECURE follows the Privacy & Tweaks toggle, on
+     * Android 12 and below also App Lock (there it is the only way to keep the last screen out of
+     * the Recents thumbnail), and turns on by itself while a visible site page (a tab, the
+     * sign-in screen, the share composer, the Instagram or LinkedIn screen) shows messages or a
+     * sign-in page. Set before first draw.
      */
     private fun observeSecureWindow() {
         val store = LiveWebPrivacyStore.get(applicationContext)
-        val lockNeedsSecure = { requireLock: Boolean -> requireLock && Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU }
+        val legacyRecents = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU
         applySecureWindow(
-            store.settings.value.secureWindow ||
-                lockNeedsSecure(privacySettingsRepository.settings().value.requireAppLock),
+            secureWindowWanted(
+                userSecureWindow = store.settings.value.secureWindow,
+                requireAppLock = privacySettingsRepository.settings().value.requireAppLock,
+                privateScreenShown = LiveWebPrivateScreens.isActive,
+                legacyRecents = legacyRecents,
+            ),
         )
         lifecycleScope.launch {
             combine(
                 store.settings.map { it.secureWindow },
                 privacySettingsRepository.settings().map { it.requireAppLock },
-            ) { secureWindow, requireLock -> secureWindow || lockNeedsSecure(requireLock) }
-                .distinctUntilChanged()
+                LiveWebPrivateScreens.active,
+            ) { secureWindow, requireLock, privateScreen ->
+                secureWindowWanted(secureWindow, requireLock, privateScreen, legacyRecents)
+            }.distinctUntilChanged()
                 .collect { applySecureWindow(it) }
         }
     }

@@ -116,6 +116,18 @@ internal fun LiveWebSite.shareUrl(
 
 private const val REDDIT_TITLE_LIMIT = 300
 
+/** How often the sign-in screen checks whether the person has finished signing in. */
+private const val SIGN_IN_POLL_MS = 1_000L
+
+/**
+ * Whether closing a separate page of a site should reload that site's home tab: only when the
+ * person signed in or out there. Any other visit leaves the home tab's feed and place alone.
+ */
+internal fun shouldReloadHomeTab(
+    signedInBefore: Boolean,
+    signedInAfter: Boolean,
+): Boolean = signedInBefore != signedInAfter
+
 /** Walks through the chosen sites one at a time, each with its composer already filled in. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -273,7 +285,8 @@ internal fun LiveShareScreen(
 
 /**
  * A platform's real site on its own page, used to sign in or browse outside the home pills.
- * Shares the site's isolated cookie jar with its home tab, which is reloaded on the way out.
+ * Shares the site's isolated cookie jar with its home tab, which is reloaded on the way out only
+ * if the person signed in or out here.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -316,6 +329,9 @@ internal fun LiveWebScreen(
         remember(site, customUrl, forSignIn) {
             forSignIn || (customUrl != null && LiveWebSessionState.isAuthOrLoginUrl(customUrl) && !site.hasSession())
         }
+    // Whether the site was signed in when this screen opened: the home tab is reloaded on the way
+    // out only if that changed here, so opening a link never reshuffles its feed or scroll.
+    val signedInAtOpen = remember(site) { site.hasSession() }
     key(site, startUrl) {
         val ownsPage = (customUrl != null && !forSignIn) || pages == null
         var crashGeneration by remember(site, startUrl) { mutableIntStateOf(0) }
@@ -347,21 +363,21 @@ internal fun LiveWebScreen(
         }
         LaunchedEffect(site, page, autoReturnOnSignIn) {
             if (!autoReturnOnSignIn) return@LaunchedEffect
+            // getCookie sees cookies as soon as the page sets them, so the poll needs no flush.
             while (true) {
-                site.cookieManager().flush()
                 if (site.hasSession()) {
+                    // Once, so the new sign-in reaches disk even if the app is killed right away.
+                    runCatching { site.cookieManager().flush() }
                     delay(350L)
-                    if (!ownsPage) {
-                        page.webView.loadUrl(site.homeUrl)
-                    } else {
-                        pages?.reload(site)
-                    }
+                    // A page this screen owns is destroyed on the way out, which reloads the
+                    // home tab because the signed-in state changed.
+                    if (!ownsPage) page.webView.loadUrl(site.homeUrl)
                     connections?.refresh()
                     Toast.makeText(context, "Signed in to ${site.label}", Toast.LENGTH_SHORT).show()
                     onBack()
                     break
                 }
-                delay(300L)
+                delay(SIGN_IN_POLL_MS)
             }
         }
         var pendingBookmarkPost by remember { mutableStateOf<ExtractedSocialPost?>(null) }
@@ -476,7 +492,7 @@ internal fun LiveWebScreen(
                     (page.webView.parent as? ViewGroup)?.removeView(page.webView)
                     if (ownsPage) {
                         page.destroy()
-                        pages?.reload(site)
+                        if (shouldReloadHomeTab(signedInAtOpen, site.hasSession())) pages?.reload(site)
                     } else if (site.hasSession() && LiveWebSessionState.isAuthOrLoginUrl(page.webView.url)) {
                         page.webView.loadUrl(site.homeUrl)
                     } else if (!site.hasSession() && isExternalOAuthUrl(page.webView.url)) {

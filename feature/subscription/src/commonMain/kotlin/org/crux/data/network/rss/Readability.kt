@@ -4,6 +4,9 @@ import androidx.compose.runtime.Immutable
 import com.fleeksoft.ksoup.Ksoup
 import com.fleeksoft.ksoup.nodes.Element
 import io.ktor.client.HttpClient
+import io.ktor.client.network.sockets.ConnectTimeoutException
+import io.ktor.client.network.sockets.SocketTimeoutException
+import io.ktor.client.plugins.HttpRequestTimeoutException
 import io.ktor.client.plugins.ResponseException
 import io.ktor.http.isSuccess
 import kotlinx.coroutines.CancellationException
@@ -11,7 +14,9 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.io.IOException
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import moe.tlaster.readability.Readability
 import org.crux.data.network.PublicUrlValidator
 import org.crux.data.network.getPublic
@@ -24,8 +29,14 @@ import kotlin.experimental.ExperimentalObjCRefinement
 import kotlin.native.HiddenFromObjC
 import kotlin.time.Instant
 
+/**
+ * One HTTP client for every reader. Each Readability used to build its own, which was never
+ * closed, so opening articles and pressing Retry kept adding clients.
+ */
+private val sharedReaderClient: HttpClient by lazy { publicWebClient() }
+
 internal class Readability(
-    private val client: HttpClient = publicWebClient(),
+    private val client: HttpClient = sharedReaderClient,
     private val parserDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) {
     suspend fun extract(url: String): DocumentData =
@@ -68,7 +79,8 @@ internal class Readability(
         fallbackHtml: String? = null,
     ): DocumentData {
         if (descriptionHtml != null) {
-            return withContext(parserDispatcher) { embeddedDocument(descriptionHtml, title) } ?: throw ArticleExtractionException()
+            return withContext(parserDispatcher) { embeddedDocument(descriptionHtml, title, DocumentSource.FeedText) }
+                ?: throw ArticleExtractionException()
         }
         return try {
             val doc = extract(url)
@@ -77,10 +89,57 @@ internal class Readability(
         } catch (exception: CancellationException) {
             throw exception
         } catch (exception: Exception) {
-            withContext(parserDispatcher) { embeddedDocument(fallbackHtml, title) } ?: throw exception
+            withContext(parserDispatcher) { embeddedDocument(fallbackHtml, title, DocumentSource.FeedSummary) } ?: throw exception
         }
     }
 }
+
+/** Why an article could not be shown, so the reader can say so in plain words. */
+public enum class ArticleFailureReason {
+    /**
+     * The site could not be reached: no connection, an unknown host, or a transport failure
+     * such as a TLS handshake or a reset connection. Worded neutrally, since it is not always
+     * the reader's connection.
+     */
+    Unreachable,
+
+    /** The site took longer than the reader waits. */
+    TimedOut,
+
+    /** The page loaded but held no readable article. */
+    NoArticle,
+
+    /** The site answered with an error status. */
+    HttpError,
+
+    /** Anything else, such as an address the reader refuses to open. */
+    Other,
+}
+
+/** The [ArticleFailureReason] for a failure thrown by [Readability.load]. */
+public fun Throwable.articleFailureReason(): ArticleFailureReason =
+    when (this) {
+        is ArticleTimeoutException,
+        is HttpRequestTimeoutException,
+        is ConnectTimeoutException,
+        is SocketTimeoutException,
+        -> ArticleFailureReason.TimedOut
+
+        is ArticleExtractionException -> ArticleFailureReason.NoArticle
+
+        is ResponseException -> ArticleFailureReason.HttpError
+
+        is IOException -> ArticleFailureReason.Unreachable
+
+        else -> cause?.takeIf { it !== this }?.articleFailureReason() ?: ArticleFailureReason.Other
+    }
+
+/** The HTTP status of an [ArticleFailureReason.HttpError], or null. */
+public fun Throwable.articleHttpStatus(): Int? =
+    when (this) {
+        is ResponseException -> response.status.value
+        else -> cause?.takeIf { it !== this }?.articleHttpStatus()
+    }
 
 internal class ArticleExtractionException : Exception("Unable to extract article content")
 
@@ -96,6 +155,7 @@ internal fun String?.hasRssContent(): Boolean {
 private fun embeddedDocument(
     html: String?,
     title: String?,
+    source: DocumentSource,
 ): DocumentData? =
     html?.takeIf { it.hasRssContent() }?.let {
         DocumentData(
@@ -109,8 +169,21 @@ private fun embeddedDocument(
             siteName = null,
             lang = null,
             publishedTime = null,
+            source = source,
         )
     }
+
+/** Where the text the reader shows came from. */
+public enum class DocumentSource {
+    /** The article, extracted from the page. */
+    Full,
+
+    /** Extracting the article failed, so the feed's own summary of it stands in. */
+    FeedSummary,
+
+    /** The feed's own text, because the source is set to show feed text only. */
+    FeedText,
+}
 
 @Immutable
 @Serializable
@@ -125,6 +198,8 @@ public data class DocumentData(
     val siteName: String?,
     val lang: String?,
     val publishedTime: String?,
+    // Not part of the article: kept out of the JSON handed to summaries.
+    @Transient val source: DocumentSource = DocumentSource.Full,
 ) {
     val publishDateTime: UiDateTime? by lazy {
         publishedTime?.let {

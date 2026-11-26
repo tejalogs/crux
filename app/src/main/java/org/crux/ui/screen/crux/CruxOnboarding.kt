@@ -52,13 +52,16 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -67,8 +70,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
@@ -90,6 +95,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.crux.R
+import org.crux.data.datastore.model.AppSettings
 import org.crux.data.model.Theme
 import org.crux.data.model.appearance.AppearanceKeys
 import org.crux.data.repository.DefaultRssFeeds
@@ -105,7 +111,106 @@ import org.crux.ui.screen.instagram.InstagramWebScreen
 import org.crux.ui.screen.linkedin.LinkedInWebScreen
 import org.koin.compose.koinInject
 
-private enum class OnboardingStep { Welcome, Platforms, SignIn, Calm }
+internal enum class OnboardingStep { Welcome, Platforms, SignIn, Calm }
+
+/** Saves the picked platforms by name, so they survive activity recreation alongside the step. */
+private val platformListSaver =
+    listSaver<SnapshotStateList<CruxPlatform>, String>(
+        save = { list -> list.map { it.name } },
+        restore = { names -> mutableStateListOf<CruxPlatform>().apply { addAll(names.mapNotNull { CruxPlatform.fromName(it) }) } },
+    )
+
+/** The steps this user will actually see: Sign in only appears when a site (not just Feeds) is picked. */
+internal fun visibleOnboardingSteps(selected: Collection<CruxPlatform>): List<OnboardingStep> =
+    OnboardingStep.entries.filter { it != OnboardingStep.SignIn || selected.any { platform -> platform.site != null } }
+
+/** The next visible step after [current], or null on the last one. */
+internal fun nextOnboardingStep(
+    current: OnboardingStep,
+    visible: List<OnboardingStep>,
+): OnboardingStep? = visible.firstOrNull { it.ordinal > current.ordinal }
+
+/** The visible step before [current], so Back never lands on a skipped step. Null on the first one. */
+internal fun previousOnboardingStep(
+    current: OnboardingStep,
+    visible: List<OnboardingStep>,
+): OnboardingStep? = visible.lastOrNull { it.ordinal < current.ordinal }
+
+/** 1-based position of [current] among the visible steps, for "Step x of y". */
+internal fun onboardingStepPosition(
+    current: OnboardingStep,
+    visible: List<OnboardingStep>,
+): Int = visible.count { it.ordinal <= current.ordinal }.coerceAtLeast(1)
+
+/**
+ * What the Platforms step starts with. A fresh install still carries the stored default platforms,
+ * which the user never chose, so it starts with only Feeds and the user picks the rest. Anyone who
+ * changed their platforms or signed in somewhere keeps what they have.
+ */
+internal fun initialOnboardingPicks(
+    enabled: List<CruxPlatform>,
+    signedIn: Set<CruxPlatform>,
+    returningUser: Boolean = false,
+): List<CruxPlatform> {
+    if (enabled.isEmpty()) return listOf(CruxPlatform.Rss)
+    // A replayed tour must not quietly drop tabs the user has been living with.
+    if (returningUser) return enabled
+    val untouchedDefaults =
+        enabled.map { it.name }.toSet() == AppSettings.DEFAULT_CRUX_PLATFORMS.toSet() &&
+            enabled.none { it.site != null && it in signedIn }
+    return if (untouchedDefaults) listOf(CruxPlatform.Rss) else enabled
+}
+
+/**
+ * Whether this person finished the tour before (Settings > Replay welcome only clears
+ * onboardingCompleted). Finishing onboarding always syncs the live-web tabs, which sets
+ * liveWebTabsMigrated; picking feeds sets rssDefaultsSeeded; a fresh install has neither and no feeds.
+ */
+internal fun isReturningOnboardingUser(
+    settings: AppSettings,
+    existingFeedCount: Int,
+): Boolean = settings.liveWebTabsMigrated || settings.rssDefaultsSeeded || existingFeedCount > 0
+
+/**
+ * The platforms to save when the tour ends. Someone who never reached the Platforms step (Skip on
+ * Welcome) keeps what they have unless they are known to be new, so a replay never removes tabs.
+ * [returningUser] is null while settings are still loading.
+ */
+internal fun onboardingPlatformsToSave(
+    selected: List<CruxPlatform>,
+    enabled: List<CruxPlatform>,
+    returningUser: Boolean?,
+    platformsVisited: Boolean,
+): List<CruxPlatform> =
+    if (!platformsVisited && returningUser != false && enabled.isNotEmpty()) enabled else selected
+
+/** Which picked sites can be browsed signed out, and which show a login page until signed in. */
+internal data class SignInBannerParts(
+    val browseSignedOut: List<CruxPlatform>,
+    val needSignIn: List<CruxPlatform>,
+)
+
+internal fun signInBannerParts(
+    platforms: List<CruxPlatform>,
+    signedIn: Set<CruxPlatform>,
+): SignInBannerParts {
+    val pending = platforms.filter { it.site != null && it !in signedIn }
+    return SignInBannerParts(
+        browseSignedOut = pending.filter { it.worksSignedOut },
+        needSignIn = pending.filterNot { it.worksSignedOut },
+    )
+}
+
+/** "A", "A and B", "A, B and C", with the final joiner supplied by a string resource. */
+internal fun joinPlatformNames(
+    names: List<String>,
+    joinLastTwo: (String, String) -> String,
+): String =
+    when (names.size) {
+        0 -> ""
+        1 -> names.first()
+        else -> joinLastTwo(names.dropLast(1).joinToString(", "), names.last())
+    }
 
 /**
  * First-run flow. Crux is a set of real sites behind one calm shell, so setup is: understand what
@@ -119,12 +224,21 @@ internal fun CruxOnboardingScreen(connections: CruxConnectionsState) {
     val scope = rememberCoroutineScope()
     var finishing by remember { mutableStateOf(false) }
     var step by rememberSaveable { mutableStateOf(OnboardingStep.Welcome) }
+    // Saveable like `step`, so a recreated activity does not come back on Sign in with the picks reset.
     val selected =
-        remember {
+        rememberSaveable(saver = platformListSaver) {
             mutableStateListOf<CruxPlatform>().apply {
-                addAll(connections.enabled.ifEmpty { CruxPlatform.entries })
+                addAll(initialOnboardingPicks(connections.enabled, connections.signedIn))
             }
         }
+    var picksTouched by rememberSaveable { mutableStateOf(false) }
+    var platformsVisited by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(step) {
+        if (step.ordinal >= OnboardingStep.Platforms.ordinal) platformsVisited = true
+    }
+    val storedSettings by produceState<AppSettings?>(initialValue = null) {
+        value = settingsRepository.appSettings.first()
+    }
     val selectedStarterFeeds = remember { mutableStateListOf<DefaultRssFeeds.FeedItem>() }
     // Feeds already in the library. Null until loaded; on a replayed tour nothing is preselected,
     // so feeds the user removed are not quietly added back.
@@ -144,6 +258,21 @@ internal fun CruxOnboardingScreen(connections: CruxConnectionsState) {
             starterFeedsPrimed = true
         }
     }
+    // Null until both settings and the feed library have loaded.
+    val returningUser: Boolean? =
+        storedSettings?.let { settings ->
+            existingFeedUrls?.let { feeds -> isReturningOnboardingUser(settings, feeds.size) }
+        }
+    LaunchedEffect(returningUser) {
+        // The first picks were made before settings loaded; a returning user keeps their platforms.
+        if (returningUser == true && !picksTouched) {
+            val keep = initialOnboardingPicks(connections.enabled, connections.signedIn, returningUser = true)
+            if (selected.toList() != keep) {
+                selected.clear()
+                selected.addAll(keep)
+            }
+        }
+    }
     var signingIn by remember { mutableStateOf<CruxPlatform?>(null) }
     val haptics = LocalHapticFeedback.current
     var previousSignedIn by remember { mutableStateOf(connections.signedIn) }
@@ -158,8 +287,8 @@ internal fun CruxOnboardingScreen(connections: CruxConnectionsState) {
         if (finishing) return
         finishing = true
         val chosenFeeds = if (starterFeedsPrimed) selectedStarterFeeds.toList() else starterFeedPicks()
-        val rssChosen = CruxPlatform.Rss in selected
-        val platforms = selected.toList()
+        val platforms = onboardingPlatformsToSave(selected.toList(), connections.enabled, returningUser, platformsVisited)
+        val rssChosen = CruxPlatform.Rss in platforms
         // Save before completing: completing removes this screen, which cancels `scope`.
         scope.launch {
             try {
@@ -216,9 +345,11 @@ internal fun CruxOnboardingScreen(connections: CruxConnectionsState) {
         return
     }
 
-    BackHandler(enabled = step != OnboardingStep.Welcome) {
-        step = OnboardingStep.entries[step.ordinal - 1]
+    val visibleSteps = visibleOnboardingSteps(selected)
+    val goBack: () -> Unit = {
+        previousOnboardingStep(step, visibleSteps)?.let { step = it }
     }
+    BackHandler(enabled = step != OnboardingStep.Welcome, onBack = goBack)
 
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(
@@ -230,7 +361,8 @@ internal fun CruxOnboardingScreen(connections: CruxConnectionsState) {
         ) {
             OnboardingTopBar(
                 step = step,
-                onBack = { step = OnboardingStep.entries[step.ordinal - 1] },
+                visibleSteps = visibleSteps,
+                onBack = goBack,
                 onSkip = ::finish,
             )
             AnimatedContent(
@@ -245,7 +377,7 @@ internal fun CruxOnboardingScreen(connections: CruxConnectionsState) {
             ) { current ->
                 when (current) {
                     OnboardingStep.Welcome -> {
-                        WelcomeStep(onContinue = { step = OnboardingStep.Platforms })
+                        WelcomeStep(onContinue = { nextOnboardingStep(current, visibleSteps)?.let { step = it } })
                     }
 
                     OnboardingStep.Platforms -> {
@@ -254,6 +386,7 @@ internal fun CruxOnboardingScreen(connections: CruxConnectionsState) {
                             selectedStarterFeeds = selectedStarterFeeds.toList(),
                             existingFeedUrls = existingFeedUrls.orEmpty(),
                             onTogglePlatform = { platform ->
+                                picksTouched = true
                                 if (platform in selected) selected.remove(platform) else selected.add(platform)
                             },
                             onToggleStarterFeed = { feed, checked ->
@@ -268,7 +401,7 @@ internal fun CruxOnboardingScreen(connections: CruxConnectionsState) {
                                 selectedStarterFeeds.addAll(feeds)
                             },
                             onContinue = {
-                                step = if (selected.any { it.site != null }) OnboardingStep.SignIn else OnboardingStep.Calm
+                                nextOnboardingStep(current, visibleOnboardingSteps(selected))?.let { step = it }
                             },
                         )
                     }
@@ -279,7 +412,7 @@ internal fun CruxOnboardingScreen(connections: CruxConnectionsState) {
                             hasRss = CruxPlatform.Rss in selected,
                             connections = connections,
                             onSignIn = { signingIn = it },
-                            onContinue = { step = OnboardingStep.Calm },
+                            onContinue = { nextOnboardingStep(current, visibleSteps)?.let { step = it } },
                         )
                     }
 
@@ -295,6 +428,7 @@ internal fun CruxOnboardingScreen(connections: CruxConnectionsState) {
 @Composable
 private fun OnboardingTopBar(
     step: OnboardingStep,
+    visibleSteps: List<OnboardingStep>,
     onBack: () -> Unit,
     onSkip: () -> Unit,
 ) {
@@ -313,26 +447,37 @@ private fun OnboardingTopBar(
                 }
             }
         }
+        val stepDescription =
+            stringResource(
+                R.string.crux_onboarding_step_of,
+                onboardingStepPosition(step, visibleSteps),
+                visibleSteps.size,
+            )
         Row(
-            modifier = Modifier.weight(1f),
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .clearAndSetSemantics { contentDescription = stepDescription },
             horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
         ) {
-            OnboardingStep.entries.forEach {
-                val width by animateDpAsState(if (it == step) 22.dp else 8.dp, label = "dot")
-                Box(
-                    modifier =
-                        Modifier
-                            .height(8.dp)
-                            .width(width)
-                            .clip(CircleShape)
-                            .background(
-                                if (it.ordinal <= step.ordinal) {
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    MaterialTheme.colorScheme.outlineVariant
-                                },
-                            ),
-                )
+            visibleSteps.forEach {
+                key(it) {
+                    val width by animateDpAsState(if (it == step) 22.dp else 8.dp, label = "dot")
+                    Box(
+                        modifier =
+                            Modifier
+                                .height(8.dp)
+                                .width(width)
+                                .clip(CircleShape)
+                                .background(
+                                    if (it.ordinal <= step.ordinal) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.outlineVariant
+                                    },
+                                ),
+                    )
+                }
             }
         }
         TextButton(onClick = onSkip) {
@@ -990,6 +1135,23 @@ private fun SignInStep(
     val signedInCount = platforms.count { connections.isSignedIn(it) }
     val allSignedIn = platforms.isNotEmpty() && signedInCount == platforms.size
     val nextPlatform = nextUnsignedPlatform(platforms, connections.signedIn)
+    val bannerParts = signInBannerParts(platforms, connections.signedIn)
+    val resources = LocalResources.current
+    val joinNames = { picked: List<CruxPlatform> ->
+        joinPlatformNames(picked.map { it.displayName }) { first, last ->
+            resources.getString(R.string.crux_onboarding_names_and, first, last)
+        }
+    }
+    val bannerBody =
+        listOfNotNull(
+            bannerParts.browseSignedOut.takeIf { it.isNotEmpty() }?.let {
+                stringResource(R.string.crux_onboarding_signin_banner_signed_out, joinNames(it))
+            },
+            bannerParts.needSignIn.takeIf { it.isNotEmpty() }?.let {
+                stringResource(R.string.crux_onboarding_signin_banner_needs_sign_in, joinNames(it))
+            },
+            stringResource(R.string.crux_onboarding_signin_optional_banner_body),
+        ).joinToString(" ")
     StepScaffold(
         title = stringResource(R.string.crux_onboarding_signin_title),
         subtitle = stringResource(R.string.crux_onboarding_signin_subtitle),
@@ -1043,6 +1205,9 @@ private fun SignInStep(
                                     "All selected accounts connected"
                                 } else if (signedInCount > 0) {
                                     "$signedInCount of ${platforms.size} accounts connected"
+                                } else if (bannerParts.browseSignedOut.isEmpty()) {
+                                    // Every pick needs an account, so "browse first" would not be true.
+                                    stringResource(R.string.crux_onboarding_signin_banner_title_needed)
                                 } else {
                                     stringResource(R.string.crux_onboarding_signin_optional_banner_title)
                                 },
@@ -1050,11 +1215,13 @@ private fun SignInStep(
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
                         )
-                        Text(
-                            text = stringResource(R.string.crux_onboarding_signin_optional_banner_body),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                        if (!allSignedIn) {
+                            Text(
+                                text = bannerBody,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
                 }
             }

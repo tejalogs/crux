@@ -92,6 +92,7 @@ private fun SiteTweak.labelRes(): Int =
         SiteTweak.RedditTrending -> R.string.web_tweak_reddit_trending
         SiteTweak.RedditUnblurNsfw -> R.string.web_tweak_reddit_unblur_nsfw
         SiteTweak.MastodonTrending -> R.string.web_tweak_mastodon_trending
+        SiteTweak.XDiscoverMore -> R.string.web_tweak_x_discover_more
     }
 
 @StringRes
@@ -99,6 +100,7 @@ private fun SiteTweak.descriptionRes(): Int? =
     when (this) {
         SiteTweak.InstagramSuggested -> R.string.web_tweak_instagram_suggested_description
         SiteTweak.XHideForYou -> R.string.web_tweak_x_hide_for_you_description
+        SiteTweak.XDiscoverMore -> R.string.web_tweak_x_discover_more_description
         SiteTweak.RedditUnblurNsfw -> R.string.web_tweak_reddit_unblur_nsfw_description
         else -> null
     }

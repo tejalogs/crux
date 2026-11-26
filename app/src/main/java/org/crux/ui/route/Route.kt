@@ -144,6 +144,9 @@ internal sealed interface Route : NavKey {
         /** Per-site protection level, focus tweaks and data clearing for the live web tabs. */
         @Serializable
         data object PrivacyTweaks : Settings
+
+        @Serializable
+        data object PrivacyCheckup : Settings
     }
 
     /** A Crux platform's real site on its own page (X, Reddit). */

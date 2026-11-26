@@ -7,17 +7,12 @@ import kotlin.test.assertTrue
 
 class AiAgentEnabledPresenterTest {
     @Test
-    fun isAiAgentEnabled_requiresAgentAndOpenAIModel() {
+    fun isAiAgentEnabled_followsTheAgentToggleOnDevice() {
         assertTrue(
             AppSettings
                 .AiConfig(
                     agent = true,
-                    type =
-                        AppSettings.AiConfig.Type.OpenAI(
-                            serverUrl = "",
-                            apiKey = "",
-                            model = "gpt-4.1",
-                        ),
+                    type = AppSettings.AiConfig.Type.OnDevice(),
                 ).isAiAgentEnabled(),
         )
 
@@ -25,41 +20,37 @@ class AiAgentEnabledPresenterTest {
             AppSettings
                 .AiConfig(
                     agent = false,
-                    type =
-                        AppSettings.AiConfig.Type.OpenAI(
-                            serverUrl = "",
-                            apiKey = "",
-                            model = "gpt-4.1",
-                        ),
+                    type = AppSettings.AiConfig.Type.OnDevice(),
                 ).isAiAgentEnabled(),
         )
+    }
 
-        assertFalse(
+    @Test
+    fun isAiAgentEnabled_legacyCloudTypeIsTreatedAsOnDevice() {
+        // A legacy cloud config runs on the device, so its model field no longer matters.
+        assertTrue(
             AppSettings
                 .AiConfig(
                     agent = true,
                     type =
                         AppSettings.AiConfig.Type.OpenAI(
-                            serverUrl = "",
-                            apiKey = "",
+                            serverUrl = "https://api.example.com/v1",
+                            apiKey = "sk-legacy",
                             model = " ",
                         ),
                 ).isAiAgentEnabled(),
         )
 
-        assertTrue(
-            AppSettings
-                .AiConfig(
-                    agent = true,
-                    type = AppSettings.AiConfig.Type.OnDevice(),
-                ).isAiAgentEnabled(),
-        )
-
         assertFalse(
             AppSettings
                 .AiConfig(
                     agent = false,
-                    type = AppSettings.AiConfig.Type.OnDevice(),
+                    type =
+                        AppSettings.AiConfig.Type.OpenAI(
+                            serverUrl = "https://api.example.com/v1",
+                            apiKey = "sk-legacy",
+                            model = "gpt-4.1",
+                        ),
                 ).isAiAgentEnabled(),
         )
     }

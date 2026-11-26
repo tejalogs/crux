@@ -120,7 +120,10 @@ internal enum class LiveWebSite(
     val homeUrl: String,
     /** Direct sign-in flow URL so signed-out users skip splash pages and redirect chains. */
     val loginUrl: String,
-    /** Direct link inside this site's own settings for AI model training / privacy opt-outs. */
+    /**
+     * Direct link inside this site's own settings for AI model training opt-outs, or, where the
+     * site has no such page for everyone (Instagram, Reddit, Mastodon), its main privacy settings.
+     */
     val aiPrivacyUrl: String,
     val tabIdSuffix: String,
     val allowedHosts: Set<String>,
@@ -278,7 +281,82 @@ internal enum class LiveWebSite(
     val isSignedInAccount: Boolean
         get() = defaultProtection == ProtectionLevel.Standard
 
+    /**
+     * The site's own privacy settings pages, for the Privacy Checkup. Crux only opens these pages;
+     * the person changes each setting on the site. Every URL stays on a host this site allows.
+     */
+    val privacyCheckup: List<PrivacyCheckupItem>
+        get() = privacyCheckupFor(this)
+
     companion object {
         fun fromName(name: String): LiveWebSite? = entries.firstOrNull { it.name == name }
     }
 }
+
+/** Which setting a Privacy Checkup row opens. The screen maps each kind to its title and reason. */
+internal enum class PrivacyCheckupKind {
+    AiTraining,
+    AdPersonalization,
+    OffSiteActivity,
+    PartnerSharing,
+    Location,
+    ContactsAndDiscoverability,
+    InformationAndPermissions,
+    AccountPrivacy,
+    PrivacyAndReach,
+    DownloadData,
+}
+
+/** One first-party settings page of a site. */
+internal data class PrivacyCheckupItem(
+    val kind: PrivacyCheckupKind,
+    val url: String,
+)
+
+// Only first-party settings pages linked from each site's own help pages or settings menus.
+// Meta has no AI-training opt-out for every region, so Instagram gets its privacy pages and no
+// AI row. Pages that need sign-in show the site's own login first.
+private fun privacyCheckupFor(site: LiveWebSite): List<PrivacyCheckupItem> =
+    when (site) {
+        LiveWebSite.Instagram ->
+            listOf(
+                PrivacyCheckupItem(PrivacyCheckupKind.AdPersonalization, "https://accountscenter.instagram.com/ad_preferences/"),
+                PrivacyCheckupItem(PrivacyCheckupKind.InformationAndPermissions, "https://accountscenter.instagram.com/info_and_permissions/"),
+                PrivacyCheckupItem(PrivacyCheckupKind.AccountPrivacy, site.aiPrivacyUrl),
+                PrivacyCheckupItem(PrivacyCheckupKind.DownloadData, "https://accountscenter.instagram.com/info_and_permissions/dyi/"),
+            )
+
+        LiveWebSite.X ->
+            listOf(
+                PrivacyCheckupItem(PrivacyCheckupKind.AiTraining, site.aiPrivacyUrl),
+                PrivacyCheckupItem(PrivacyCheckupKind.AdPersonalization, "https://x.com/settings/ads_preferences"),
+                PrivacyCheckupItem(PrivacyCheckupKind.OffSiteActivity, "https://x.com/settings/off_twitter_activity"),
+                PrivacyCheckupItem(PrivacyCheckupKind.PartnerSharing, "https://x.com/settings/data_sharing_with_business_partners"),
+                PrivacyCheckupItem(PrivacyCheckupKind.Location, "https://x.com/settings/location_information"),
+                PrivacyCheckupItem(PrivacyCheckupKind.ContactsAndDiscoverability, "https://x.com/settings/contacts"),
+                PrivacyCheckupItem(PrivacyCheckupKind.DownloadData, "https://x.com/settings/download_your_data"),
+            )
+
+        LiveWebSite.LinkedIn ->
+            listOf(
+                PrivacyCheckupItem(PrivacyCheckupKind.AiTraining, site.aiPrivacyUrl),
+                PrivacyCheckupItem(PrivacyCheckupKind.AdPersonalization, "https://www.linkedin.com/mypreferences/d/categories/ads"),
+                PrivacyCheckupItem(
+                    PrivacyCheckupKind.OffSiteActivity,
+                    "https://www.linkedin.com/mypreferences/d/settings/ads-interactions-with-business",
+                ),
+                PrivacyCheckupItem(PrivacyCheckupKind.DownloadData, "https://www.linkedin.com/psettings/data-privacy/"),
+            )
+
+        LiveWebSite.Reddit ->
+            listOf(
+                PrivacyCheckupItem(PrivacyCheckupKind.AccountPrivacy, site.aiPrivacyUrl),
+                PrivacyCheckupItem(PrivacyCheckupKind.DownloadData, "https://www.reddit.com/settings/data-request"),
+            )
+
+        LiveWebSite.Mastodon ->
+            listOf(
+                PrivacyCheckupItem(PrivacyCheckupKind.PrivacyAndReach, site.aiPrivacyUrl),
+                PrivacyCheckupItem(PrivacyCheckupKind.DownloadData, "https://mastodon.social/settings/export"),
+            )
+    }

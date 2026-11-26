@@ -23,6 +23,8 @@ import org.crux.common.OnDeviceAI
 import org.crux.data.datastore.AppDataStore
 import org.crux.data.datastore.model.AppSettings
 import org.crux.data.network.ai.OpenAIService
+import org.crux.data.network.ai.hasLegacyCloudType
+import org.crux.data.network.ai.withLocalAiOnly
 import org.crux.di.koinInject
 import org.crux.ui.model.UiState
 import org.crux.ui.presenter.PresenterBase
@@ -134,9 +136,12 @@ public class AiConfigPresenter : PresenterBase<AiConfigPresenter.State>() {
             }
         }
 
-        LaunchedEffect(Unit) {
-            if (appSettings.aiConfig.type !is AppSettings.AiConfig.Type.OnDevice) {
-                update { copy(type = AppSettings.AiConfig.Type.OnDevice()) }
+        // The settings store already reads a legacy or imported cloud config back as OnDevice
+        // (EncryptedAppSettingsSerializer), so every AI path sees on-device. This is a second guard
+        // that persists the rewrite if a cloud type ever reaches this screen.
+        LaunchedEffect(appSettings.aiConfig.hasLegacyCloudType) {
+            if (appSettings.aiConfig.hasLegacyCloudType) {
+                update { withLocalAiOnly() }
             }
             supportedTypes = persistentListOf(AiTypeOption.OnDevice)
         }
@@ -147,11 +152,9 @@ public class AiConfigPresenter : PresenterBase<AiConfigPresenter.State>() {
             override val supportedOpenAIReasoningEfforts: ImmutableList<AiReasoningEffortOption> =
                 supportedOpenAIReasoningEfforts
             override val serverSuggestions: ImmutableList<String> = SERVER_SUGGESTIONS
-            override val aiType: AiTypeOption =
-                when (appSettings.aiConfig.type) {
-                    is AppSettings.AiConfig.Type.OnDevice -> AiTypeOption.OnDevice
-                    is AppSettings.AiConfig.Type.OpenAI -> AiTypeOption.OnDevice
-                }
+            // Truthful for both types: a legacy OpenAI config is never sent anywhere and runs on the
+            // on-device engine (AiCompletionService), and it is rewritten to OnDevice above.
+            override val aiType: AiTypeOption = aiTypeLabelFor(appSettings.aiConfig.type)
             override val onDeviceModel: String =
                 (appSettings.aiConfig.type as? AppSettings.AiConfig.Type.OnDevice)?.model
                     ?: AppSettings.AiConfig.Type.OnDevice.DEFAULT_MODEL
@@ -331,7 +334,17 @@ public class AiConfigPresenter : PresenterBase<AiConfigPresenter.State>() {
     }
 }
 
-private fun AppSettings.AiConfig.normalized(): AppSettings.AiConfig = this
+// Cloud AI is not offered: every write, including the legacy OpenAI setters still used by the web
+// presenter, is stored as on-device. Only the `type` value changes, never the model's fields.
+private fun AppSettings.AiConfig.normalized(): AppSettings.AiConfig = withLocalAiOnly()
+
+/** The label the AI screen shows. Every type runs on-device, so every type is labelled that way. */
+internal fun aiTypeLabelFor(type: AppSettings.AiConfig.Type): AiTypeOption =
+    when (type) {
+        is AppSettings.AiConfig.Type.OnDevice -> AiTypeOption.OnDevice
+        // Never sent to its server: AiCompletionService runs it on the device (see localOnly()).
+        is AppSettings.AiConfig.Type.OpenAI -> AiTypeOption.OnDevice
+    }
 
 private val SERVER_SUGGESTIONS =
     persistentListOf(

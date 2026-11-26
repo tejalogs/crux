@@ -173,6 +173,15 @@ internal fun scrollPositionFor(
     maxValue: Int,
 ): Int = (fraction.coerceIn(0f, 1f) * maxValue).roundToInt().coerceIn(0, maxValue.coerceAtLeast(0))
 
+/** From this far down, an article counts as finished. */
+internal const val FINISHED_READING_FRACTION = 0.98f
+
+/**
+ * Where to reopen an article last left at [saved]: there, unless it was read to the end, in
+ * which case it opens at the top again instead of on its last line.
+ */
+internal fun restoredReadingFraction(saved: Float): Float = if (saved >= FINISHED_READING_FRACTION) 0f else saved
+
 /** The keys to forget so that at most [limit] remain once one more is added: the least recently saved. */
 internal fun oldestToEvict(
     savedAt: Map<String, Long>,
