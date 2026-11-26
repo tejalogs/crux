@@ -381,16 +381,18 @@ internal fun ExpressiveHomeDockTabs(
                     )
                 }
             }
-            IconButton(
-                onClick = onEditTabs,
-                modifier = Modifier.size(DOCK_ACTION_SIZE),
-                shapes = IconButtonDefaults.shapes(),
-            ) {
-                FAIcon(
-                    imageVector = FontAwesomeIcons.Solid.Sliders,
-                    contentDescription = stringResource(R.string.edit_tab_title),
-                    modifier = Modifier.size(15.dp),
-                )
+            if (bookmarkAction == null && smartReplyAction == null) {
+                IconButton(
+                    onClick = onEditTabs,
+                    modifier = Modifier.size(DOCK_ACTION_SIZE),
+                    shapes = IconButtonDefaults.shapes(),
+                ) {
+                    FAIcon(
+                        imageVector = FontAwesomeIcons.Solid.Sliders,
+                        contentDescription = stringResource(R.string.edit_tab_title),
+                        modifier = Modifier.size(15.dp),
+                    )
+                }
             }
         }
     }
@@ -429,9 +431,15 @@ internal fun dockImmersiveKind(url: String?): DockImmersiveKind? {
                 else -> null
             }
         host.isOnDomain("x.com") || host.isOnDomain("twitter.com") ->
-            DockImmersiveKind.Messages.takeIf { X_DOCK_MESSAGES.containsMatchIn(path) }
+            when {
+                X_DOCK_MESSAGES.containsMatchIn(path) -> DockImmersiveKind.Messages
+                X_DOCK_MEDIA.containsMatchIn(path) -> DockImmersiveKind.Media
+                else -> null
+            }
         host.isOnDomain("linkedin.com") ->
             DockImmersiveKind.Messages.takeIf { LINKEDIN_DOCK_MESSAGES.containsMatchIn(path) }
+        host.isOnDomain("reddit.com") ->
+            DockImmersiveKind.Messages.takeIf { host == "chat.reddit.com" || REDDIT_DOCK_MESSAGES.containsMatchIn(path) }
         else -> null
     }
 }
@@ -442,7 +450,9 @@ internal fun isDockImmersiveUrl(url: String?): Boolean = dockImmersiveKind(url) 
 private val INSTAGRAM_DOCK_MEDIA = Regex("^/(?:(?:reels?|stories)(?:/|$)|[^/]+/reel(?:/|$))", RegexOption.IGNORE_CASE)
 private val INSTAGRAM_DOCK_MESSAGES = Regex("^/direct(?:/|$)", RegexOption.IGNORE_CASE)
 private val X_DOCK_MESSAGES = Regex("^/(?:messages|i/chat|i/messages)(?:/|$)", RegexOption.IGNORE_CASE)
+private val X_DOCK_MEDIA = Regex("^/(?:[^/]+|i(?:/web)?)/status/\\d+/(?:photo|video)/\\d+(?:/|$)", RegexOption.IGNORE_CASE)
 private val LINKEDIN_DOCK_MESSAGES = Regex("^/messaging(?:/|$)", RegexOption.IGNORE_CASE)
+private val REDDIT_DOCK_MESSAGES = Regex("^/chat(?:/|$)", RegexOption.IGNORE_CASE)
 
 private fun String.isOnDomain(domain: String): Boolean = this == domain || endsWith(".$domain")
 

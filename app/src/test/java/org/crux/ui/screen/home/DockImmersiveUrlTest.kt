@@ -28,6 +28,10 @@ class DockImmersiveUrlTest {
         assertEquals(DockImmersiveKind.Messages, dockImmersiveKind("https://mobile.twitter.com/messages"))
         assertEquals(DockImmersiveKind.Messages, dockImmersiveKind("https://www.linkedin.com/messaging/thread/2-abc/"))
         assertEquals(DockImmersiveKind.Messages, dockImmersiveKind("https://www.linkedin.com/messaging"))
+        assertEquals(DockImmersiveKind.Messages, dockImmersiveKind("https://www.reddit.com/chat/channel/abc"))
+        assertEquals(DockImmersiveKind.Messages, dockImmersiveKind("https://chat.reddit.com/room/123"))
+        assertEquals(DockImmersiveKind.Media, dockImmersiveKind("https://x.com/nasa/status/12345/photo/1"))
+        assertEquals(DockImmersiveKind.Media, dockImmersiveKind("https://x.com/i/web/status/12345/video/1"))
     }
 
     @Test
@@ -41,9 +45,9 @@ class DockImmersiveUrlTest {
         assertFalse(isDockImmersiveUrl("https://x.com/i/bookmarks"))
         assertFalse(isDockImmersiveUrl("https://www.linkedin.com/feed/"))
         assertFalse(isDockImmersiveUrl("https://www.linkedin.com/in/chat/"))
+        assertFalse(isDockImmersiveUrl("https://www.reddit.com/r/chat/"))
         // Scoped to the sites whose own bottom bar would stack under the dock.
         assertFalse(isDockImmersiveUrl("https://www.youtube.com/shorts/abc123xyz"))
-        assertFalse(isDockImmersiveUrl("https://www.reddit.com/chat/channel/abc"))
         assertFalse(isDockImmersiveUrl("https://notinstagram.com/reels/A/"))
     }
 

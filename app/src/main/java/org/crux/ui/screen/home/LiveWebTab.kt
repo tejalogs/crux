@@ -331,6 +331,8 @@ internal class LiveWebPage(
         private set
     var hasLoadedOnce by mutableStateOf(false)
         private set
+    var hasCommittedVisible by mutableStateOf(false)
+        private set
     var loadProgress by mutableIntStateOf(10)
         private set
     var canPullToRefresh by mutableStateOf(true)
@@ -481,8 +483,8 @@ internal class LiveWebPage(
             isVerticalScrollBarEnabled = false
             isHorizontalScrollBarEnabled = false
             settings.cacheMode = WebSettings.LOAD_DEFAULT
-            // Heavy shadow-DOM feeds like Reddit churn GPU tile memory if offscreen tiles are pre-rastered.
-            if (site != LiveWebSite.Reddit && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            // Heavy virtualized/shadow-DOM feeds (Reddit, X) churn GPU tile memory if offscreen tiles are pre-rastered.
+            if (site != LiveWebSite.Reddit && site != LiveWebSite.X && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 settings.offscreenPreRaster = true
             }
             // The WebView's real identity: a spoofed one disagrees with its other signals, and that
@@ -566,6 +568,17 @@ internal class LiveWebPage(
                         view: WebView,
                         request: WebResourceRequest,
                     ): Boolean = handleMainFrameUrlOverride(view, request, site, config)
+
+                    override fun onPageCommitVisible(
+                        view: WebView?,
+                        url: String?,
+                    ) {
+                        super.onPageCommitVisible(view, url)
+                        if (url != null && url != "about:blank") {
+                            hasCommittedVisible = true
+                            hasLoadedOnce = true
+                        }
+                    }
 
                     override fun onPageFinished(
                         view: WebView,
@@ -821,6 +834,7 @@ internal class LiveWebPage(
 
     fun clearInMemoryAndReload() {
         pendingRestoreScrollY = 0
+        hasCommittedVisible = false
         runCatching {
             webView.clearCache(true)
             webView.clearFormData()
@@ -895,6 +909,8 @@ internal class LiveWebPage(
                     },
                     420L,
                 )
+            } else if (!isAtSiteHomeUrl(site, webView.url)) {
+                webView.loadUrl(site.homeUrl)
             } else {
                 webView.reload()
             }
@@ -1266,6 +1282,11 @@ internal fun LiveWebTab(
                         if (site.pullToRefresh) {
                             HorizontalFriendlySwipeRefreshLayout(viewContext).apply {
                                 canPullToRefreshProvider = { page.mayPullToRefresh() }
+                                onScrollDirectionChanged = { show ->
+                                    if (page.customVideoView == null) {
+                                        accessory?.webDockExpanded = show
+                                    }
+                                }
                                 setColorSchemeColors(refreshIndicatorColor)
                                 setProgressBackgroundColorSchemeColor(refreshBackgroundColor)
                                 setOnRefreshListener {
@@ -1309,7 +1330,7 @@ internal fun LiveWebTab(
                 )
             }
             AnimatedVisibility(
-                visible = !page.hasLoadedOnce && page.isLoading && page.loadProgress < 75 && page.loadError == null,
+                visible = !page.hasLoadedOnce && !page.hasCommittedVisible && page.isLoading && page.loadProgress < 50 && page.loadError == null,
                 enter = fadeIn(),
                 exit = fadeOut(),
                 modifier =
@@ -1985,6 +2006,24 @@ internal fun PrivateScreenGuard(
 
 /** How often a site WebView without a [LiveWebPage] is checked for a private page while shown. */
 private const val PRIVATE_SCREEN_POLL_MS = 300L
+
+/** True when [url] is already at [site]'s main home feed (or sign-in page), so reselecting reloads instead of navigating home. */
+internal fun isAtSiteHomeUrl(
+    site: LiveWebSite,
+    url: String?,
+): Boolean {
+    if (url.isNullOrBlank() || LiveWebSessionState.isAuthOrLoginUrl(url)) return true
+    val uri = runCatching { java.net.URI(url.trim()) }.getOrNull() ?: return true
+    if (!site.allows(uri.host)) return false
+    val path = uri.path.orEmpty().trimEnd('/').lowercase()
+    return when (site) {
+        LiveWebSite.Instagram -> path.isEmpty()
+        LiveWebSite.LinkedIn -> path == "/feed" && uri.rawQuery?.contains("urn", ignoreCase = true) != true
+        LiveWebSite.X -> path == "/home" || path.isEmpty()
+        LiveWebSite.Reddit -> path.isEmpty() || path in setOf("/new", "/hot", "/best", "/top", "/rising")
+        LiveWebSite.Mastodon -> path.isEmpty() || path in setOf("/home", "/explore")
+    }
+}
 
 private val IMMERSIVE_PATH =
     Regex("^/(?:(?:reels?|stories|direct|messages|messaging|chat|shorts)(?:/|$)|[^/]+/reel(?:/|$))", RegexOption.IGNORE_CASE)

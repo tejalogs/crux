@@ -1677,6 +1677,7 @@ private val ENGINE_JS =
       var styleEl=null;
       // Only Reddit renders with shadow DOM; walking every element elsewhere is wasted work.
       var hasShadowDom=/(^|\.)reddit\.com$/.test(location.hostname);
+      var isVirtualized=/(^|\.)(x|twitter)\.com$/.test(location.hostname);
       // Full-screen video viewers (Reels, Stories, Shorts-style pages) and direct messages have no feed posts to filter,
       // and their DOM churns as each clip/message loads, so they only get the stylesheet and prompt checks.
       var isImmersive=function(){return /^\/(reels?|stories|direct|messages|messaging|chat|shorts)(\/|$)|^\/[^\/]+\/reel(\/|$)|^\/i\/(chat|messages)(\/|$)/i.test(location.pathname)};
@@ -1742,11 +1743,11 @@ private val ENGINE_JS =
         return window.scrollY||window.pageYOffset||(se&&se.scrollTop)||(document.body&&document.body.scrollTop)||0;
       };
       var isDocScroller=function(n){return n===document||n===document.documentElement||n===document.body||n===document.scrollingElement};
-      // A vertical scroll container: overflow-y auto or scroll, with content taller than its box
-      // (or already scrolled).
+      // A vertical scroll container that is currently scrolled down: checking scrollTop first avoids
+      // forcing synchronous layout (scrollHeight/clientHeight/getComputedStyle) on every touchstart.
       var isVScroller=function(n){
         try{
-          if((n.scrollTop||0)<=1&&(n.scrollHeight||0)<=(n.clientHeight||0)+1)return false;
+          if((n.scrollTop||0)<=1)return false;
           var oy=getComputedStyle(n).overflowY;
           return oy==='auto'||oy==='scroll'||oy==='overlay';
         }catch(e){return false}
@@ -1784,6 +1785,7 @@ private val ENGINE_JS =
         window.addEventListener('touchstart',function(ev){
           try{
             var base=!isAuthPage()&&!isImmersive();
+            if(!base||docTop()>1){ptrBase=base;ptrScrollers=[];postPtr(false);return;}
             var path=eventPath(ev),scrollers=[];
             for(var i=0;i<path.length;i++){
               var n=path[i];
@@ -1791,9 +1793,9 @@ private val ENGINE_JS =
               if(base&&n.matches&&n.matches('[role="dialog"],[aria-modal="true"],reddit-search-large'))base=false;
               if(isVScroller(n)){scrollers.push(n);if((n.scrollTop||0)>1)ptrRemember(n);}
             }
-            // A touch on a fixed bar or pill has no scroller on its path: the scroller under the
-            // middle of the screen (the feed) is looked up once so a page restored mid-scroll counts.
-            if(!scrollers.length&&document.elementFromPoint){
+            // A touch on a fixed bar or pill has no scroller on its path: on inner-scroll sites
+            // (LinkedIn) the scroller under the middle of the screen is looked up once if not yet known.
+            if(!scrollers.length&&!ptrKnown.length&&document.elementFromPoint&&/(^|\.)linkedin\.com$/.test(location.hostname)){
               var mid=document.elementFromPoint((window.innerWidth||0)/2,(window.innerHeight||0)/2);
               while(mid&&!isDocScroller(mid)){
                 if(mid.nodeType===1&&isVScroller(mid))ptrRemember(mid);
@@ -1993,7 +1995,9 @@ private val ENGINE_JS =
               for(var i=0;i<t.length;i++){
                 var el=t[i];
                 if(el.children.length)continue;
-                var txt=clean(el.textContent);
+                var raw=el.textContent;
+                if(!raw||raw.length>70)continue;
+                var txt=clean(raw);
                 if(txt&&txt.length<=60&&postLabels.test(txt)&&!(excludeSel&&el.closest(excludeSel))){
                   var cell=(cellSel&&p.closest(cellSel))||p;
                   // A refused post stays unmarked but keeps its length throttle, so it is looked
@@ -2061,8 +2065,8 @@ private val ENGINE_JS =
       nLater(scan,1500);
       var timer=0;
       // Scans wait until scrolling and typing pause, with a minimum gap so feeds scroll smoothly.
-      var SCROLL_IDLE_MS=420;
-      var MIN_SCAN_GAP_MS=hasShadowDom?550:350;
+      var SCROLL_IDLE_MS=isVirtualized?550:420;
+      var MIN_SCAN_GAP_MS=(hasShadowDom||isVirtualized)?650:350;
       var schedule=function(){
         if(timer)return;
         // A tab in the background does no work; one catch-up scan runs when it is shown again.
