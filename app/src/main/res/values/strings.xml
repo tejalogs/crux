@@ -1111,4 +1111,7 @@
     <string name="web_opening_link">Opening link…</string>
     <string name="web_close_screen">Close</string>
     <string name="live_web_show_dock">Show dock</string>
+    <string name="live_web_opening_site">Opening %1$s…</string>
+    <string name="live_web_save_to_reading_list">Save to Reading List</string>
+    <string name="live_web_signed_in_to">Signed in to %1$s</string>
 </resources>

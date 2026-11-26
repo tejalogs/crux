@@ -164,7 +164,7 @@ private fun HomeTabPill(
     ToggleButton(
         checked = isSelected,
         onCheckedChange = { onClick() },
-        modifier = modifier.defaultMinSize(minWidth = minWidth, minHeight = 36.dp),
+        modifier = modifier.defaultMinSize(minWidth = minWidth, minHeight = 44.dp),
         colors =
             ToggleButtonDefaults.colors(
                 containerColor = uncheckedContainerColor,
@@ -398,8 +398,8 @@ internal fun ExpressiveHomeDockTabs(
     }
 }
 
-// Trailing save, wand and settings buttons stay compact so the pills keep the width.
-private val DOCK_ACTION_SIZE = 36.dp
+// Trailing save, wand and settings buttons stay compact while keeping comfortable thumb targets.
+private val DOCK_ACTION_SIZE = 42.dp
 
 // Above this many tabs, unselected tabs collapse to icon-only so the strip stays scannable.
 private const val COMPACT_LABEL_THRESHOLD = 4

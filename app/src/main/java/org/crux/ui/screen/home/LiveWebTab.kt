@@ -1355,7 +1355,7 @@ internal fun LiveWebTab(
                         )
                         Spacer(Modifier.height(12.dp))
                         Text(
-                            text = "Opening ${site.label}…",
+                            text = stringResource(R.string.live_web_opening_site, site.label),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -1461,7 +1461,7 @@ internal fun LiveWebTab(
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
                 )
                 ListItem(
-                    headlineContent = { Text("Save to Bookmark Folder") },
+                    headlineContent = { Text(stringResource(R.string.live_web_save_to_reading_list)) },
                     leadingContent = {
                         FAIcon(
                             FontAwesomeIcons.Solid.Bookmark,

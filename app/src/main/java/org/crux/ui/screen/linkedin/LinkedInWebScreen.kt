@@ -147,6 +147,7 @@ internal fun LinkedInWebScreen(
 ) {
     val context = LocalContext.current
     val sessionClearedMsg = stringResource(R.string.linkedin_session_cleared)
+    val signedInMsg = stringResource(R.string.live_web_signed_in_to, "LinkedIn")
     val webViewRef = remember { mutableStateOf<WebView?>(null) }
     // Pause page script while App Lock covers the app.
     WebSessionLifecycleSuspender(webView = webViewRef.value, isVisible = AppLock.isUnlocked)
@@ -232,7 +233,7 @@ internal fun LinkedInWebScreen(
             connections?.refresh()
             if (change == WebSessionChange.SignedIn && autoReturnOnSignIn && !hasAutoReturned) {
                 hasAutoReturned = true
-                Toast.makeText(context, "Signed in to LinkedIn", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, signedInMsg, Toast.LENGTH_SHORT).show()
                 onBack()
             }
         }

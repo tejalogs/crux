@@ -451,12 +451,17 @@ internal fun HomeTimelineScreen(
                         val dockOnImmersivePage =
                             useBottomTabs && currentIsLiveWeb && bottomBarAccessory?.onImmersiveWebPage == true
                         val dockHiddenForImmersive = dockOnImmersivePage && bottomBarAccessory?.immersiveDockHidden == true
+                        val dockHiddenByScroll =
+                            useBottomTabs && currentIsLiveWeb && !dockOnImmersivePage && bottomBarAccessory?.webDockExpanded == false
                         val immersiveKind =
                             if (dockOnImmersivePage) dockImmersiveKind(bottomBarAccessory?.immersivePageUrl) else null
                         // Registered before the pager, so the live tab's own Back (page history) still
                         // goes first; once the page cannot go back, Back brings the hidden dock back.
                         BackHandler(enabled = dockHiddenForImmersive) {
                             bottomBarAccessory?.peekDock()
+                        }
+                        BackHandler(enabled = dockHiddenByScroll) {
+                            bottomBarAccessory?.webDockExpanded = true
                         }
                         val layoutDirection = LocalLayoutDirection.current
                         val navigationBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
