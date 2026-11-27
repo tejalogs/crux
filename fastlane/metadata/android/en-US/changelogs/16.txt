@@ -1,0 +1,3 @@
+Crux 1.0.15
+- Butter-smooth X scrolling: locked WebView height so the auto-hiding floating dock overlays without resizing the page mid-scroll, removed 7 redundant :has() CSS selectors on timeline cells, and deduplicated touch-move dock checks
+- Reddit NSFW improvements: fixed false-positive hiding of lazy Shreddit video players and carousels, and added a 1-tap "Open on old.reddit" fallback when Reddit's mobile site withholds mature media
