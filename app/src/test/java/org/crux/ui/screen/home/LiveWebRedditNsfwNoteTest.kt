@@ -79,4 +79,19 @@ class LiveWebRedditNsfwNoteTest {
         assertEquals(RedditNsfwNoteStep.Ignore, redditNsfwNoteStep("reddit.com/r/a", alreadyShown = true, unlocked = true))
         assertEquals(RedditNsfwNoteStep.Ignore, redditNsfwNoteStep("reddit.com/r/a", alreadyShown = true, unlocked = false))
     }
+
+    @Test
+    fun oldRedditFallbackRewritesStandardRedditUrlsOnly() {
+        assertEquals(
+            "https://old.reddit.com/r/sub/comments/abc123/title/",
+            oldRedditUrlFor("https://www.reddit.com/r/sub/comments/abc123/title/"),
+        )
+        assertEquals(
+            "https://old.reddit.com/r/sub/comments/abc123/?sort=top",
+            oldRedditUrlFor("https://sh.reddit.com/r/sub/comments/abc123/?sort=top"),
+        )
+        assertNull(oldRedditUrlFor("https://old.reddit.com/r/sub/comments/abc123/"))
+        assertNull(oldRedditUrlFor("https://evilreddit.com/r/sub/"))
+        assertNull(oldRedditUrlFor(null))
+    }
 }

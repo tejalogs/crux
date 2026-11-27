@@ -499,6 +499,9 @@ private val REDDIT_NSFW_MEDIA_JS =
         if(t==='IFRAME'){var src=e.getAttribute('src')||'';return collapsed?(!!src&&!/^about:/i.test(src)):qSized(e);}
         if(t==='VIDEO')return (e.videoWidth||0)>2||(!collapsed&&qSized(e));
         if(t==='IMG')return !collapsed&&qSized(e)&&!(e.complete&&(e.naturalWidth||0)<=2);
+        if(t==='SHREDDIT-PLAYER-2'||t==='SHREDDIT-PLAYER'||t==='GALLERY-CAROUSEL'||t==='SHREDDIT-EMBED'){
+          return !!(e.getAttribute('src')||e.getAttribute('packaged-media-json')||(!collapsed&&qSized(e)));
+        }
         return false;
       };
       // Media inside the gate's default slot, or in a component's shadow root. Light children
@@ -1051,9 +1054,6 @@ internal val SiteTweak.rule: TweakRule
                             "aside[aria-label*=\"Who to follow\"]",
                             "aside[aria-label*=\"Relevant people\"]",
                             "aside[aria-label*=\"Topics to follow\"]",
-                            "div[data-testid=\"cellInnerDiv\"]:has(aside[aria-label*=\"Who to follow\"])",
-                            "div[data-testid=\"cellInnerDiv\"]:has(aside[aria-label*=\"Relevant people\"])",
-                            "div[data-testid=\"cellInnerDiv\"]:has(aside[aria-label*=\"Topics to follow\"])",
                         ),
                     headingLabels = X_WHO_TO_FOLLOW_LABELS,
                     js = X_WHO_TO_FOLLOW_ROWS_JS,
@@ -1064,7 +1064,6 @@ internal val SiteTweak.rule: TweakRule
                 TweakRule(
                     css =
                         listOf(
-                            "div[data-testid=\"cellInnerDiv\"]:has([data-testid=\"trend\"])",
                             "[data-testid=\"trend\"]",
                             "[aria-label*=\"Timeline: Trending\"]",
                         ),
@@ -1099,7 +1098,6 @@ internal val SiteTweak.rule: TweakRule
                             "nav a[href*=\"/verified-orgs-signup\"]",
                             "[role=\"navigation\"] a[href*=\"/verified-orgs-signup\"]",
                             "aside[aria-label*=\"Subscribe to Premium\"]",
-                            "div[data-testid=\"cellInnerDiv\"]:has(aside[aria-label*=\"Subscribe to Premium\"])",
                         ),
                     headingLabels = listOf("Subscribe to Premium"),
                     // The engine's upsell scan: only the button goes, it is skipped next to a limit,
@@ -1119,8 +1117,6 @@ internal val SiteTweak.rule: TweakRule
                             "[aria-label=\"Spaces\"]",
                             "a[href^=\"/i/spaces/\"]",
                             "a[href*=\"/i/broadcasts/\"]",
-                            "div[data-testid=\"cellInnerDiv\"]:has(a[href^=\"/i/spaces/\"])",
-                            "div[data-testid=\"cellInnerDiv\"]:has(a[href*=\"/i/broadcasts/\"])",
                         ),
                 )
             }

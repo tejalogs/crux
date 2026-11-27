@@ -1020,6 +1020,7 @@ private class HorizontalFriendlySwipeRefreshLayout(
     private var lastTrackX = 0f
     private var lastTrackY = 0f
     private var accumulatedDy = 0f
+    private var lastReportedShow: Boolean? = null
     var canPullToRefreshProvider: () -> Boolean = { true }
     var onScrollDirectionChanged: ((Boolean) -> Unit)? = null
 
@@ -1049,13 +1050,21 @@ private class HorizontalFriendlySwipeRefreshLayout(
                             accumulatedDy = 0f
                         }
                         accumulatedDy += dy
-                        val child = getChildAt(0) as? WebView
-                        if (accumulatedDy < -hideThresholdPx && !isAuthUrl(child?.url)) {
-                            scrollCallback.invoke(false)
+                        if (accumulatedDy < -hideThresholdPx) {
                             accumulatedDy = 0f
+                            if (lastReportedShow != false) {
+                                val child = getChildAt(0) as? WebView
+                                if (!isAuthUrl(child?.url)) {
+                                    lastReportedShow = false
+                                    scrollCallback.invoke(false)
+                                }
+                            }
                         } else if (accumulatedDy > showThresholdPx) {
-                            scrollCallback.invoke(true)
                             accumulatedDy = 0f
+                            if (lastReportedShow != true) {
+                                lastReportedShow = true
+                                scrollCallback.invoke(true)
+                            }
                         }
                     }
                 }
@@ -1909,7 +1918,8 @@ internal fun attachSafeDownloadListener(webView: WebView) {
 
 private val DIAL_AND_MAIL_SCHEMES = setOf("mailto", "tel", "sms")
 
-private val REDDIT_OVER18_ORIGINS = listOf("https://www.reddit.com/", "https://reddit.com/", "https://sh.reddit.com/")
+private val REDDIT_OVER18_ORIGINS =
+    listOf("https://www.reddit.com/", "https://reddit.com/", "https://sh.reddit.com/", "https://old.reddit.com/")
 
 private const val REDDIT_OVER18_COOKIE = "over18=1; Path=/; Domain=.reddit.com; Max-Age=31536000; SameSite=Lax"
 
@@ -2081,10 +2091,23 @@ internal fun redditNsfwNoteAction(signedIn: Boolean): RedditNsfwNoteAction =
         url = if (signedIn) REDDIT_MATURE_CONTENT_SETTINGS_URL else LiveWebSite.Reddit.loginUrl,
     )
 
+/** Rewrites a www/sh/apex Reddit URL to old.reddit.com so withheld mobile NSFW embeds can still be viewed in-app. */
+internal fun oldRedditUrlFor(url: String?): String? {
+    val uri = url?.trim()?.takeIf { it.isNotEmpty() }?.let { runCatching { java.net.URI(it) }.getOrNull() } ?: return null
+    val scheme = uri.scheme?.lowercase()
+    if (scheme != "https" && scheme != "http") return null
+    val host = uri.host?.lowercase()?.trimEnd('.') ?: return null
+    if (host == "old.reddit.com") return null
+    if (host != "reddit.com" && !host.endsWith(".reddit.com")) return null
+    val path = uri.rawPath.orEmpty().ifEmpty { "/" }
+    val query = uri.rawQuery?.let { "?$it" }.orEmpty()
+    return "https://old.reddit.com$path$query"
+}
+
 /**
  * Explains why a Reddit post's 18+ media box is empty: Reddit withholds it on mobile web unless the
  * signed-in account has "Show mature content" on. Crux never plays the media itself and never
- * changes the setting; the button only opens Reddit's own page for it.
+ * changes the setting; the buttons let the user open Reddit's own page or view on old.reddit.com.
  */
 @Composable
 internal fun RedditNsfwNote(
@@ -2093,6 +2116,7 @@ internal fun RedditNsfwNote(
 ) {
     val noteUrl = page.redditNsfwNoteUrl ?: return
     val action = remember(noteUrl) { redditNsfwNoteAction(signedIn = LiveWebSite.Reddit.hasSession()) }
+    val oldRedditUrl = remember(noteUrl) { oldRedditUrlFor(noteUrl) }
     Surface(
         modifier = modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
         shape = MaterialTheme.shapes.large,
@@ -2131,6 +2155,14 @@ internal fun RedditNsfwNote(
                             if (action.signedIn) R.string.live_web_reddit_nsfw_note_open_settings else R.string.crux_action_sign_in,
                         ),
                     )
+                }
+                if (oldRedditUrl != null) {
+                    TextButton(onClick = {
+                        page.dismissRedditNsfwNote()
+                        page.webView.loadUrl(oldRedditUrl)
+                    }) {
+                        Text(stringResource(R.string.live_web_reddit_nsfw_note_open_old_reddit))
+                    }
                 }
             }
         }

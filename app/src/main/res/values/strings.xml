@@ -1065,6 +1065,7 @@
     <string name="live_web_reddit_nsfw_note_body">Reddit only plays 18+ media on its mobile site for signed-in accounts with \"Show mature content\" turned on in Reddit settings.</string>
     <string name="live_web_reddit_nsfw_note_dismiss">Dismiss</string>
     <string name="live_web_reddit_nsfw_note_open_settings">Open Reddit settings</string>
+    <string name="live_web_reddit_nsfw_note_open_old_reddit">Open on old.reddit</string>
     <string name="privacy_checkup_title">Privacy Checkup</string>
     <string name="privacy_checkup_entry_description">Open each site\'s own privacy, ad and data settings</string>
     <string name="privacy_checkup_intro">These are the sites\' own settings. Each row opens the page in that site\'s Crux tab, where you make the change. Crux only opens the page; it never changes anything in your account.</string>

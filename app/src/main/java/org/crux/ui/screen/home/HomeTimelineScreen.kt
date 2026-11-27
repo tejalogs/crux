@@ -502,6 +502,15 @@ internal fun HomeTimelineScreen(
                                                     handleReserve = if (imeShown) 0.dp else IMMERSIVE_HANDLE_TOUCH_HEIGHT,
                                                 ),
                                         )
+                                    } else if (useBottomTabs) {
+                                        // Keep WebView height constant while the floating dock hides/shows on scroll,
+                                        // so scrolling never resizes the WebView or triggers SPA timeline relayouts.
+                                        PaddingValues(
+                                            start = contentPadding.calculateStartPadding(layoutDirection),
+                                            top = contentPadding.calculateTopPadding(),
+                                            end = contentPadding.calculateEndPadding(layoutDirection),
+                                            bottom = immersiveBaseBottom,
+                                        )
                                     } else {
                                         contentPadding
                                     }
