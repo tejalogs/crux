@@ -88,42 +88,25 @@ import compose.icons.fontawesomeicons.solid.Users
 import kotlinx.coroutines.launch
 import moe.tlaster.precompose.molecule.producePresenter
 import org.crux.R
-import org.crux.data.platform.INSTAGRAM_PLATFORM_ID
-import org.crux.data.platform.LINKEDIN_PLATFORM_ID
-import org.crux.data.repository.NativeXRemoval
 import org.crux.data.repository.SettingsRepository
-import org.crux.model.AccountType
 import org.crux.ui.common.InternalDeeplinkToken
 import org.crux.ui.common.OnNewIntent
 import org.crux.ui.common.isLoginCallbackDeepLink
-import org.crux.ui.component.AvatarComponent
 import org.crux.ui.component.BottomBarAccessory
 import org.crux.ui.component.FAIcon
 import org.crux.ui.component.InAppNotificationComponent
 import org.crux.ui.component.LocalBottomBarAccessory
 import org.crux.ui.component.NavigationSuiteScaffold2
-import org.crux.ui.component.RichText
-import org.crux.ui.component.TabIcon
 import org.crux.ui.component.TopLevelBackStack
 import org.crux.ui.lock.AppLock
 import org.crux.ui.lock.DeferredWhileLocked
-import org.crux.ui.model.UiProfile
-import org.crux.ui.model.asText
-import org.crux.ui.model.asType
 import org.crux.ui.model.map
 import org.crux.ui.model.onLoading
 import org.crux.ui.model.onSuccess
 import org.crux.ui.model.takeSuccess
 import org.crux.ui.presenter.HomeTabsPresenter
-import org.crux.ui.presenter.home.ActiveAccountPresenter
-import org.crux.ui.presenter.home.CanComposePresenter
 import org.crux.ui.presenter.home.DeepLinkPresenter
-import org.crux.ui.presenter.home.LoggedInPresenter
-import org.crux.ui.presenter.home.SecondaryTabsPresenter
-import org.crux.ui.presenter.home.UserPresenter
 import org.crux.ui.presenter.invoke
-import org.crux.ui.presenter.settings.AccountsPresenter
-import org.crux.ui.presenter.settings.AiAgentEnabledPresenter
 import org.crux.ui.route.Route
 import org.crux.ui.route.Router
 import org.crux.ui.route.reloginRoute
@@ -155,11 +138,9 @@ internal fun HomeScreen(afterInit: () -> Unit) {
     // The home timeline fills this with its feed tabs so the Home dock item expands into them.
     val homeBottomBarAccessory = remember { BottomBarAccessory() }
     val settingsRepository = koinInject<SettingsRepository>()
-    val nativeXRemoval = koinInject<NativeXRemoval>()
     LaunchedEffect(settingsRepository) {
         settingsRepository.ensureRedditTabAdded()
         settingsRepository.ensureLiveWebTabsMigrated()
-        nativeXRemoval.run()
     }
     val connections = rememberCruxConnectionsState()
     val liveWebPages = remember { LiveWebPages() }
@@ -178,7 +159,7 @@ internal fun HomeScreen(afterInit: () -> Unit) {
         remember(hapticFeedback, state) {
             {
                 hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                state.navigate(Route.AccountSelection)
+                state.navigate(Route.Settings.Accounts)
             }
         }
     LaunchedEffect(onHomeLongClick) {
@@ -478,92 +459,9 @@ internal fun HomeScreen(afterInit: () -> Unit) {
                                 Text(text = stringResource(id = R.string.drawer_reading_list))
                             },
                         )
-
-                        state.secondaryTabsState.onSuccess { allSecondaryTabs ->
-                            val secondaryTabs =
-                                allSecondaryTabs.filter { tab ->
-                                    val platformId = tab.user.takeSuccess()?.platformId
-                                    platformId != INSTAGRAM_PLATFORM_ID && platformId != LINKEDIN_PLATFORM_ID
-                                }
-                            if (secondaryTabs.isNotEmpty()) {
-                                header(connectedAccountsHeader)
-                                secondaryTabs.forEach { item ->
-                                    expandableItem(
-                                        icon = {
-                                            item.user.onSuccess {
-                                                AvatarComponent(
-                                                    data = it.avatar,
-                                                    platformId = it.platformId,
-                                                    host = it.handle.host,
-                                                    platformIcon = it.platformIcon,
-                                                    showNetworkBadge = true,
-                                                )
-                                            }
-                                        },
-                                        label = {
-                                            Column {
-                                                item.user.onSuccess {
-                                                    RichText(it.name)
-                                                    Text(
-                                                        it.handle.canonical,
-                                                        style = MaterialTheme.typography.bodySmall,
-                                                    )
-                                                }
-                                            }
-                                        },
-                                        children = {
-                                            item.tabs.forEach {
-                                                val direction = getDirection(it)
-                                                if (direction != null) {
-                                                    item(
-                                                        selected = currentRoute == direction,
-                                                        onClick = {
-                                                            if (currentRoute == direction) {
-                                                                state.scrollToTopRegistry.scrollToTop()
-                                                            } else {
-                                                                state.navigate(direction)
-                                                            }
-                                                        },
-                                                        icon = {
-                                                            TabIcon(
-                                                                icon = it.icon.asType(),
-                                                                title = it.title.asText(),
-                                                                iconOnly = true,
-                                                            )
-                                                        },
-                                                        label = {
-                                                            org.crux.ui.component.Text(
-                                                                text = it.title.asText(),
-                                                            )
-                                                        },
-                                                    )
-                                                }
-                                            }
-                                        },
-                                    )
-                                }
-                            }
-                        }
                     },
                     footerItems = {
                         header(sovereigntyAndSystemHeader)
-                        if (state.aiAgentEnabled) {
-                            item(
-                                selected = currentRoute is Route.Settings.AgentHistory,
-                                onClick = {
-                                    state.navigate(Route.Settings.AgentHistory)
-                                },
-                                icon = {
-                                    FAIcon(
-                                        imageVector = FontAwesomeIcons.Solid.Robot,
-                                        contentDescription = stringResource(id = R.string.agent_history_title),
-                                    )
-                                },
-                                label = {
-                                    Text(text = stringResource(id = R.string.agent_history_title))
-                                },
-                            )
-                        }
                         item(
                             selected = currentRoute is Route.Settings.PrivacyTweaks,
                             onClick = {
@@ -642,17 +540,6 @@ internal fun HomeScreen(afterInit: () -> Unit) {
         }
 }
 
-private fun getDirection(data: SecondaryTabsPresenter.Tab): Route? =
-    when (val target = data.destination) {
-        is SecondaryTabsPresenter.Destination.Route -> {
-            Route.from(target.route)
-        }
-
-        is SecondaryTabsPresenter.Destination.Timeline -> {
-            Route.Timeline(target.tabItem)
-        }
-    }
-
 private val HomeTabsPresenter.State.HomeTabs.route: Route
     get() =
         when (this) {
@@ -674,9 +561,6 @@ private val HomeTabsPresenter.State.HomeTabs.icon: ImageVector
 private fun presenter(uriHandler: UriHandler) =
     run {
         val currentUriHandler = remember { mutableStateOf(uriHandler) }
-        val secondaryTabsPresenter = remember { SecondaryTabsPresenter() }.invoke()
-        val loggedInState = remember { LoggedInPresenter() }.invoke()
-        val canComposeState = remember { CanComposePresenter() }.invoke()
         val wideNavigationRailState = rememberWideNavigationRailState()
         val tabs =
             remember {
@@ -686,10 +570,6 @@ private fun presenter(uriHandler: UriHandler) =
             remember {
                 ScrollToTopRegistry()
             }
-        val aiAgentEnabledState =
-            remember {
-                AiAgentEnabledPresenter()
-            }.invoke()
         val firstDirection =
             remember(tabs.tabs) {
                 tabs.tabs.map {
@@ -703,7 +583,7 @@ private fun presenter(uriHandler: UriHandler) =
                 }
             }
         val topLevelRoutes =
-            remember(tabs.tabs, aiAgentEnabledState.enabled) {
+            remember(tabs.tabs) {
                 tabs.tabs.map { state ->
                     state.map { it.route }.toSet() +
                         buildSet {
@@ -718,9 +598,6 @@ private fun presenter(uriHandler: UriHandler) =
                             )
                             // Opened from the side panel without a URL; links with a URL still push.
                             addAll(CruxPlatform.entries.map { it.route })
-                            if (aiAgentEnabledState.enabled) {
-                                add(Route.Settings.AgentHistory)
-                            }
                         }
                 }
             }
@@ -765,15 +642,11 @@ private fun presenter(uriHandler: UriHandler) =
                 )
             }.invoke()
         object {
-            val secondaryTabsState = secondaryTabsPresenter.items
             val tabs = tabs.tabs
             val scrollToTopRegistry = scrollToTopRegistry
             val deeplinkPresenter = deeplinkPresenter
             val topLevelBackStack = topLevelBackStack
             val wideNavigationRailState = wideNavigationRailState
-            val loggedInState = loggedInState.isLoggedIn
-            val canComposeState = canComposeState.canCompose
-            val aiAgentEnabled = aiAgentEnabledState.enabled
 
             fun updateUriHandler(uriHandler: UriHandler) {
                 currentUriHandler.value = uriHandler
@@ -818,12 +691,6 @@ private fun navigate(
         wideNavigationRailState.collapse()
     }
 }
-
-@Composable
-private fun userPresenter(accountType: AccountType) =
-    run {
-        remember(accountType) { UserPresenter(accountType, null) }.invoke().user
-    }
 
 internal class ScrollToTopRegistry {
     private val callbacks = mutableSetOf<() -> Unit>()

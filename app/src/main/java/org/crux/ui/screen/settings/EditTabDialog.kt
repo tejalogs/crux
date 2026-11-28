@@ -23,6 +23,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import moe.tlaster.precompose.molecule.producePresenter
 import org.crux.R
+import kotlinx.collections.immutable.toImmutableList
+import org.crux.data.model.IconType
 import org.crux.data.model.appearance.AppearancePatch
 import org.crux.data.model.appearance.TimelineAppearance
 import org.crux.data.model.appearance.withPatch
@@ -32,9 +34,9 @@ import org.crux.data.model.tab.isSystemHomeMixedTimeline
 import org.crux.ui.component.LocalTimelineAppearance
 import org.crux.ui.component.platform.LocalWindowSizeClass
 import org.crux.ui.component.platform.WindowSizeClass
+import org.crux.ui.model.TabPickerUiIcons
 import org.crux.ui.model.UiStrings
-import org.crux.ui.model.onSuccess
-import org.crux.ui.presenter.invoke
+import org.crux.ui.model.UiText
 
 @Composable
 internal fun EditTabDialog(
@@ -116,13 +118,16 @@ private fun presenter(
     appearance: TimelineAppearance,
     context: Context,
 ) = run {
-    val text = rememberTextFieldState()
-    val state =
+    val initialTitle =
         remember(tabItem, context) {
-            EditTabPresenter(tabItem) { string ->
-                context.getString(string.androidStringRes)
+            when (val t = tabItem.title) {
+                is UiText.Raw -> t.string
+                is UiText.Localized -> context.getString(t.string.androidStringRes)
             }
-        }.invoke()
+        }
+    val text = rememberTextFieldState(initialText = initialTitle)
+    var icon by remember(tabItem) { mutableStateOf(tabItem.icon) }
+    val availableIcons = remember { TabPickerUiIcons.map { IconType.Material(it) }.toImmutableList() }
     var showIconPicker by remember { mutableStateOf(false) }
     var enabled by remember(tabItem) { mutableStateOf(tabItem.enabled) }
     var filterConfig by remember(tabItem) { mutableStateOf(tabItem.filterConfig) }
@@ -132,21 +137,24 @@ private fun presenter(
             appearance.withPatch(appearancePatch)
         }
     }
-    state.initialText.onSuccess {
-        LaunchedEffect(it) {
-            text.edit {
-                replace(0, length, it)
-            }
-        }
-    }
-    object : EditTabPresenter.State by state {
+    object {
         val text = text
+        val icon = icon
+        val availableIcons = availableIcons
+        val withAvatar = false
+        val canUseAvatar = false
         val canConfirm = text.text.isNotEmpty()
         val showIconPicker = showIconPicker
         val enabled = enabled
         val filterConfig = filterConfig
         val appearancePatch = appearancePatch
         val timelineAppearance = timelineAppearance
+
+        fun setIcon(value: IconType) {
+            icon = value
+        }
+
+        fun setWithAvatar(value: Boolean) = Unit
 
         fun setShowIconPicker(value: Boolean) {
             showIconPicker = value

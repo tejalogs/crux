@@ -30,9 +30,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "Crux"
 include(":app")
-include(":shared")
-include(":feature:agent")
-include(":feature:subscription")
-include(":feature:tab")
-include(":compose-ui")
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")

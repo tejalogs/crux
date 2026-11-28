@@ -78,7 +78,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.crux.R
 import org.crux.data.model.tab.UiTimelineTabItem
-import org.crux.ui.common.itemsIndexed
 import org.crux.ui.component.AvatarComponent
 import org.crux.ui.component.FAIcon
 import org.crux.ui.component.RichText
@@ -127,170 +126,121 @@ internal fun TabAddBottomSheet(
             modifier = Modifier.fillMaxHeight(),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            allTabs.accountTabs.onSuccess { accountTabGroups ->
-                val pagerState =
-                    rememberPagerState {
-                        accountTabGroups.size + 1
-                    }
-                val scope = rememberCoroutineScope()
-                LazyRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    contentPadding = PaddingValues(horizontal = screenHorizontalPadding),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    item {
-                        val isSelected = pagerState.currentPage == 0
-                        ToggleButton(
-                            checked = isSelected,
-                            onCheckedChange = {
-                                scope.launch {
-                                    pagerState.animateScrollToPage(0)
-                                }
-                            },
-                            colors =
-                                ToggleButtonDefaults.colors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    checkedContainerColor = MaterialTheme.colorScheme.primary,
-                                    checkedContentColor = MaterialTheme.colorScheme.onPrimary,
+            val pagerState = rememberPagerState { 2 }
+            val scope = rememberCoroutineScope()
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(horizontal = screenHorizontalPadding),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                item {
+                    val isSelected = pagerState.currentPage == 0
+                    ToggleButton(
+                        checked = isSelected,
+                        onCheckedChange = {
+                            scope.launch {
+                                pagerState.animateScrollToPage(0)
+                            }
+                        },
+                        colors =
+                            ToggleButtonDefaults.colors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                checkedContainerColor = MaterialTheme.colorScheme.primary,
+                                checkedContentColor = MaterialTheme.colorScheme.onPrimary,
+                            ),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                    ) {
+                        Text(
+                            text = stringResource(id = R.string.rss_title),
+                            style =
+                                MaterialTheme.typography.labelLarge.copy(
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                 ),
-                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
-                        ) {
-                            Text(
-                                text = stringResource(id = R.string.rss_title),
-                                style =
-                                    MaterialTheme.typography.labelLarge.copy(
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                    ),
-                            )
-                        }
-                    }
-                    itemsIndexed(accountTabGroups) { index, tab ->
-                        val isSelected = pagerState.currentPage == index + 1
-                        ToggleButton(
-                            checked = isSelected,
-                            onCheckedChange = {
-                                scope.launch {
-                                    pagerState.animateScrollToPage(index + 1)
-                                }
-                            },
-                            colors =
-                                ToggleButtonDefaults.colors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    checkedContainerColor = MaterialTheme.colorScheme.primary,
-                                    checkedContentColor = MaterialTheme.colorScheme.onPrimary,
-                                ),
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                        ) {
-                            AvatarComponent(
-                                tab.profile.avatar,
-                                size = 20.dp,
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = tab.profile.handle.canonical,
-                                style =
-                                    MaterialTheme.typography.labelLarge.copy(
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                    ),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
+                        )
                     }
                 }
-                HorizontalPager(
-                    state = pagerState,
-                    modifier = Modifier.fillMaxHeight(),
-                    verticalAlignment = Alignment.Top,
-                ) {
-                    if (it == 0) {
-                        LazyColumn(
-                            contentPadding = PaddingValues(horizontal = screenHorizontalPadding),
-                            verticalArrangement = Arrangement.spacedBy(2.dp),
-                        ) {
-                            itemsIndexed(
-                                allTabs.rssTabs,
-                            ) { index, it ->
-                                TabItem(
-                                    it,
-                                    modifier =
-                                        Modifier
-                                            .listCard(
-                                                index = index,
-                                                totalCount = allTabs.rssTabs.size,
-                                            ),
-                                )
+                item {
+                    val isSelected = pagerState.currentPage == 1
+                    ToggleButton(
+                        checked = isSelected,
+                        onCheckedChange = {
+                            scope.launch {
+                                pagerState.animateScrollToPage(1)
                             }
-                            if (allTabs.rssTabs.isNotEmpty()) {
-                                item {
-                                    Spacer(modifier = Modifier.height(12.dp))
-                                }
-                            }
-                            item {
-                                Box(
-                                    contentAlignment = Alignment.Center,
-                                    modifier = Modifier.fillMaxWidth(),
-                                ) {
-                                    Button(
-                                        onClick = toAddRssSource,
-                                    ) {
-                                        FAIcon(
-                                            FontAwesomeIcons.Solid.Plus,
-                                            contentDescription = stringResource(R.string.add_rss_source),
-                                        )
-                                        Text(stringResource(R.string.add_rss_source))
-                                    }
+                        },
+                        colors =
+                            ToggleButtonDefaults.colors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                checkedContainerColor = MaterialTheme.colorScheme.primary,
+                                checkedContentColor = MaterialTheme.colorScheme.onPrimary,
+                            ),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                    ) {
+                        Text(
+                            text = stringResource(id = R.string.settings_accounts_title),
+                            style =
+                                MaterialTheme.typography.labelLarge.copy(
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                ),
+                        )
+                    }
+                }
+            }
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxHeight(),
+                verticalAlignment = Alignment.Top,
+            ) { page ->
+                if (page == 0) {
+                    LazyColumn(
+                        contentPadding = PaddingValues(horizontal = screenHorizontalPadding),
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                    ) {
+                        itemsIndexed(allTabs.rssTabs) { index, item ->
+                            TabItem(
+                                item,
+                                modifier =
+                                    Modifier.listCard(
+                                        index = index,
+                                        totalCount = allTabs.rssTabs.size,
+                                    ),
+                            )
+                        }
+                        if (allTabs.rssTabs.isNotEmpty()) {
+                            item { Spacer(modifier = Modifier.height(12.dp)) }
+                        }
+                        item {
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Button(onClick = toAddRssSource) {
+                                    FAIcon(
+                                        FontAwesomeIcons.Solid.Plus,
+                                        contentDescription = stringResource(R.string.add_rss_source),
+                                    )
+                                    Text(stringResource(R.string.add_rss_source))
                                 }
                             }
                         }
-                    } else {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            val accountTabs = accountTabGroups[it - 1]
-                            var selectedIndex by remember { mutableIntStateOf(0) }
-                            if (accountTabs.tabs.size > 1) {
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally),
-                                    modifier = Modifier.fillMaxWidth(),
-                                ) {
-                                    accountTabs.tabs.forEachIndexed { index, section ->
-                                        FilterChip(
-                                            selected = selectedIndex == index,
-                                            onClick = { selectedIndex = index },
-                                            label = {
-                                                UiText(section.title.asText())
-                                            },
-                                        )
-                                    }
-                                }
-                            }
-                            when (selectedIndex) {
-                                in accountTabs.tabs.indices -> {
-                                    val section = accountTabs.tabs[selectedIndex]
-                                    LazyColumn(
-                                        contentPadding = PaddingValues(horizontal = screenHorizontalPadding),
-                                        verticalArrangement = Arrangement.spacedBy(2.dp),
-                                    ) {
-                                        itemsIndexed(section.data) { index, totalCount, item ->
-                                            TabItem(
-                                                item,
-                                                modifier =
-                                                    Modifier
-                                                        .listCard(
-                                                            index = index,
-                                                            totalCount = totalCount,
-                                                        ),
-                                            )
-                                        }
-                                    }
-                                }
-                            }
+                    }
+                } else {
+                    LazyColumn(
+                        contentPadding = PaddingValues(horizontal = screenHorizontalPadding),
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                    ) {
+                        itemsIndexed(allTabs.webTabs) { index, item ->
+                            TabItem(
+                                item,
+                                modifier =
+                                    Modifier.listCard(
+                                        index = index,
+                                        totalCount = allTabs.webTabs.size,
+                                    ),
+                            )
                         }
                     }
                 }

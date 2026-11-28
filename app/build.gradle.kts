@@ -3,9 +3,7 @@ import java.util.Properties
 
 plugins {
     id("org.crux.android-application")
-    alias(libs.plugins.ksp)
     alias(libs.plugins.kotlin.serialization)
-    alias(libs.plugins.ktorfit)
     alias(libs.plugins.koin.compiler)
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.aboutlibraries)
@@ -20,6 +18,7 @@ flare {
 kotlin {
     compilerOptions {
         optIn.add("androidx.compose.material3.ExperimentalMaterial3ExpressiveApi")
+        freeCompilerArgs.add("-Xconsistent-data-class-copy-visibility")
     }
 }
 
@@ -61,6 +60,10 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            // Keep release APKs lean for real Android devices; debug builds keep x86_64 for emulators.
+            ndk {
+                abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -109,29 +112,26 @@ dependencies {
     implementation(platform(libs.koin.bom))
     implementation(libs.bundles.koin)
     implementation(libs.koin.annotations)
-    implementation(libs.ktorfit.lib)
-    ksp(libs.ktorfit.ksp)
     implementation(libs.bundles.coil3)
     implementation(libs.bundles.coil3.extensions)
     implementation(libs.bundles.ktor)
+    implementation(libs.ktor.client.okhttp)
     implementation(libs.molecule.runtime)
     implementation(libs.ksoup)
+    implementation(libs.readability)
+    implementation(libs.compose.placeholder)
     implementation(libs.bundles.accompanist)
     lintChecks(libs.compose.lint.checks)
     implementation(libs.composeIcons.fontAwesome)
     implementation(libs.datastore)
+    implementation(libs.datastore.core.okio)
+    implementation(libs.okio)
     implementation(libs.kotlinx.serialization.protobuf)
-    implementation(libs.bundles.media3)
     implementation(libs.swiper)
     implementation(libs.reorderable)
     implementation(libs.androidx.window)
     coreLibraryDesugaring(libs.desugar.jdk.libs)
     implementation(libs.compose.webview)
-    implementation(projects.shared)
-    implementation(projects.feature.subscription)
-    implementation(projects.feature.tab)
-    implementation(projects.feature.agent)
-    implementation(projects.composeUi)
     implementation(libs.androidx.splash)
     implementation(libs.materialKolor)
     implementation(libs.colorpicker.compose)
@@ -144,9 +144,9 @@ dependencies {
     implementation(libs.richtext.ui.material3)
     implementation(libs.richtext.commonmark)
     implementation(libs.litertlm.android)
-    implementation("net.java.dev.jna:jna:${libs.versions.jna.get()}@aar")
 
     testImplementation(libs.junit)
+    testImplementation(kotlin("test-junit"))
     testImplementation(libs.robolectric)
     testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.androidx.test.ext.junit)

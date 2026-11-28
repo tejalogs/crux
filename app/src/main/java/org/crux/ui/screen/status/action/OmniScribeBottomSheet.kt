@@ -88,31 +88,20 @@ import compose.icons.fontawesomeicons.solid.WandMagicSparkles
 import compose.icons.fontawesomeicons.solid.Xmark
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import moe.tlaster.precompose.molecule.producePresenter
 import org.crux.R
-import org.crux.common.FileItem
-import org.crux.data.ai.scribe.BroadcastTargetAccount
 import org.crux.data.ai.scribe.CarouselDeck
 import org.crux.data.ai.scribe.CarouselDeckGenerator
 import org.crux.data.ai.scribe.CarouselSlide
 import org.crux.data.ai.scribe.CarouselTemplate
-import org.crux.data.ai.scribe.OmniBroadcastService
 import org.crux.data.ai.scribe.OmniScribeEngine
 import org.crux.data.ai.scribe.OmniScribeFormat
 import org.crux.data.ai.scribe.OmniScribeInput
 import org.crux.data.ai.scribe.OmniScribeStyle
-import org.crux.data.datasource.microblog.ComposeData
 import org.crux.model.AccountType
 import org.crux.model.MicroBlogKey
 import org.crux.ui.component.FAIcon
 import org.crux.ui.haptic.CruxHapticEvent
 import org.crux.ui.haptic.rememberFlareHapticFeedback
-import org.crux.ui.model.UiTimelineV2
-import org.crux.ui.model.onSuccess
-import org.crux.ui.model.takeSuccess
-import org.crux.ui.presenter.compose.ComposePresenter
-import org.crux.ui.presenter.invoke
-import org.crux.ui.presenter.settings.AccountsPresenter
 import org.crux.ui.route.Route
 import org.crux.ui.screen.crux.CruxPlatform
 import org.crux.ui.screen.home.LiveWebSite
@@ -121,8 +110,6 @@ import org.crux.ui.theme.screenHorizontalPadding
 import kotlin.math.absoluteValue
 
 private const val CAROUSEL_REVIEW_DEBOUNCE_MS = 1_500L
-
-private val LIVE_TAB_PLATFORM_IDS = setOf("instagram", "linkedin")
 
 /**
  * Omni-Scribe Studio bottom sheet.
@@ -180,19 +167,6 @@ internal fun OmniScribeBottomSheet(
             if (selectedFormat == OmniScribeFormat.Micro) currentResult.microPost else currentResult.storyPost,
         )
     }
-
-    // Standalone ComposePresenter (status = null so it always publishes as a separate new post)
-    val composeState by producePresenter(key = "omni_scribe_standalone_compose") {
-        remember { ComposePresenter(accountType = null, status = null, draftGroupId = null) }.invoke()
-    }
-
-    // Connected Accounts via AccountsPresenter
-    val accountsState by producePresenter {
-        remember { AccountsPresenter() }.invoke()
-    }
-
-    val selectedAccountKeys = remember { mutableStateListOf<MicroBlogKey>() }
-    var availableTargets by remember { mutableStateOf<List<BroadcastTargetAccount>>(emptyList()) }
 
     var selectedCarouselTemplate by remember { mutableStateOf(CarouselTemplate.ObsidianGold) }
 
@@ -275,37 +249,13 @@ internal fun OmniScribeBottomSheet(
     }
 
     val crossPostPlan =
-        remember(selectedAccountKeys.toList(), selectedWebSites.toList(), attachCarouselToPost) {
+        remember(selectedWebSites.toList(), attachCarouselToPost) {
             CrossPostPlan(
-                apiAccountKeys = selectedAccountKeys.toList(),
+                apiAccountKeys = emptyList(),
                 webSites = selectedWebSites.toList(),
                 attachCarousel = attachCarouselToPost,
             )
         }
-
-    var hasInitializedTargets by remember { mutableStateOf(false) }
-    val composeSelectedKeys =
-        composeState.selectedUsers
-            .takeSuccess()
-            ?.mapNotNull { it.takeSuccess()?.key }
-            .orEmpty()
-    LaunchedEffect(accountsState.accounts, composeSelectedKeys) {
-        accountsState.accounts.onSuccess { items ->
-            // Instagram and LinkedIn are live tabs, so Crux can't post to them directly.
-            val targets = OmniBroadcastService.mapAccountItems(items).filterNot { it.platformId in LIVE_TAB_PLATFORM_IDS }
-            availableTargets = targets
-            if (!hasInitializedTargets && targets.isNotEmpty()) {
-                hasInitializedTargets = true
-                selectedAccountKeys.clear()
-                selectedAccountKeys.addAll(targets.map { it.accountKey })
-                targets.forEach { target ->
-                    if (target.accountKey !in composeSelectedKeys) {
-                        composeState.selectAccount(target.accountKey)
-                    }
-                }
-            }
-        }
-    }
 
     fun regenerate() {
         val res =
@@ -742,100 +692,6 @@ internal fun OmniScribeBottomSheet(
             }
         }
 
-        // 7. Connected Networks Target Selector
-        if (availableTargets.isNotEmpty()) {
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
-
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    text = stringResource(id = R.string.omni_scribe_targets, selectedAccountKeys.size),
-                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-
-                Row(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    availableTargets.forEach { target ->
-                        val isChecked = selectedAccountKeys.contains(target.accountKey)
-                        val isValidForLength = OmniBroadcastService.isLengthValid(editedText, target.platformId)
-
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color =
-                                if (isChecked) {
-                                    MaterialTheme.colorScheme.primaryContainer.copy(
-                                        alpha = 0.7f,
-                                    )
-                                } else {
-                                    MaterialTheme.colorScheme.surfaceContainer
-                                },
-                            border =
-                                BorderStroke(
-                                    1.dp,
-                                    if (isChecked) {
-                                        MaterialTheme.colorScheme.primary
-                                    } else {
-                                        MaterialTheme.colorScheme.outlineVariant.copy(
-                                            alpha = 0.35f,
-                                        )
-                                    },
-                                ),
-                            modifier =
-                                Modifier.clickable {
-                                    haptic.perform(CruxHapticEvent.SelectionChange)
-                                    if (isChecked) {
-                                        selectedAccountKeys.remove(target.accountKey)
-                                        composeState.selectAccount(target.accountKey)
-                                    } else {
-                                        selectedAccountKeys.add(target.accountKey)
-                                        composeState.selectAccount(target.accountKey)
-                                    }
-                                },
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            ) {
-                                Checkbox(
-                                    checked = isChecked,
-                                    onCheckedChange = null,
-                                    modifier = Modifier.size(18.dp),
-                                )
-                                Text(
-                                    text = target.platformId.uppercase(),
-                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                    color =
-                                        if (isChecked) {
-                                            MaterialTheme.colorScheme.onPrimaryContainer
-                                        } else {
-                                            MaterialTheme.colorScheme.onSurface
-                                        },
-                                )
-                                Text(
-                                    text = target.handle,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                                if (!isValidForLength) {
-                                    Text(
-                                        text = "⚠️ >${target.maxCharacterLimit}",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.error,
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
         // Web platforms: cross-post targets for live web sessions
         Text(
             text = stringResource(id = R.string.live_share_title),
@@ -975,105 +831,18 @@ internal fun OmniScribeBottomSheet(
                             )
                         }
 
-                        // 3. Render files for direct API dispatch if API targets are selected
-                        val renderedFiles =
-                            if (crossPostPlan.hasApiTargets && attachCarouselToPost) {
-                                runCatching {
-                                    CarouselBitmapRenderer.renderDeckToCacheFiles(context, activeDeck)
-                                }.getOrDefault(emptyList())
-                            } else {
-                                emptyList()
-                            }
-
-                        val medias =
-                            renderedFiles.mapIndexed { idx, file ->
-                                ComposeData.Media(
-                                    file = FileItem(context, Uri.fromFile(file)),
-                                    altText =
-                                        activeDeck.slides
-                                            .getOrNull(
-                                                idx,
-                                            )?.body ?: resources.getString(R.string.omni_scribe_slide_alt, idx + 1),
-                                )
-                            }
-
-                        val standaloneComposeData =
-                            ComposeData(
-                                content = editedText,
-                                medias = medias,
-                                visibility = UiTimelineV2.Post.Visibility.Public,
-                                referenceStatus = null, // Always a separate standalone post!
-                            )
-
-                        if (crossPostPlan.hasApiTargets) {
-                            composeState.send(standaloneComposeData) { dispatched ->
-                                scope.launch {
-                                    isPublishing = false
-                                    if (dispatched) {
-                                        publishDone = true
-                                        haptic.perform(CruxHapticEvent.Confirm)
-                                        Toast
-                                            .makeText(
-                                                context,
-                                                context.applicationContext.getString(
-                                                    R.string.omni_scribe_broadcast_success,
-                                                    medias.size,
-                                                    selectedAccountKeys.size,
-                                                ),
-                                                Toast.LENGTH_SHORT,
-                                            ).show()
-                                        if (crossPostPlan.hasWebTargets) {
-                                            delay(300)
-                                            onBack()
-                                            navigate(
-                                                Route.LiveShare(
-                                                    sites = selectedWebSites.map { it.name },
-                                                    text = editedText,
-                                                    url = sourceUrl,
-                                                    slidesSaved = saved,
-                                                ),
-                                            )
-                                        } else {
-                                            delay(500)
-                                            onBack()
-                                        }
-                                    } else {
-                                        // Fallback: if web targets were selected, still stage them
-                                        if (crossPostPlan.hasWebTargets) {
-                                            onBack()
-                                            navigate(
-                                                Route.LiveShare(
-                                                    sites = selectedWebSites.map { it.name },
-                                                    text = editedText,
-                                                    url = sourceUrl,
-                                                    slidesSaved = saved,
-                                                ),
-                                            )
-                                        } else {
-                                            val uris = renderedFiles.map { Uri.fromFile(it).toString() }
-                                            onBack()
-                                            navigate(
-                                                Route.CruxCompose(initialText = editedText),
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        } else {
-                            // Web-only dispatch
-                            isPublishing = false
-                            publishDone = true
-                            haptic.perform(CruxHapticEvent.Confirm)
-                            onBack()
-                            navigate(
-                                Route.LiveShare(
-                                    sites = selectedWebSites.map { it.name },
-                                    text = editedText,
-                                    url = sourceUrl,
-                                    slidesSaved = saved,
-                                ),
-                            )
-                        }
+                        isPublishing = false
+                        publishDone = true
+                        haptic.perform(CruxHapticEvent.Confirm)
+                        onBack()
+                        navigate(
+                            Route.LiveShare(
+                                sites = selectedWebSites.map { it.name },
+                                text = editedText,
+                                url = sourceUrl,
+                                slidesSaved = saved,
+                            ),
+                        )
                     }
                 },
                 enabled =

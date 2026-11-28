@@ -108,37 +108,24 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import moe.tlaster.precompose.molecule.producePresenter
 import org.crux.R
-import org.crux.common.onSuccess
-import org.crux.data.ai.CatchMeUpDigestEngine
-import org.crux.data.ai.FeedDigest
-import org.crux.data.datastore.model.TimelineAutoRefreshInterval
 import org.crux.data.model.BottomBarBehavior
 import org.crux.data.model.TimelineDisplayMode
 import org.crux.data.model.tab.UiTimelineTabItem
 import org.crux.data.model.tab.resolveTimelineAppearance
-import org.crux.model.AccountType
-import org.crux.model.MicroBlogKey
 import org.crux.ui.component.AvatarComponent
 import org.crux.ui.component.CruxDropdownMenu
 import org.crux.ui.component.CruxScaffold
 import org.crux.ui.component.CruxTopAppBar
 import org.crux.ui.component.FAIcon
-import org.crux.ui.component.Glassify
-import org.crux.ui.component.LocalAppSettings
 import org.crux.ui.component.LocalBottomBarAccessory
 import org.crux.ui.component.LocalBottomBarShowing
 import org.crux.ui.component.LocalGlobalAppearance
 import org.crux.ui.component.LocalTimelineAppearance
-import org.crux.ui.component.RefreshContainer
 import org.crux.ui.component.TabIcon
 import org.crux.ui.component.platform.LocalWindowSizeClass
 import org.crux.ui.component.platform.WindowSizeClass
 import org.crux.ui.component.platform.isBigScreen
 import org.crux.ui.component.platform.isCompatScreen
-import org.crux.ui.component.status.AdaptiveCard
-import org.crux.ui.component.status.CatchMeUpDigestCard
-import org.crux.ui.component.status.LazyStatusVerticalStaggeredGrid
-import org.crux.ui.component.status.status
 import org.crux.ui.model.map
 import org.crux.ui.model.onError
 import org.crux.ui.model.onLoading
@@ -146,17 +133,10 @@ import org.crux.ui.model.onSuccess
 import org.crux.ui.model.takeSuccess
 import org.crux.ui.presenter.HomeTimelineWithTabsPresenter
 import org.crux.ui.presenter.home.DeepLinkPresenter
-import org.crux.ui.presenter.home.LoggedInPresenter
-import org.crux.ui.presenter.home.LoggedInState
 import org.crux.ui.presenter.invoke
-import org.crux.ui.presenter.rememberTimelineItemPresenterWithLazyListState
-import org.crux.ui.route.DeeplinkRoute
 import org.crux.ui.route.Route
 import org.crux.ui.route.Router
-import org.crux.ui.route.toUri
 import org.crux.ui.theme.isLightTheme
-import org.crux.ui.theme.screenHorizontalPadding
-import kotlin.time.Clock
 import org.crux.ui.component.Text as CruxText
 
 @OptIn(
@@ -172,6 +152,7 @@ internal fun HomeTimelineScreen(
     toTabSettings: () -> Unit,
     uriHandler: UriHandler,
     toReadingList: () -> Unit = {},
+    onNavigate: (Route) -> Unit = {},
 ) {
     val state by producePresenter(key = "home_timeline") {
         timelinePresenter()
@@ -294,33 +275,11 @@ internal fun HomeTimelineScreen(
                         ),
                 contentAlignment = Alignment.Center,
             ) {
-                Box {
-                    state.user
-                        .onSuccess {
-                            ExpressiveAvatarFrame(size = 38.dp) {
-                                AvatarComponent(
-                                    data = it.avatar,
-                                    platformId = it.platformId,
-                                    host = it.key.host,
-                                    platformIcon = it.platformIcon,
-                                    size = 30.dp,
-                                    contentDescription = stringResource(R.string.open_navigation_menu),
-                                )
-                            }
-                        }.onError {
-                            FAIcon(
-                                imageVector = FontAwesomeIcons.Solid.Bars,
-                                contentDescription = stringResource(R.string.open_navigation_menu),
-                                modifier = Modifier.size(22.dp),
-                            )
-                        }.onLoading {
-                            FAIcon(
-                                imageVector = FontAwesomeIcons.Solid.Bars,
-                                contentDescription = stringResource(R.string.open_navigation_menu),
-                                modifier = Modifier.size(22.dp),
-                            )
-                        }
-                }
+                FAIcon(
+                    imageVector = FontAwesomeIcons.Solid.Bars,
+                    contentDescription = stringResource(R.string.open_navigation_menu),
+                    modifier = Modifier.size(22.dp),
+                )
             }
         }
         CruxScaffold(
@@ -520,27 +479,16 @@ internal fun HomeTimelineScreen(
                                     contentPadding = liveTabPadding,
                                 )
                             } else if (item != null) {
-                                val timelineAppearance = LocalTimelineAppearance.current
-                                CompositionLocalProvider(
-                                    LocalTimelineAppearance provides
-                                        remember(
-                                            item.appearancePatch,
-                                            timelineAppearance,
-                                        ) {
-                                            item.resolveTimelineAppearance(timelineAppearance)
-                                        },
-                                ) {
-                                    TimelineItemContent(
-                                        item = item,
-                                        contentPadding = contentPadding,
-                                        modifier = Modifier.fillMaxWidth(),
-                                        changeLogState = state,
-                                        isHomeTimeline = true,
-                                        isCurrentlyVisible = pagerState.currentPage == index,
-                                        autoRefreshInterval =
-                                            LocalAppSettings.current.homeTimelineAutoRefreshInterval,
-                                    )
-                                }
+                                val rssTarget = org.crux.ui.screen.rss.nativeRssTabTargetForId(item.id)
+                                val feedUrl = (rssTarget as? org.crux.ui.screen.rss.NativeRssTabTarget.SingleFeed)?.feedUrl
+                                org.crux.ui.screen.rss.NativeRssFeedList(
+                                    feedUrl = feedUrl,
+                                    contentPadding = contentPadding,
+                                    isCurrentlyVisible = pagerState.currentPage == index,
+                                    onOpenArticle = { detail -> onNavigate(detail) },
+                                    onManageFeeds = { onNavigate(Route.Rss.Sources) },
+                                    onAddFeed = { onNavigate(Route.Rss.Create()) },
+                                )
                             }
                         }
 
@@ -663,259 +611,10 @@ private fun HomeTabDropdown(
 
 private const val MAX_SCROLLABLE_HOME_TABS = 10
 
-// Room for the 48dp refresh indicator above the first card.
-private val REFRESH_INDICATOR_CLEARANCE = 56.dp
-
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Composable
-internal fun TimelineItemContent(
-    item: UiTimelineTabItem,
-    modifier: Modifier = Modifier,
-    contentPadding: PaddingValues = PaddingValues(0.dp),
-    changeLogState: ChangeLogState? = null,
-    isHomeTimeline: Boolean = false,
-    isCurrentlyVisible: Boolean = true,
-    autoRefreshInterval: TimelineAutoRefreshInterval = TimelineAutoRefreshInterval.DISABLED,
-    lazyStaggeredGridState: LazyStaggeredGridState = rememberLazyStaggeredGridState(),
-) {
-    val isBigScreen = isBigScreen()
-    val layoutDirection = LocalLayoutDirection.current
-    val paddingWithStatusBar =
-        PaddingValues(
-            top =
-                maxOf(
-                    WindowInsets.safeContent.asPaddingValues().calculateTopPadding(),
-                    contentPadding.calculateTopPadding(),
-                ),
-            bottom = contentPadding.calculateBottomPadding(),
-            start = contentPadding.calculateStartPadding(layoutDirection),
-            end = contentPadding.calculateEndPadding(layoutDirection),
-        )
-    val state =
-        rememberTimelineItemPresenterWithLazyListState(
-            item = item,
-            isHomeTimeline = isHomeTimeline,
-            lazyStaggeredGridState = lazyStaggeredGridState,
-        )
-    val latestState by rememberUpdatedState(state)
-    val lifecycleOwner = LocalLifecycleOwner.current
-    val uriHandler = LocalUriHandler.current
-    var isDigestDismissed by rememberSaveable(item.id) { mutableStateOf(false) }
-    var showFullscreenBriefing by rememberSaveable(item.id) { mutableStateOf(false) }
-    val onSynthesizeCarouselAction: (FeedDigest) -> Unit =
-        remember(uriHandler) {
-            { digest ->
-                val highlightsSummary =
-                    buildString {
-                        appendLine("Executive Feed Digest:")
-                        digest.highlights.forEach { h ->
-                            val authorPart = if (!h.authorName.isNullOrBlank()) " (${h.authorName})" else ""
-                            appendLine("• ${h.topic}$authorPart: ${h.summary}")
-                        }
-                    }
-                val initialText = if (highlightsSummary.isNotBlank()) highlightsSummary else digest.title
-                val digestUri =
-                    DeeplinkRoute.Status
-                        .OmniScribe(
-                            statusKey = MicroBlogKey(digest.title.hashCode().toString(), "pulse"),
-                            accountType = AccountType.Guest,
-                            initialText = initialText.trim(),
-                            authorName = "Executive Pulse",
-                            authorHandle = "crux",
-                            articleTitle = "${digest.title} • Executive Brief",
-                            sourceUrl = "",
-                        ).toUri()
-                uriHandler.openUri(digestUri)
-            }
-        }
-    val feedDigest by
-        produceState<FeedDigest?>(initialValue = null, state.listState) {
-            val success = state.listState as? org.crux.common.PagingState.Success<org.crux.ui.model.UiTimelineV2>
-            if (success != null && success.itemCount >= 3) {
-                val posts = (0 until minOf(25, success.itemCount)).mapNotNull { success.peek(it) }
-                value =
-                    withContext(Dispatchers.Default) {
-                        CatchMeUpDigestEngine.generateDigest(posts)
-                    }
-            } else {
-                value = null
-            }
-        }
-    LaunchedEffect(isHomeTimeline, autoRefreshInterval, isCurrentlyVisible, lifecycleOwner) {
-        if (!isHomeTimeline || !isCurrentlyVisible || autoRefreshInterval == TimelineAutoRefreshInterval.DISABLED) {
-            return@LaunchedEffect
-        }
-        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-            while (true) {
-                delay(autoRefreshInterval.minutes * 60_000L)
-                if (!latestState.isRefreshing) {
-                    latestState.refreshSuspend()
-                }
-            }
-        }
-    }
-    if (isCurrentlyVisible) {
-        RegisterTabCallback(
-            lazyListState = state.lazyListState,
-            onRefresh = {
-                state.refreshSync()
-                changeLogState?.dismissChangeLog()
-            },
-        )
-    }
-    val scope = rememberCoroutineScope()
-    RefreshContainer(
-        modifier = modifier,
-        onRefresh = {
-            isDigestDismissed = false
-            state.refreshSync()
-            changeLogState?.dismissChangeLog()
-        },
-        isRefreshing = state.isRefreshing,
-        indicatorPadding = paddingWithStatusBar,
-        content = {
-            LazyStatusVerticalStaggeredGrid(
-                state = state.lazyListState,
-                contentPadding = contentPadding,
-                allowGalleryMode = true,
-                modifier =
-                    Modifier
-                        .fillMaxSize(),
-            ) {
-                changeLogState?.shouldShowChangeLog?.onSuccess {
-                    changeLogState.changeLog?.let { changelog ->
-                        if (it) {
-                            item {
-                                // The pull/refresh indicator draws at the top of the list; keep the
-                                // card below it while a refresh is running instead of under it.
-                                val indicatorClearance by animateDpAsState(
-                                    targetValue = if (state.isRefreshing) REFRESH_INDICATOR_CLEARANCE else 0.dp,
-                                    label = "changelogIndicatorClearance",
-                                )
-                                Column(modifier = Modifier.padding(top = indicatorClearance)) {
-                                    AdaptiveCard {
-                                        Column(
-                                            modifier =
-                                                Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(
-                                                        horizontal = screenHorizontalPadding,
-                                                    ).padding(top = 16.dp, bottom = 8.dp),
-                                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                                        ) {
-                                            Text(
-                                                stringResource(R.string.changelog_title),
-                                                style = MaterialTheme.typography.titleMedium,
-                                            )
-                                            Text(changelog)
-                                            Button(
-                                                onClick = {
-                                                    changeLogState.dismissChangeLog()
-                                                },
-                                            ) {
-                                                Text(
-                                                    stringResource(android.R.string.ok),
-                                                )
-                                            }
-                                        }
-                                    }
-                                    if (!isBigScreen) {
-                                        Spacer(modifier = Modifier.height(12.dp))
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                val activeDigest = feedDigest
-                if (isHomeTimeline && !isDigestDismissed && activeDigest != null) {
-                    item(span = StaggeredGridItemSpan.FullLine) {
-                        CatchMeUpDigestCard(
-                            digest = activeDigest,
-                            onDismiss = { isDigestDismissed = true },
-                            onScrollToFeed = {
-                                scope.launch {
-                                    state.lazyListState.animateScrollToItem(1)
-                                }
-                            },
-                            onRefresh = {
-                                state.refreshSync()
-                            },
-                            onSynthesizeCarousel = onSynthesizeCarouselAction,
-                            onOpenFullscreen = { showFullscreenBriefing = true },
-                        )
-                    }
-                }
-
-                status(state.listState)
-            }
-            state.listState.onSuccess {
-                AnimatedVisibility(
-                    state.showNewToots,
-                    enter =
-                        slideInVertically(MaterialTheme.motionScheme.fastSpatialSpec()) { -it } +
-                            scaleIn(MaterialTheme.motionScheme.fastSpatialSpec(), initialScale = 0.6f),
-                    exit =
-                        slideOutVertically(MaterialTheme.motionScheme.fastSpatialSpec()) { -it } +
-                            scaleOut(MaterialTheme.motionScheme.fastSpatialSpec(), targetScale = 0.6f),
-                    modifier =
-                        Modifier
-                            .padding(paddingWithStatusBar)
-                            .align(Alignment.TopCenter),
-                ) {
-                    Glassify(
-                        onClick = {
-                            state.onNewTootsShown()
-                            scope.launch {
-                                state.lazyListState.scrollToItem(0)
-                            }
-                        },
-                        shape = RoundedCornerShape(50),
-                        color = MaterialTheme.colorScheme.tertiaryContainer,
-                    ) {
-                        Row(
-                            modifier =
-                                Modifier
-                                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            FAIcon(
-                                imageVector = FontAwesomeIcons.Solid.AnglesUp,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                            )
-                            val ctx = LocalContext.current
-                            val newTootsText =
-                                ctx.resources.getQuantityString(
-                                    R.plurals.home_timeline_new_toots,
-                                    state.newPostsCount,
-                                    state.newPostsCount,
-                                )
-                            Text(text = newTootsText)
-                        }
-                    }
-                }
-            }
-        },
-    )
-
-    val modalDigest = feedDigest
-    if (showFullscreenBriefing && modalDigest != null) {
-        ExecutiveBriefingBottomSheet(
-            digest = modalDigest,
-            onDismissRequest = { showFullscreenBriefing = false },
-            onSynthesizeCarousel = onSynthesizeCarouselAction,
-        )
-    }
-}
-
 @Composable
 private fun timelinePresenter() =
     run {
         val state = remember { HomeTimelineWithTabsPresenter() }.invoke()
-        val loginState = remember { LoggedInPresenter() }.invoke()
 
         val pagerState =
             state.tabState.map {
@@ -926,7 +625,6 @@ private fun timelinePresenter() =
 
         object :
             HomeTimelineWithTabsPresenter.State by state,
-            LoggedInState by loginState,
             ChangeLogState by changeLogState {
             val pagerState = pagerState
         }

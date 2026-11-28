@@ -80,8 +80,6 @@ import compose.icons.fontawesomeicons.solid.RotateRight
 import kotlinx.coroutines.launch
 import org.crux.BuildConfig
 import org.crux.R
-import org.crux.data.datasource.linkedin.LinkedInFeedParser
-import org.crux.data.datasource.linkedin.LinkedInFeedService
 import org.crux.ui.component.BackButton
 import org.crux.ui.component.CruxDropdownMenu
 import org.crux.ui.component.CruxScaffold
@@ -134,8 +132,15 @@ private fun readLinkedInSignedIn(): Boolean =
     runCatching {
         val cm = LiveWebSite.LinkedIn.cookieManager()
         val cookies = cm.getCookie("https://www.linkedin.com").orEmpty() + "; " + cm.getCookie("https://linkedin.com").orEmpty()
-        LinkedInFeedService.hasActiveSession(cookies)
+        cookies.contains("li_at=")
     }.getOrDefault(false)
+
+private fun isValidLinkedInHost(host: String?): Boolean {
+    if (host.isNullOrBlank()) return false
+    val lower = host.lowercase()
+    return lower == "linkedin.com" || lower.endsWith(".linkedin.com") ||
+        lower == "licdn.com" || lower.endsWith(".licdn.com")
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -524,7 +529,7 @@ internal fun LinkedInWebScreen(
                                 canGoBack = computeWebViewCanGoBack(view.canGoBack(), it)
                             }
                             val host = committed?.let { runCatching { Uri.parse(it).host }.getOrNull() }
-                            if (LinkedInFeedParser.isValidLinkedInHost(host)) {
+                            if (isValidLinkedInHost(host)) {
                                 checkAndSyncSession(committed)
                             }
                         }
@@ -541,7 +546,7 @@ internal fun LinkedInWebScreen(
                                 canGoBack = computeWebViewCanGoBack(view.canGoBack(), it)
                             }
                             val host = committed?.let { runCatching { Uri.parse(it).host }.getOrNull() }
-                            if (LinkedInFeedParser.isValidLinkedInHost(host)) {
+                            if (isValidLinkedInHost(host)) {
                                 checkAndSyncSession(committed)
                             }
                         }

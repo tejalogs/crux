@@ -53,7 +53,6 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -77,56 +76,43 @@ import androidx.compose.ui.text.intl.Locale
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import compose.icons.FontAwesomeIcons
-import compose.icons.fontawesomeicons.Brands
 import compose.icons.fontawesomeicons.Solid
-import compose.icons.fontawesomeicons.brands.Chrome
 import compose.icons.fontawesomeicons.solid.ArrowRight
 import compose.icons.fontawesomeicons.solid.Bookmark
 import compose.icons.fontawesomeicons.solid.EllipsisVertical
 import compose.icons.fontawesomeicons.solid.Font
-import compose.icons.fontawesomeicons.solid.Language
-import compose.icons.fontawesomeicons.solid.ShareNodes
 import compose.icons.fontawesomeicons.solid.WandMagicSparkles
-import io.ktor.http.Url
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import moe.tlaster.precompose.molecule.producePresenter
 import org.crux.R
-import org.crux.common.OfflineMediaPrefetcher
-import org.crux.common.encodeJson
-import org.crux.data.network.rss.ArticleFailureReason
-import org.crux.data.network.rss.DocumentData
-import org.crux.data.network.rss.DocumentSource
-import org.crux.data.network.rss.articleFailureReason
-import org.crux.data.network.rss.articleHttpStatus
-import org.crux.data.readinglist.ReadingListItem
+import org.crux.common.OnDeviceAI
 import org.crux.data.readinglist.ReadingListRepository
 import org.crux.data.repository.SettingsRepository
 import org.crux.model.AccountType
 import org.crux.model.MicroBlogKey
+import org.crux.rss.RssArticleFailureReason
+import org.crux.rss.RssDocument
+import org.crux.rss.RssDocumentSource
+import org.crux.rss.RssNetworkClient
+import org.crux.rss.RssRepository
+import org.crux.rss.rssArticleFailureReason
+import org.crux.rss.rssArticleHttpStatus
 import org.crux.ui.component.BackButton
 import org.crux.ui.component.CruxScaffold
 import org.crux.ui.component.CruxTopAppBar
-import org.crux.ui.component.DateTimeText
 import org.crux.ui.component.FAIcon
-import org.crux.ui.component.FavIcon
 import org.crux.ui.component.RssRichText
 import org.crux.ui.component.listCard
 import org.crux.ui.component.placeholder
 import org.crux.ui.model.UiState
-import org.crux.ui.model.collectAsUiState
-import org.crux.ui.model.flatMap
 import org.crux.ui.model.isSuccess
 import org.crux.ui.model.onError
 import org.crux.ui.model.onLoading
 import org.crux.ui.model.onSuccess
-import org.crux.ui.model.takeSuccessOr
-import org.crux.ui.presenter.home.rss.RssDetailPresenter
-import org.crux.ui.presenter.invoke
-import org.crux.ui.presenter.server.AiTLDRPresenter
 import org.crux.ui.render.parseHtml
 import org.crux.ui.route.DeeplinkRoute
 import org.crux.ui.route.toUri
@@ -136,6 +122,7 @@ import org.crux.ui.screen.home.openInSystemBrowser
 import org.crux.ui.theme.isLightTheme
 import org.crux.ui.theme.screenHorizontalPadding
 import org.koin.compose.koinInject
+import java.net.URI
 import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.roundToInt
@@ -157,12 +144,73 @@ internal fun RssDetailScreen(
     fallbackHtml: String? = null,
 ) {
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
-    val state by producePresenter(url) { presenter(url, descriptionHtml, descriptionTitle, fallbackHtml) }
     val uriHandler = LocalUriHandler.current
     val context = LocalContext.current
+    val rssRepo = remember(context) { RssRepository.get(context) }
     val readingListRepo = koinInject<ReadingListRepository>()
+    val settingsRepository = koinInject<SettingsRepository>()
+    val onDeviceAI = koinInject<OnDeviceAI>()
     val isSavedState by remember(url) { readingListRepo.isSaved(url) }.collectAsState(false)
-    val prefetcher = remember { OfflineMediaPrefetcher(context) }
+    val enableTldr by remember(settingsRepository) {
+        settingsRepository.appSettings.map { it.aiConfig.tldr }
+    }.collectAsState(initial = true)
+
+    var reloadKey by remember(url) { mutableIntStateOf(0) }
+    var docState by remember(url) { mutableStateOf<UiState<RssDocument>>(UiState.Loading()) }
+    var showTldr by remember(url) { mutableStateOf(false) }
+    var tldrRefreshKey by remember(url) { mutableIntStateOf(0) }
+    var tldrState by remember(url) { mutableStateOf<UiState<String>?>(null) }
+
+    LaunchedEffect(url, descriptionHtml, descriptionTitle, fallbackHtml, reloadKey) {
+        docState = UiState.Loading()
+        docState =
+            try {
+                val doc =
+                    rssRepo.loadArticleDocument(
+                        url = url,
+                        descriptionHtml = descriptionHtml,
+                        title = descriptionTitle,
+                        fallbackHtml = fallbackHtml,
+                        forceRefresh = reloadKey > 0,
+                    )
+                UiState.Success(doc)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                UiState.Error(e)
+            }
+    }
+
+    val loadedDoc = (docState as? UiState.Success)?.data
+    val languageTag = Locale.current.toLanguageTag()
+    LaunchedEffect(showTldr, loadedDoc, tldrRefreshKey) {
+        if (!showTldr || loadedDoc == null) return@LaunchedEffect
+        tldrState = UiState.Loading()
+        tldrState =
+            try {
+                val sourceText =
+                    buildString {
+                        if (loadedDoc.title.isNotBlank()) appendLine(loadedDoc.title)
+                        append(loadedDoc.textContent.take(6_000))
+                    }.trim()
+                val summary =
+                    onDeviceAI.tldr(
+                        source = sourceText,
+                        targetLanguage = languageTag,
+                        prompt = "",
+                    )
+                if (!summary.isNullOrBlank()) {
+                    UiState.Success(summary)
+                } else {
+                    UiState.Error(IllegalStateException("Empty summary"))
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                UiState.Error(e)
+            }
+    }
+
     val scope = rememberCoroutineScope()
     val readerSettings = rememberReaderSettings()
     val reader = readerSettings.value
@@ -171,13 +219,12 @@ internal fun RssDetailScreen(
     var pendingBookmarkPost by remember { mutableStateOf<ExtractedSocialPost?>(null) }
     val scrollState = rememberScrollState()
     val positions = remember(context) { ReaderPositions(context.applicationContext) }
-    val hasContent = state.data.isSuccess
+    val hasContent = docState.isSuccess
     var restored by remember(url) { mutableStateOf(false) }
     // Images load after the text, so the scroll range keeps growing. Re-apply the saved place at each
     // size until the range holds still, unless the reader has already moved on their own.
     LaunchedEffect(url, hasContent) {
         if (!hasContent || restored) return@LaunchedEffect
-        // A finished article opens at the top again rather than at its last line.
         val saved = restoredReadingFraction(positions.get(url))
         if (saved <= 0f) {
             restored = true
@@ -218,7 +265,6 @@ internal fun RssDetailScreen(
     val lineHeightPx = with(LocalDensity.current) { bodyStyle.lineHeight.toPx() }
     val view = LocalView.current
     DisposableEffect(view, paged) {
-        // Like an e-reader, the screen stays on while you read.
         view.keepScreenOn = paged
         onDispose { view.keepScreenOn = false }
     }
@@ -258,22 +304,21 @@ internal fun RssDetailScreen(
             actions = {
                 val fallbackArticleTitle = stringResource(R.string.rss_detail_article_fallback_title)
                 IconButton(
-                    // Saving before the article loads would store a placeholder, so wait for it.
-                    enabled = isSavedState || state.data.isSuccess,
+                    enabled = isSavedState || docState.isSuccess,
                     onClick = {
-                        val doc = (state.data as? UiState.Success)?.data
+                        val doc = loadedDoc
                         val itemTitle =
                             descriptionTitle?.takeIf { it.isNotBlank() }
                                 ?: doc?.title?.takeIf { it.isNotBlank() }
                                 ?: fallbackArticleTitle
                         val itemContent =
                             doc?.textContent?.takeIf { it.isNotBlank() }
-                                ?: doc?.content?.takeIf { it.isNotBlank() }
+                                ?: doc?.contentHtml?.takeIf { it.isNotBlank() }
                                 ?: itemTitle
                         val itemAuthor =
                             doc?.byline?.takeIf { it.isNotBlank() }
                                 ?: doc?.siteName?.takeIf { it.isNotBlank() }
-                                ?: runCatching { Url(url).host }.getOrNull().orEmpty()
+                                ?: runCatching { URI(url).host }.getOrNull().orEmpty()
                         pendingBookmarkPost =
                             ExtractedSocialPost(
                                 id = url,
@@ -302,11 +347,9 @@ internal fun RssDetailScreen(
                         modifier = Modifier.size(18.dp),
                     )
                 }
-                AnimatedVisibility(state.data.isSuccess && state.enableTldr.takeSuccessOr(false)) {
+                AnimatedVisibility(docState.isSuccess && enableTldr) {
                     TextButton(
-                        onClick = {
-                            state.setShowTldr(true)
-                        },
+                        onClick = { showTldr = true },
                     ) {
                         Text(stringResource(R.string.rss_detail_tldr))
                     }
@@ -323,21 +366,20 @@ internal fun RssDetailScreen(
                         expanded = showMoreMenu,
                         onDismissRequest = { showMoreMenu = false },
                     ) {
-                        if (state.data.isSuccess) {
+                        if (loadedDoc != null) {
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.live_share_post_article)) },
                                 onClick = {
                                     showMoreMenu = false
-                                    val doc = (state.data as? UiState.Success)?.data
                                     uriHandler.openUri(
                                         DeeplinkRoute.Status
                                             .OmniScribe(
                                                 statusKey = MicroBlogKey(url.hashCode().toString(), "rss"),
                                                 accountType = AccountType.Guest,
-                                                initialText = doc?.textContent?.takeIf { it.isNotBlank() } ?: doc?.content.orEmpty(),
-                                                authorName = doc?.byline ?: doc?.siteName.orEmpty(),
+                                                initialText = loadedDoc.textContent.ifBlank { loadedDoc.contentHtml },
+                                                authorName = loadedDoc.byline ?: loadedDoc.siteName.orEmpty(),
                                                 authorHandle = "rss",
-                                                articleTitle = doc?.title.orEmpty(),
+                                                articleTitle = loadedDoc.title,
                                                 sourceUrl = url,
                                             ).toUri(),
                                     )
@@ -350,7 +392,7 @@ internal fun RssDetailScreen(
                                 showMoreMenu = false
                                 val title =
                                     descriptionTitle?.takeIf { it.isNotBlank() }
-                                        ?: (state.data as? UiState.Success)?.data?.title?.takeIf { it.isNotBlank() }
+                                        ?: loadedDoc?.title?.takeIf { it.isNotBlank() }
                                 val sendIntent =
                                     Intent().apply {
                                         action = Intent.ACTION_SEND
@@ -450,7 +492,7 @@ internal fun RssDetailScreen(
                         verticalArrangement = Arrangement.spacedBy(16.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                        state.data
+                        docState
                             .onSuccess { documentData ->
                                 val displayTitle = descriptionTitle?.takeIf { it.isNotBlank() } ?: documentData.title
                                 MaybeSelectable(enabled = !paged) {
@@ -463,30 +505,29 @@ internal fun RssDetailScreen(
                                             ),
                                     )
                                 }
-                                if (documentData.siteName != null || documentData.byline != null || documentData.publishDateTime != null) {
+                                if (documentData.siteName != null || documentData.byline != null || documentData.publishedAt != null) {
                                     Column(
+                                        modifier = Modifier.fillMaxWidth(),
                                         verticalArrangement = Arrangement.spacedBy(4.dp),
                                     ) {
-                                        documentData.siteName?.let {
+                                        documentData.siteName?.let { site ->
                                             Row(
                                                 verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp),
                                             ) {
-                                                FavIcon(
-                                                    host =
-                                                        remember(url) {
-                                                            runCatching { Url(url).host }.getOrDefault("")
-                                                        },
+                                                RssFeedFavicon(
+                                                    iconUrl = remember(url) { RssNetworkClient.defaultFaviconFor(url) },
                                                     size = 16.dp,
                                                 )
                                                 Text(
-                                                    text = it,
+                                                    text = site,
                                                     style = MaterialTheme.typography.bodySmall,
                                                 )
                                             }
                                         }
 
                                         Row(
+                                            modifier = Modifier.fillMaxWidth(),
                                             verticalAlignment = Alignment.CenterVertically,
                                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                                         ) {
@@ -504,26 +545,28 @@ internal fun RssDetailScreen(
 
                                             Spacer(modifier = Modifier.weight(1f))
 
-                                            documentData.publishDateTime?.let {
-                                                DateTimeText(
-                                                    data = it,
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    fullTime = true,
-                                                )
+                                            documentData.publishedAt?.let { ts ->
+                                                val formatted = remember(ts) { formatFullDateTime(ts) }
+                                                if (formatted.isNotEmpty()) {
+                                                    Text(
+                                                        text = formatted,
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                    )
+                                                }
                                             }
                                         }
                                     }
                                 }
-                                if (documentData.source == DocumentSource.FeedSummary) {
+                                if (documentData.source == RssDocumentSource.FeedSummary) {
                                     FeedSummaryBanner(
-                                        onTryFullArticle = { state.reload() },
+                                        onTryFullArticle = { reloadKey++ },
                                         onOpenOriginal = { openInSystemBrowser(context, url) },
                                     )
                                 }
                             }.onError { error ->
                                 ArticleErrorState(
                                     message = articleErrorMessage(error),
-                                    onRetry = { state.reload() },
+                                    onRetry = { reloadKey++ },
                                     onOpenOriginal = { openInSystemBrowser(context, url) },
                                 )
                             }.onLoading {
@@ -540,17 +583,15 @@ internal fun RssDetailScreen(
                                 } else {
                                     Text(
                                         "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
-                                        modifier =
-                                            Modifier
-                                                .placeholder(true),
+                                        modifier = Modifier.placeholder(true),
                                     )
                                 }
                             }
                         HorizontalDivider()
-                        state.data
+                        docState
                             .onSuccess { data ->
-                                AnimatedVisibility(state.showTldr) {
-                                    state.tldrState?.let { tldrState ->
+                                AnimatedVisibility(showTldr) {
+                                    tldrState?.let { currentTldr ->
                                         Column(
                                             modifier =
                                                 Modifier
@@ -560,18 +601,18 @@ internal fun RssDetailScreen(
                                                     .background(MaterialTheme.colorScheme.surface)
                                                     .padding(8.dp)
                                                     .clickable {
-                                                        tldrState.onError {
-                                                            state.refreshTldr()
+                                                        currentTldr.onError {
+                                                            tldrRefreshKey++
                                                         }
                                                     },
                                             verticalArrangement = Arrangement.spacedBy(4.dp),
                                             horizontalAlignment = Alignment.CenterHorizontally,
                                         ) {
-                                            AnimatedContent(tldrState) {
+                                            AnimatedContent(currentTldr) {
                                                 it
-                                                    .onSuccess {
+                                                    .onSuccess { summary ->
                                                         Text(
-                                                            text = it,
+                                                            text = summary,
                                                             modifier =
                                                                 Modifier
                                                                     .padding(
@@ -607,20 +648,19 @@ internal fun RssDetailScreen(
                                 }
                                 MaybeSelectable(enabled = !paged) {
                                     RssRichText(
-                                        element = remember(data.content, url) { parseHtml(data.content, baseUri = url) },
+                                        element = remember(data.contentHtml, url) { parseHtml(data.contentHtml, baseUri = url) },
                                         textStyle = bodyStyle,
                                     )
                                 }
                                 if (data.textContent.isNotBlank()) {
                                     Surface(
                                         onClick = {
-                                            val body = data.textContent
                                             uriHandler.openUri(
                                                 DeeplinkRoute.Status
                                                     .OmniScribe(
                                                         statusKey = MicroBlogKey(url.hashCode().toString(), "rss"),
                                                         accountType = AccountType.Guest,
-                                                        initialText = body,
+                                                        initialText = data.textContent,
                                                         authorName = data.byline ?: data.siteName.orEmpty(),
                                                         authorHandle = "rss",
                                                         articleTitle = data.title,
@@ -694,7 +734,6 @@ internal fun RssDetailScreen(
                     }
                 }
                 if (paged) {
-                    // Page edges can fall mid-line, so fade them into the paper.
                     val edgeHeight = PAGE_EDGE_FADE
                     if (scrollState.value > 0) {
                         Box(
@@ -717,7 +756,7 @@ internal fun RssDetailScreen(
                                 .background(Brush.verticalGradient(listOf(color.copy(alpha = 0f), color))),
                     )
                     val fraction = if (scrollState.maxValue > 0) scrollState.value / scrollState.maxValue.toFloat() else 0f
-                    val totalMinutes = readingMinutes((state.data as? UiState.Success)?.data?.textContent.orEmpty())
+                    val totalMinutes = readingMinutes(loadedDoc?.textContent.orEmpty())
                     Text(
                         text =
                             stringResource(
@@ -758,68 +797,12 @@ private fun MaybeSelectable(
     }
 }
 
-@Composable
-private fun presenter(
-    url: String,
-    descriptionHtml: String? = null,
-    descriptionTitle: String? = null,
-    fallbackHtml: String? = null,
-    settingsRepository: SettingsRepository = koinInject(),
-) = run {
-    // Retry and "Try full article" load the article again from scratch. The presenter keeps its
-    // load in remember(), so a new key group is what starts it over. That is cheap: every
-    // Readability shares one HTTP client, and the history entry it logs again is an upsert of
-    // the same row (same paging key and status id), so it only moves to "now".
-    var reloadKey by remember { mutableIntStateOf(0) }
-    val state =
-        key(reloadKey) {
-            remember(url, descriptionHtml, descriptionTitle, fallbackHtml) {
-                RssDetailPresenter(url, descriptionHtml, descriptionTitle, fallbackHtml)
-            }.invoke()
-        }
-    val enableTldr by remember {
-        settingsRepository.appSettings.map { it.aiConfig.tldr }
-    }.collectAsUiState()
-    var showTldr by remember { mutableStateOf(false) }
-    var tldrRefreshKey by remember { mutableIntStateOf(0) }
-    val tldrState =
-        if (showTldr) {
-            key(tldrRefreshKey, state.data) {
-                state.data.flatMap {
-                    AiTLDRPresenter(
-                        it.encodeJson(DocumentData.serializer()),
-                        Locale.current.toLanguageTag(),
-                    ).invoke()
-                }
-            }
-        } else {
-            null
-        }
-    object : RssDetailPresenter.State by state {
-        val enableTldr = enableTldr
-        val tldrState = tldrState
-        val showTldr = showTldr
-
-        fun setShowTldr(value: Boolean) {
-            showTldr = value
-        }
-
-        fun refreshTldr() {
-            tldrRefreshKey++
-        }
-
-        fun reload() {
-            reloadKey++
-        }
-    }
-}
-
 /** The string that explains [error] to the reader, in plain words. */
 @Composable
 private fun articleErrorMessage(error: Throwable): String {
-    val reason = error.articleFailureReason()
-    val status = error.articleHttpStatus()
-    return if (reason == ArticleFailureReason.HttpError && status != null) {
+    val reason = error.rssArticleFailureReason()
+    val status = error.rssArticleHttpStatus()
+    return if (reason == RssArticleFailureReason.HttpError && status != null) {
         stringResource(R.string.rss_detail_error_http, status)
     } else {
         stringResource(articleErrorMessageRes(reason))
@@ -827,13 +810,13 @@ private fun articleErrorMessage(error: Throwable): String {
 }
 
 /** The message for [reason]; an HTTP error without a known status reads as the generic message. */
-internal fun articleErrorMessageRes(reason: ArticleFailureReason): Int =
+internal fun articleErrorMessageRes(reason: RssArticleFailureReason): Int =
     when (reason) {
-        ArticleFailureReason.Unreachable -> R.string.rss_detail_error_unreachable
-        ArticleFailureReason.TimedOut -> R.string.rss_detail_error_timeout
-        ArticleFailureReason.NoArticle -> R.string.rss_detail_error_no_article
-        ArticleFailureReason.HttpError,
-        ArticleFailureReason.Other,
+        RssArticleFailureReason.Unreachable -> R.string.rss_detail_error_unreachable
+        RssArticleFailureReason.TimedOut -> R.string.rss_detail_error_timeout
+        RssArticleFailureReason.NoArticle -> R.string.rss_detail_error_no_article
+        RssArticleFailureReason.HttpError,
+        RssArticleFailureReason.Other,
         -> R.string.rss_detail_unavailable
     }
 

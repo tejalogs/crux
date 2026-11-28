@@ -12,8 +12,6 @@ import org.crux.ui.component.BottomSheetSceneStrategy
 import org.crux.ui.component.platform.LocalWindowSizeClass
 import org.crux.ui.component.platform.WindowSizeClass
 import org.crux.ui.route.Route
-import org.crux.ui.screen.agent.AgentChatScreen
-import org.crux.ui.screen.agent.LocalHistoryAgentScreen
 import org.crux.ui.screen.instagram.InstagramWebScreen
 import org.crux.ui.screen.linkedin.LinkedInWebScreen
 import org.crux.ui.screen.readinglist.ReadingListScreen
@@ -44,12 +42,14 @@ internal fun EntryProviderScope<NavKey>.homeEntryBuilder(
             toReadingList = {
                 navigate(Route.ReadingList)
             },
+            onNavigate = navigate,
         )
     }
     entry<Route.Timeline> { args ->
         TimelineScreen(
             tabItem = args.tabItem,
             onBack = onBack,
+            onNavigate = navigate,
         )
     }
     entry<Route.DeckTimeline> { args ->
@@ -64,23 +64,7 @@ internal fun EntryProviderScope<NavKey>.homeEntryBuilder(
             toTabSettings = {
                 navigate(Route.TabSettings)
             },
-        )
-    }
-    entry<Route.AgentChat> {
-        AgentChatScreen(
-            conversationId = it.conversationId,
-            initialMessage = it.initialMessage,
-            onBack = onBack,
-            navigate = navigate,
-        )
-    }
-    entry<Route.LocalHistoryAgent> {
-        LocalHistoryAgentScreen(
-            conversationId = it.conversationId,
-            query = it.query,
-            target = it.target,
-            onBack = onBack,
-            navigate = navigate,
+            onNavigate = navigate,
         )
     }
     entry<Route.TabSettings>(
@@ -187,28 +171,5 @@ internal fun EntryProviderScope<NavKey>.homeEntryBuilder(
             },
             onNavigate = navigate,
         )
-    }
-
-    entry<Route.AccountSelection>(
-        metadata = BottomSheetSceneStrategy.bottomSheet()
-    ) {
-        AccountSelectionModal(
-            onBack = onBack,
-            navigate = navigate,
-        )
-    }
-    entry<Route.DeepLinkAccountPicker>(
-        metadata = BottomSheetSceneStrategy.bottomSheet()
-    ) {
-        CompositionLocalProvider(
-            LocalUriHandler provides uriHandler
-        ) {
-            DeepLinkAccountPickerModal(
-                originalUrl = it.originalUrl,
-                data = it.data,
-                onNavigate = navigate,
-                onDismissRequest = onBack,
-            )
-        }
     }
 }

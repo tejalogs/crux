@@ -11,28 +11,20 @@ import android.provider.MediaStore
 import android.util.Log
 import android.webkit.MimeTypeMap
 import android.widget.Toast
-import androidx.annotation.OptIn
 import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Stable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
-import androidx.media3.common.C
-import androidx.media3.common.util.UnstableApi
-import androidx.media3.datasource.DataSpec
+import io.ktor.client.HttpClient
+import io.ktor.client.request.header
+import io.ktor.client.statement.bodyAsChannel
+import io.ktor.http.isSuccess
+import io.ktor.utils.io.jvm.javaio.copyTo
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.async
-import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
-import org.crux.R
-import org.crux.ui.component.Media3VideoCacheManager
+import org.crux.data.network.PublicUrlValidator
+import org.crux.data.network.getPublic
+import org.crux.data.network.publicWebClient
 import org.crux.ui.model.UiMedia
 import org.koin.core.annotation.Provided
 import org.koin.core.annotation.Single
@@ -43,20 +35,18 @@ import java.util.Locale
 import java.util.concurrent.atomic.AtomicLong
 
 /**
- * Saves files to the configured media destination. Remote media reuses the shared Media3 playback
- * cache when possible.
+ * Saves files to the configured media destination over Crux's SSRF-protected HTTP client.
  */
 @Stable
 @Single
-@OptIn(UnstableApi::class)
 internal class AndroidDownloadManager(
     @Provided private val context: Context,
-    private val media3VideoCacheManager: Media3VideoCacheManager,
     private val mediaSaveLocationRepository: AndroidMediaSaveLocationRepository,
     private val mediaSavePicker: AndroidMediaSavePicker,
 ) {
     companion object {
         private const val TAG = "AndroidDownloadManager"
+        private val downloadClient: HttpClient by lazy { publicWebClient() }
     }
 
     private val nextDownloadId = AtomicLong()
@@ -199,26 +189,6 @@ internal class AndroidDownloadManager(
             val headers = customHeaders?.takeIf { it.isNotEmpty() }?.toMap()
             val mimeType = getMimeType(uri = uri, fileName = fileName)
 
-            if (media3VideoCacheManager.isFullyCached(uri = uri, customHeaders = headers)) {
-                val saveMode = mediaSaveLocationRepository.state.value.mode
-                val savedFromCache =
-                    saveFile(fileName = fileName, mimeType = mimeType, askDirectoryUri = askDirectoryUri) { outputStream ->
-                        exportToStream(
-                            uri = uri,
-                            customHeaders = headers,
-                            outputStream = outputStream,
-                            cacheOnly = true,
-                        )
-                    }
-                if (savedFromCache) {
-                    Log.d(TAG, "Saved from Media3 cache: $uri")
-                    return@withContext true
-                }
-                if (saveMode != MediaSaveLocationMode.DefaultDownloads) {
-                    return@withContext false
-                }
-            }
-
             onDownloadStarted()
 
             saveFile(fileName = fileName, mimeType = mimeType, askDirectoryUri = askDirectoryUri) { outputStream ->
@@ -226,7 +196,6 @@ internal class AndroidDownloadManager(
                     uri = uri,
                     customHeaders = headers,
                     outputStream = outputStream,
-                    cacheOnly = false,
                 )
             }
         }
@@ -235,46 +204,25 @@ internal class AndroidDownloadManager(
         uri: String,
         customHeaders: Map<String, String>?,
         outputStream: OutputStream,
-        cacheOnly: Boolean,
-    ): Boolean {
-        val dataSource =
-            if (cacheOnly) {
-                media3VideoCacheManager
-                    .cacheOnlyDataSourceFactory(customHeaders)
-                    .createDataSource()
-            } else {
-                media3VideoCacheManager
-                    .downloadingDataSourceFactory(customHeaders)
-                    .createDataSourceForDownloading()
+    ): Boolean =
+        try {
+            val safeUrl = PublicUrlValidator.requireSafePublicHttpUrl(uri)
+            runBlocking(Dispatchers.IO) {
+                val response =
+                    downloadClient.getPublic(safeUrl) {
+                        customHeaders?.forEach { (k, v) -> header(k, v) }
+                    }
+                if (!response.status.isSuccess()) return@runBlocking false
+                response.bodyAsChannel().copyTo(outputStream)
+                outputStream.flush()
+                true
             }
-        return try {
-            dataSource.open(
-                DataSpec
-                    .Builder()
-                    .setUri(uri)
-                    .build(),
-            )
-            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-            while (true) {
-                val bytesRead = dataSource.read(buffer, 0, buffer.size)
-                if (bytesRead == C.RESULT_END_OF_INPUT) {
-                    break
-                }
-                if (bytesRead > 0) {
-                    outputStream.write(buffer, 0, bytesRead)
-                }
-            }
-            outputStream.flush()
-            true
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to export media: $uri", e)
+            Log.e(TAG, "Failed to download media: $uri", e)
             false
-        } finally {
-            runCatching {
-                dataSource.close()
-            }
         }
-    }
 
     private fun imageMimeType(byteArray: ByteArray): String {
         val options =

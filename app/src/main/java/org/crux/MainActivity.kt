@@ -49,7 +49,6 @@ import org.crux.ui.component.platform.LocalWifiState
 import org.crux.ui.lock.AppLock
 import org.crux.ui.lock.AppLockCoverWindow
 import org.crux.ui.lock.deviceCredentialIntent
-import org.crux.ui.component.status.ProvideAndroidTimelineMediaActions
 import org.crux.ui.screen.home.LiveWebPrivacyStore
 import org.crux.ui.screen.home.LiveWebPrivateScreens
 import org.crux.ui.screen.home.recentsPreviewHidden
@@ -125,8 +124,7 @@ class MainActivity : ComponentActivity() {
                 LocalSystemDarkTheme provides isOsDarkTheme,
             ) {
                 ProvideAndroidMediaSavePicker {
-                    ProvideAndroidTimelineMediaActions {
-                        if (!isPrivacyLoaded) {
+                    if (!isPrivacyLoaded) {
                             // Hold splash screen & neutral surface until persisted privacy/lock policy loads.
                             CruxTheme {
                                 Box(
@@ -173,7 +171,6 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 }
-            }
         }
     }
 

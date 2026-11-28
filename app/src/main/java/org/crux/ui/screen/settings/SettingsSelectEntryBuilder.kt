@@ -7,8 +7,6 @@ import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.scene.DialogSceneStrategy
 import org.crux.ui.route.Route
 import org.crux.ui.route.reloginRoute
-import org.crux.ui.screen.agent.AgentChatHistoryScreen
-import kotlin.time.Clock
 
 @OptIn(ExperimentalMaterial3AdaptiveApi::class)
 internal fun EntryProviderScope<NavKey>.settingsSelectEntryBuilder(
@@ -42,9 +40,6 @@ internal fun EntryProviderScope<NavKey>.settingsSelectEntryBuilder(
             toAbout = {
                 navigate(Route.Settings.About)
             },
-            toLocalFilter = {
-                navigate(Route.Settings.LocalFilter)
-            },
             toAiConfig = {
                 navigate(Route.Settings.AiConfig)
             },
@@ -63,9 +58,6 @@ internal fun EntryProviderScope<NavKey>.settingsSelectEntryBuilder(
         AccountsScreen(
             onBack = onBack,
             navigate = navigate,
-            toRelogin = {
-                navigate(reloginRoute(it.platformId))
-            },
         )
     }
 
@@ -225,61 +217,6 @@ internal fun EntryProviderScope<NavKey>.settingsSelectEntryBuilder(
         )
     }
 
-    entry<Route.Settings.LocalFilter>(
-        metadata = ListDetailSceneStrategy.detailPane(
-            sceneKey = "Settings"
-        )
-    ) {
-        LocalFilterScreen(
-            onBack = onBack,
-            edit = { keyword ->
-                navigate(Route.Settings.LocalFilterEdit(keyword))
-            },
-            add = {
-                navigate(Route.Settings.LocalFilterEdit(null))
-            }
-        )
-    }
-
-    entry<Route.Settings.LocalHistory>(
-        metadata = ListDetailSceneStrategy.detailPane(
-            sceneKey = "Settings"
-        )
-    ) {
-        LocalCacheSearchScreen(
-            onBack = onBack,
-            onAskAiClick = { query, target ->
-                navigate(
-                    Route.LocalHistoryAgent(
-                        conversationId = "local-history:${Clock.System.now().toEpochMilliseconds()}",
-                        query = query,
-                        target = target,
-                    ),
-                )
-            },
-        )
-    }
-
-    entry<Route.Settings.AgentHistory>(
-        metadata = ListDetailSceneStrategy.detailPane(
-            sceneKey = "Settings"
-        )
-    ) {
-        AgentChatHistoryScreen(
-            onBack = onBack,
-            onConversationClick = { conversationId ->
-                navigate(Route.AgentChat(conversationId = conversationId))
-            },
-            onNewConversationClick = {
-                navigate(
-                    Route.AgentChat(
-                        conversationId = "generic-chat:${Clock.System.now().toEpochMilliseconds()}",
-                    ),
-                )
-            },
-        )
-    }
-
     entry<Route.Settings.AiConfig>(
         metadata = ListDetailSceneStrategy.detailPane(
             sceneKey = "Settings"
@@ -304,17 +241,6 @@ internal fun EntryProviderScope<NavKey>.settingsSelectEntryBuilder(
         )
     ) {
         AppLoggingScreen(
-            onBack = onBack
-        )
-    }
-
-    entry<Route.Settings.LocalFilterEdit>(
-        metadata = ListDetailSceneStrategy.extraPane(
-            sceneKey = "Settings"
-        )
-    ) { args ->
-        LocalFilterEditDialog(
-            keyword = args.keyword,
             onBack = onBack
         )
     }

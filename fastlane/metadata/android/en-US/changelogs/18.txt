@@ -1,0 +1,4 @@
+Crux 2.0: leaner and faster.
+- New built-in RSS/Atom/JSON Feed reader with OPML import/export and offline articles. Your existing feeds move over automatically.
+- App is about half the size: unused modules removed, release builds are ARM-only.
+- Your logins, bookmarks, folders, settings and reader positions are kept.

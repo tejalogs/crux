@@ -233,7 +233,6 @@ fun NavigationSuiteScaffold2(
     footerItems: NavigationSuiteScope2.() -> Unit = {},
     content: @Composable () -> Unit = {},
 ) {
-    var isPodcastShowing by remember { mutableStateOf(false) }
     var isBottomBarExpanded by remember { mutableStateOf(true) }
     androidx.compose.runtime.LaunchedEffect(keepBottomBarVisible) {
         if (keepBottomBarVisible) isBottomBarExpanded = true
@@ -417,11 +416,6 @@ fun NavigationSuiteScaffold2(
             Box {
                 CompositionLocalProvider(
                     LocalBottomBarHeight provides
-                        if (isPodcastShowing) {
-                            effectiveBarHeight
-                        } else {
-                            0.dp
-                        } +
                         if (showBottomBar) {
                             when (bottomBarStyle) {
                                 BottomBarStyle.Floating -> effectiveBarHeight + 16.dp
@@ -485,24 +479,6 @@ fun NavigationSuiteScaffold2(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Bottom,
                 ) {
-                    PodcastFAB(
-                        onVisibilityChanged = {
-                            isPodcastShowing = it
-                        },
-                        modifier =
-                            Modifier
-                                .let {
-                                    if (layoutType == NavigationSuiteType.NavigationBar) {
-                                        it
-                                    } else {
-                                        it.windowInsetsPadding(
-                                            WindowInsets.systemBars.only(
-                                                WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom,
-                                            ),
-                                        )
-                                    }
-                                },
-                    )
                 }
 
                 androidx.compose.animation.AnimatedVisibility(

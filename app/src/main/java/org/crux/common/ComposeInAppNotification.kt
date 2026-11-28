@@ -4,9 +4,23 @@ import androidx.annotation.StringRes
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import org.crux.R
-import org.crux.data.repository.LoginExpiredException
 import org.crux.ui.presenter.login.ReloginTarget
 import org.koin.core.annotation.Single
+
+internal class Event<out T>(
+    private val content: T?,
+    initialHandled: Boolean = false,
+) {
+    private var hasBeenHandled = initialHandled
+
+    fun getContentIfNotHandled(): T? =
+        if (hasBeenHandled) {
+            null
+        } else {
+            hasBeenHandled = true
+            content
+        }
+}
 
 internal sealed interface Notification {
     data class Progress(
@@ -66,23 +80,6 @@ internal class ComposeInAppNotification : InAppNotification {
                 Notification.StringNotification(
                     message.errorTitle,
                     success = false,
-                    args =
-                        listOfNotNull(
-                            if (throwable is LoginExpiredException) {
-                                throwable.accountKey
-                            } else {
-                                null
-                            },
-                        ),
-                    reloginTarget =
-                        if (throwable is LoginExpiredException) {
-                            ReloginTarget(
-                                accountKey = throwable.accountKey,
-                                platformId = throwable.platformId,
-                            )
-                        } else {
-                            null
-                        },
                 ),
             )
     }

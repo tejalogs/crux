@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Text
@@ -18,6 +19,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -26,18 +28,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import moe.tlaster.precompose.molecule.producePresenter
 import org.crux.R
+import org.crux.rss.OpmlCodec
+import org.crux.rss.RssRepository
 import org.crux.ui.model.UiState
 import org.crux.ui.model.onError
 import org.crux.ui.model.onLoading
 import org.crux.ui.model.onSuccess
-import org.crux.ui.presenter.home.rss.ImportOPMLPresenter
-import org.crux.ui.presenter.home.rss.countImportableOpmlFeeds
 import org.crux.ui.theme.screenHorizontalPadding
 import java.io.ByteArrayOutputStream
 import java.io.IOException
@@ -53,16 +55,31 @@ internal fun OPMLImportSheet(
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
-    val preview by producePresenter("opml_preview_$uri") {
-        previewPresenter(uri, context)
-    }
+    var preview by remember(uri) { mutableStateOf<UiState<OpmlPreview>>(UiState.Loading()) }
     var confirmed by rememberSaveable(uri) { mutableStateOf(false) }
+
+    LaunchedEffect(uri, context) {
+        preview =
+            try {
+                val content = withContext(Dispatchers.IO) { readBoundedOpmlText(context, uri) }
+                if (content.isEmpty()) {
+                    UiState.Error(Exception("Empty content"))
+                } else {
+                    val feedCount = withContext(Dispatchers.Default) { OpmlCodec.countImportableFeeds(content) }
+                    UiState.Success(OpmlPreview(content = content, feedCount = feedCount))
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                UiState.Error(e)
+            }
+    }
+
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.padding(bottom = 12.dp),
     ) {
-        ProvideTextStyle(
-            MaterialTheme.typography.titleMedium,
-        ) {
+        ProvideTextStyle(MaterialTheme.typography.titleMedium) {
             Text(
                 stringResource(R.string.opml_import),
                 modifier = Modifier.padding(horizontal = screenHorizontalPadding),
@@ -71,6 +88,7 @@ internal fun OPMLImportSheet(
         preview
             .onLoading {
                 Box(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
                     contentAlignment = Alignment.Center,
                 ) {
                     CircularWavyProgressIndicator(
@@ -78,10 +96,14 @@ internal fun OPMLImportSheet(
                     )
                 }
             }.onError {
-                Text(text = it.message ?: "Unknown error")
+                Text(
+                    text = it.message ?: "Unknown error",
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(horizontal = screenHorizontalPadding, vertical = 8.dp),
+                )
             }.onSuccess { opml ->
                 if (confirmed) {
-                    OpmlImportProgress(content = opml.content, uri = uri, onBack = onBack)
+                    OpmlImportProgress(content = opml.content, totalExpected = opml.feedCount, onBack = onBack)
                 } else {
                     OpmlImportConfirmation(
                         feedCount = opml.feedCount,
@@ -131,30 +153,67 @@ private fun OpmlImportConfirmation(
 @Composable
 private fun OpmlImportProgress(
     content: String,
-    uri: Uri,
+    totalExpected: Int,
     onBack: () -> Unit,
 ) {
-    val state by producePresenter("import_rss_$uri") {
-        remember(content) { ImportOPMLPresenter(content) }.body()
+    val context = LocalContext.current
+    val repo = remember(context) { RssRepository.get(context) }
+    var importing by remember { mutableStateOf(true) }
+    var importedCount by remember { mutableIntStateOf(0) }
+    var totalCount by remember { mutableIntStateOf(totalExpected) }
+    var currentTitle by remember { mutableStateOf("") }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(content) {
+        importing = true
+        try {
+            importedCount =
+                repo.importOpml(content) { imported, total, title ->
+                    importedCount = imported
+                    totalCount = total
+                    currentTitle = title
+                }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            errorMessage = e.message ?: "Import failed"
+        } finally {
+            importing = false
+        }
     }
-    Column {
-        ImportOPMLContent(
-            state = state,
-            onGoBack = onBack,
-            modifier = Modifier.weight(1f),
-        )
+
+    Column(
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier.padding(horizontal = screenHorizontalPadding, vertical = 8.dp),
+    ) {
+        val progress = if (totalCount > 0) importedCount.toFloat() / totalCount.toFloat() else 1f
+        if (importing) {
+            LinearProgressIndicator(
+                progress = { progress.coerceIn(0f, 1f) },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Text(
+                text = "Importing $importedCount / $totalCount: $currentTitle",
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        } else if (errorMessage != null) {
+            Text(
+                text = errorMessage!!,
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        } else {
+            Text(
+                text = "Imported $importedCount feeds into Crux. Articles are syncing in the background.",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
         Button(
-            onClick = {
-                onBack.invoke()
-            },
-            enabled = !state.importing,
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(
-                        horizontal = screenHorizontalPadding,
-                        vertical = 8.dp,
-                    ),
+            onClick = onBack,
+            enabled = !importing,
+            modifier = Modifier.fillMaxWidth(),
         ) {
             Text(stringResource(android.R.string.ok))
         }
@@ -188,38 +247,7 @@ internal fun readBoundedOpmlText(
     } ?: ""
 }
 
-/** The OPML text read from the file, plus how many feeds it would subscribe to. */
 private data class OpmlPreview(
     val content: String,
     val feedCount: Int,
 )
-
-@Composable
-private fun previewPresenter(
-    uri: Uri,
-    context: Context,
-): UiState<OpmlPreview> {
-    var previewState by remember { mutableStateOf<UiState<OpmlPreview>>(UiState.Loading()) }
-
-    LaunchedEffect(uri, context) {
-        previewState =
-            try {
-                val content =
-                    withContext(Dispatchers.IO) {
-                        readBoundedOpmlText(context, uri)
-                    }
-                if (content.isEmpty()) {
-                    UiState.Error(Exception("Empty content"))
-                } else {
-                    val feedCount = withContext(Dispatchers.Default) { countImportableOpmlFeeds(content) }
-                    UiState.Success(OpmlPreview(content = content, feedCount = feedCount))
-                }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                UiState.Error(e)
-            }
-    }
-
-    return previewState
-}

@@ -26,10 +26,11 @@
 
 # Preserve Crux data models & dynamic payloads
 -keep class org.crux.data.model.** { *; }
--keep class org.crux.data.datasource.linkedin.** { *; }
--keep class org.crux.data.datasource.instagram.** { *; }
+-keep class org.crux.data.datastore.model.** { *; }
 -keep class org.crux.data.ai.** { *; }
 -keep class org.crux.data.privacy.** { *; }
+-keep class org.crux.data.readinglist.** { *; }
+-keep class org.crux.rss.** { *; }
 
 # ------------------------------------------------------------------------------
 # Android WebView & JavaScript Interfaces
@@ -45,14 +46,12 @@
 -keep class org.crux.ui.screen.instagram.** { *; }
 
 # ------------------------------------------------------------------------------
-# Ktor & Ktorfit
+# Ktor & OkHttp
 # ------------------------------------------------------------------------------
 -dontwarn io.ktor.client.engine.**
 -dontwarn okhttp3.internal.graal.**
 -dontwarn okhttp3.internal.platform.**
 
--keep class de.jensklingenberg.ktorfit.** { *; }
--keepclassmembers class de.jensklingenberg.ktorfit.** { *; }
 -keepnames class io.ktor.serialization.kotlinx.KotlinxSerializationExtensionProvider {}
 -keep class * implements io.ktor.serialization.kotlinx.KotlinxSerializationExtensionProvider {
     <init>();
@@ -70,23 +69,6 @@
 -keep class coil3.util.ServiceLoaderComponentRegistry { *; }
 -keep class * implements coil3.util.DecoderServiceLoaderTarget { *; }
 -keep class * implements coil3.util.FetcherServiceLoaderTarget { *; }
-
-# ------------------------------------------------------------------------------
-# Room, SQLite & Bundled Native Drivers
-# ------------------------------------------------------------------------------
--keep class * extends androidx.room.RoomDatabase { <init>(); }
--keep class * extends androidx.room3.RoomDatabase { <init>(); }
--keepclasseswithmembers class androidx.sqlite.driver.bundled.** { native <methods>; }
--keepclasseswithmembers class androidx.sqlite.driver.** { native <methods>; }
-
-# ------------------------------------------------------------------------------
-# Native Interop (JNA, UniFFI, Rust bridges)
-# ------------------------------------------------------------------------------
--keep class com.sun.jna.** { *; }
--keep class net.java.dev.jna.** { *; }
--keep class uniffi.** { *; }
--dontwarn com.sun.jna.**
--dontwarn net.java.dev.jna.**
 
 # ------------------------------------------------------------------------------
 # On-Device AI, LiteRT & MediaPipe Runtime
@@ -108,12 +90,9 @@
 -keep @org.koin.core.annotation.Factory class * { *; }
 
 # ------------------------------------------------------------------------------
-# Third-party utilities & localization
+# Third-party utilities
 # ------------------------------------------------------------------------------
--keep class org.ocpsoft.prettytime.i18n** { *; }
--keep public class * implements org.ocpsoft.prettytime.TimeUnit
 -keep class okio.** { *; }
--keep class io.github.kdroidfilter.** { *; }
 
 # Strip verbose/debug/info Logcat statements in release builds
 -assumenosideeffects class android.util.Log {

@@ -86,9 +86,6 @@ import org.crux.model.MicroBlogKey
 import org.crux.ui.component.FAIcon
 import org.crux.ui.haptic.CruxHapticEvent
 import org.crux.ui.haptic.rememberFlareHapticFeedback
-import org.crux.ui.model.takeSuccess
-import org.crux.ui.presenter.invoke
-import org.crux.ui.presenter.settings.AccountsPresenter
 import org.crux.ui.route.Route
 import org.crux.ui.theme.screenHorizontalPadding
 
@@ -254,10 +251,6 @@ internal fun SmartReplyBottomSheet(
         if (smartReplyAutoRefineAllowed(config.type)) {
             performRefinement(isManual = false)
         }
-    }
-
-    val accountsState by producePresenter {
-        remember { AccountsPresenter() }.invoke()
     }
 
     val coreTones =

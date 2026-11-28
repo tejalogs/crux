@@ -37,11 +37,8 @@ import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.scene.DialogSceneStrategy
 import org.crux.ui.component.BottomSheetSceneStrategy
 import org.crux.ui.component.platform.isBigScreen
-import org.crux.ui.screen.article.articleEntryBuilder
-import org.crux.ui.screen.gallery.galleryEntryBuilder
 import org.crux.ui.screen.home.homeEntryBuilder
 import org.crux.ui.screen.media.mediaEntryBuilder
-import org.crux.ui.screen.profile.profileEntryBuilder
 import org.crux.ui.screen.rss.rssEntryBuilder
 import org.crux.ui.screen.settings.settingsSelectEntryBuilder
 import org.crux.ui.screen.status.statusEntryBuilder
@@ -86,10 +83,7 @@ internal fun Router(
         remember {
             entryProvider<NavKey> {
                 homeEntryBuilder(stableNavigate, stableOnBack, stableOpenDrawer, uriHandler = stableUriHandler)
-                articleEntryBuilder(stableNavigate, stableOnBack)
-                galleryEntryBuilder(stableNavigate, stableOnBack)
                 mediaEntryBuilder(stableNavigate, stableOnBack, uriHandler = stableUriHandler)
-                profileEntryBuilder(stableNavigate, stableOnBack)
                 rssEntryBuilder(stableNavigate, stableOnBack)
                 settingsSelectEntryBuilder(stableNavigate, stableOnBack)
                 statusEntryBuilder(stableNavigate, stableOnBack)

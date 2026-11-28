@@ -95,7 +95,6 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.launch
 import org.crux.BuildConfig
 import org.crux.R
-import org.crux.data.datasource.instagram.InstagramFeedService
 import org.crux.ui.component.BackButton
 import org.crux.ui.component.CruxDropdownMenu
 import org.crux.ui.component.CruxScaffold
@@ -480,8 +479,16 @@ private fun readInstagramSignedIn(): Boolean =
     runCatching {
         val cm = LiveWebSite.Instagram.cookieManager()
         val cookies = cm.getCookie(INSTAGRAM_HOME_URL).orEmpty() + "; " + cm.getCookie("https://instagram.com").orEmpty()
-        InstagramFeedService.hasActiveSession(cookies)
+        cookies.contains("sessionid=") && cookies.contains("ds_user_id=")
     }.getOrDefault(false)
+
+private fun isValidInstagramHost(host: String?): Boolean {
+    if (host.isNullOrBlank()) return false
+    val lower = host.lowercase()
+    return lower == "instagram.com" || lower.endsWith(".instagram.com") ||
+        lower == "threads.net" || lower.endsWith(".threads.net") ||
+        lower == "facebook.com" || lower.endsWith(".facebook.com")
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -946,7 +953,7 @@ internal fun InstagramWebScreen(
                                 canGoBack = computeWebViewCanGoBack(view.canGoBack(), it)
                             }
                             val host = committed?.let { runCatching { Uri.parse(it).host }.getOrNull() }
-                            if (InstagramFeedService.isValidInstagramHost(host)) {
+                            if (isValidInstagramHost(host)) {
                                 checkAndSyncSession(committed)
                             }
                         }
@@ -964,7 +971,7 @@ internal fun InstagramWebScreen(
                             isPageLoading = false
                             webConfig.runScriptsAfterLoad(view, committed)
                             val host = committed?.let { runCatching { Uri.parse(it).host }.getOrNull() }
-                            if (InstagramFeedService.isValidInstagramHost(host)) {
+                            if (isValidInstagramHost(host)) {
                                 checkAndSyncSession(committed)
                             }
                         }

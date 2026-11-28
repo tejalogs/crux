@@ -84,9 +84,6 @@ import org.crux.ui.component.FAIcon
 import org.crux.ui.component.LocalGlobalAppearance
 import org.crux.ui.component.ThemeIconData
 import org.crux.ui.component.ThemedIcon
-import org.crux.ui.model.takeSuccess
-import org.crux.ui.presenter.invoke
-import org.crux.ui.presenter.settings.AccountsPresenter
 import org.crux.ui.screen.crux.CalmToggle
 import org.crux.ui.screen.crux.rememberCruxConnections
 import org.crux.ui.screen.home.LiveWebSite
@@ -184,7 +181,6 @@ internal fun SettingsScreen(
     toStorage: () -> Unit,
     toAbout: () -> Unit,
     toColorSpace: () -> Unit,
-    toLocalFilter: () -> Unit,
     toAiConfig: () -> Unit,
     onBack: () -> Unit,
 ) {

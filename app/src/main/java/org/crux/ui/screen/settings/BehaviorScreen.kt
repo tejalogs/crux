@@ -275,27 +275,5 @@ private fun LinkOpenDefaultOptionContent(
     when {
         option.isAsk -> Text(text = askLabel)
         option.isBrowser -> Text(text = browserLabel)
-        option.account != null -> LinkOpenDefaultAccountOption(account = option.account!!)
     }
-}
-
-@Composable
-private fun LinkOpenDefaultAccountOption(account: LinkOpenDefaultsPresenter.Account) {
-    account.profile
-        .onSuccess { user ->
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                AvatarComponent(data = user.avatar, size = 24.dp)
-                Column {
-                    RichText(text = user.name, maxLines = 1)
-                    Text(text = user.handle.canonical, maxLines = 1)
-                }
-            }
-        }.onLoading {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                AvatarComponent(data = null, size = 24.dp)
-                Text(text = account.accountKey.toString())
-            }
-        }.onError {
-            Text(text = account.accountKey.toString())
-        }
 }

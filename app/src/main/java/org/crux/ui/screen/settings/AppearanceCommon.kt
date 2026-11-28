@@ -16,14 +16,12 @@ import androidx.compose.ui.Modifier
 import kotlinx.collections.immutable.ImmutableMap
 import kotlinx.coroutines.launch
 import org.crux.data.model.appearance.AppearanceKey
+import org.crux.data.model.appearance.AppearanceKeys
 import org.crux.data.model.appearance.AppearancePatch
 import org.crux.data.repository.SettingsRepository
 import org.crux.ui.component.CruxDropdownMenu
 import org.crux.ui.model.UiState
 import org.crux.ui.model.collectAsUiState
-import org.crux.ui.presenter.invoke
-import org.crux.ui.presenter.settings.AppearancePresenter
-import org.crux.ui.presenter.settings.AppearanceState
 import org.koin.compose.koinInject
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -69,7 +67,7 @@ internal fun <T> SingleChoiceSettingsItem(
     )
 }
 
-internal interface AppearanceSettingsUpdater : AppearanceState {
+internal interface AppearanceSettingsUpdater {
     val appearance: UiState<AppearancePatch>
 
     fun <T : Any> update(
@@ -87,10 +85,9 @@ internal fun appearancePresenter(): AppearanceSettingsUpdater =
     run {
         val scope = rememberCoroutineScope()
         val settingsRepository = koinInject<SettingsRepository>()
-        val appearanceState = remember { AppearancePresenter() }.invoke()
         val appearance by settingsRepository.appearancePatch.collectAsUiState()
 
-        object : AppearanceSettingsUpdater, AppearanceState by appearanceState {
+        object : AppearanceSettingsUpdater {
             override val appearance: UiState<AppearancePatch> = appearance
 
             override fun <T : Any> update(
@@ -111,8 +108,8 @@ internal fun appearancePresenter(): AppearanceSettingsUpdater =
             override fun updateFontScale(fontSizeDiff: Float) {
                 scope.launch {
                     settingsRepository.updateAppearance {
-                        set(org.crux.data.model.appearance.AppearanceKeys.FontSizeDiff, fontSizeDiff)
-                            .set(org.crux.data.model.appearance.AppearanceKeys.LineHeightDiff, fontSizeDiff * 2)
+                        set(AppearanceKeys.FontSizeDiff, fontSizeDiff)
+                            .set(AppearanceKeys.LineHeightDiff, fontSizeDiff * 2)
                     }
                 }
             }

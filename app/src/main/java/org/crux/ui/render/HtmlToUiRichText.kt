@@ -1,0 +1,21 @@
+package org.crux.ui.render
+
+import com.fleeksoft.ksoup.Ksoup
+import com.fleeksoft.ksoup.nodes.Element
+
+public fun Element.toUi(sourceLanguages: List<String> = emptyList()): UiRichText {
+    val result = mapHtmlToRenderResult(this)
+    val innerText = wholeText()
+    return UiRichText(
+        renderRuns = result.contents,
+        isRtl = innerText.resolveRtl(sourceLanguages),
+        raw = result.raw,
+        innerText = innerText,
+        imageUrls = result.imageUrls,
+    )
+}
+
+public fun parseHtml(
+    html: String,
+    baseUri: String = "",
+): Element = Ksoup.parse(html, baseUri).body()

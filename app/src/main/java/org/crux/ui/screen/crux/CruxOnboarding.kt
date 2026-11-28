@@ -98,9 +98,9 @@ import org.crux.R
 import org.crux.data.datastore.model.AppSettings
 import org.crux.data.model.Theme
 import org.crux.data.model.appearance.AppearanceKeys
-import org.crux.data.repository.DefaultRssFeeds
 import org.crux.data.repository.SettingsRepository
-import org.crux.data.repository.SubscriptionRepository
+import org.crux.rss.CuratedRssDirectory
+import org.crux.rss.RssRepository
 import org.crux.ui.component.FAIcon
 import org.crux.ui.component.LocalGlobalAppearance
 import org.crux.ui.screen.home.LiveWebPages
@@ -219,7 +219,8 @@ internal fun joinPlatformNames(
  */
 @Composable
 internal fun CruxOnboardingScreen(connections: CruxConnectionsState) {
-    val subscriptionRepository = koinInject<SubscriptionRepository>()
+    val context = LocalContext.current
+    val rssRepository = remember(context) { RssRepository.get(context) }
     val settingsRepository = koinInject<SettingsRepository>()
     val scope = rememberCoroutineScope()
     var finishing by remember { mutableStateOf(false) }
@@ -239,16 +240,12 @@ internal fun CruxOnboardingScreen(connections: CruxConnectionsState) {
     val storedSettings by produceState<AppSettings?>(initialValue = null) {
         value = settingsRepository.appSettings.first()
     }
-    val selectedStarterFeeds = remember { mutableStateListOf<DefaultRssFeeds.FeedItem>() }
+    val selectedStarterFeeds = remember { mutableStateListOf<CuratedRssDirectory.CuratedFeed>() }
     // Feeds already in the library. Null until loaded; on a replayed tour nothing is preselected,
     // so feeds the user removed are not quietly added back.
     val existingFeedUrls by produceState<Set<String>?>(initialValue = null) {
-        value =
-            subscriptionRepository
-                .observeAll()
-                .first()
-                .map { it.url }
-                .toSet()
+        rssRepository.ensureLoaded()
+        value = rssRepository.feeds.value.map { it.url }.toSet()
     }
     var starterFeedsPrimed by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(existingFeedUrls) {
@@ -293,11 +290,17 @@ internal fun CruxOnboardingScreen(connections: CruxConnectionsState) {
         scope.launch {
             try {
                 if (rssChosen) {
-                    val existing = existingFeedUrls ?: subscriptionRepository.observeAll().first().map { it.url }.toSet()
+                    rssRepository.ensureLoaded()
+                    val existing = existingFeedUrls ?: rssRepository.feeds.value.map { it.url }.toSet()
                     val candidateFeeds = if (starterFeedsPrimed) chosenFeeds else if (existing.isEmpty()) starterFeedPicks() else emptyList()
                     val newFeeds = candidateFeeds.filter { it.url !in existing }
-                    if (newFeeds.isNotEmpty()) {
-                        subscriptionRepository.upsertAll(newFeeds.map { it.toSubscriptionSourceInput() })
+                    newFeeds.forEach { feed ->
+                        rssRepository.addFeed(
+                            url = feed.url,
+                            title = feed.title,
+                            category = feed.category,
+                            displayMode = feed.displayMode,
+                        )
                     }
                     // The user picked their starter feeds here, so the feeds screen must not
                     // later seed all defaults into an empty library.
@@ -309,7 +312,6 @@ internal fun CruxOnboardingScreen(connections: CruxConnectionsState) {
         }
     }
 
-    val context = LocalContext.current
     val externalWebPages = LocalLiveWebPages.current
     val onboardingWebPages = remember(externalWebPages) { externalWebPages ?: LiveWebPages() }
     DisposableEffect(onboardingWebPages, externalWebPages) {
@@ -835,11 +837,11 @@ private fun LiveDockPreview(selected: List<CruxPlatform>) {
 @Composable
 private fun PlatformsStep(
     selected: List<CruxPlatform>,
-    selectedStarterFeeds: List<DefaultRssFeeds.FeedItem>,
+    selectedStarterFeeds: List<CuratedRssDirectory.CuratedFeed>,
     existingFeedUrls: Set<String>,
     onTogglePlatform: (CruxPlatform) -> Unit,
-    onToggleStarterFeed: (DefaultRssFeeds.FeedItem, Boolean) -> Unit,
-    onReplaceStarterFeeds: (List<DefaultRssFeeds.FeedItem>) -> Unit,
+    onToggleStarterFeed: (CuratedRssDirectory.CuratedFeed, Boolean) -> Unit,
+    onReplaceStarterFeeds: (List<CuratedRssDirectory.CuratedFeed>) -> Unit,
     onContinue: () -> Unit,
 ) {
     StepScaffold(
@@ -923,17 +925,17 @@ private fun PlatformsStep(
 
 @Composable
 private fun RssStarterFeedsSelector(
-    selectedFeeds: List<DefaultRssFeeds.FeedItem>,
+    selectedFeeds: List<CuratedRssDirectory.CuratedFeed>,
     existingFeedUrls: Set<String>,
-    onToggleFeed: (DefaultRssFeeds.FeedItem, Boolean) -> Unit,
-    onReplaceFeeds: (List<DefaultRssFeeds.FeedItem>) -> Unit,
+    onToggleFeed: (CuratedRssDirectory.CuratedFeed, Boolean) -> Unit,
+    onReplaceFeeds: (List<CuratedRssDirectory.CuratedFeed>) -> Unit,
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
     var selectedCategoryIndex by remember { mutableStateOf<Int?>(null) }
-    val categories = remember { DefaultRssFeeds.categories }
+    val categories = remember { CuratedRssDirectory.categories }
     val displayedFeeds =
         remember(selectedCategoryIndex) {
-            if (selectedCategoryIndex == null) DefaultRssFeeds.allFeeds else categories[selectedCategoryIndex!!].feeds
+            if (selectedCategoryIndex == null) CuratedRssDirectory.allFeeds else categories[selectedCategoryIndex!!].feeds
         }
 
     Surface(
@@ -1030,7 +1032,7 @@ private fun RssStarterFeedsSelector(
                         }
                         TextButton(
                             onClick = {
-                                onReplaceFeeds(DefaultRssFeeds.allFeeds)
+                                onReplaceFeeds(CuratedRssDirectory.allFeeds)
                             },
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                         ) {
@@ -1548,8 +1550,8 @@ private fun ProtectionNote() {
 }
 
 /** A small, varied starting set: the first two feeds of each category. */
-private fun starterFeedPicks(): List<DefaultRssFeeds.FeedItem> =
-    DefaultRssFeeds.categories.flatMap {
+private fun starterFeedPicks(): List<CuratedRssDirectory.CuratedFeed> =
+    CuratedRssDirectory.categories.flatMap {
         it.feeds.take(STARTER_FEEDS_PER_CATEGORY)
     }
 

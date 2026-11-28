@@ -6,11 +6,9 @@ import kotlinx.collections.immutable.ImmutableMap
 import kotlinx.collections.immutable.toImmutableMap
 import kotlinx.serialization.Serializable
 import org.crux.common.SerializableImmutableList
-import org.crux.data.model.tab.UiSourceTimelineTabItem
 import org.crux.data.model.tab.UiTimelineTabItem
 import org.crux.data.platform.INSTAGRAM_PLATFORM_ID
 import org.crux.data.platform.LINKEDIN_PLATFORM_ID
-import org.crux.feature.agent.localhistory.LocalHistoryAgentTarget
 import org.crux.model.AccountType
 import org.crux.model.MicroBlogKey
 import org.crux.ui.model.UiMedia
@@ -19,32 +17,6 @@ import org.crux.ui.model.UiMedia
 internal sealed interface Route : NavKey {
     @Serializable
     sealed interface Status : Route {
-        @Serializable
-        data class Detail(
-            val statusKey: MicroBlogKey,
-            val accountType: AccountType,
-        ) : Status
-
-        @Serializable
-        data class AltText(
-            val text: String,
-        ) : Status
-
-        @Serializable
-        data class DeleteConfirm(
-            val statusKey: MicroBlogKey,
-            val accountType: AccountType,
-        ) : Status
-
-        @Serializable
-        data class ShareSheet(
-            val statusKey: MicroBlogKey,
-            val accountType: AccountType,
-            val shareUrl: String,
-            val fxShareUrl: String? = null,
-            val fixvxShareUrl: String? = null,
-        ) : Status
-
         @Serializable
         data class OmniScribe(
             val statusKey: MicroBlogKey,
@@ -113,15 +85,6 @@ internal sealed interface Route : NavKey {
         data object OpenSourceLicenses : Settings
 
         @Serializable
-        data object LocalFilter : Settings
-
-        @Serializable
-        data object LocalHistory : Settings
-
-        @Serializable
-        data object AgentHistory : Settings
-
-        @Serializable
         data object AiConfig : Settings
 
         @Serializable
@@ -129,11 +92,6 @@ internal sealed interface Route : NavKey {
 
         @Serializable
         data object AppLogging : Settings
-
-        @Serializable
-        data class LocalFilterEdit(
-            val keyword: String?,
-        ) : Settings
 
         @Serializable
         data object ColorSpace : Settings
@@ -149,7 +107,7 @@ internal sealed interface Route : NavKey {
         data object PrivacyCheckup : Settings
     }
 
-    /** A Crux platform's real site on its own page (X, Reddit). */
+    /** A Crux platform's real site on its own page (X, Reddit, Mastodon). */
     @Serializable
     data class LiveWeb(
         val site: String,
@@ -243,67 +201,6 @@ internal sealed interface Route : NavKey {
     ) : Route
 
     @Serializable
-    data class AgentChat(
-        val conversationId: String = "generic-chat",
-        val initialMessage: String? = null,
-    ) : Route
-
-    @Serializable
-    data class LocalHistoryAgent(
-        val conversationId: String,
-        val query: String? = null,
-        val target: LocalHistoryAgentTarget = LocalHistoryAgentTarget.All,
-    ) : Route
-
-    @Serializable
-    sealed interface Profile : Route {
-        @Serializable
-        data class User(
-            val accountType: AccountType,
-            val userKey: MicroBlogKey,
-        ) : Profile
-
-        @Serializable
-        data class UserNameWithHost(
-            val accountType: AccountType,
-            val name: String,
-            val host: String,
-        ) : Profile
-
-        @Serializable
-        data class Following(
-            val accountType: AccountType,
-            val userKey: MicroBlogKey,
-        ) : Profile
-
-        @Serializable
-        data class Fans(
-            val accountType: AccountType,
-            val userKey: MicroBlogKey,
-        ) : Profile
-
-        @Serializable
-        data class Me(
-            val accountType: AccountType,
-        ) : Profile
-    }
-
-    @Serializable
-    sealed interface Gallery : Route {
-        @Serializable
-        data class Detail(
-            val statusKey: MicroBlogKey,
-            val accountType: AccountType,
-        ) : Gallery
-
-        @Serializable
-        data class Comments(
-            val statusKey: MicroBlogKey,
-            val accountType: AccountType,
-        ) : Gallery
-    }
-
-    @Serializable
     sealed interface Media : Route {
         @Serializable
         data class Image(
@@ -318,60 +215,7 @@ internal sealed interface Route : NavKey {
             val index: Int = 0,
             val preview: String? = null,
         ) : Media
-
-        @Serializable
-        data class StatusMedia(
-            val statusKey: MicroBlogKey,
-            val accountType: AccountType,
-            val index: Int,
-            val preview: String?,
-        ) : Media
     }
-
-    @Serializable
-    data object AccountSelection : Route
-
-    @Serializable
-    data class DeepLinkAccountPicker(
-        val originalUrl: String,
-        val data: ImmutableMap<MicroBlogKey, Route>,
-    ) : Route
-
-    @Serializable
-    data class Article(
-        val accountType: AccountType,
-        val articleKey: MicroBlogKey,
-    ) : Route
-
-    @Serializable
-    data class BlockUser(
-        val accountType: AccountType?,
-        val userKey: MicroBlogKey,
-    ) : Route
-
-    @Serializable
-    public data class UnblockUser(
-        val accountType: AccountType?,
-        val userKey: MicroBlogKey,
-    ) : Route
-
-    @Serializable
-    public data class MuteUser(
-        val accountType: AccountType?,
-        val userKey: MicroBlogKey,
-    ) : Route
-
-    @Serializable
-    public data class UnmuteUser(
-        val accountType: AccountType?,
-        val userKey: MicroBlogKey,
-    ) : Route
-
-    @Serializable
-    public data class ReportUser(
-        val accountType: AccountType?,
-        val userKey: MicroBlogKey,
-    ) : Route
 
     companion object {
         public fun parse(url: String): Route? {
@@ -379,54 +223,15 @@ internal sealed interface Route : NavKey {
             return from(deeplinkRoute)
         }
 
-        public fun from(deeplinkRoute: DeeplinkRoute): Route? {
-            return when (deeplinkRoute) {
-                is DeeplinkRoute.Timeline.XQTDeviceFollow -> {
-                    null
-                }
+        public fun from(deeplinkRoute: DeeplinkRoute): Route? =
+            when (deeplinkRoute) {
+                is DeeplinkRoute.Login -> Settings.Accounts
 
-                is DeeplinkRoute.OpenLinkDirectly -> {
-                    null
-                }
+                is DeeplinkRoute.Relogin -> reloginRoute(deeplinkRoute.platformId)
 
-                is DeeplinkRoute.DeepLinkAccountPicker -> {
-                    DeepLinkAccountPicker(
-                        originalUrl = deeplinkRoute.originalUrl,
-                        data =
-                            deeplinkRoute.data
-                                .mapNotNull { (key, value) ->
-                                    val route = Route.from(value) ?: return@mapNotNull null
-                                    key to route
-                                }.toMap()
-                                .toImmutableMap(),
-                    )
-                }
+                is DeeplinkRoute.Compose.New -> CruxCompose()
 
-                // There are no login providers left: "log in" means choosing Crux platforms.
-                is DeeplinkRoute.Login -> {
-                    Settings.Accounts
-                }
-
-                is DeeplinkRoute.Relogin -> {
-                    reloginRoute(deeplinkRoute.platformId)
-                }
-
-                is DeeplinkRoute.Compose.New -> {
-                    CruxCompose()
-                }
-
-                is DeeplinkRoute.Compose.Crux -> {
-                    CruxCompose(initialText = deeplinkRoute.initialText)
-                }
-
-                // Replying to or quoting a post needs an API account, and none exist any more.
-                is DeeplinkRoute.Compose.Quote -> {
-                    null
-                }
-
-                is DeeplinkRoute.Compose.Reply -> {
-                    null
-                }
+                is DeeplinkRoute.Compose.Crux -> CruxCompose(initialText = deeplinkRoute.initialText)
 
                 is DeeplinkRoute.Media.Image -> {
                     Media.Image(
@@ -436,78 +241,12 @@ internal sealed interface Route : NavKey {
                     )
                 }
 
-                is DeeplinkRoute.Media.Podcast -> {
-                    null
-                }
-
-                is DeeplinkRoute.Media.StatusMedia -> {
-                    Media.StatusMedia(
-                        statusKey = deeplinkRoute.statusKey,
-                        accountType = deeplinkRoute.accountType,
-                        index = deeplinkRoute.index,
-                        preview = deeplinkRoute.preview,
-                    )
-                }
-
-                is DeeplinkRoute.Profile.User -> {
-                    Profile.User(
-                        accountType = deeplinkRoute.accountType,
-                        userKey = deeplinkRoute.userKey,
-                    )
-                }
-
-                is DeeplinkRoute.Profile.UserNameWithHost -> {
-                    Profile.UserNameWithHost(
-                        accountType = deeplinkRoute.accountType,
-                        name = deeplinkRoute.userName,
-                        host = deeplinkRoute.host,
-                    )
-                }
-
                 is DeeplinkRoute.Rss.Detail -> {
                     Rss.Detail(
                         url = deeplinkRoute.url,
                         descriptionHtml = deeplinkRoute.descriptionHtml,
                         fallbackHtml = deeplinkRoute.fallbackHtml,
                         title = deeplinkRoute.title,
-                    )
-                }
-
-                is DeeplinkRoute.Article -> {
-                    Article(
-                        accountType = deeplinkRoute.accountType,
-                        articleKey = deeplinkRoute.articleKey,
-                    )
-                }
-
-                is DeeplinkRoute.Search -> {
-                    null
-                }
-
-                is DeeplinkRoute.Gallery.Detail -> {
-                    Gallery.Detail(
-                        statusKey = deeplinkRoute.statusKey,
-                        accountType = deeplinkRoute.accountType,
-                    )
-                }
-
-                is DeeplinkRoute.Status.AltText -> {
-                    Status.AltText(
-                        text = deeplinkRoute.text,
-                    )
-                }
-
-                is DeeplinkRoute.Status.DeleteConfirm -> {
-                    Status.DeleteConfirm(
-                        statusKey = deeplinkRoute.statusKey,
-                        accountType = deeplinkRoute.accountType,
-                    )
-                }
-
-                is DeeplinkRoute.Status.Detail -> {
-                    Status.Detail(
-                        statusKey = deeplinkRoute.statusKey,
-                        accountType = deeplinkRoute.accountType,
                     )
                 }
 
@@ -535,62 +274,9 @@ internal sealed interface Route : NavKey {
                     )
                 }
 
-                is DeeplinkRoute.Status.ShareSheet -> {
-                    Status.ShareSheet(
-                        statusKey = deeplinkRoute.statusKey,
-                        accountType = deeplinkRoute.accountType,
-                        shareUrl = deeplinkRoute.shareUrl,
-                        fxShareUrl = deeplinkRoute.fxShareUrl,
-                        fixvxShareUrl = deeplinkRoute.fixvxShareUrl,
-                    )
-                }
-
-                is DeeplinkRoute.BlockUser -> {
-                    Route.BlockUser(
-                        accountType = deeplinkRoute.accountKey?.let { AccountType.Specific(it) },
-                        userKey = deeplinkRoute.userKey,
-                    )
-                }
-
-                is DeeplinkRoute.UnblockUser -> {
-                    Route.UnblockUser(
-                        accountType = deeplinkRoute.accountKey?.let { AccountType.Specific(it) },
-                        userKey = deeplinkRoute.userKey,
-                    )
-                }
-
-                // Direct messages, lists, local follows and search have no data source left.
-                is DeeplinkRoute.DirectMessage,
-                is DeeplinkRoute.EditLocalFollow,
-                is DeeplinkRoute.EditUserList,
-                is DeeplinkRoute.AllLists,
-                is DeeplinkRoute.AllDirectMessages,
-                -> {
-                    null
-                }
-
-                is DeeplinkRoute.MuteUser -> {
-                    Route.MuteUser(
-                        accountType = deeplinkRoute.accountKey?.let { AccountType.Specific(it) },
-                        userKey = deeplinkRoute.userKey,
-                    )
-                }
-
-                is DeeplinkRoute.UnmuteUser -> {
-                    Route.UnmuteUser(
-                        accountType = deeplinkRoute.accountKey?.let { AccountType.Specific(it) },
-                        userKey = deeplinkRoute.userKey,
-                    )
-                }
-
-                is DeeplinkRoute.ReportUser -> {
-                    Route.ReportUser(
-                        accountType = deeplinkRoute.accountKey?.let { AccountType.Specific(it) },
-                        userKey = deeplinkRoute.userKey,
-                    )
-                }
+                // Legacy Flare Fediverse/Podcast/DM/Profile/Gallery routes have been stripped in Crux v2.
+                else -> null
             }
-        }
     }
 }
 

@@ -40,7 +40,7 @@ jobs:
           packages: platform-tools
 
       - name: Run tests
-        run: ./gradlew :app:testDebugUnitTest :shared:jvmTest :feature:subscription:jvmTest :feature:agent:jvmTest
+        run: ./gradlew :app:testDebugUnitTest
 
       # Version comes from fdroid.properties; BUILD_VERSION/BUILD_NUMBER override it if set.
       # Built unsigned and in a job that holds no secrets: signing happens in the separate

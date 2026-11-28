@@ -11,7 +11,6 @@ import android.os.ParcelFileDescriptor
 import android.provider.MediaStore
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
-import org.crux.ui.component.Media3VideoCacheManager
 import org.junit.After
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
@@ -44,7 +43,6 @@ class AndroidDownloadManagerTest {
         manager =
             AndroidDownloadManager(
                 context = context,
-                media3VideoCacheManager = Media3VideoCacheManager(context),
                 mediaSaveLocationRepository = AndroidMediaSaveLocationRepository(context),
                 mediaSavePicker = AndroidMediaSavePicker(),
             )

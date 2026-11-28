@@ -18,10 +18,6 @@ dependencies {
 
 gradlePlugin {
     plugins {
-        create("cruxMultiplatformLibrary") {
-            id = "org.crux.multiplatform-library"
-            implementationClass = "org.crux.buildlogic.CruxMultiplatformLibraryPlugin"
-        }
         create("cruxAndroidApplication") {
             id = "org.crux.android-application"
             implementationClass = "org.crux.buildlogic.CruxAndroidApplicationPlugin"
