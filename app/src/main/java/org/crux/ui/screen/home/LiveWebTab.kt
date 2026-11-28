@@ -483,10 +483,8 @@ internal class LiveWebPage(
             isVerticalScrollBarEnabled = false
             isHorizontalScrollBarEnabled = false
             settings.cacheMode = WebSettings.LOAD_DEFAULT
-            // Heavy virtualized/shadow-DOM feeds (Reddit, X) churn GPU tile memory if offscreen tiles are pre-rastered.
-            if (site != LiveWebSite.Reddit && site != LiveWebSite.X && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                settings.offscreenPreRaster = true
-            }
+            // Offscreen pre-raster allocates extra GPU tile memory during fast feed/Reels scrolling;
+            // keep it disabled across all live tabs so RenderThread/VizWebView stay light.
             // The WebView's real identity: a spoofed one disagrees with its other signals, and that
             // mismatch is a common automation tell (it was part of the Instagram flag in Oct 2026).
             // Without these WebView ignores the page's mobile viewport, and wide layouts get cropped.
@@ -604,14 +602,16 @@ internal class LiveWebPage(
                             pendingRestoreScrollY = 0
                             val restoreScrollJs =
                                 if (site.feedScrollsInnerContainer) {
-                                    "(function(){window.scrollTo(0,$scrollToRestore);var m=document.querySelector('main#workspace,main,[role=\"main\"]');if(m)m.scrollTop=$scrollToRestore;})()"
+                                    "(function(){var m=document.querySelector('main#workspace,main,[role=\"main\"]');if((window.scrollY||0)<20&&(!m||(m.scrollTop||0)<20)){window.scrollTo(0,$scrollToRestore);if(m)m.scrollTop=$scrollToRestore;}})()"
                                 } else {
-                                    "window.scrollTo(0,$scrollToRestore)"
+                                    "if((window.scrollY||0)<20)window.scrollTo(0,$scrollToRestore)"
                                 }
                             view.postDelayed(
                                 {
-                                    view.scrollTo(0, scrollToRestore)
-                                    view.evaluateJavascript(restoreScrollJs, null)
+                                    if (view.scrollY < 20) {
+                                        view.scrollTo(0, scrollToRestore)
+                                        view.evaluateJavascript(restoreScrollJs, null)
+                                    }
                                 },
                                 350L,
                             )

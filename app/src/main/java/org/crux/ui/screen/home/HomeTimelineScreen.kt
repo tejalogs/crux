@@ -562,6 +562,12 @@ internal fun HomeTimelineScreen(
                                     smartReplyAction = bottomBarAccessory.smartReply,
                                     bookmarkAction = bottomBarAccessory.bookmarkPost,
                                     onOpenBookmarks = toReadingList,
+                                    onCollapseDock =
+                                        if (currentIsLiveWeb) {
+                                            { bottomBarAccessory.webDockExpanded = false }
+                                        } else {
+                                            null
+                                        },
                                 )
                             }
                             val latestDockTabs by rememberUpdatedState(dockTabs)

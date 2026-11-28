@@ -26,8 +26,9 @@ internal const val KEY_WEB_PRIVACY_SCHEMA = "web_privacy_schema"
 
 /**
  * 2 (1.0.13): Reddit NSFW unblur became opt-in and Reddit/LinkedIn became tap-to-play.
+ * 3 (1.0.16): X became tap-to-play so video-heavy timelines stay smooth while scrolling.
  */
-internal const val WEB_PRIVACY_SCHEMA_VERSION = 2
+internal const val WEB_PRIVACY_SCHEMA_VERSION = 3
 
 private fun protectionKey(site: LiveWebSite) = "protection.${site.name}"
 
@@ -41,16 +42,22 @@ private val SCHEMA_2_AUTOPLAY_RESET = listOf(LiveWebSite.Reddit, LiveWebSite.Lin
 /**
  * Moves values saved under an older schema onto this release's defaults, once.
  *
- * Up to 1.0.12, any change wrote every key with the defaults of the time, so a saved value does not
- * show what the person chose. Schema 2 therefore removes the Reddit NSFW unblur and the Reddit and
- * LinkedIn autoplay keys for everyone, which lets the new defaults (unblur off, tap to play) apply.
- * Choices made after this run are kept, because the version is already stamped.
+ * Because any edit writes every key with the defaults of the time, a saved value under an older
+ * schema does not show what the person chose. Each schema step therefore removes only the keys
+ * whose default changed in that release, letting the new defaults apply once while keeping every
+ * choice made afterward.
  */
 internal fun migrateWebPrivacyPrefs(prefs: SharedPreferences) {
-    if (prefs.getInt(KEY_WEB_PRIVACY_SCHEMA, 0) >= WEB_PRIVACY_SCHEMA_VERSION) return
+    val stored = prefs.getInt(KEY_WEB_PRIVACY_SCHEMA, 0)
+    if (stored >= WEB_PRIVACY_SCHEMA_VERSION) return
     prefs.edit(commit = true) {
-        remove(tweakKey(SiteTweak.RedditUnblurNsfw))
-        SCHEMA_2_AUTOPLAY_RESET.forEach { remove(autoplayKey(it)) }
+        if (stored < 2) {
+            remove(tweakKey(SiteTweak.RedditUnblurNsfw))
+            SCHEMA_2_AUTOPLAY_RESET.forEach { remove(autoplayKey(it)) }
+        }
+        if (stored < 3) {
+            remove(autoplayKey(LiveWebSite.X))
+        }
         putInt(KEY_WEB_PRIVACY_SCHEMA, WEB_PRIVACY_SCHEMA_VERSION)
     }
 }

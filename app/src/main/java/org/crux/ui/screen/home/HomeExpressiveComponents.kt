@@ -306,10 +306,36 @@ internal fun ExpressiveHomeDockTabs(
     smartReplyAction: (() -> Unit)? = null,
     bookmarkAction: (() -> Unit)? = null,
     onOpenBookmarks: (() -> Unit)? = null,
+    onCollapseDock: (() -> Unit)? = null,
 ) {
     val hapticFeedback = LocalHapticFeedback.current
+    val density = LocalDensity.current
+    val collapseThresholdPx = with(density) { 20.dp.toPx() }
+    val latestCollapse by rememberUpdatedState(onCollapseDock)
     Row(
-        modifier = modifier.fillMaxWidth(),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .then(
+                    if (onCollapseDock != null) {
+                        Modifier.pointerInput(collapseThresholdPx) {
+                            var dragged = 0f
+                            detectVerticalDragGestures(
+                                onDragStart = { dragged = 0f },
+                                onVerticalDrag = { change, dragAmount ->
+                                    dragged += dragAmount
+                                    if (dragged > 0f) change.consume()
+                                    if (dragged >= collapseThresholdPx) {
+                                        dragged = 0f
+                                        latestCollapse?.invoke()
+                                    }
+                                },
+                            )
+                        }
+                    } else {
+                        Modifier
+                    },
+                ),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         drawerButton()
@@ -341,9 +367,10 @@ internal fun ExpressiveHomeDockTabs(
                     .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
         )
         CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
-            // Both post actions show when a live tab offers both: saving never hides smart reply.
+            // Keep a consistent 2-slot trailing action area across all tabs so platform pills
+            // never shift horizontally when switching between X/LinkedIn/Reddit, Instagram, and RSS.
+            val openReadingListLabel = stringResource(R.string.live_web_open_reading_list)
             if (bookmarkAction != null) {
-                val openReadingListLabel = stringResource(R.string.live_web_open_reading_list)
                 Box(
                     modifier =
                         Modifier
@@ -367,6 +394,18 @@ internal fun ExpressiveHomeDockTabs(
                         modifier = Modifier.size(15.dp),
                     )
                 }
+            } else if (onOpenBookmarks != null) {
+                IconButton(
+                    onClick = onOpenBookmarks,
+                    modifier = Modifier.size(DOCK_ACTION_SIZE),
+                    shapes = IconButtonDefaults.shapes(),
+                ) {
+                    FAIcon(
+                        imageVector = FontAwesomeIcons.Solid.Bookmark,
+                        contentDescription = openReadingListLabel,
+                        modifier = Modifier.size(15.dp),
+                    )
+                }
             }
             if (smartReplyAction != null) {
                 IconButton(
@@ -380,8 +419,7 @@ internal fun ExpressiveHomeDockTabs(
                         modifier = Modifier.size(15.dp),
                     )
                 }
-            }
-            if (bookmarkAction == null && smartReplyAction == null) {
+            } else {
                 IconButton(
                     onClick = onEditTabs,
                     modifier = Modifier.size(DOCK_ACTION_SIZE),

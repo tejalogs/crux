@@ -84,7 +84,7 @@ internal data class SiteWebSettings(
          * Sites whose feed videos wait for a tap by default, so scrolling stays calm and light on
          * data. Only the default: a value the person saved for a site is read first and wins.
          */
-        private val TAP_TO_PLAY_BY_DEFAULT = setOf(LiveWebSite.Reddit, LiveWebSite.LinkedIn)
+        private val TAP_TO_PLAY_BY_DEFAULT = setOf(LiveWebSite.X, LiveWebSite.Reddit, LiveWebSite.LinkedIn)
 
         fun defaultsFor(site: LiveWebSite): SiteWebSettings =
             SiteWebSettings(
@@ -169,6 +169,7 @@ internal data class LiveWebConfig(
         listOfNotNull(
             buildSiteScript(site, tweaks, hideEngagementCounts, bridgeToken),
             gpcScript().takeIf { protection == ProtectionLevel.Strict && sendGpc },
+            tapToPlayScript().takeIf { blockAutoplay },
         )
 
     companion object {
@@ -181,6 +182,53 @@ internal fun gpcScript(): String =
     (function(){
       try{
         Object.defineProperty(Navigator.prototype,'globalPrivacyControl',{get:function(){return true},configurable:true});
+      }catch(e){}
+    })();
+    """.trimIndent()
+
+/**
+ * Blocks muted feed-video autoplay that Chromium still allows under mediaPlaybackRequiresUserGesture.
+ * Allows playback as soon as the user performs a real tap (not a scroll fling) or keypress.
+ */
+internal fun tapToPlayScript(): String =
+    """
+    (function(){
+      try{
+        var proto=window.HTMLMediaElement&&window.HTMLMediaElement.prototype;
+        if(!proto||typeof proto.play!=='function')return;
+        var origPlay=proto.play;
+        var allowed=new WeakSet();
+        var lastTap=0,tx=0,ty=0,moved=false;
+        var markTap=function(ev){if(ev&&ev.isTrusted)lastTap=Date.now();};
+        window.addEventListener('touchstart',function(ev){
+          var t=ev.touches&&ev.touches[0];
+          if(t){tx=t.clientX;ty=t.clientY;moved=false;}
+        },{capture:true,passive:true});
+        window.addEventListener('touchmove',function(ev){
+          if(moved)return;
+          var t=ev.touches&&ev.touches[0];
+          if(t&&(Math.abs(t.clientX-tx)>12||Math.abs(t.clientY-ty)>12)){moved=true;lastTap=0;}
+        },{capture:true,passive:true});
+        window.addEventListener('touchend',function(ev){if(!moved)markTap(ev);},{capture:true,passive:true});
+        window.addEventListener('click',markTap,{capture:true,passive:true});
+        window.addEventListener('keydown',markTap,{capture:true,passive:true});
+        proto.play=function(){
+          if(this&&this.tagName==='VIDEO'&&!allowed.has(this)){
+            if(Date.now()-lastTap<3000){
+              allowed.add(this);
+            }else{
+              try{this.autoplay=false;this.pause();}catch(e){}
+              return Promise.reject(new DOMException('Playback requires user interaction','NotAllowedError'));
+            }
+          }
+          return origPlay.apply(this,arguments);
+        };
+        document.addEventListener('play',function(ev){
+          var v=ev&&ev.target;
+          if(!v||v.tagName!=='VIDEO'||allowed.has(v))return;
+          if(Date.now()-lastTap<3000){allowed.add(v);return;}
+          try{v.autoplay=false;v.pause();}catch(e){}
+        },true);
       }catch(e){}
     })();
     """.trimIndent()

@@ -251,7 +251,7 @@ private val INSTAGRAM_PROFILE =
         postDetailPattern = IG_POST_DETAIL_PATTERN,
         baseRules =
             listOf(
-                "html,body{overflow-x:clip!important;max-width:100%!important;overscroll-behavior-x:none!important}",
+                "html,body{overflow-x:clip!important;max-width:100%!important;overscroll-behavior-x:none!important;-webkit-tap-highlight-color:transparent!important}",
                 "html,body,button,a,[role=\"button\"],input,textarea{touch-action:manipulation!important}",
                 // Lock Reels to vertical panning so tapping an expanded Reel caption and swiping up
                 // never shifts the viewport left into blank horizontal overflow space.
@@ -262,7 +262,6 @@ private val INSTAGRAM_PROFILE =
                 "html[${EngineMarks.reels}=\"1\"] span[dir=\"auto\"],html[${EngineMarks.reels}=\"1\"] h1,html[${EngineMarks.reels}=\"1\"] p{overflow-wrap:anywhere!important;max-width:100%!important}",
                 "div._aagw{pointer-events:none!important}",
                 "img{-webkit-user-select:auto!important;user-select:auto!important;pointer-events:auto!important}",
-                "*{-webkit-tap-highlight-color:transparent!important}",
                 "html,body{-webkit-font-smoothing:antialiased!important;-moz-osx-font-smoothing:grayscale!important}",
             ),
         // Runs once per document inside the engine, so its state lives in the engine's closure.
@@ -276,13 +275,11 @@ private val INSTAGRAM_PROFILE =
                 if(flag)document.documentElement.setAttribute('${EngineMarks.reels}',flag);
                 else document.documentElement.removeAttribute('${EngineMarks.reels}');
               }
-              if(on){
+              if(on&&(window.scrollX||0)!==0){
                 var se=document.scrollingElement||document.documentElement;
-                if((window.scrollX||0)!==0||(se&&se.scrollLeft!==0)||(document.body&&document.body.scrollLeft!==0)){
-                  if(se)se.scrollLeft=0;
-                  if(document.body)document.body.scrollLeft=0;
-                  try{window.scrollTo(0,window.scrollY||0);}catch(e){}
-                }
+                if(se)se.scrollLeft=0;
+                if(document.body)document.body.scrollLeft=0;
+                try{window.scrollTo(0,window.scrollY||0);}catch(e){}
               }
             };
             igSyncReel();
@@ -335,9 +332,8 @@ private val LINKEDIN_PROFILE =
             ".update-components-text,.feed-shared-text,[data-test-id=\"main-feed-activity-card__commentary\"],$LINKEDIN_MOBILE_POST_TEXT_SELECTOR",
         baseRules =
             listOf(
-                "html,body{overflow-x:clip!important;max-width:100%!important;overscroll-behavior-x:none!important}",
+                "html,body{overflow-x:clip!important;max-width:100%!important;overscroll-behavior-x:none!important;-webkit-tap-highlight-color:transparent!important}",
                 "html,body,button,a,[role=\"button\"],input,textarea{touch-action:manipulation!important}",
-                "*{-webkit-tap-highlight-color:transparent!important}",
                 "html,body{-webkit-font-smoothing:antialiased!important;-moz-osx-font-smoothing:grayscale!important}",
                 "div.feed-shared-update-v2:active{background-color:rgba(128,128,128,0.04)!important}",
                 "$LINKEDIN_MOBILE_POST_SELECTOR:active{background-color:rgba(128,128,128,0.04)!important}",
@@ -411,9 +407,8 @@ private val X_PROFILE =
         upsellKeepJs = X_UPSELL_KEEP_JS,
         baseRules =
             listOf(
-                "html,body{overflow-x:clip!important;max-width:100%!important;overscroll-behavior-x:none!important}",
-                "html,body,button,a,[role=\"button\"],input,textarea{touch-action:manipulation!important}",
-                "*{-webkit-tap-highlight-color:transparent!important}",
+                "html,body{overflow-x:clip!important;max-width:100%!important;overscroll-behavior-x:none!important;overflow-anchor:none!important}",
+                "html,body,button,a,[role=\"button\"],input,textarea{touch-action:manipulation!important;-webkit-tap-highlight-color:transparent!important}",
                 "html,body{-webkit-font-smoothing:antialiased!important;-moz-osx-font-smoothing:grayscale!important}",
             ),
     )
@@ -589,7 +584,7 @@ private val REDDIT_PROFILE =
             listOf(
                 // Keep document root scrolling on Chromium's compositor thread; setting overflow-y:auto
                 // on both html and body creates nested scroll containers and lags Reddit feed scrolling.
-                "html{overflow-x:clip!important}",
+                "html{overflow-x:clip!important;overscroll-behavior-x:none!important;-webkit-tap-highlight-color:transparent!important}",
                 "html,body,button,a,[role=\"button\"]{touch-action:manipulation!important}",
                 "shreddit-post{-webkit-tap-highlight-color:transparent!important}",
                 "[slot=\"post-media-container\"] .relative{height:100%!important}",
@@ -716,7 +711,18 @@ private const val IG_APP_PROMPT_JS =
         "if(d.querySelector('input,form,textarea'))return;" +
         "if(d.querySelector('a[href*=\"play.google.com\"],a[href*=\"apps.apple.com\"],a[href*=\"instagram://\"],a[href*=\"onelink.me\"]')){" +
         "d.style.setProperty('display','none','important');" +
-        "if(document.body)document.body.style.overflow='';}});"
+        "if(document.body)document.body.style.overflow='';}});" +
+        "if(!isAuthPage()){var igBs=keep.igPromptSeen||(keep.igPromptSeen=new WeakSet());" +
+        "document.querySelectorAll('a,button,[role=\"button\"]').forEach(function(b){" +
+        "if(igBs.has(b)||hiddenEls.has(b))return;" +
+        "var raw=b.textContent;if(!raw||raw.length>32){igBs.add(b);return;}" +
+        "var t=clean(raw);" +
+        "if(!t||t.length>24||!/^(Use the app|Open app|Open Instagram)$/i.test(t)){igBs.add(b);return;}" +
+        "var p=b.parentElement;" +
+        "for(var i=0;p&&i<4&&p!==document.body;i++){" +
+        "if((p.clientHeight||0)>96||p.querySelector('article,input,form,textarea,nav,[role=\"navigation\"]'))break;" +
+        "if(p.querySelectorAll('a,button,[role=\"button\"]').length<=2&&hide(p,false)){hiddenEls.add(p);hiddenEls.add(b);break;}" +
+        "p=p.parentElement;}});}"
 
 /** Appended to an Instagram selector: never a field, form or search box, nor anything holding one. */
 internal const val IG_NOT_A_FIELD: String =
@@ -944,7 +950,7 @@ internal val X_DISCOVER_MORE_JS =
         }else if(posts>1)break;
         if(!canHide(n,true))break;
         if(last.collapsed<$X_DISCOVER_MORE_MAX_COLLAPSED){
-          n.style.setProperty('display','none','important');
+          hide(n,true);
           last.collapsed++;
         }else{
           n.style.setProperty('visibility','hidden','important');
@@ -1114,7 +1120,10 @@ internal val SiteTweak.rule: TweakRule
                         listOf(
                             "[data-testid=\"spacesBar\"]",
                             "[data-testid=\"fleetline\"]",
+                            "[data-testid=\"AudioSpacePill\"]",
+                            "nav:has([data-testid=\"pill-contents-container\"])",
                             "[aria-label=\"Spaces\"]",
+                            "[aria-label*=\"Audio Space\"]",
                             "a[href^=\"/i/spaces/\"]",
                             "a[href*=\"/i/broadcasts/\"]",
                         ),
@@ -1535,14 +1544,18 @@ internal val SiteTweak.rule: TweakRule
                         });
                         // Reveal through attributes and inline styles only: no component property or
                         // method of Reddit's is written or called.
+                        var qRevSeen=keep.nsfwRevSeen||(keep.nsfwRevSeen=new WeakSet());
                         document.querySelectorAll('shreddit-post[nsfw],shreddit-post [slot="text-body"],shreddit-post-text-body,[data-post-click-location="text-body"]').forEach(function(p){
                           if(p.tagName==='SHREDDIT-POST'){
                             p.removeAttribute('nsfw');
                             p.removeAttribute('blurred');
                             p.removeAttribute('is-blurred');
                             p.removeAttribute('embed-obscured');
-                          }else if(p.hasAttribute&&p.hasAttribute('hidden')){
-                            p.removeAttribute('hidden');
+                          }else{
+                            var isHidden=p.hasAttribute&&p.hasAttribute('hidden');
+                            if(!isHidden&&qRevSeen.has(p)&&(!p.style||p.style.display!=='none'))return;
+                            if(isHidden)p.removeAttribute('hidden');
+                            qRevSeen.add(p);
                           }
                           if(p.style){
                             if(p.style.display==='none')p.style.display='';
@@ -1553,6 +1566,7 @@ internal val SiteTweak.rule: TweakRule
                           }
                         });
                         document.querySelectorAll('shreddit-blurred-container:not([reason="spoiler"])').forEach(function(p){
+                          if(p.getAttribute('${EngineMarks.unblurred}')==='1'&&p.getAttribute('mode')==='revealed'&&!p.hasAttribute('blurred')&&!p.hasAttribute('is-blurred'))return;
                           p.removeAttribute('nsfw');
                           p.removeAttribute('blurred');
                           p.removeAttribute('is-blurred');
@@ -1729,6 +1743,7 @@ private val ENGINE_JS =
       // feed scrolls main#workspace many levels above the post text), so the scroller is found on
       // the whole event path, through shadow roots, with no depth cap.
       var ptrScrollers=[],ptrKnown=[],ptrBase=null,ptrRaf=0;
+      var ptrNotMain=new WeakSet();
       var postPtr=function(allow){
         if(lastPtrState===allow)return;
         lastPtrState=allow;
@@ -1767,7 +1782,8 @@ private val ENGINE_JS =
         }catch(e){return false}
       };
       var ptrRemember=function(n){
-        if(ptrKnown.indexOf(n)>=0||!ptrIsMain(n))return;
+        if(ptrKnown.indexOf(n)>=0||ptrNotMain.has(n))return;
+        if(!ptrIsMain(n)){ptrNotMain.add(n);return;}
         ptrKnown=ptrKnown.concat([n]).slice(-6);
       };
       var ptrAtTop=function(){
@@ -1870,8 +1886,33 @@ private val ENGINE_JS =
       };
       // True only when the element was actually hidden; callers mark the element hidden only then, so a
       // refused element is looked at again on a later scan.
+      var collapseBox=function(el){
+        el.style.setProperty('height','1px','important');
+        el.style.setProperty('min-height','1px','important');
+        el.style.setProperty('max-height','1px','important');
+        el.style.setProperty('overflow','hidden','important');
+        el.style.setProperty('opacity','0','important');
+        el.style.setProperty('pointer-events','none','important');
+      };
       var hide=function(e,allowPost){
         if(!canHide(e,allowPost))return false;
+        if(isVirtualized&&cellSel&&e.matches&&e.matches(cellSel)){
+          // Never collapse a cell already above the viewport while scrolled down: shrinking height
+          // above scrollY shifts the post being read upward.
+          try{
+            if((window.scrollY||0)>40){
+              var cr=e.getBoundingClientRect();
+              if(cr.height>4&&cr.top<-4)return false;
+            }
+          }catch(x){}
+          collapseBox(e);
+          for(var k=0;k<e.children.length;k++){
+            var ch=e.children[k];
+            collapseBox(ch);
+            for(var g=0;g<ch.children.length;g++)ch.children[g].style.setProperty('display','none','important');
+          }
+          return true;
+        }
         e.style.setProperty('display','none','important');
         return true;
       };
@@ -1905,7 +1946,8 @@ private val ENGINE_JS =
         if(!prompts)return;
         root.querySelectorAll('button,a,[role=button]').forEach(function(b){
           if(checkedPrompts.has(b)||hiddenEls.has(b))return;
-          if(!prompts.test(clean(b.textContent))){checkedPrompts.add(b);return;}
+          var rawP=b.textContent;
+          if(!rawP||rawP.length>50||!prompts.test(clean(rawP))){checkedPrompts.add(b);return;}
           var done=false;
           var d=b.closest('[role=dialog]');
           if(inNotice(b,host,d)){done=hide(b,false)}
@@ -2061,8 +2103,8 @@ private val ENGINE_JS =
       nLater(scan,1500);
       var timer=0;
       // Scans wait until scrolling and typing pause, with a minimum gap so feeds scroll smoothly.
-      var SCROLL_IDLE_MS=isVirtualized?550:420;
-      var MIN_SCAN_GAP_MS=(hasShadowDom||isVirtualized)?650:350;
+      var SCROLL_IDLE_MS=isVirtualized?750:420;
+      var MIN_SCAN_GAP_MS=isVirtualized?1000:(hasShadowDom?550:350);
       var schedule=function(){
         if(timer)return;
         // A tab in the background does no work; one catch-up scan runs when it is shown again.
@@ -2154,8 +2196,22 @@ internal fun buildSiteScript(
     val metricRules = if (hideEngagementCounts) calmMetricsCss(site) else emptyList()
     val baseRules = if (site == LiveWebSite.X && rules.isEmpty() && metricRules.isEmpty()) emptyList() else profile.baseRules
     val css =
-        (baseRules + rules.flatMap { it.rawCss }.distinct() + (rules.flatMap { it.css } + metricRules).distinct().map { "$it{display:none!important}" })
-            .joinToString(" ")
+        (
+            baseRules +
+                rules.flatMap { it.rawCss }.distinct() +
+                (rules.flatMap { it.css } + metricRules).distinct().flatMap { selector ->
+                    if (site == LiveWebSite.X && profile.cellSelector != null && selector.startsWith(profile.cellSelector)) {
+                        val collapsed = "height:1px!important;min-height:1px!important;max-height:1px!important;overflow:hidden!important;opacity:0!important;pointer-events:none!important"
+                        listOf(
+                            "$selector{$collapsed}",
+                            "$selector > *{$collapsed}",
+                            "$selector > * > *{display:none!important}",
+                        )
+                    } else {
+                        listOf("$selector{display:none!important}")
+                    }
+                }
+        ).joinToString(" ")
     val postLabels = rules.flatMap { it.postLabels }.distinct()
     val headingLabels = rules.flatMap { it.headingLabels }.distinct()
     val tabLabels = rules.flatMap { it.tabLabels }.distinct()

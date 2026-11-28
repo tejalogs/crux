@@ -43,8 +43,8 @@ class LiveWebTweaksTest {
     }
 
     @Test
-    fun everySiteHasTweaksAndOnlyRedditAndLinkedInBlockAutoplayByDefault() {
-        val autoplayBlocked = setOf(LiveWebSite.Reddit, LiveWebSite.LinkedIn)
+    fun everySiteHasTweaksAndOnlyXRedditAndLinkedInBlockAutoplayByDefault() {
+        val autoplayBlocked = setOf(LiveWebSite.X, LiveWebSite.Reddit, LiveWebSite.LinkedIn)
         LiveWebSite.entries.forEach { site ->
             assertTrue("$site has no tweaks", SiteTweak.forSite(site).isNotEmpty())
             assertEquals("$site blockAutoplay default", site in autoplayBlocked, SiteWebSettings.defaultsFor(site).blockAutoplay)
@@ -404,7 +404,7 @@ class LiveWebTweaksTest {
         val x = base.configFor(LiveWebSite.X)
         assertEquals(x, base.configFor(LiveWebSite.X))
         assertNotEquals(x, base.updateSite(LiveWebSite.X) { it.withTweak(SiteTweak.XTrends, false) }.configFor(LiveWebSite.X))
-        assertNotEquals(x, base.updateSite(LiveWebSite.X) { it.withBlockAutoplay(true) }.configFor(LiveWebSite.X))
+        assertNotEquals(x, base.updateSite(LiveWebSite.X) { it.withBlockAutoplay(!it.blockAutoplay) }.configFor(LiveWebSite.X))
         assertNotEquals(x, base.copy(cleanOutgoingLinks = false).configFor(LiveWebSite.X))
         assertFalse(x.blocks(LiveWebSite.X, "doubleclick.net"))
     }
@@ -424,6 +424,18 @@ class LiveWebTweaksTest {
                 .configFor(LiveWebSite.Instagram)
                 .documentStartScripts(LiveWebSite.Instagram)
         assertTrue(strictInstagram.any { it.contains("globalPrivacyControl") })
+    }
+
+    @Test
+    fun tapToPlayScriptFollowsBlockAutoplaySetting() {
+        val xDefault = WebPrivacySettings.Default.configFor(LiveWebSite.X).documentStartScripts(LiveWebSite.X)
+        assertTrue(xDefault.any { it.contains("HTMLMediaElement") && it.contains("NotAllowedError") })
+        val xAutoplayAllowed =
+            WebPrivacySettings.Default
+                .updateSite(LiveWebSite.X) { it.withBlockAutoplay(false) }
+                .configFor(LiveWebSite.X)
+                .documentStartScripts(LiveWebSite.X)
+        assertFalse(xAutoplayAllowed.any { it.contains("HTMLMediaElement") })
     }
 
     @Test

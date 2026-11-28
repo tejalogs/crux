@@ -1,0 +1,4 @@
+Crux 1.0.16
+- X scroll stability & smoothness: fixed VirtualScroller jump-back on hidden ad/module cells, enabled Tap-to-play videos by default (blocking muted autoplay), and hid the live Spaces carousel
+- Floating dock polish: uniform 2-icon trailing bar so platform pills never shift across tabs, plus swipe-down on the dock to collapse it on demand
+- Instagram, LinkedIn & Reddit: hid Instagram's bottom app banner and cut redundant DOM/CSS work while scrolling

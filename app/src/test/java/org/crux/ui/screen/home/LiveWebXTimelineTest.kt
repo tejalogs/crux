@@ -73,6 +73,13 @@ class LiveWebXTimelineTest {
         assertEquals(listOf(X_IMPRESSION_PIXEL_CELL), SiteTweak.XPromoted.rule.css)
         assertTrue(X_IMPRESSION_PIXEL_CELL.contains(":has([data-testid=\"top-impression-pixel\"])"))
         assertTrue("the opened post's cell is left", X_IMPRESSION_PIXEL_CELL.endsWith(":not(:has(article[tabindex=\"-1\"]))"))
+        val js = requireNotNull(buildSiteScript(LiveWebSite.X, setOf(SiteTweak.XPromoted)))
+        assertTrue(
+            "virtualized X cells and their inner wrapper collapse to 1px with overflow-anchor:none to prevent VirtualScroller scroll jumps",
+            js.contains("overflow-anchor:none!important") &&
+                js.contains("> *{height:1px!important") &&
+                js.contains("> * > *{display:none!important}"),
+        )
     }
 
     @Test

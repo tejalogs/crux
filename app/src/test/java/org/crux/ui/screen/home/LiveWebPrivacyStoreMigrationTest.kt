@@ -41,14 +41,32 @@ class LiveWebPrivacyStoreMigrationTest {
     }
 
     @Test
-    fun settingsSavedBy1012GetNsfwOffAndTapToPlayOnRedditAndLinkedIn() {
+    fun settingsSavedBy1012GetNsfwOffAndTapToPlayOnXRedditAndLinkedIn() {
         writeAs1012()
 
         val settings = LiveWebPrivacyStore(prefs).settings.value
 
         assertFalse(settings.site(LiveWebSite.Reddit).isOn(SiteTweak.RedditUnblurNsfw))
+        assertTrue(settings.site(LiveWebSite.X).blockAutoplay)
         assertTrue(settings.site(LiveWebSite.Reddit).blockAutoplay)
         assertTrue(settings.site(LiveWebSite.LinkedIn).blockAutoplay)
+        assertEquals(WEB_PRIVACY_SCHEMA_VERSION, prefs.getInt(KEY_WEB_PRIVACY_SCHEMA, 0))
+    }
+
+    @Test
+    fun schema2UpgradeEnablesXTapToPlayWithoutTouchingRedditChoices() {
+        writeAs1012 {
+            putInt(KEY_WEB_PRIVACY_SCHEMA, 2)
+            putBoolean("tweak_v2.${SiteTweak.RedditUnblurNsfw.name}", true)
+            putBoolean("block_autoplay_v2.${LiveWebSite.Reddit.name}", false)
+            putBoolean("block_autoplay_v2.${LiveWebSite.X.name}", false)
+        }
+
+        val settings = LiveWebPrivacyStore(prefs).settings.value
+
+        assertTrue(settings.site(LiveWebSite.X).blockAutoplay)
+        assertTrue(settings.site(LiveWebSite.Reddit).isOn(SiteTweak.RedditUnblurNsfw))
+        assertFalse(settings.site(LiveWebSite.Reddit).blockAutoplay)
         assertEquals(WEB_PRIVACY_SCHEMA_VERSION, prefs.getInt(KEY_WEB_PRIVACY_SCHEMA, 0))
     }
 

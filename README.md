@@ -12,7 +12,7 @@
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-AGPL%20v3-blue.svg" alt="License: AGPL v3" /></a>
   <img src="https://img.shields.io/badge/Platform-Android%208.0+-3DDC84?logo=android&logoColor=white" alt="Android 8.0+" />
-  <a href="https://github.com/tejalogs/crux/releases/latest"><img src="https://img.shields.io/badge/Release-v1.0.15-7952b3?logo=github&logoColor=white" alt="Latest Release" /></a>
+  <a href="https://github.com/tejalogs/crux/releases/latest"><img src="https://img.shields.io/badge/Release-v1.0.16-7952b3?logo=github&logoColor=white" alt="Latest Release" /></a>
   <a href="https://github.com/tejalogs/crux/releases/latest"><img src="https://img.shields.io/badge/Download-APK-brightgreen?logo=android&logoColor=white" alt="Download APK" /></a>
   <img src="https://img.shields.io/badge/Crux%20telemetry-none-success" alt="No Crux telemetry" />
 </p>
@@ -36,7 +36,7 @@
 - **🧘 Privacy & Focus Tweaks**
   Page tweaks built into each tab. Most only hide things on screen; on Reddit they also remove the `inert`, `aria-hidden` and NSFW-blur attributes that lock the page. The injected scripts run in the page, so the site's own JavaScript can see them:
   - Hide distracting feeds (Instagram Reels/Explore, X "Who to follow" & Trends, Reddit app-install banners, LinkedIn sponsored ads).
-  - Tap-to-play video, available in every tab and on by default for Reddit and LinkedIn.
+  - Tap-to-play video, available in every tab and on by default for X, Reddit and LinkedIn.
   - Per-site data purge button to wipe cookies and storage for any individual platform instantly.
   - Optional Global Privacy Control (GPC) signal, off by default and only on sites set to Strict. It is the `navigator.globalPrivacyControl` JavaScript property, not a `Sec-GPC` request header.
   - Automatic tracking parameter stripping (`utm_*`, `fbclid`, etc.) on links that leave a tab.
@@ -60,7 +60,7 @@ Crux supports **Android 8.0 (API 26)** and newer.
 
 ### Official Downloads
 Directly download the signed APK:
-👉 **[Download Crux v1.0.15 APK](https://github.com/tejalogs/crux/releases/tag/v1.0.15)** (65.3 MB)
+👉 **[Download Crux v1.0.16 APK](https://github.com/tejalogs/crux/releases/tag/v1.0.16)** (65.3 MB)
 
 Verify a download: every release ships a `SHA256SUMS` file and a GitHub build-provenance attestation, and the APK is signed with this certificate:
 `SHA-256 57:2E:CC:66:D3:0C:C3:56:F7:AF:0A:BE:5B:9B:D9:18:3E:F4:17:B4:1E:D1:9B:18:AF:7D:E6:9F:4D:98:1C:7C`
